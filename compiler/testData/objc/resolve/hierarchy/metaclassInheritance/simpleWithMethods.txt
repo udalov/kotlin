@@ -1,12 +1,12 @@
 package objc
 
 public trait <metaclass-for-Base> : objc.<metaclass-for-NSObject> {
-    public open fun baseMethod() : jet.Unit
+    public open fun baseMethod(): jet.Unit
 }
 
 public trait <metaclass-for-Derived> : objc.<metaclass-for-Base> {
-    public open override /*1*/ /*fake_override*/ fun baseMethod() : jet.Unit
-    public open fun derivedMethod() : jet.Unit
+    public open override /*1*/ /*fake_override*/ fun baseMethod(): jet.Unit
+    public open fun derivedMethod(): jet.Unit
 }
 
 public trait <metaclass-for-NSObject> {
@@ -15,15 +15,15 @@ public trait <metaclass-for-NSObject> {
 public open class Base : objc.NSObject {
     
     public class object <class-object-for-Base> : jet.objc.ObjCClass, objc.<metaclass-for-Base>, objc.NSObject {
-        public open override /*1*/ /*fake_override*/ fun baseMethod() : jet.Unit
+        public open override /*1*/ /*fake_override*/ fun baseMethod(): jet.Unit
     }
 }
 
 public open class Derived : objc.Base {
     
     public class object <class-object-for-Derived> : jet.objc.ObjCClass, objc.<metaclass-for-Derived>, objc.NSObject {
-        public open override /*1*/ /*fake_override*/ fun baseMethod() : jet.Unit
-        public open override /*1*/ /*fake_override*/ fun derivedMethod() : jet.Unit
+        public open override /*1*/ /*fake_override*/ fun baseMethod(): jet.Unit
+        public open override /*1*/ /*fake_override*/ fun derivedMethod(): jet.Unit
     }
 }
 

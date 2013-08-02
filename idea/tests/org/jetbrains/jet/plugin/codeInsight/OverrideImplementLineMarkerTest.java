@@ -18,41 +18,55 @@ package org.jetbrains.jet.plugin.codeInsight;
 
 import com.intellij.codeInsight.daemon.LineMarkerInfo;
 import com.intellij.codeInsight.daemon.impl.DaemonCodeAnalyzerImpl;
-import com.intellij.openapi.editor.Editor;
+import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.project.Project;
-import com.intellij.testFramework.fixtures.LightCodeInsightFixtureTestCase;
+import com.intellij.psi.PsiDocumentManager;
+import com.intellij.testFramework.ExpectedHighlightingData;
+import org.jetbrains.jet.plugin.JetLightCodeInsightFixtureTestCase;
 import org.jetbrains.jet.plugin.PluginTestCaseBase;
 
 import java.util.List;
 
-public class OverrideImplementLineMarkerTest extends LightCodeInsightFixtureTestCase {
-
+public class OverrideImplementLineMarkerTest extends JetLightCodeInsightFixtureTestCase {
     @Override
     protected String getBasePath() {
         return PluginTestCaseBase.TEST_DATA_PROJECT_RELATIVE + "/codeInsight/lineMarker";
     }
 
     public void testTrait() throws Throwable {
-        doSimpleTest(2);
+        doTest();
     }
 
     public void testClass() throws Throwable {
-        doSimpleTest(2);
+        doTest();
     }
 
-    private void doSimpleTest(int count) throws Throwable {
-        myFixture.configureByFile(getTestName(false) + ".kt");
-        doTest(count);
+    public void testOverrideFunction() throws Throwable {
+        doTest();
     }
 
-    private void doTest(int count) {
-        Editor editor = myFixture.getEditor();
-        Project project = myFixture.getProject();
+    public void testPropertyOverride() throws Throwable {
+        doTest();
+    }
 
-        myFixture.doHighlighting();
+    private void doTest() {
+        try {
+            myFixture.configureByFile(fileName());
+            Project project = myFixture.getProject();
+            Document document = myFixture.getEditor().getDocument();
 
-        List<LineMarkerInfo> infoList = DaemonCodeAnalyzerImpl.getLineMarkers(editor.getDocument(), project);
-        assertNotNull(infoList);
-        assertEquals(count, infoList.size());
+            ExpectedHighlightingData data = new ExpectedHighlightingData(document, false, false, false, myFixture.getFile());
+            data.init();
+
+            PsiDocumentManager.getInstance(project).commitAllDocuments();
+
+            myFixture.doHighlighting();
+
+            List<LineMarkerInfo> markers = DaemonCodeAnalyzerImpl.getLineMarkers(document, project);
+            data.checkLineMarkers(markers, document.getText());
+        }
+        catch (Exception exc) {
+            throw new RuntimeException(exc);
+        }
     }
 }

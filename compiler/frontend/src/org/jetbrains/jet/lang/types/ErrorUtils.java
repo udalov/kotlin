@@ -45,6 +45,30 @@ public class ErrorUtils {
         ERROR_MODULE = module;
     }
 
+    public static boolean containsErrorType(@NotNull FunctionDescriptor function) {
+        if (containsErrorType(function.getReturnType())) {
+            return true;
+        }
+        ReceiverParameterDescriptor receiverParameter = function.getReceiverParameter();
+        if (receiverParameter != null && containsErrorType(receiverParameter.getType())) {
+            return true;
+        }
+        for (ValueParameterDescriptor parameter : function.getValueParameters()) {
+            if (containsErrorType(parameter.getType())) {
+                return true;
+            }
+        }
+        for (TypeParameterDescriptor parameter : function.getTypeParameters()) {
+            for (JetType upperBound : parameter.getUpperBounds()) {
+                if (containsErrorType(upperBound)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
 
     public static class ErrorScope implements JetScope {
 
@@ -126,6 +150,102 @@ public class ErrorUtils {
         public Collection<DeclarationDescriptor> getOwnDeclaredDescriptors() {
             return Collections.emptyList();
         }
+
+        @Override
+        public String toString() {
+            return "ErrorScope{" + debugMessage + '}';
+        }
+    }
+
+    private static class ThrowingScope implements JetScope {
+        private final String debugMessage;
+
+        private ThrowingScope(String message) {
+            debugMessage = message;
+        }
+
+        @Nullable
+        @Override
+        public ClassifierDescriptor getClassifier(@NotNull Name name) {
+            throw new IllegalStateException();
+        }
+
+        @Nullable
+        @Override
+        public ClassDescriptor getObjectDescriptor(@NotNull Name name) {
+            throw new IllegalStateException();
+        }
+
+        @NotNull
+        @Override
+        public Collection<ClassDescriptor> getObjectDescriptors() {
+            throw new IllegalStateException();
+        }
+
+        @Nullable
+        @Override
+        public NamespaceDescriptor getNamespace(@NotNull Name name) {
+            throw new IllegalStateException();
+        }
+
+        @NotNull
+        @Override
+        public Collection<VariableDescriptor> getProperties(@NotNull Name name) {
+            throw new IllegalStateException();
+        }
+
+        @Nullable
+        @Override
+        public VariableDescriptor getLocalVariable(@NotNull Name name) {
+            throw new IllegalStateException();
+        }
+
+        @NotNull
+        @Override
+        public Collection<FunctionDescriptor> getFunctions(@NotNull Name name) {
+            throw new IllegalStateException();
+        }
+
+        @NotNull
+        @Override
+        public DeclarationDescriptor getContainingDeclaration() {
+            return ERROR_MODULE;
+        }
+
+        @NotNull
+        @Override
+        public Collection<DeclarationDescriptor> getDeclarationsByLabel(@NotNull LabelName labelName) {
+            throw new IllegalStateException();
+        }
+
+        @Nullable
+        @Override
+        public PropertyDescriptor getPropertyByFieldReference(@NotNull Name fieldName) {
+            throw new IllegalStateException();
+        }
+
+        @NotNull
+        @Override
+        public Collection<DeclarationDescriptor> getAllDescriptors() {
+            throw new IllegalStateException();
+        }
+
+        @NotNull
+        @Override
+        public List<ReceiverParameterDescriptor> getImplicitReceiversHierarchy() {
+            throw new IllegalStateException();
+        }
+
+        @NotNull
+        @Override
+        public Collection<DeclarationDescriptor> getOwnDeclaredDescriptors() {
+            throw new IllegalStateException();
+        }
+
+        @Override
+        public String toString() {
+            return "ThrowingScope{" + debugMessage + '}';
+        }
     }
 
     private static final ClassDescriptorImpl ERROR_CLASS = new ClassDescriptorImpl(ERROR_MODULE, Collections.<AnnotationDescriptor>emptyList(), Modality.OPEN, Name.special("<ERROR CLASS>")) {
@@ -158,6 +278,13 @@ public class ErrorUtils {
     }
 
     public static JetScope createErrorScope(String debugMessage) {
+        return createErrorScope(debugMessage, false);
+    }
+
+    public static JetScope createErrorScope(String debugMessage, boolean throwExceptions) {
+        if (throwExceptions) {
+            return new ThrowingScope(debugMessage);
+        }
         return new ErrorScope(debugMessage);
     }
 

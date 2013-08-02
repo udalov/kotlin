@@ -90,8 +90,7 @@ public class RemovePartsFromPropertyFix extends JetIntentionAction<JetProperty> 
     }
 
     @Override
-    public void invoke(@NotNull Project project, Editor editor, PsiFile file) throws IncorrectOperationException {
-        if (!(file instanceof JetFile)) return;
+    public void invoke(@NotNull Project project, Editor editor, JetFile file) throws IncorrectOperationException {
         JetType type = QuickFixUtil.getDeclarationReturnType(element);
         JetProperty newElement = (JetProperty) element.copy();
         JetPropertyAccessor getter = newElement.getGetter();
@@ -121,8 +120,8 @@ public class RemovePartsFromPropertyFix extends JetIntentionAction<JetProperty> 
         }
     }
 
-    public static JetIntentionActionFactory createFactory() {
-        return new JetIntentionActionFactory() {
+    public static JetSingleIntentionActionFactory createFactory() {
+        return new JetSingleIntentionActionFactory() {
             @Override
             public JetIntentionAction<JetProperty> createAction(Diagnostic diagnostic) {
                 PsiElement element = diagnostic.getPsiElement();

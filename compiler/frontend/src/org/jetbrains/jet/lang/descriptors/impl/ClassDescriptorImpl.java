@@ -73,7 +73,7 @@ public class ClassDescriptorImpl extends DeclarationDescriptorNonRootImpl implem
             @Nullable ConstructorDescriptor primaryConstructor,
             boolean isInner
     ) {
-        this.typeConstructor = new TypeConstructorImpl(this, getAnnotations(), sealed, getName().getName(), typeParameters, supertypes);
+        this.typeConstructor = new TypeConstructorImpl(this, getAnnotations(), sealed, getName().asString(), typeParameters, supertypes);
         this.memberDeclarations = memberDeclarations;
         this.constructors = constructors;
         this.primaryConstructor = primaryConstructor;
@@ -139,11 +139,6 @@ public class ClassDescriptorImpl extends DeclarationDescriptorNonRootImpl implem
     @Override
     public ClassKind getKind() {
         return kind;
-    }
-
-    @Override
-    public boolean isClassObjectAValue() {
-        return true;
     }
 
     @Override

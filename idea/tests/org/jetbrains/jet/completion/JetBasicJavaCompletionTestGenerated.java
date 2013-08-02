@@ -79,6 +79,11 @@ public class JetBasicJavaCompletionTestGenerated extends AbstractJavaCompletionT
             doTest("idea/testData/completion/basic/common/CallLocalLambda.kt");
         }
         
+        @TestMetadata("classObjectElementsInClass.kt")
+        public void testClassObjectElementsInClass() throws Exception {
+            doTest("idea/testData/completion/basic/common/classObjectElementsInClass.kt");
+        }
+        
         @TestMetadata("ClassRedeclaration1.kt")
         public void testClassRedeclaration1() throws Exception {
             doTest("idea/testData/completion/basic/common/ClassRedeclaration1.kt");
@@ -99,6 +104,11 @@ public class JetBasicJavaCompletionTestGenerated extends AbstractJavaCompletionT
             doTest("idea/testData/completion/basic/common/DoNotCompleteForErrorReceivers.kt");
         }
         
+        @TestMetadata("DoNotCompleteForErrorReceiversForce.kt")
+        public void testDoNotCompleteForErrorReceiversForce() throws Exception {
+            doTest("idea/testData/completion/basic/common/DoNotCompleteForErrorReceiversForce.kt");
+        }
+        
         @TestMetadata("ExtendClassName.kt")
         public void testExtendClassName() throws Exception {
             doTest("idea/testData/completion/basic/common/ExtendClassName.kt");
@@ -117,6 +127,16 @@ public class JetBasicJavaCompletionTestGenerated extends AbstractJavaCompletionT
         @TestMetadata("ExtensionFunReceiver.kt")
         public void testExtensionFunReceiver() throws Exception {
             doTest("idea/testData/completion/basic/common/ExtensionFunReceiver.kt");
+        }
+        
+        @TestMetadata("ExtensionFunReceiverForce.kt")
+        public void testExtensionFunReceiverForce() throws Exception {
+            doTest("idea/testData/completion/basic/common/ExtensionFunReceiverForce.kt");
+        }
+        
+        @TestMetadata("ExtensionInsideFunction.kt")
+        public void testExtensionInsideFunction() throws Exception {
+            doTest("idea/testData/completion/basic/common/ExtensionInsideFunction.kt");
         }
         
         @TestMetadata("ExtensionWithAdditionalTypeParameters.kt")
@@ -242,6 +262,16 @@ public class JetBasicJavaCompletionTestGenerated extends AbstractJavaCompletionT
         @TestMetadata("InPackageBegin.kt")
         public void testInPackageBegin() throws Exception {
             doTest("idea/testData/completion/basic/common/InPackageBegin.kt");
+        }
+        
+        @TestMetadata("InParametersTypes.kt")
+        public void testInParametersTypes() throws Exception {
+            doTest("idea/testData/completion/basic/common/InParametersTypes.kt");
+        }
+        
+        @TestMetadata("InParametersTypesForce.kt")
+        public void testInParametersTypesForce() throws Exception {
+            doTest("idea/testData/completion/basic/common/InParametersTypesForce.kt");
         }
         
         @TestMetadata("InTypeAnnotation.kt")
@@ -416,6 +446,11 @@ public class JetBasicJavaCompletionTestGenerated extends AbstractJavaCompletionT
             JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), "org.jetbrains.jet.generators.tests.GenerateTests", new File("idea/testData/completion/basic/java"), Pattern.compile("^(.+)\\.kt$"), true);
         }
         
+        @TestMetadata("AutoForceCompletion.kt")
+        public void testAutoForceCompletion() throws Exception {
+            doTest("idea/testData/completion/basic/java/AutoForceCompletion.kt");
+        }
+        
         @TestMetadata("ExtensionFromStandardLibrary.kt")
         public void testExtensionFromStandardLibrary() throws Exception {
             doTest("idea/testData/completion/basic/java/ExtensionFromStandardLibrary.kt");
@@ -439,6 +474,11 @@ public class JetBasicJavaCompletionTestGenerated extends AbstractJavaCompletionT
         @TestMetadata("NoImportedJavaClassDuplication.kt")
         public void testNoImportedJavaClassDuplication() throws Exception {
             doTest("idea/testData/completion/basic/java/NoImportedJavaClassDuplication.kt");
+        }
+        
+        @TestMetadata("PropertyMetadata.kt")
+        public void testPropertyMetadata() throws Exception {
+            doTest("idea/testData/completion/basic/java/PropertyMetadata.kt");
         }
         
         @TestMetadata("TopLevelFromStandardLibrary.kt")

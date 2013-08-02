@@ -24,14 +24,13 @@ import org.jetbrains.jet.codegen.ScriptCodegen;
 import org.jetbrains.jet.codegen.intrinsics.IntrinsicMethods;
 import org.jetbrains.jet.codegen.state.GenerationState;
 import org.jetbrains.jet.codegen.state.JetTypeMapper;
-import org.jetbrains.jet.di.DependencyInjectorGenerator;
-import org.jetbrains.jet.di.GivenExpression;
-import org.jetbrains.jet.di.InjectorForTopDownAnalyzer;
+import org.jetbrains.jet.di.*;
 import org.jetbrains.jet.lang.descriptors.ModuleDescriptor;
 import org.jetbrains.jet.lang.descriptors.ModuleDescriptorImpl;
 import org.jetbrains.jet.lang.psi.JetImportsFactory;
 import org.jetbrains.jet.lang.resolve.*;
 import org.jetbrains.jet.lang.resolve.calls.CallResolver;
+import org.jetbrains.jet.lang.resolve.calls.NeedSyntheticCallResolverExtension;
 import org.jetbrains.jet.lang.resolve.java.*;
 import org.jetbrains.jet.lang.resolve.lazy.ResolveSession;
 import org.jetbrains.jet.lang.resolve.lazy.ScopeProvider;
@@ -76,6 +75,7 @@ public class GenerateInjectors {
         generator.addPublicField(AnnotationResolver.class);
         generator.addPublicField(QualifiedExpressionResolver.class);
         generator.addPublicField(JetImportsFactory.class);
+        generator.addField(NeedSyntheticCallResolverExtension.class);
         generator.generate("compiler/frontend/src", "org.jetbrains.jet.di", "InjectorForLazyResolve", GenerateInjectors.class);
     }
 
@@ -146,6 +146,7 @@ public class GenerateInjectors {
         generator.addPublicField(ControlFlowAnalyzer.class);
         generator.addPublicField(DeclarationsChecker.class);
         generator.addPublicField(DescriptorResolver.class);
+        generator.addField(NeedSyntheticCallResolverExtension.class);
 
         // Parameters
         generator.addPublicParameter(Project.class);
@@ -159,6 +160,7 @@ public class GenerateInjectors {
 
         // Fields
         generator.addPublicField(ExpressionTypingServices.class);
+        generator.addField(NeedSyntheticCallResolverExtension.class);
 
         // Parameters
         generator.addPublicParameter(Project.class);
@@ -175,6 +177,7 @@ public class GenerateInjectors {
         generator.addPublicField(ExpressionTypingServices.class);
         generator.addPublicField(TypeResolver.class);
         generator.addPublicField(CallResolver.class);
+        generator.addField(NeedSyntheticCallResolverExtension.class);
         generator.addField(true, KotlinBuiltIns.class, null, new GivenExpression("KotlinBuiltIns.getInstance()"));
 
         // Parameters
@@ -234,6 +237,7 @@ public class GenerateInjectors {
         DependencyInjectorGenerator generator = new DependencyInjectorGenerator();
         // Fields
         generator.addPublicField(BodyResolver.class);
+        generator.addField(NeedSyntheticCallResolverExtension.class);
 
         // Parameters
         generator.addPublicParameter(Project.class);

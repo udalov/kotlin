@@ -20,7 +20,8 @@ import com.intellij.openapi.util.io.FileUtil;
 import com.intellij.util.containers.ContainerUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.jet.compiler.runner.KotlinModuleScriptGenerator;
+import org.jetbrains.jet.compiler.runner.KotlinModuleDescriptionGenerator;
+import org.jetbrains.jet.compiler.runner.KotlinModuleXmlGenerator;
 import org.jetbrains.jps.builders.java.JavaSourceRootDescriptor;
 import org.jetbrains.jps.incremental.CompileContext;
 import org.jetbrains.jps.incremental.ModuleBuildTarget;
@@ -32,7 +33,10 @@ import org.jetbrains.jps.model.java.JpsJavaDependenciesEnumerator;
 import org.jetbrains.jps.model.java.JpsJavaExtensionService;
 import org.jetbrains.jps.model.library.JpsLibrary;
 import org.jetbrains.jps.model.library.JpsLibraryRoot;
-import org.jetbrains.jps.model.module.*;
+import org.jetbrains.jps.model.module.JpsDependencyElement;
+import org.jetbrains.jps.model.module.JpsLibraryDependency;
+import org.jetbrains.jps.model.module.JpsModule;
+import org.jetbrains.jps.model.module.JpsSdkDependency;
 import org.jetbrains.jps.util.JpsPathUtil;
 
 import java.io.File;
@@ -41,13 +45,16 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
-import static org.jetbrains.jet.compiler.runner.KotlinModuleScriptGenerator.DependencyProvider;
+import static org.jetbrains.jet.compiler.runner.KotlinModuleDescriptionGenerator.DependencyProvider;
 
 public class KotlinBuilderModuleScriptGenerator {
-    public static File generateModuleScript(CompileContext context, ModuleBuildTarget target, List<File> sourceFiles)
+
+    public static final KotlinModuleDescriptionGenerator GENERATOR = KotlinModuleXmlGenerator.INSTANCE;
+
+    public static File generateModuleDescription(CompileContext context, ModuleBuildTarget target, List<File> sourceFiles)
             throws IOException
     {
-        CharSequence moduleScriptText = KotlinModuleScriptGenerator.generateModuleScript(
+        CharSequence moduleScriptText = GENERATOR.generateModuleScript(
                 target.getId(),
                 getKotlinModuleDependencies(context, target),
                 sourceFiles,
@@ -56,7 +63,7 @@ public class KotlinBuilderModuleScriptGenerator {
                 Collections.singleton(target.getOutputDir())
         );
 
-        File scriptFile = new File(target.getOutputDir(), "script.kts");
+        File scriptFile = new File(target.getOutputDir(), "script." + GENERATOR.getFileExtension());
 
         writeScriptToFile(context, moduleScriptText, scriptFile);
 
@@ -66,7 +73,7 @@ public class KotlinBuilderModuleScriptGenerator {
     private static DependencyProvider getKotlinModuleDependencies(final CompileContext context, final ModuleBuildTarget target) {
         return new DependencyProvider() {
             @Override
-            public void processClassPath(@NotNull KotlinModuleScriptGenerator.DependencyProcessor processor) {
+            public void processClassPath(@NotNull KotlinModuleDescriptionGenerator.DependencyProcessor processor) {
                 processor.processClassPathSection("Classpath", findClassPathRoots(target));
                 processor.processClassPathSection("Java Source Roots", findSourceRoots(context, target));
                 processor.processAnnotationRoots(findAnnotationRoots(target));
@@ -120,6 +127,16 @@ public class KotlinBuilderModuleScriptGenerator {
                 File file = new File(JpsPathUtil.urlToPath(root.getUrl()));
 
                 annotationRootFiles.add(file);
+            }
+        }
+
+        // JDK is stored locally on user's machine, so its configuration, including external annotation paths
+        // is not available on TeamCity. When running on TeamCity, one has to provide extra path to JDK annotations
+        String extraAnnotationsPaths = System.getProperty("jps.kotlin.extra.annotation.paths");
+        if (extraAnnotationsPaths != null) {
+            String[] paths = extraAnnotationsPaths.split(";");
+            for (String path : paths) {
+                annotationRootFiles.add(new File(path));
             }
         }
 

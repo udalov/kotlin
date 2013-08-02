@@ -7,12 +7,12 @@ public trait <metaclass-for-NSObject> {
 }
 
 public open class A : objc.NSObject {
-    public open fun idWithInt(/*0*/ intArg : jet.Int, /*1*/ charArg : jet.Char) : jet.objc.ObjCObject
-    public open fun intNoArgs() : jet.Int
-    public open fun intWithInt(/*0*/ intArg : jet.Int) : jet.Int
-    public open fun voidNoArgs() : jet.Unit
-    public open fun voidWithID(/*0*/ idArg : jet.objc.ObjCObject, /*1*/ charArg : jet.Char) : jet.Unit
-    public open fun voidWithInt(/*0*/ intArg : jet.Int) : jet.Unit
+    public open fun idWithInt(/*0*/ intArg: jet.Int, /*1*/ charArg: jet.Char): jet.objc.ObjCObject
+    public open fun intNoArgs(): jet.Int
+    public open fun intWithInt(/*0*/ intArg: jet.Int): jet.Int
+    public open fun voidNoArgs(): jet.Unit
+    public open fun voidWithID(/*0*/ idArg: jet.objc.ObjCObject, /*1*/ charArg: jet.Char): jet.Unit
+    public open fun voidWithInt(/*0*/ intArg: jet.Int): jet.Unit
     
     public class object <class-object-for-A> : jet.objc.ObjCClass, objc.<metaclass-for-A>, objc.NSObject {
     }

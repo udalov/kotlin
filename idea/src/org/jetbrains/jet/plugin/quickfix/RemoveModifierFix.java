@@ -21,16 +21,12 @@ import com.intellij.lang.ASTNode;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.project.Project;
 import com.intellij.psi.PsiElement;
-import com.intellij.psi.PsiFile;
 import com.intellij.psi.tree.IElementType;
 import com.intellij.util.IncorrectOperationException;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.diagnostics.Diagnostic;
-import org.jetbrains.jet.lang.psi.JetModifierList;
-import org.jetbrains.jet.lang.psi.JetModifierListOwner;
-import org.jetbrains.jet.lang.psi.JetTypeParameter;
-import org.jetbrains.jet.lang.psi.JetTypeProjection;
+import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.types.Variance;
 import org.jetbrains.jet.lexer.JetKeywordToken;
 import org.jetbrains.jet.lexer.JetToken;
@@ -97,18 +93,18 @@ public class RemoveModifierFix extends JetIntentionAction<JetModifierListOwner> 
     }
 
     @Override
-    public void invoke(@NotNull Project project, Editor editor, PsiFile file) throws IncorrectOperationException {
+    public void invoke(@NotNull Project project, Editor editor, JetFile file) throws IncorrectOperationException {
         JetModifierListOwner newElement = (JetModifierListOwner) element.copy();
         element.replace(removeModifier(newElement, modifier));
     }
 
 
-    public static JetIntentionActionFactory createRemoveModifierFromListOwnerFactory(JetKeywordToken modifier) {
+    public static JetSingleIntentionActionFactory createRemoveModifierFromListOwnerFactory(JetKeywordToken modifier) {
         return createRemoveModifierFromListOwnerFactory(modifier, false);
     }
 
-    public static JetIntentionActionFactory createRemoveModifierFromListOwnerFactory(final JetKeywordToken modifier, final boolean isRedundant) {
-        return new JetIntentionActionFactory() {
+    public static JetSingleIntentionActionFactory createRemoveModifierFromListOwnerFactory(final JetKeywordToken modifier, final boolean isRedundant) {
+        return new JetSingleIntentionActionFactory() {
             @Nullable
             @Override
             public JetIntentionAction<JetModifierListOwner> createAction(Diagnostic diagnostic) {
@@ -119,12 +115,12 @@ public class RemoveModifierFix extends JetIntentionAction<JetModifierListOwner> 
         };
     }
 
-    public static JetIntentionActionFactory createRemoveModifierFactory() {
+    public static JetSingleIntentionActionFactory createRemoveModifierFactory() {
         return createRemoveModifierFactory(false);
     }
 
-    public static JetIntentionActionFactory createRemoveModifierFactory(final boolean isRedundant) {
-        return new JetIntentionActionFactory() {
+    public static JetSingleIntentionActionFactory createRemoveModifierFactory(final boolean isRedundant) {
+        return new JetSingleIntentionActionFactory() {
             @Nullable
             @Override
             public JetIntentionAction<JetModifierListOwner> createAction(Diagnostic diagnostic) {
@@ -139,8 +135,8 @@ public class RemoveModifierFix extends JetIntentionAction<JetModifierListOwner> 
         };
     }
 
-    public static JetIntentionActionFactory createRemoveProjectionFactory(final boolean isRedundant) {
-        return new JetIntentionActionFactory() {
+    public static JetSingleIntentionActionFactory createRemoveProjectionFactory(final boolean isRedundant) {
+        return new JetSingleIntentionActionFactory() {
             @Nullable
             @Override
             public JetIntentionAction<JetModifierListOwner> createAction(Diagnostic diagnostic) {
@@ -156,8 +152,8 @@ public class RemoveModifierFix extends JetIntentionAction<JetModifierListOwner> 
         };
     }
 
-    public static JetIntentionActionFactory createRemoveVarianceFactory() {
-        return new JetIntentionActionFactory() {
+    public static JetSingleIntentionActionFactory createRemoveVarianceFactory() {
+        return new JetSingleIntentionActionFactory() {
             @Nullable
             @Override
             public JetIntentionAction<JetModifierListOwner> createAction(Diagnostic diagnostic) {

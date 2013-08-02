@@ -10,7 +10,7 @@ public trait <metaclass-for-P> {
 }
 
 public open class A : objc.NSObject, objc.P {
-    public open override /*1*/ /*fake_override*/ fun protocolMethod() : jet.Unit
+    public open override /*1*/ /*fake_override*/ fun protocolMethod(): jet.Unit
     
     public class object <class-object-for-A> : jet.objc.ObjCClass, objc.<metaclass-for-A>, objc.NSObject {
     }
@@ -23,5 +23,5 @@ public open class NSObject : jet.objc.ObjCObject {
 }
 
 public trait P {
-    public open fun protocolMethod() : jet.Unit
+    public open fun protocolMethod(): jet.Unit
 }

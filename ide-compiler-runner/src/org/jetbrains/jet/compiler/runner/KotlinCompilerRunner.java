@@ -29,6 +29,7 @@ import com.intellij.util.SystemProperties;
 import org.jetbrains.jet.cli.common.messages.CompilerMessageLocation;
 import org.jetbrains.jet.cli.common.messages.CompilerMessageSeverity;
 import org.jetbrains.jet.cli.common.messages.MessageCollector;
+import org.jetbrains.jet.cli.common.messages.MessageCollectorUtil;
 
 import java.io.File;
 import java.io.IOException;
@@ -74,13 +75,14 @@ public class KotlinCompilerRunner {
             messageCollector.report(CompilerMessageSeverity.INFO,
                                "Invoking in-process compiler " + compilerClassName + " with arguments " + Arrays.asList(arguments),
                                CompilerMessageLocation.NO_LOCATION);
-            Object rc = CompilerRunnerUtil.invokeExecMethod(environment, out, messageCollector, arguments, compilerClassName);
+            Object rc = CompilerRunnerUtil.invokeExecMethod(compilerClassName, arguments, environment,
+                                                            messageCollector, out, /*usePreloader=*/true);
             // exec() returns a K2JVMCompiler.ExitCode object, that class is not accessible here,
             // so we take it's contents through reflection
             return CompilerRunnerUtil.getReturnCodeFromObject(rc);
         }
         catch (Throwable e) {
-            CompilerOutputParser.reportException(messageCollector, e);
+            MessageCollectorUtil.reportException(messageCollector, e);
             return -1;
         }
     }

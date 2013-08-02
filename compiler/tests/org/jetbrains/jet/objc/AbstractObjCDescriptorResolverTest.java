@@ -36,7 +36,7 @@ import java.util.Collections;
 import static org.jetbrains.jet.objc.ObjCTestUtil.createEnvironment;
 import static org.jetbrains.jet.objc.ObjCTestUtil.extractObjCNamespaceFromAnalyzeExhaust;
 import static org.jetbrains.jet.test.util.NamespaceComparator.DONT_INCLUDE_METHODS_OF_OBJECT;
-import static org.jetbrains.jet.test.util.NamespaceComparator.compareNamespaceWithFile;
+import static org.jetbrains.jet.test.util.NamespaceComparator.validateAndCompareNamespaceWithFile;
 
 public abstract class AbstractObjCDescriptorResolverTest extends TestCaseWithTmpdir {
     public void doTest(@NotNull String header) {
@@ -57,6 +57,6 @@ public abstract class AbstractObjCDescriptorResolverTest extends TestCaseWithTmp
 
         NamespaceDescriptor descriptor = extractObjCNamespaceFromAnalyzeExhaust(analyzeExhaust);
 
-        compareNamespaceWithFile(descriptor, DONT_INCLUDE_METHODS_OF_OBJECT, expected);
+        validateAndCompareNamespaceWithFile(descriptor, DONT_INCLUDE_METHODS_OF_OBJECT, expected);
     }
 }

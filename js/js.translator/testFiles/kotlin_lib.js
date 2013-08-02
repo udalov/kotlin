@@ -36,8 +36,8 @@ var kotlin = {set:function (receiver, key, value) {
 
 (function () {
     Kotlin.equals = function (obj1, obj2) {
-        if (obj1 === null || obj1 === undefined) {
-            return obj2 === null;
+        if (obj1 == null) {
+            return obj2 == null;
         }
 
         if (obj1 instanceof Array) {
@@ -75,6 +75,7 @@ var kotlin = {set:function (receiver, key, value) {
 
     Kotlin.Exception = Kotlin.$createClass();
     Kotlin.RuntimeException = Kotlin.$createClass(Kotlin.Exception);
+    Kotlin.IndexOutOfBounds = Kotlin.$createClass(Kotlin.Exception);
     Kotlin.NullPointerException = Kotlin.$createClass(Kotlin.Exception);
     Kotlin.NoSuchElementException = Kotlin.$createClass(Kotlin.Exception);
     Kotlin.IllegalArgumentException = Kotlin.$createClass(Kotlin.Exception);
@@ -115,9 +116,6 @@ var kotlin = {set:function (receiver, key, value) {
         next: function () {
             return this.array[this.index++];
         },
-        get_hasNext: function () {
-            return this.index < this.size;
-        },
         hasNext: function () {
             return this.index < this.size;
         }
@@ -131,42 +129,33 @@ var kotlin = {set:function (receiver, key, value) {
         },
         next: function () {
             return this.list.get(this.index++);
-        },
-        get_hasNext: function () {
-            return this.index < this.size;
         }
     });
 
     Kotlin.Collection = Kotlin.$createClass();
 
-    Kotlin.AbstractList = Kotlin.$createClass(Kotlin.Collection, {
-        iterator: function () {
-            return Kotlin.$new(ListIterator)(this);
-        },
-        isEmpty: function () {
-            return this.size() === 0;
+    Kotlin.AbstractCollection = Kotlin.$createClass(Kotlin.Collection, {
+        size: function () {
+            return this.$size;
         },
         addAll: function (collection) {
             var it = collection.iterator();
-            var i = this.$size;
+            var i = this.size();
             while (i-- > 0) {
                 this.add(it.next());
             }
         },
-        remove: function (o) {
-            var index = this.indexOf(o);
-            if (index !== -1) {
-                this.removeAt(index);
-            }
+        isEmpty: function () {
+            return this.size() === 0;
         },
-        contains: function (o) {
-            return this.indexOf(o) !== -1;
+        iterator: function () {
+            return Kotlin.$new(ArrayIterator)(this.toArray());
         },
         equals: function (o) {
-            if (this.$size === o.$size) {
+            if (this.size() === o.size()) {
                 var iterator1 = this.iterator();
                 var iterator2 = o.iterator();
-                var i = this.$size;
+                var i = this.size();
                 while (i-- > 0) {
                     if (!Kotlin.equals(iterator1.next(), iterator2.next())) {
                         return false;
@@ -197,6 +186,21 @@ var kotlin = {set:function (receiver, key, value) {
         }
     });
 
+    Kotlin.AbstractList = Kotlin.$createClass(Kotlin.AbstractCollection, {
+        iterator: function () {
+            return Kotlin.$new(ListIterator)(this);
+        },
+        remove: function (o) {
+            var index = this.indexOf(o);
+            if (index !== -1) {
+                this.removeAt(index);
+            }
+        },
+        contains: function (o) {
+            return this.indexOf(o) !== -1;
+        }
+    });
+
     //TODO: should be JS Array-like (https://developer.mozilla.org/en-US/docs/JavaScript/Guide/Predefined_Core_Objects#Working_with_Array-like_objects)
     Kotlin.ArrayList = Kotlin.$createClass(Kotlin.AbstractList, {
         initialize: function () {
@@ -210,9 +214,6 @@ var kotlin = {set:function (receiver, key, value) {
         set: function (index, value) {
             this.checkRange(index);
             this.array[index] = value;
-        },
-        toArray: function () {
-            return this.array.slice(0, this.$size);
         },
         size: function () {
             return this.$size;
@@ -251,6 +252,9 @@ var kotlin = {set:function (receiver, key, value) {
                 }
             }
             return -1;
+        },
+        toArray: function () {
+            return this.array.slice(0, this.$size);
         },
         toString: function () {
             return "[" + this.array.join(", ") + "]";
@@ -369,8 +373,8 @@ var kotlin = {set:function (receiver, key, value) {
             this.set_i(this.$i + this.$increment);
             return value;
         },
-        get_hasNext: function () {
-            return this.$increment > 0 ? this.$next <= this.$end : this.$next >= this.$end;
+        hasNext: function () {
+            return this.get_count() > 0;
         }
     });
 
@@ -439,7 +443,7 @@ var kotlin = {set:function (receiver, key, value) {
             throw Kotlin.Exception();
         }
         var max = it.next();
-        while (it.get_hasNext()) {
+        while (it.hasNext()) {
             var el = it.next();
             if (comp.compare(max, el) < 0) {
                 max = el;
@@ -565,52 +569,9 @@ var kotlin = {set:function (receiver, key, value) {
     Kotlin.sure = function (obj) {
         return obj;
     };
-
-    // native concat doesn't work for arguments
-    Kotlin.concat = function (a, b) {
-        var r = new Array(a.length + b.length);
-        var i = 0;
-        var n = a.length;
-        for (; i < n; i++) {
-            r[i] = a[i];
-        }
-        n = b.length;
-        for (var j = 0; j < n;) {
-            r[i++] = b[j++];
-        }
-        return r;
-    }
 })();
 
 Kotlin.assignOwner = function(f, o) {
   f.o = o;
   return f;
-};
-
-// we cannot use Function.bind, because if we bind with null self, but call with not null — fun must receive passed not null self
-// test case: WebDemoExamples2Test.testBuilder
-Kotlin.b0 = function (f, self, value) {
-    return function () {
-        return f.call(self !== null ? self : this, value);
-    }
-};
-Kotlin.b1 = function (f, self, values) {
-    return function () {
-        return f.apply(self !== null ? self : this, values);
-    }
-};
-Kotlin.b2 = function (f, self, values) {
-    return function () {
-        return f.apply(self !== null ? self : this, Kotlin.concat(values, arguments));
-    }
-};
-Kotlin.b3 = function (f, self) {
-    return function () {
-        return f.call(self)
-    }
-};
-Kotlin.b4 = function (f, self) {
-    return function () {
-        return f.apply(self, Kotlin.argumentsToArrayLike(arguments));
-    }
 };

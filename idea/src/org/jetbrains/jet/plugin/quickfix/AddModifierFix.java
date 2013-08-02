@@ -20,7 +20,6 @@ import com.intellij.codeInsight.intention.IntentionAction;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.project.Project;
 import com.intellij.psi.PsiElement;
-import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiNameIdentifierOwner;
 import com.intellij.util.IncorrectOperationException;
 import org.jetbrains.annotations.NotNull;
@@ -81,21 +80,36 @@ public class AddModifierFix extends JetIntentionAction<JetModifierListOwner> {
     }
 
     @Override
-    public void invoke(@NotNull Project project, Editor editor, PsiFile file) throws IncorrectOperationException {
+    public void invoke(@NotNull Project project, Editor editor, JetFile file) throws IncorrectOperationException {
         element.replace(addModifier(element, modifier, modifiersThanCanBeReplaced, project, false));
     }
 
     @NotNull
     /*package*/ static JetModifierListOwner addModifier(@NotNull PsiElement element, @NotNull JetKeywordToken modifier, @Nullable JetToken[] modifiersThatCanBeReplaced, @NotNull Project project, boolean toBeginning) {
         JetModifierListOwner newElement = (JetModifierListOwner) (element.copy());
+        changeModifier(newElement, newElement.getModifierList(), newElement.getFirstChild(),
+                       modifiersThatCanBeReplaced, project, toBeginning, JetPsiFactory.createModifierList(project, modifier));
+        return newElement;
+    }
 
-        JetModifierList modifierList = newElement.getModifierList();
-        JetModifierList listWithModifier = JetPsiFactory.createModifier(project, modifier);
+    public static void changeModifier(
+            PsiElement element, @Nullable JetModifierList modifierList, @Nullable PsiElement insertAnchor,
+            JetToken[] modifiersThatCanBeReplaced, Project project, boolean toBeginning, JetModifierList listWithModifier
+    ) {
         PsiElement whiteSpace = JetPsiFactory.createWhiteSpace(project);
         if (modifierList == null) {
-            PsiElement firstChild = newElement.getFirstChild();
-            newElement.addBefore(listWithModifier, firstChild);
-            newElement.addBefore(whiteSpace, firstChild);
+            if (listWithModifier != null) {
+                if (insertAnchor != null) {
+                    listWithModifier = (JetModifierList) element.addBefore(listWithModifier, insertAnchor);
+                    element.addBefore(whiteSpace, insertAnchor);
+                    element.addBefore(whiteSpace, listWithModifier);
+                }
+                else {
+                    PsiElement firstChild = element.getFirstChild();
+                    element.addBefore(listWithModifier, firstChild);
+                    element.addBefore(whiteSpace, firstChild);
+                }
+            }
         }
         else {
             boolean replaced = false;
@@ -106,7 +120,7 @@ public class AddModifierFix extends JetIntentionAction<JetModifierListOwner> {
                     if (modifierList.hasModifier(modifierThatCanBeReplaced)) {
                         PsiElement modifierElement = modifierList.getModifierNode(modifierThatCanBeReplaced).getPsi();
                         assert modifierElement != null;
-                        if (!replaced) {
+                        if (!replaced && listWithModifier != null) {
                             toBeReplaced = modifierElement;
                             toReplace = listWithModifier.getFirstChild();
                             //modifierElement.replace(listWithModifier.getFirstChild());
@@ -121,7 +135,7 @@ public class AddModifierFix extends JetIntentionAction<JetModifierListOwner> {
                     toBeReplaced.replace(toReplace);
                 }
             }
-            if (!replaced) {
+            if (!replaced && listWithModifier != null) {
                 if (toBeginning) {
                     PsiElement firstChild = modifierList.getFirstChild();
                     modifierList.addBefore(listWithModifier.getFirstChild(), firstChild);
@@ -134,7 +148,6 @@ public class AddModifierFix extends JetIntentionAction<JetModifierListOwner> {
                 }
             }
         }
-        return newElement;
     }
 
     @NotNull
@@ -147,8 +160,8 @@ public class AddModifierFix extends JetIntentionAction<JetModifierListOwner> {
         return true;
     }
 
-    public static <T extends JetModifierListOwner> JetIntentionActionFactory createFactory(final JetKeywordToken modifier, final Class<T> modifierOwnerClass) {
-        return new JetIntentionActionFactory() {
+    public static <T extends JetModifierListOwner> JetSingleIntentionActionFactory createFactory(final JetKeywordToken modifier, final Class<T> modifierOwnerClass) {
+        return new JetSingleIntentionActionFactory() {
             @Override
             public IntentionAction createAction(Diagnostic diagnostic) {
                 JetModifierListOwner modifierListOwner = QuickFixUtil.getParentElementOfType(diagnostic, modifierOwnerClass);
@@ -158,7 +171,7 @@ public class AddModifierFix extends JetIntentionAction<JetModifierListOwner> {
         };
     }
 
-    public static JetIntentionActionFactory createFactory(JetKeywordToken modifier) {
+    public static JetSingleIntentionActionFactory createFactory(JetKeywordToken modifier) {
         return createFactory(modifier, JetModifierListOwner.class);
     }
 

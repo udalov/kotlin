@@ -195,7 +195,7 @@ public class ObjCClassCodegen {
                 @Override
                 public void generate(@NotNull InstructionAdapter v) {
                     v.load(0, asmType);
-                    v.visitLdcInsn(descriptor.getContainingDeclaration().getName().getName());
+                    v.visitLdcInsn(descriptor.getContainingDeclaration().getName().asString());
                     v.invokestatic(NATIVE, "objc_getClass", getMethodDescriptor(LONG_TYPE, JL_STRING_TYPE));
                     v.invokespecial(superClassAsmType.getInternalName(), "<init>", objcObjectConstructor);
                     v.areturn(VOID_TYPE);
@@ -223,7 +223,7 @@ public class ObjCClassCodegen {
             return;
         }
 
-        if ("finalize".equals(method.getName().getName()) && method.getValueParameters().isEmpty()) {
+        if ("finalize".equals(method.getName().asString()) && method.getValueParameters().isEmpty()) {
             // Generating -[NSObject finalize] will mess with the semantics of the method with the same name in JVM.
             // In particular, when a JVM object is GC'd and finalize is called, it'll call Objective-C's finalize,
             // which is a bad thing to do and will break on Objective-C libraries compiled without GC support (-fno-objc-gc)

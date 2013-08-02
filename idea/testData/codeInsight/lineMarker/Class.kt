@@ -1,9 +1,9 @@
-open class A {
-  open fun a(){
+open class <lineMarker></lineMarker>A {
+  open fun <lineMarker></lineMarker>a(){
   }
 }
 
 class B:A(){
-  override fun a(){
+  override fun <lineMarker></lineMarker>a(){
   }
 }

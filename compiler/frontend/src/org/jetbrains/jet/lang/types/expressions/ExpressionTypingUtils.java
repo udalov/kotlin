@@ -205,14 +205,6 @@ public class ExpressionTypingUtils {
             }
         }
     }
-    
-    @NotNull
-    public static JetExpression createStubExpressionOfNecessaryType(@NotNull Project project, @NotNull JetType type, @NotNull BindingTrace trace) {
-        JetExpression expression = JetPsiFactory.createExpression(project, "$e");
-        trace.record(PROCESSED, expression);
-        trace.record(EXPRESSION_TYPE, expression, type);
-        return expression;
-    }
 
     public static boolean isVariableIterable(@NotNull ExpressionTypingServices expressionTypingServices,
             @NotNull Project project, @NotNull VariableDescriptor variableDescriptor, @NotNull JetScope scope) {
@@ -245,7 +237,7 @@ public class ExpressionTypingUtils {
             @NotNull JetScope scope,
             @NotNull ModuleDescriptor module
     ) {
-        JetImportDirective importDirective = JetPsiFactory.createImportDirective(project, callableFQN.getFqName());
+        JetImportDirective importDirective = JetPsiFactory.createImportDirective(project, callableFQN.asString());
 
         Collection<? extends DeclarationDescriptor> declarationDescriptors = new QualifiedExpressionResolver()
                 .analyseImportReference(importDirective, scope, new BindingTraceContext(), module);
@@ -339,15 +331,26 @@ public class ExpressionTypingUtils {
             @NotNull Name name,
             @NotNull JetType... argumentTypes
     ) {
-        TemporaryBindingTrace traceWithFakeArgumentInfo = TemporaryBindingTrace.create(context.trace, "trace to store fake argument for", name);
-        int index = 0;
+        TemporaryBindingTrace traceWithFakeArgumentInfo = TemporaryBindingTrace.create(context.trace, "trace to store fake argument for",
+                                                                                       name);
         List<JetExpression> fakeArguments = Lists.newArrayList();
         for (JetType type : argumentTypes) {
-            JetReferenceExpression fakeArgument = JetPsiFactory.createSimpleName(context.expressionTypingServices.getProject(), "fakeArgument" + index++);
-            fakeArguments.add(fakeArgument);
-            traceWithFakeArgumentInfo.record(EXPRESSION_TYPE, fakeArgument, type);
+            fakeArguments.add(createFakeExpressionOfType(context.expressionTypingServices.getProject(), traceWithFakeArgumentInfo,
+                                                         "fakeArgument" + fakeArguments.size(), type));
         }
         return makeAndResolveFakeCall(receiver, context.replaceBindingTrace(traceWithFakeArgumentInfo), fakeArguments, name).getSecond();
+    }
+
+    public static JetExpression createFakeExpressionOfType(
+            @NotNull Project project,
+            @NotNull BindingTrace trace,
+            @NotNull String argumentName,
+            @NotNull JetType argumentType
+    ) {
+        JetExpression fakeExpression = JetPsiFactory.createExpression(project, argumentName);
+        trace.record(EXPRESSION_TYPE, fakeExpression, argumentType);
+        trace.record(PROCESSED, fakeExpression);
+        return fakeExpression;
     }
 
     @NotNull
@@ -414,13 +417,13 @@ public class ExpressionTypingUtils {
                 context.trace.report(COMPONENT_FUNCTION_AMBIGUITY.on(reportErrorsOn, componentName, results.getResultingCalls()));
             }
             else {
-                context.trace.report(COMPONENT_FUNCTION_MISSING.on(reportErrorsOn, componentName));
+                context.trace.report(COMPONENT_FUNCTION_MISSING.on(reportErrorsOn, componentName, receiver.getType()));
             }
             if (componentType == null) {
                 componentType = ErrorUtils.createErrorType(componentName + "() return type");
             }
             VariableDescriptor variableDescriptor = context.expressionTypingServices.getDescriptorResolver().
-                resolveLocalVariableDescriptorWithType(writableScope.getContainingDeclaration(), entry, componentType, context.trace);
+                resolveLocalVariableDescriptorWithType(writableScope, entry, componentType, context.trace);
 
             VariableDescriptor olderVariable = writableScope.getLocalVariable(variableDescriptor.getName());
             checkVariableShadowing(context, variableDescriptor, olderVariable);
@@ -433,7 +436,7 @@ public class ExpressionTypingUtils {
         if (oldDescriptor != null && DescriptorUtils.isLocal(variableDescriptor.getContainingDeclaration(), oldDescriptor)) {
             PsiElement declaration = BindingContextUtils.descriptorToDeclaration(context.trace.getBindingContext(), variableDescriptor);
             if (declaration != null) {
-                context.trace.report(Errors.NAME_SHADOWING.on(declaration, variableDescriptor.getName().getName()));
+                context.trace.report(Errors.NAME_SHADOWING.on(declaration, variableDescriptor.getName().asString()));
             }
         }
     }

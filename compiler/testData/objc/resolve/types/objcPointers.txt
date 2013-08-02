@@ -10,9 +10,9 @@ public trait <metaclass-for-NSObject> {
 }
 
 public open class A : objc.NSObject {
-    public open fun a() : objc.A
-    public open fun aWithB(/*0*/ b : objc.B) : objc.A
-    public open fun b() : objc.B
+    public open fun a(): objc.A
+    public open fun aWithB(/*0*/ b: objc.B): objc.A
+    public open fun b(): objc.B
     
     public class object <class-object-for-A> : jet.objc.ObjCClass, objc.<metaclass-for-A>, objc.NSObject {
     }

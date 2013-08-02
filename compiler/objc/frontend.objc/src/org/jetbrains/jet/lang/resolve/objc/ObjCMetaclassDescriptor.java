@@ -44,6 +44,6 @@ public class ObjCMetaclassDescriptor extends ObjCClassDescriptor {
 
     @NotNull
     public static Name getMetaclassName(@NotNull Name className) {
-        return Name.special("<metaclass-for-" + className.getName() + ">");
+        return Name.special("<metaclass-for-" + className + ">");
     }
 }

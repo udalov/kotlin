@@ -16,21 +16,12 @@
 
 package org.jetbrains.jet.plugin.navigation;
 
-import com.intellij.testFramework.LightProjectDescriptor;
-import com.intellij.testFramework.fixtures.LightCodeInsightFixtureTestCase;
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.jet.plugin.JetLightProjectDescriptor;
+import org.jetbrains.jet.plugin.JetLightCodeInsightFixtureTestCase;
 import org.jetbrains.jet.plugin.PluginTestCaseBase;
 
 import java.io.File;
 
-public class JetGotoSymbolTest extends LightCodeInsightFixtureTestCase {
-    @NotNull
-    @Override
-    protected LightProjectDescriptor getProjectDescriptor() {
-        return JetLightProjectDescriptor.INSTANCE;
-    }
-
+public class JetGotoSymbolTest extends JetLightCodeInsightFixtureTestCase {
     public void testProperties() {
         doTest();
     }
@@ -45,9 +36,12 @@ public class JetGotoSymbolTest extends LightCodeInsightFixtureTestCase {
     }
 
     protected void doTest() {
-        String fileName = getTestName(true) + ".kt";
-        myFixture.configureByFile(fileName);
-
+        myFixture.configureByFile(fileName());
         NavigationTestUtils.assertGotoSymbol(getProject(), myFixture.getEditor());
+    }
+
+    @Override
+    protected String fileName() {
+        return getTestName(true) + ".kt";
     }
 }

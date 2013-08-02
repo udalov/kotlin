@@ -69,7 +69,7 @@ public class MakeOverriddenMemberOpenFix extends JetIntentionAction<JetDeclarati
                 if (overriddenMember == null || !QuickFixUtil.canModifyElement(overriddenMember)) {
                     return false;
                 }
-                String containingDeclarationName = overriddenDescriptor.getContainingDeclaration().getName().getName();
+                String containingDeclarationName = overriddenDescriptor.getContainingDeclaration().getName().asString();
                 overriddenMembers.add(overriddenMember);
                 containingDeclarationsNames.add(containingDeclarationName);
             }
@@ -103,15 +103,15 @@ public class MakeOverriddenMemberOpenFix extends JetIntentionAction<JetDeclarati
     }
 
     @Override
-    public void invoke(@NotNull Project project, Editor editor, PsiFile file) throws IncorrectOperationException {
+    public void invoke(@NotNull Project project, Editor editor, JetFile file) throws IncorrectOperationException {
         for (PsiElement overriddenMember : overriddenMembers) {
             overriddenMember.replace(AddModifierFix.addModifierWithDefaultReplacement(overriddenMember, OPEN_KEYWORD, project, false));
         }
     }
 
     @NotNull
-    public static JetIntentionActionFactory createFactory() {
-        return new JetIntentionActionFactory() {
+    public static JetSingleIntentionActionFactory createFactory() {
+        return new JetSingleIntentionActionFactory() {
             @Nullable
             @Override
             public IntentionAction createAction(Diagnostic diagnostic) {

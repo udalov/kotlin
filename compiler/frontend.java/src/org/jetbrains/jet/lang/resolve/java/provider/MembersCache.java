@@ -16,9 +16,15 @@
 
 package org.jetbrains.jet.lang.resolve.java.provider;
 
+import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Multimap;
+import com.intellij.openapi.util.Ref;
 import com.intellij.psi.*;
+import com.intellij.psi.util.MethodSignature;
+import com.intellij.psi.util.MethodSignatureBackedByPsiMethod;
 import com.intellij.psi.util.PsiFormatUtil;
+import com.intellij.util.ArrayUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.resolve.java.*;
@@ -27,27 +33,32 @@ import org.jetbrains.jet.lang.resolve.java.prop.PropertyNameUtils;
 import org.jetbrains.jet.lang.resolve.java.prop.PropertyParseResult;
 import org.jetbrains.jet.lang.resolve.java.wrapper.*;
 import org.jetbrains.jet.lang.resolve.name.Name;
+import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.intellij.psi.util.MethodSignatureUtil.areSignaturesErasureEqual;
 import static com.intellij.psi.util.PsiFormatUtilBase.*;
 
 public final class MembersCache {
     private static final ImmutableSet<String> OBJECT_METHODS = ImmutableSet.of("hashCode()", "equals(java.lang.Object)", "toString()");
 
-    @NotNull
+    private final Multimap<Name, Runnable> memberProcessingTasks = HashMultimap.create();
     private final Map<Name, NamedMembers> namedMembersMap = new HashMap<Name, NamedMembers>();
 
     @Nullable
     public NamedMembers get(@NotNull Name name) {
+        runTasksByName(name);
         return namedMembersMap.get(name);
     }
 
     @NotNull
     public Collection<NamedMembers> allMembers() {
+        runAllTasks();
+        memberProcessingTasks.clear();
         return namedMembersMap.values();
     }
 
@@ -59,6 +70,33 @@ public final class MembersCache {
             namedMembersMap.put(name, r);
         }
         return r;
+    }
+
+    private void addTask(@NotNull PsiMember member, @NotNull RunOnce task) {
+        addTask(member.getName(), task);
+    }
+
+    private void addTask(@Nullable String name, @NotNull RunOnce task) {
+        if (name == null) {
+            return;
+        }
+        memberProcessingTasks.put(Name.identifier(name), task);
+    }
+
+    private void runTasksByName(Name name) {
+        if (!memberProcessingTasks.containsKey(name)) return;
+        Collection<Runnable> tasks = memberProcessingTasks.get(name);
+        for (Runnable task : tasks) {
+            task.run();
+        }
+        // Delete tasks
+        tasks.clear();
+    }
+
+    private void runAllTasks() {
+        for (Runnable task : memberProcessingTasks.values()) {
+            task.run();
+        }
     }
 
     @NotNull
@@ -94,7 +132,7 @@ public final class MembersCache {
                     if (JetClassAnnotation.get(psiClass).kind() == JvmStdlibNames.FLAG_CLASS_KIND_OBJECT) {
                         processObjectClass(psiClass);
                     }
-                    if (!DescriptorResolverUtils.isKotlinClass(psiClass) && isSamInterface(psiClass)) {
+                    if (isSamInterface(psiClass)) {
                         processSamInterface(psiClass);
                     }
                 }
@@ -135,6 +173,68 @@ public final class MembersCache {
             processNestedClasses();
         }
 
+        private void processFields() {
+            // Hack to load static members for enum class loaded from class file
+            if (kotlin && !psiClass.getPsiClass().isEnum()) {
+                return;
+            }
+            for (final PsiField field : psiClass.getPsiClass().getAllFields()) {
+                addTask(field, new RunOnce() {
+                    @Override
+                    public void doRun() {
+                        processField(field);
+                    }
+                });
+            }
+        }
+
+        private void processMethods() {
+            parseAllMethodsAsProperties();
+            processOwnMethods();
+        }
+
+        private void processOwnMethods() {
+            for (final PsiMethod method : psiClass.getPsiClass().getMethods()) {
+                RunOnce task = new RunOnce() {
+                    @Override
+                    public void doRun() {
+                        processOwnMethod(method);
+                    }
+                };
+                addTask(method, task);
+
+                PropertyParseResult propertyParseResult = PropertyNameUtils.parseMethodToProperty(method.getName());
+                if (propertyParseResult != null) {
+                    addTask(propertyParseResult.getPropertyName(), task);
+                }
+            }
+        }
+
+        private void parseAllMethodsAsProperties() {
+            for (PsiMethod method : psiClass.getPsiClass().getAllMethods()) {
+                createEmptyEntry(Name.identifier(method.getName()));
+
+                PropertyParseResult propertyParseResult = PropertyNameUtils.parseMethodToProperty(method.getName());
+                if (propertyParseResult != null) {
+                    createEmptyEntry(Name.identifier(propertyParseResult.getPropertyName()));
+                }
+            }
+        }
+
+        private void processNestedClasses() {
+            if (!staticMembers) {
+                return;
+            }
+            for (final PsiClass nested : psiClass.getPsiClass().getInnerClasses()) {
+                addTask(nested, new RunOnce() {
+                    @Override
+                    public void doRun() {
+                        processNestedClass(nested);
+                    }
+                });
+            }
+        }
+
         private boolean includeMember(PsiMemberWrapper member) {
             if (psiClass.getPsiClass().isEnum() && staticMembers) {
                 return member.isStatic();
@@ -161,53 +261,40 @@ public final class MembersCache {
             return true;
         }
 
-        private void processFields() {
-            // Hack to load static members for enum class loaded from class file
-            if (kotlin && !psiClass.getPsiClass().isEnum()) {
+        private void processField(PsiField field) {
+            PsiFieldWrapper fieldWrapper = new PsiFieldWrapper(field);
+
+            // group must be created even for excluded field
+            NamedMembers namedMembers = getOrCreateEmpty(Name.identifier(fieldWrapper.getName()));
+
+            if (!includeMember(fieldWrapper)) {
                 return;
             }
-            for (PsiField field : psiClass.getPsiClass().getAllFields()) {
-                PsiFieldWrapper fieldWrapper = new PsiFieldWrapper(field);
 
-                // group must be created even for excluded field
-                NamedMembers namedMembers = getOrCreateEmpty(Name.identifier(fieldWrapper.getName()));
+            TypeSource type = new TypeSource("", fieldWrapper.getType(), field);
+            namedMembers.addPropertyAccessor(new PropertyPsiDataElement(fieldWrapper, type, null));
+        }
 
-                if (!includeMember(fieldWrapper)) {
-                    continue;
-                }
+        private void processOwnMethod(PsiMethod ownMethod) {
+            PsiMethodWrapper method = new PsiMethodWrapper(ownMethod);
 
-                TypeSource type = new TypeSource("", fieldWrapper.getType(), field);
-                namedMembers.addPropertyAccessor(new PropertyPsiDataElement(fieldWrapper, type, null));
+            if (!includeMember(method)) {
+                return;
             }
-        }
 
-        private void processMethods() {
-            parseAllMethodsAsProperties();
-            processOwnMethods();
-        }
+            PropertyParseResult propertyParseResult = PropertyNameUtils.parseMethodToProperty(method.getName());
 
-        private void processOwnMethods() {
-            for (PsiMethod ownMethod : psiClass.getPsiClass().getMethods()) {
-                PsiMethodWrapper method = new PsiMethodWrapper(ownMethod);
+            // TODO: remove getJavaClass
+            if (propertyParseResult != null && propertyParseResult.isGetter()) {
+                processGetter(ownMethod, method, propertyParseResult);
+            }
+            else if (propertyParseResult != null && !propertyParseResult.isGetter()) {
+                processSetter(method, propertyParseResult);
+            }
 
-                if (!includeMember(method)) {
-                    continue;
-                }
-
-                PropertyParseResult propertyParseResult = PropertyNameUtils.parseMethodToProperty(method.getName());
-
-                // TODO: remove getJavaClass
-                if (propertyParseResult != null && propertyParseResult.isGetter()) {
-                    processGetter(ownMethod, method, propertyParseResult);
-                }
-                else if (propertyParseResult != null && !propertyParseResult.isGetter()) {
-                    processSetter(method, propertyParseResult);
-                }
-
-                if (!method.getJetMethodAnnotation().hasPropertyFlag()) {
-                    NamedMembers namedMembers = getOrCreateEmpty(Name.identifier(method.getName()));
-                    namedMembers.addMethod(method);
-                }
+            if (!method.getJetMethodAnnotation().hasPropertyFlag()) {
+                NamedMembers namedMembers = getOrCreateEmpty(Name.identifier(method.getName()));
+                namedMembers.addMethod(method);
             }
         }
 
@@ -287,30 +374,14 @@ public final class MembersCache {
             }
         }
 
-        private void parseAllMethodsAsProperties() {
-            for (PsiMethod method : psiClass.getPsiClass().getAllMethods()) {
-                createEmptyEntry(Name.identifier(method.getName()));
-
-                PropertyParseResult propertyParseResult = PropertyNameUtils.parseMethodToProperty(method.getName());
-                if (propertyParseResult != null) {
-                    createEmptyEntry(Name.identifier(propertyParseResult.getPropertyName()));
-                }
-            }
-        }
-
         private void createEmptyEntry(@NotNull Name identifier) {
             getOrCreateEmpty(identifier);
         }
 
-        private void processNestedClasses() {
-            if (!staticMembers) {
-                return;
-            }
-            for (PsiClass nested : psiClass.getPsiClass().getInnerClasses()) {
-                if (isSamInterface(nested)) {
-                    NamedMembers namedMembers = getOrCreateEmpty(Name.identifier(nested.getName()));
-                    namedMembers.setSamInterface(nested);
-                }
+        private void processNestedClass(PsiClass nested) {
+            if (isSamInterface(nested)) {
+                NamedMembers namedMembers = getOrCreateEmpty(Name.identifier(nested.getName()));
+                namedMembers.setSamInterface(nested);
             }
         }
     }
@@ -336,24 +407,101 @@ public final class MembersCache {
     }
 
     public static boolean isSamInterface(@NotNull PsiClass psiClass) {
+        return getSamInterfaceMethod(psiClass) != null;
+    }
+
+    // Returns null if not SAM interface
+    @Nullable
+    public static PsiMethod getSamInterfaceMethod(@NotNull PsiClass psiClass) {
         if (DescriptorResolverUtils.isKotlinClass(psiClass)) {
-            return false;
+            return null;
+        }
+        String qualifiedName = psiClass.getQualifiedName();
+        if (qualifiedName == null || qualifiedName.startsWith(KotlinBuiltIns.BUILT_INS_PACKAGE_FQ_NAME.asString() + ".")) {
+            return null;
         }
         if (!psiClass.isInterface() || psiClass.isAnnotationType()) {
-            return false;
+            return null;
         }
 
-        int foundAbstractMethods = 0;
-        for (PsiMethod method : psiClass.getAllMethods()) {
-            if (!isObjectMethod(method) && method.hasModifierProperty(PsiModifier.ABSTRACT)) {
-                foundAbstractMethods++;
+        return findOnlyAbstractMethod(psiClass);
+    }
 
+    @Nullable
+    private static PsiMethod findOnlyAbstractMethod(@NotNull PsiClass psiClass) {
+        PsiClassType classType = JavaPsiFacade.getElementFactory(psiClass.getProject()).createType(psiClass);
+
+        OnlyAbstractMethodFinder finder = new OnlyAbstractMethodFinder();
+        if (finder.find(classType)) {
+            return finder.getFoundMethod();
+        }
+        return null;
+    }
+
+    private static boolean isVarargMethod(@NotNull PsiMethod method) {
+        PsiParameter lastParameter = ArrayUtil.getLastElement(method.getParameterList().getParameters());
+        return lastParameter != null && lastParameter.getType() instanceof PsiEllipsisType;
+    }
+
+    private static abstract class RunOnce implements Runnable {
+        private boolean hasRun = false;
+
+        @Override
+        public final void run() {
+            if (hasRun) return;
+            hasRun = true;
+            doRun();
+        }
+
+        protected abstract void doRun();
+    }
+
+    private static class OnlyAbstractMethodFinder {
+        private MethodSignatureBackedByPsiMethod found;
+
+        private boolean find(@NotNull PsiClassType classType) {
+            PsiClassType.ClassResolveResult classResolveResult = classType.resolveGenerics();
+            PsiSubstitutor classSubstitutor = classResolveResult.getSubstitutor();
+            PsiClass psiClass = classResolveResult.getElement();
+            if (psiClass == null) {
+                return false; // can't resolve class -> not a SAM interface
+            }
+            if (CommonClassNames.JAVA_LANG_OBJECT.equals(psiClass.getQualifiedName())) {
+                return true;
+            }
+            for (PsiMethod method : psiClass.getMethods()) {
+                if (isObjectMethod(method)) { // e.g., ignore toString() declared in interface
+                    continue;
+                }
                 if (method.hasTypeParameters()) {
+                    return false; // if interface has generic methods, it is not a SAM interface
+                }
+
+                if (found == null) {
+                    found = (MethodSignatureBackedByPsiMethod) method.getSignature(classSubstitutor);
+                    continue;
+                }
+                if (!found.getName().equals(method.getName())) {
+                    return false; // optimizing heuristic
+                }
+                MethodSignatureBackedByPsiMethod current = (MethodSignatureBackedByPsiMethod) method.getSignature(classSubstitutor);
+                if (!areSignaturesErasureEqual(current, found) || isVarargMethod(method) != isVarargMethod(found.getMethod())) {
+                    return false; // different signatures
+                }
+            }
+
+            for (PsiType t : classType.getSuperTypes()) {
+                if (!find((PsiClassType) t)) {
                     return false;
                 }
             }
-        }
-        return foundAbstractMethods == 1;
-    }
 
+            return true;
+        }
+
+        @Nullable
+        PsiMethod getFoundMethod() {
+            return found == null ? null : found.getMethod();
+        }
+    }
 }

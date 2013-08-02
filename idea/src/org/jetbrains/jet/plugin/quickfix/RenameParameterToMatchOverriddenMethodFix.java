@@ -27,6 +27,7 @@ import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.CallableDescriptor;
 import org.jetbrains.jet.lang.descriptors.VariableDescriptor;
 import org.jetbrains.jet.lang.diagnostics.Diagnostic;
+import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.psi.JetParameter;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.plugin.JetBundle;
@@ -54,9 +55,9 @@ public class RenameParameterToMatchOverriddenMethodFix extends JetIntentionActio
         }
         for (CallableDescriptor parameterFromSuperclass : parameterDescriptor.getOverriddenDescriptors()) {
             if (parameterFromSuperclassName == null) {
-                parameterFromSuperclassName = parameterFromSuperclass.getName().getName();
+                parameterFromSuperclassName = parameterFromSuperclass.getName().asString();
             }
-            else if (!parameterFromSuperclassName.equals(parameterFromSuperclass.getName().getName())) {
+            else if (!parameterFromSuperclassName.equals(parameterFromSuperclass.getName().asString())) {
                 return false;
             }
         }
@@ -77,13 +78,13 @@ public class RenameParameterToMatchOverriddenMethodFix extends JetIntentionActio
     }
 
     @Override
-    public void invoke(@NotNull Project project, Editor editor, PsiFile file) throws IncorrectOperationException {
+    public void invoke(@NotNull Project project, Editor editor, JetFile file) throws IncorrectOperationException {
         new RenameProcessor(project, parameter, parameterFromSuperclassName, false, false).run();
     }
 
     @NotNull
-    public static JetIntentionActionFactory createFactory() {
-        return new JetIntentionActionFactory() {
+    public static JetSingleIntentionActionFactory createFactory() {
+        return new JetSingleIntentionActionFactory() {
             @Nullable
             @Override
             public IntentionAction createAction(Diagnostic diagnostic) {

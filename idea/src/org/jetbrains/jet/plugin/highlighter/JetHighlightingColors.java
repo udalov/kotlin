@@ -16,6 +16,7 @@
 
 package org.jetbrains.jet.plugin.highlighter;
 
+import com.intellij.ide.highlighter.JavaHighlightingColors;
 import com.intellij.openapi.editor.DefaultLanguageHighlighterColors;
 import com.intellij.openapi.editor.HighlighterColors;
 import com.intellij.openapi.editor.colors.CodeInsightColors;
@@ -25,8 +26,8 @@ import static com.intellij.openapi.editor.colors.TextAttributesKey.createTextAtt
 
 public class JetHighlightingColors {
     // default keys (mostly syntax elements)
-    public final static TextAttributesKey KEYWORD = createTextAttributesKey("KOTLIN_KEYWORD", DefaultLanguageHighlighterColors.KEYWORD);
-    public static final TextAttributesKey BUILTIN_ANNOTATION = createTextAttributesKey("KOTLIN_BUILTIN_ANNOTATION", DefaultLanguageHighlighterColors.KEYWORD);
+    public static final TextAttributesKey KEYWORD = createTextAttributesKey("KOTLIN_KEYWORD", JavaHighlightingColors.KEYWORD);
+    public static final TextAttributesKey BUILTIN_ANNOTATION = createTextAttributesKey("KOTLIN_BUILTIN_ANNOTATION", JavaHighlightingColors.KEYWORD);
     public static final TextAttributesKey NUMBER = createTextAttributesKey("KOTLIN_NUMBER", DefaultLanguageHighlighterColors.NUMBER);
     public static final TextAttributesKey STRING = createTextAttributesKey("KOTLIN_STRING", DefaultLanguageHighlighterColors.STRING);
     public static final TextAttributesKey STRING_ESCAPE = createTextAttributesKey("KOTLIN_STRING_ESCAPE", DefaultLanguageHighlighterColors.VALID_STRING_ESCAPE);
@@ -44,6 +45,8 @@ public class JetHighlightingColors {
     public static final TextAttributesKey LINE_COMMENT = createTextAttributesKey("KOTLIN_LINE_COMMENT", DefaultLanguageHighlighterColors.LINE_COMMENT);
     public static final TextAttributesKey BLOCK_COMMENT = createTextAttributesKey("KOTLIN_BLOCK_COMMENT", DefaultLanguageHighlighterColors.BLOCK_COMMENT);
     public static final TextAttributesKey DOC_COMMENT = createTextAttributesKey("KOTLIN_DOC_COMMENT", DefaultLanguageHighlighterColors.DOC_COMMENT);
+    public static final TextAttributesKey KDOC_TAG = createTextAttributesKey("KDOC_TAG_NAME", DefaultLanguageHighlighterColors.DOC_COMMENT_TAG);
+    public static final TextAttributesKey KDOC_TAG_VALUE = createTextAttributesKey("KDOC_TAG_VALUE", DefaultLanguageHighlighterColors.DOC_COMMENT_TAG_VALUE);
 
     // class kinds
     public static final TextAttributesKey CLASS = createTextAttributesKey("KOTLIN_CLASS", CodeInsightColors.CLASS_NAME_ATTRIBUTES);

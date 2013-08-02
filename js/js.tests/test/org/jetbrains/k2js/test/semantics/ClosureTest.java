@@ -35,4 +35,12 @@ public final class ClosureTest extends SingleFileTranslationTest {
     public void testClosureReferencingMember() throws Exception {
         fooBoxTest();
     }
+
+    public void testClosureInNestedFunctions() throws Exception {
+        checkFooBoxIsOk();
+    }
+
+    public void testClosureInNestedFunctionsWhichMixedWithObject() throws Exception {
+        fooBoxTest();
+    }
 }

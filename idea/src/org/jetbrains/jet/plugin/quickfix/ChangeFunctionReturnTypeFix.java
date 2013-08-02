@@ -23,6 +23,7 @@ import com.intellij.openapi.util.Pair;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiErrorElement;
 import com.intellij.psi.PsiFile;
+import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.util.IncorrectOperationException;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -36,36 +37,59 @@ import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.BindingContextUtils;
 import org.jetbrains.jet.lang.resolve.DescriptorResolver;
 import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCall;
+import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.Name;
+import org.jetbrains.jet.lang.types.ErrorUtils;
 import org.jetbrains.jet.lang.types.JetType;
+import org.jetbrains.jet.lang.types.checker.JetTypeChecker;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 import org.jetbrains.jet.plugin.JetBundle;
 import org.jetbrains.jet.plugin.caches.resolve.KotlinCacheManagerUtil;
 import org.jetbrains.jet.plugin.intentions.SpecifyTypeExplicitlyAction;
 import org.jetbrains.jet.plugin.project.AnalyzerFacadeWithCache;
+import org.jetbrains.jet.renderer.DescriptorRenderer;
+
+import java.util.LinkedList;
+import java.util.List;
 
 public class ChangeFunctionReturnTypeFix extends JetIntentionAction<JetFunction> {
     private final JetType type;
+    private final String renderedType;
+    private final ChangeFunctionLiteralReturnTypeFix changeFunctionLiteralReturnTypeFix;
 
     public ChangeFunctionReturnTypeFix(@NotNull JetFunction element, @NotNull JetType type) {
         super(element);
         this.type = type;
+        renderedType = DescriptorRenderer.SHORT_NAMES_IN_TYPES.renderType(type);
+        if (element instanceof JetFunctionLiteral) {
+            JetFunctionLiteralExpression functionLiteralExpression = PsiTreeUtil.getParentOfType(element, JetFunctionLiteralExpression.class);
+            assert functionLiteralExpression != null : "FunctionLiteral outside any FunctionLiteralExpression";
+            changeFunctionLiteralReturnTypeFix = new ChangeFunctionLiteralReturnTypeFix(functionLiteralExpression, type);
+        }
+        else {
+            changeFunctionLiteralReturnTypeFix = null;
+        }
     }
 
     @NotNull
     @Override
     public String getText() {
-        String functionName = element.getName();
-        BindingContext context = AnalyzerFacadeWithCache.analyzeFileWithCache((JetFile) element.getContainingFile()).getBindingContext();
-        SimpleFunctionDescriptor descriptor = context.get(BindingContext.FUNCTION, element);
-        if (descriptor != null) {
-            functionName = descriptor.getContainingDeclaration().getName() + "." + functionName;
+        if (changeFunctionLiteralReturnTypeFix != null) {
+            return changeFunctionLiteralReturnTypeFix.getText();
         }
 
+        String functionName = element.getName();
+        FqName fqName = JetPsiUtil.getFQName(element);
+        if (fqName != null) functionName = fqName.asString();
+
         if (KotlinBuiltIns.getInstance().isUnit(type) && element.hasBlockBody()) {
-            return JetBundle.message("remove.function.return.type", functionName);
+            return functionName == null ?
+                   JetBundle.message("remove.no.name.function.return.type") :
+                   JetBundle.message("remove.function.return.type", functionName);
         }
-        return JetBundle.message("change.function.return.type", functionName, type.toString());
+        return functionName == null ?
+               JetBundle.message("change.no.name.function.return.type", renderedType) :
+               JetBundle.message("change.function.return.type", functionName, renderedType);
     }
 
     @NotNull
@@ -75,24 +99,39 @@ public class ChangeFunctionReturnTypeFix extends JetIntentionAction<JetFunction>
     }
 
     @Override
-    public void invoke(@NotNull Project project, Editor editor, PsiFile file) throws IncorrectOperationException {
-        SpecifyTypeExplicitlyAction.removeTypeAnnotation(element);
-        if (!(KotlinBuiltIns.getInstance().isUnit(type) && element.hasBlockBody())) {
-            PsiElement elementToPrecedeType = element.getValueParameterList();
-            if (elementToPrecedeType == null) elementToPrecedeType = element.getNameIdentifier();
-            assert elementToPrecedeType != null : "Return type of function without name can't mismatch anything";
-            if (elementToPrecedeType.getNextSibling() instanceof PsiErrorElement) {
-                // if a function doesn't have a value parameter list, a syntax error is raised, and it should follow the function name
-                elementToPrecedeType = elementToPrecedeType.getNextSibling();
-            }
-            Pair<PsiElement, PsiElement> typeWhiteSpaceAndColon = JetPsiFactory.createTypeWhiteSpaceAndColon(project, type.toString());
-            element.addRangeAfter(typeWhiteSpaceAndColon.first, typeWhiteSpaceAndColon.second, elementToPrecedeType);
+    public boolean isAvailable(@NotNull Project project, @Nullable Editor editor, @Nullable PsiFile file) {
+        return super.isAvailable(project, editor, file) && !ErrorUtils.containsErrorType(type);
+    }
+
+    @Override
+    public void invoke(@NotNull Project project, @Nullable Editor editor, @Nullable JetFile file) throws IncorrectOperationException {
+        if (changeFunctionLiteralReturnTypeFix != null) {
+            changeFunctionLiteralReturnTypeFix.invoke(project, editor, file);
         }
+        else {
+            SpecifyTypeExplicitlyAction.removeTypeAnnotation(element);
+            if (!(KotlinBuiltIns.getInstance().isUnit(type) && element.hasBlockBody())) {
+                addReturnTypeAnnotation(project, element, renderedType);
+            }
+        }
+    }
+
+    public static void addReturnTypeAnnotation(Project project, JetFunction function, String typeText) {
+        PsiElement elementToPrecedeType = function.getValueParameterList();
+        if (elementToPrecedeType == null) elementToPrecedeType = function.getNameIdentifier();
+        assert elementToPrecedeType != null : "Return type of function without name can't mismatch anything";
+        if (elementToPrecedeType.getNextSibling() instanceof PsiErrorElement) {
+            // if a function doesn't have a value parameter list, a syntax error is raised, and it should follow the function name
+            elementToPrecedeType = elementToPrecedeType.getNextSibling();
+        }
+        Pair<PsiElement, PsiElement> typeWhiteSpaceAndColon = JetPsiFactory.createTypeWhiteSpaceAndColon(project, typeText);
+        function.addRangeAfter(typeWhiteSpaceAndColon.first, typeWhiteSpaceAndColon.second, elementToPrecedeType);
     }
 
     @NotNull
     public static JetMultiDeclarationEntry getMultiDeclarationEntryThatTypeMismatchComponentFunction(Diagnostic diagnostic) {
-        String componentName = ((DiagnosticWithParameters3<JetExpression, Name, JetType, JetType>) diagnostic).getA().getName();
+        @SuppressWarnings("unchecked")
+        String componentName = ((DiagnosticWithParameters3<JetExpression, Name, JetType, JetType>) diagnostic).getA().asString();
         int componentIndex = Integer.valueOf(componentName.substring(DescriptorResolver.COMPONENT_FUNCTION_NAME_PREFIX.length()));
         JetMultiDeclaration multiDeclaration = QuickFixUtil.getParentElementOfType(diagnostic, JetMultiDeclaration.class);
         assert multiDeclaration != null : "COMPONENT_FUNCTION_RETURN_TYPE_MISMATCH reported on expression that is not within any multi declaration";
@@ -100,8 +139,8 @@ public class ChangeFunctionReturnTypeFix extends JetIntentionAction<JetFunction>
     }
 
     @NotNull
-    public static JetIntentionActionFactory createFactoryForComponentFunctionReturnTypeMismatch() {
-        return new JetIntentionActionFactory() {
+    public static JetSingleIntentionActionFactory createFactoryForComponentFunctionReturnTypeMismatch() {
+        return new JetSingleIntentionActionFactory() {
             @Nullable
             @Override
             public IntentionAction createAction(Diagnostic diagnostic) {
@@ -120,8 +159,8 @@ public class ChangeFunctionReturnTypeFix extends JetIntentionAction<JetFunction>
     }
 
     @NotNull
-    public static JetIntentionActionFactory createFactoryForHasNextFunctionTypeMismatch() {
-        return new JetIntentionActionFactory() {
+    public static JetSingleIntentionActionFactory createFactoryForHasNextFunctionTypeMismatch() {
+        return new JetSingleIntentionActionFactory() {
             @Nullable
             @Override
             public IntentionAction createAction(Diagnostic diagnostic) {
@@ -140,15 +179,16 @@ public class ChangeFunctionReturnTypeFix extends JetIntentionAction<JetFunction>
     }
 
     @NotNull
-    public static JetIntentionActionFactory createFactoryForCompareToTypeMismatch() {
-        return new JetIntentionActionFactory() {
+    public static JetSingleIntentionActionFactory createFactoryForCompareToTypeMismatch() {
+        return new JetSingleIntentionActionFactory() {
             @Nullable
             @Override
             public IntentionAction createAction(Diagnostic diagnostic) {
                 JetBinaryExpression expression = QuickFixUtil.getParentElementOfType(diagnostic, JetBinaryExpression.class);
                 assert expression != null : "COMPARE_TO_TYPE_MISMATCH reported on element that is not within any expression";
                 BindingContext context = AnalyzerFacadeWithCache.analyzeFileWithCache((JetFile) expression.getContainingFile()).getBindingContext();
-                ResolvedCall<? extends CallableDescriptor> resolvedCall = context.get(BindingContext.RESOLVED_CALL, expression.getOperationReference());
+                ResolvedCall<? extends CallableDescriptor> resolvedCall = context.get(BindingContext.RESOLVED_CALL,
+                                                                                      expression.getOperationReference());
                 if (resolvedCall == null) return null;
                 PsiElement compareTo = BindingContextUtils.descriptorToDeclaration(context, resolvedCall.getCandidateDescriptor());
                 if (!(compareTo instanceof JetFunction)) return null;
@@ -158,16 +198,55 @@ public class ChangeFunctionReturnTypeFix extends JetIntentionAction<JetFunction>
     }
 
     @NotNull
-    public static JetIntentionActionFactory createFactoryForReturnTypeMismatchOnOverride() {
-        return new JetIntentionActionFactory() {
+    public static JetIntentionActionsFactory createFactoryForReturnTypeMismatchOnOverride() {
+        return new JetIntentionActionsFactory() {
+            @NotNull
+            @Override
+            public List<IntentionAction> createActions(Diagnostic diagnostic) {
+                List<IntentionAction> actions = new LinkedList<IntentionAction>();
+
+                JetFunction function = QuickFixUtil.getParentElementOfType(diagnostic, JetFunction.class);
+                if (function != null) {
+                    BindingContext context = KotlinCacheManagerUtil.getDeclarationsBindingContext(function);
+                    JetType matchingReturnType = QuickFixUtil.findLowerBoundOfOverriddenCallablesReturnTypes(context, function);
+                    if (matchingReturnType != null) {
+                        actions.add(new ChangeFunctionReturnTypeFix(function, matchingReturnType));
+                    }
+
+                    SimpleFunctionDescriptor descriptor = context.get(BindingContext.FUNCTION, function);
+                    if (descriptor == null) return actions;
+                    JetType functionType = descriptor.getReturnType();
+                    if (functionType == null) return actions;
+
+                    List<FunctionDescriptor> overriddenMismatchingFunctions = new LinkedList<FunctionDescriptor>();
+                    for (FunctionDescriptor overriddenFunction: descriptor.getOverriddenDescriptors()) {
+                        JetType overriddenFunctionType = overriddenFunction.getReturnType();
+                        if (overriddenFunctionType == null) continue;
+                        if (!JetTypeChecker.INSTANCE.isSubtypeOf(functionType, overriddenFunctionType)) {
+                            overriddenMismatchingFunctions.add(overriddenFunction);
+                        }
+                    }
+
+                    if (overriddenMismatchingFunctions.size() == 1) {
+                        PsiElement overriddenFunction = BindingContextUtils.descriptorToDeclaration(context, overriddenMismatchingFunctions.get(0));
+                        if (overriddenFunction instanceof JetFunction) {
+                            actions.add(new ChangeFunctionReturnTypeFix((JetFunction) overriddenFunction, functionType));
+                        }
+                    }
+                }
+                return actions;
+            }
+        };
+    }
+
+    @NotNull
+    public static JetSingleIntentionActionFactory createFactoryForChangingReturnTypeToUnit() {
+        return new JetSingleIntentionActionFactory() {
             @Nullable
             @Override
             public IntentionAction createAction(Diagnostic diagnostic) {
                 JetFunction function = QuickFixUtil.getParentElementOfType(diagnostic, JetFunction.class);
-                if (function == null) return null;
-                BindingContext context = KotlinCacheManagerUtil.getDeclarationsBindingContext(function);
-                JetType matchingReturnType = QuickFixUtil.findLowerBoundOfOverriddenCallablesReturnTypes(context, function);
-                return matchingReturnType == null ? null : new ChangeFunctionReturnTypeFix(function, matchingReturnType);
+                return function == null ? null : new ChangeFunctionReturnTypeFix(function, KotlinBuiltIns.getInstance().getUnitType());
             }
         };
     }

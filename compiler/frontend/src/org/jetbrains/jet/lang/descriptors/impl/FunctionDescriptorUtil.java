@@ -21,7 +21,6 @@ import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.resolve.BindingTrace;
 import org.jetbrains.jet.lang.resolve.TraceBasedRedeclarationHandler;
-import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
 import org.jetbrains.jet.lang.resolve.scopes.WritableScope;
 import org.jetbrains.jet.lang.resolve.scopes.WritableScopeImpl;
@@ -49,6 +48,9 @@ public class FunctionDescriptorUtil {
         }
     });
 
+    private FunctionDescriptorUtil() {
+    }
+
     public static Map<TypeConstructor, TypeProjection> createSubstitutionContext(@NotNull FunctionDescriptor functionDescriptor, List<JetType> typeArguments) {
         if (functionDescriptor.getTypeParameters().isEmpty()) return Collections.emptyMap();
 
@@ -69,8 +71,7 @@ public class FunctionDescriptorUtil {
     public static List<ValueParameterDescriptor> getSubstitutedValueParameters(FunctionDescriptor substitutedDescriptor, @NotNull FunctionDescriptor functionDescriptor, @NotNull TypeSubstitutor substitutor) {
         List<ValueParameterDescriptor> result = new ArrayList<ValueParameterDescriptor>();
         List<ValueParameterDescriptor> unsubstitutedValueParameters = functionDescriptor.getValueParameters();
-        for (int i = 0, unsubstitutedValueParametersSize = unsubstitutedValueParameters.size(); i < unsubstitutedValueParametersSize; i++) {
-            ValueParameterDescriptor unsubstitutedValueParameter = unsubstitutedValueParameters.get(i);
+        for (ValueParameterDescriptor unsubstitutedValueParameter : unsubstitutedValueParameters) {
             // TODO : Lazy?
             JetType substitutedType = substitutor.substitute(unsubstitutedValueParameter.getType(), Variance.IN_VARIANCE);
             JetType varargElementType = unsubstitutedValueParameter.getVarargElementType();
@@ -136,5 +137,48 @@ public class FunctionDescriptorUtil {
 
     public static <D extends CallableDescriptor> D alphaConvertTypeParameters(D candidate) {
         return (D) candidate.substitute(MAKE_TYPE_PARAMETERS_FRESH);
+    }
+
+    /**
+     * Returns function's copy with new parameter list. Note that parameters may belong to other methods or have incorrect "index" property
+     * -- it will be fixed by this function.
+     */
+    @NotNull
+    public static FunctionDescriptor replaceFunctionParameters(
+            @NotNull FunctionDescriptor function,
+            @NotNull List<ValueParameterDescriptor> newParameters
+    ) {
+        FunctionDescriptorImpl descriptor = new SimpleFunctionDescriptorImpl(
+                function.getContainingDeclaration(),
+                function.getAnnotations(),
+                function.getName(),
+                function.getKind());
+        List<ValueParameterDescriptor> parameters = new ArrayList<ValueParameterDescriptor>(newParameters.size());
+        int idx = 0;
+        for (ValueParameterDescriptor parameter : newParameters) {
+            JetType returnType = parameter.getReturnType();
+            assert returnType != null;
+
+            parameters.add(new ValueParameterDescriptorImpl(
+                    descriptor,
+                    idx,
+                    parameter.getAnnotations(),
+                    parameter.getName(),
+                    returnType,
+                    parameter.declaresDefaultValue(),
+                    parameter.getVarargElementType())
+            );
+            idx++;
+        }
+        ReceiverParameterDescriptor receiver = function.getReceiverParameter();
+        descriptor.initialize(
+                receiver == null ? null : receiver.getType(),
+                function.getExpectedThisObject(),
+                function.getTypeParameters(),
+                parameters,
+                function.getReturnType(),
+                function.getModality(),
+                function.getVisibility());
+        return descriptor;
     }
 }

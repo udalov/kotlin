@@ -109,7 +109,7 @@ public abstract class MutableClassDescriptorLite extends ClassDescriptorBase {
                 this,
                 Collections.<AnnotationDescriptor>emptyList(), // TODO : pass annotations from the class?
                 !getModality().isOverridable(),
-                getName().getName(),
+                getName().asString(),
                 typeParameters,
                 supertypes);
     }
@@ -132,12 +132,6 @@ public abstract class MutableClassDescriptorLite extends ClassDescriptorBase {
         }
         return classObjectType;
     }
-
-    @Override
-    public boolean isClassObjectAValue() {
-        return true;
-    }
-
 
     @NotNull
     @Override

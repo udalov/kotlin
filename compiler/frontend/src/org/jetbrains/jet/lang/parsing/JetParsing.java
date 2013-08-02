@@ -50,6 +50,7 @@ public class JetParsing extends AbstractJetParsing {
     private static final TokenSet IMPORT_RECOVERY_SET = TokenSet.create(AS_KEYWORD, DOT, EOL_OR_SEMICOLON);
     /*package*/ static final TokenSet TYPE_REF_FIRST = TokenSet.create(LBRACKET, IDENTIFIER, FUN_KEYWORD, LPAR, CAPITALIZED_THIS_KEYWORD, HASH);
     private static final TokenSet RECEIVER_TYPE_TERMINATORS = TokenSet.create(DOT, SAFE_ACCESS);
+    private static final TokenSet VALUE_PARAMETER_FIRST = TokenSet.orSet(TokenSet.create(IDENTIFIER, LBRACKET), MODIFIER_KEYWORDS);
 
     static JetParsing createForTopLevel(SemanticWhitespaceAwarePsiBuilder builder) {
         JetParsing jetParsing = new JetParsing(builder);
@@ -96,6 +97,30 @@ public class JetParsing extends AbstractJetParsing {
         parseToplevelDeclarations(false);
 
         fileMarker.done(JET_FILE);
+    }
+
+    void parseTypeCodeFragment() {
+        PsiBuilder.Marker marker = mark();
+        parseTypeRef();
+
+        while (!eof()) {
+            error("unexpected symbol");
+            advance();
+        }
+
+        marker.done(TYPE_CODE_FRAGMENT);
+    }
+
+    void parseExpressionCodeFragment() {
+        PsiBuilder.Marker marker = mark();
+        myExpressionParsing.parseExpression();
+
+        while (!eof()) {
+            error("unexpected symbol");
+            advance();
+        }
+
+        marker.done(EXPRESSION_CODE_FRAGMENT);
     }
 
     void parseScript() {
@@ -795,7 +820,7 @@ public class JetParsing extends AbstractJetParsing {
      *       typeParameters? (type "." | annotations)?
      *       ("(" variableDeclarationEntry{","} ")" | variableDeclarationEntry)
      *       typeConstraints
-     *       ("=" element SEMI?)?
+     *       ("by" | "=" expression SEMI?)?
      *       (getter? setter? | setter? getter?) SEMI?
      *   ;
      */
@@ -863,14 +888,21 @@ public class JetParsing extends AbstractJetParsing {
         parseTypeConstraintsGuarded(typeParametersDeclared);
 
         if (local) {
-            if (at(EQ)) {
+            if (at(BY_KEYWORD)) {
+                parsePropertyDelegate();
+            }
+            else if (at(EQ)) {
                 advance(); // EQ
                 myExpressionParsing.parseExpression();
                 // "val a = 1; b" must not be an infix call of b on "val ...;"
             }
         }
         else {
-            if (at(EQ)) {
+            if (at(BY_KEYWORD)) {
+                parsePropertyDelegate();
+                consumeIf(SEMICOLON);
+            }
+            else if (at(EQ)) {
                 advance(); // EQ
                 myExpressionParsing.parseExpression();
                 consumeIf(SEMICOLON);
@@ -879,7 +911,7 @@ public class JetParsing extends AbstractJetParsing {
             if (parsePropertyGetterOrSetter()) {
                 parsePropertyGetterOrSetter();
             }
-            if  (!atSet(EOL_OR_SEMICOLON, RBRACE)) {
+            if (!atSet(EOL_OR_SEMICOLON, RBRACE)) {
                 if (getLastToken() != SEMICOLON) {
                     errorUntil("Property getter or setter expected", TokenSet.create(EOL_OR_SEMICOLON));
                 }
@@ -890,6 +922,19 @@ public class JetParsing extends AbstractJetParsing {
         }
 
         return multiDeclaration ? MULTI_VARIABLE_DECLARATION : PROPERTY;
+    }
+
+    /*
+     * propertyDelegate
+     *   : "by" expression
+     *   ;
+     */
+    private void parsePropertyDelegate() {
+        assert _at(BY_KEYWORD);
+        PsiBuilder.Marker delegate = mark();
+        advance(); // BY_KEYWORD
+        myExpressionParsing.parseExpression();
+        delegate.done(PROPERTY_DELEGATE);
     }
 
     /*
@@ -1432,7 +1477,7 @@ public class JetParsing extends AbstractJetParsing {
             receiverType.done(FUNCTION_TYPE_RECEIVER);
 
             advance(); // DOT
-            
+
             if (at(LPAR)) {
                 parseFunctionTypeContents().drop();
             }
@@ -1678,12 +1723,14 @@ public class JetParsing extends AbstractJetParsing {
                     else {
                         parseValueParameter();
                     }
-                    if (!at(COMMA)) break;
-                    advance(); // COMMA
+                    if (at(COMMA)) {
+                        advance(); // COMMA
+                    }
+                    else if (!atSet(VALUE_PARAMETER_FIRST)) break;
                 }
             }
         }
-        
+
         expect(RPAR, "Expecting ')'", recoverySet);
         myBuilder.restoreNewlinesState();
 

@@ -13,8 +13,8 @@ public trait <metaclass-for-Q> {
 }
 
 public open class A : objc.NSObject, objc.P, objc.Q {
-    public open override /*1*/ /*fake_override*/ fun anotherMethod() : jet.Int
-    public open override /*1*/ /*fake_override*/ fun protocolMethod() : jet.Unit
+    public open override /*1*/ /*fake_override*/ fun anotherMethod(): jet.Int
+    public open override /*1*/ /*fake_override*/ fun protocolMethod(): jet.Unit
     
     public class object <class-object-for-A> : jet.objc.ObjCClass, objc.<metaclass-for-A>, objc.NSObject {
     }
@@ -27,9 +27,9 @@ public open class NSObject : jet.objc.ObjCObject {
 }
 
 public trait P {
-    public open fun protocolMethod() : jet.Unit
+    public open fun protocolMethod(): jet.Unit
 }
 
 public trait Q {
-    public open fun anotherMethod() : jet.Int
+    public open fun anotherMethod(): jet.Int
 }

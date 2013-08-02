@@ -17,8 +17,7 @@
 package org.jetbrains.jet.lang.resolve.java;
 
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.jet.lang.descriptors.ClassDescriptor;
-import org.jetbrains.jet.lang.descriptors.ClassKind;
+import org.jetbrains.jet.lang.descriptors.PropertyDescriptor;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.Name;
 
@@ -39,6 +38,8 @@ public class JvmAbi {
     public static final String CLASS_OBJECT_CLASS_NAME = "object";
     public static final String CLASS_OBJECT_SUFFIX = "$" + CLASS_OBJECT_CLASS_NAME;
 
+    public static final String DELEGATED_PROPERTY_NAME_POSTFIX = "$delegate";
+
     public static final String INSTANCE_FIELD = "instance$";
     public static final String CLASS_OBJECT_FIELD = "object$";
     public static final String RECEIVER_PARAMETER = "$receiver";
@@ -53,6 +54,24 @@ public class JvmAbi {
 
     public static boolean isClassObjectFqName(@NotNull FqName fqName) {
         return fqName.lastSegmentIs(Name.identifier(CLASS_OBJECT_CLASS_NAME));
+    }
+
+    public static String getPropertyDelegateName(@NotNull Name name) {
+        return name.asString() + DELEGATED_PROPERTY_NAME_POSTFIX;
+    }
+
+
+    public static String getDefaultPropertyName(Name propertyName, boolean isDelegated, boolean isExtensionProperty) {
+        if (isDelegated) {
+            return getPropertyDelegateName(propertyName);
+        }
+
+        String name = propertyName.asString();
+        if (isExtensionProperty) {
+            name += "$ext";
+        }
+        return name;
+
     }
 
     private JvmAbi() {

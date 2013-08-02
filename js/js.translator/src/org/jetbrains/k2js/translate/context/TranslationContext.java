@@ -28,9 +28,11 @@ import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.k2js.translate.expression.LiteralFunctionTranslator;
 import org.jetbrains.k2js.translate.intrinsic.Intrinsics;
 
+import java.util.HashMap;
 import java.util.Map;
 
 import static org.jetbrains.k2js.translate.utils.BindingUtils.getDescriptorForElement;
+import static org.jetbrains.k2js.translate.utils.JsDescriptorUtils.getExpectedReceiverDescriptor;
 
 /**
  * All the info about the state of the translation process.
@@ -42,16 +44,18 @@ public class TranslationContext {
     private final StaticContext staticContext;
     @NotNull
     private final AliasingContext aliasingContext;
+    @Nullable
+    private final UsageTracker usageTracker;
 
     @NotNull
-    public static TranslationContext rootContext(@NotNull StaticContext staticContext) {
-        JsProgram program = staticContext.getProgram();
-        JsBlock globalBlock = program.getGlobalBlock();
-        DynamicContext rootDynamicContext = DynamicContext.rootContext(staticContext.getRootScope(), globalBlock);
+    public static TranslationContext rootContext(@NotNull StaticContext staticContext, JsFunction rootFunction) {
+        DynamicContext rootDynamicContext =
+                DynamicContext.rootContext(rootFunction.getScope(), rootFunction.getBody());
         AliasingContext rootAliasingContext = AliasingContext.getCleanContext();
-        return new TranslationContext(staticContext,
-                                      rootDynamicContext, rootAliasingContext);
+        return new TranslationContext(staticContext, rootDynamicContext, rootAliasingContext, null);
     }
+
+    private final HashMap<JsExpression, TemporaryConstVariable> expressionToTempConstVariableCache = new HashMap<JsExpression, TemporaryConstVariable>();
 
     public boolean isEcma5() {
         return staticContext.isEcma5();
@@ -59,16 +63,23 @@ public class TranslationContext {
 
     private TranslationContext(@NotNull StaticContext staticContext,
             @NotNull DynamicContext dynamicContext,
-            @NotNull AliasingContext aliasingContext) {
+            @NotNull AliasingContext aliasingContext,
+            @Nullable UsageTracker usageTracker) {
         this.dynamicContext = dynamicContext;
         this.staticContext = staticContext;
         this.aliasingContext = aliasingContext;
+        this.usageTracker = usageTracker;
     }
 
     private TranslationContext(@NotNull TranslationContext parent, @NotNull AliasingContext aliasingContext) {
         dynamicContext = parent.dynamicContext;
         staticContext = parent.staticContext;
         this.aliasingContext = aliasingContext;
+        usageTracker = parent.usageTracker;
+    }
+
+    public UsageTracker usageTracker() {
+        return usageTracker;
     }
 
     public DynamicContext dynamicContext() {
@@ -76,38 +87,36 @@ public class TranslationContext {
     }
 
     @NotNull
-    private TranslationContext contextWithScope(@NotNull JsScope newScope, @NotNull JsBlock block) {
-        return contextWithScope(newScope, block, aliasingContext);
-    }
-
-    @NotNull
     public TranslationContext contextWithScope(@NotNull JsFunction fun) {
-        return contextWithScope(fun, aliasingContext);
+        return contextWithScope(fun, aliasingContext, usageTracker);
     }
 
     @NotNull
-    protected TranslationContext contextWithScope(@NotNull JsScope newScope, @NotNull JsBlock block, @NotNull AliasingContext aliasingContext) {
-        return new TranslationContext(staticContext, DynamicContext.newContext(newScope, block), aliasingContext);
+    private TranslationContext contextWithScope(@NotNull JsScope newScope,
+            @NotNull JsBlock block,
+            @NotNull AliasingContext aliasingContext,
+            @Nullable UsageTracker usageTracker) {
+        return new TranslationContext(staticContext, DynamicContext.newContext(newScope, block), aliasingContext, usageTracker);
     }
 
     @NotNull
-    public TranslationContext contextWithScope(@NotNull JsFunction fun, @NotNull AliasingContext aliasingContext) {
-        return contextWithScope(fun.getScope(), fun.getBody(), aliasingContext);
+    public TranslationContext contextWithScope(@NotNull JsFunction fun, @NotNull AliasingContext aliasingContext, @Nullable UsageTracker usageTracker) {
+        return contextWithScope(fun.getScope(), fun.getBody(), aliasingContext, usageTracker);
     }
 
     @NotNull
     public TranslationContext innerBlock(@NotNull JsBlock block) {
-        return new TranslationContext(staticContext, dynamicContext.innerBlock(block), aliasingContext);
+        return new TranslationContext(staticContext, dynamicContext.innerBlock(block), aliasingContext, usageTracker);
     }
 
     @NotNull
     public TranslationContext newDeclaration(@NotNull DeclarationDescriptor descriptor) {
-        return contextWithScope(getScopeForDescriptor(descriptor), getBlockForDescriptor(descriptor));
+        return contextWithScope(getScopeForDescriptor(descriptor), getBlockForDescriptor(descriptor), aliasingContext, usageTracker);
     }
 
     @NotNull
     public TranslationContext innerContextWithThisAliased(@NotNull DeclarationDescriptor correspondingDescriptor, @NotNull JsName alias) {
-        return new TranslationContext(this, aliasingContext.inner(correspondingDescriptor, alias));
+        return new TranslationContext(this, aliasingContext.inner(correspondingDescriptor, alias.makeRef()));
     }
 
     @NotNull
@@ -116,7 +125,7 @@ public class TranslationContext {
     }
 
     @NotNull
-    public TranslationContext innerContextWithDescriptorsAliased(@NotNull Map<DeclarationDescriptor, JsName> aliases) {
+    public TranslationContext innerContextWithDescriptorsAliased(@NotNull Map<DeclarationDescriptor, JsExpression> aliases) {
         return new TranslationContext(this, aliasingContext.withDescriptorsAliased(aliases));
     }
 
@@ -128,11 +137,6 @@ public class TranslationContext {
         else {
             return new JsBlock();
         }
-    }
-
-    @NotNull
-    public TranslationContext newDeclaration(@NotNull PsiElement element) {
-        return newDeclaration(getDescriptorForElement(bindingContext(), element));
     }
 
     @NotNull
@@ -153,17 +157,12 @@ public class TranslationContext {
 
     @NotNull
     public JsName getNameForDescriptor(@NotNull DeclarationDescriptor descriptor) {
-        JsName alias = aliasingContext.getAliasForDescriptor(descriptor);
-        if (alias != null) {
-            return alias;
-        }
         return staticContext.getNameForDescriptor(descriptor);
     }
 
-    //TODO: util
     @NotNull
     public JsStringLiteral nameToLiteral(@NotNull Named named) {
-        return program().getStringLiteral(named.getName().getName());
+        return program().getStringLiteral(named.getName().asString());
     }
 
     @Nullable
@@ -171,10 +170,30 @@ public class TranslationContext {
         return staticContext.getQualifierForDescriptor(descriptor);
     }
 
-    //TODO: review all invocation with notnull parameters
     @NotNull
     public TemporaryVariable declareTemporary(@Nullable JsExpression initExpression) {
         return dynamicContext.declareTemporary(initExpression);
+    }
+
+    @NotNull
+    public TemporaryConstVariable getOrDeclareTemporaryConstVariable(@NotNull JsExpression expression) {
+        TemporaryConstVariable tempVar = expressionToTempConstVariableCache.get(expression);
+
+        if (tempVar == null) {
+            TemporaryVariable tmpVar = declareTemporary(expression);
+
+            tempVar = new TemporaryConstVariable(tmpVar.name(), tmpVar.assignmentExpression());
+
+            expressionToTempConstVariableCache.put(expression, tempVar);
+            expressionToTempConstVariableCache.put(tmpVar.assignmentExpression(), tempVar);
+        }
+
+        return tempVar;
+    }
+
+    public void associateExpressionToLazyValue(JsExpression expression, TemporaryConstVariable temporaryConstVariable) {
+        assert expression == temporaryConstVariable.assignmentExpression();
+        expressionToTempConstVariableCache.put(expression, temporaryConstVariable);
     }
 
     @NotNull
@@ -216,14 +235,29 @@ public class TranslationContext {
         dynamicContext.jsBlock().getStatements().add(statement);
     }
 
-    @NotNull
-    public AliasingContext.ThisAliasProvider thisAliasProvider() {
-        return aliasingContext().thisAliasProvider;
+    public JsExpression getAliasForDescriptor(@NotNull DeclarationDescriptor descriptor) {
+        if (usageTracker != null) {
+            usageTracker.triggerUsed(descriptor);
+        }
+        return aliasingContext.getAliasForDescriptor(descriptor);
     }
 
     @NotNull
     public JsExpression getThisObject(@NotNull DeclarationDescriptor descriptor) {
-        JsNameRef ref = thisAliasProvider().get(descriptor);
-        return ref == null ? JsLiteral.THIS : ref;
+        DeclarationDescriptor effectiveDescriptor;
+        if (descriptor instanceof CallableDescriptor) {
+            effectiveDescriptor = getExpectedReceiverDescriptor((CallableDescriptor) descriptor);
+            assert effectiveDescriptor != null;
+        }
+        else {
+            effectiveDescriptor = descriptor;
+        }
+
+        if (usageTracker != null) {
+            usageTracker.triggerUsed(effectiveDescriptor);
+        }
+
+        JsExpression alias = aliasingContext.getAliasForDescriptor(effectiveDescriptor);
+        return alias == null ? JsLiteral.THIS : alias;
     }
 }

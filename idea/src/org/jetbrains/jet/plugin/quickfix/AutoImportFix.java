@@ -213,7 +213,7 @@ public class AutoImportFix extends JetHintAction<JetSimpleNameExpression> implem
             public boolean value(String s) {
                 return typeName.equals(s);
             }
-        }, resolveSession);
+        }, resolveSession, GlobalSearchScope.allScope(project));
 
         return Collections2.transform(descriptors, new Function<ClassDescriptor, FqName>() {
             @Override
@@ -239,7 +239,7 @@ public class AutoImportFix extends JetHintAction<JetSimpleNameExpression> implem
         }
 
         if (!ApplicationManager.getApplication().isUnitTestMode()) {
-            String hintText = ShowAutoImportPass.getMessage(suggestions.size() > 1, suggestions.iterator().next().getFqName());
+            String hintText = ShowAutoImportPass.getMessage(suggestions.size() > 1, suggestions.iterator().next().asString());
 
             HintManager.getInstance().showQuestionHint(
                     editor, hintText,
@@ -268,7 +268,7 @@ public class AutoImportFix extends JetHintAction<JetSimpleNameExpression> implem
     }
 
     @Override
-    public void invoke(@NotNull final Project project, @NotNull final Editor editor, PsiFile file)
+    public void invoke(@NotNull final Project project, @NotNull final Editor editor, JetFile file)
             throws IncorrectOperationException {
         CommandProcessor.getInstance().runUndoTransparentAction(new Runnable() {
             @Override
@@ -289,8 +289,8 @@ public class AutoImportFix extends JetHintAction<JetSimpleNameExpression> implem
     }
 
     @Nullable
-    public static JetIntentionActionFactory createFactory() {
-        return new JetIntentionActionFactory() {
+    public static JetSingleIntentionActionFactory createFactory() {
+        return new JetSingleIntentionActionFactory() {
             @Nullable
             @Override
             public JetIntentionAction<JetSimpleNameExpression> createAction(@NotNull Diagnostic diagnostic) {

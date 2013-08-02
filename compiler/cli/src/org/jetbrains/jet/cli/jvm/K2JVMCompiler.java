@@ -73,8 +73,7 @@ public class K2JVMCompiler extends CLICompiler<K2JVMCompilerArguments> {
             configuration.addAll(JVMConfigurationKeys.ANNOTATIONS_PATH_KEY, getAnnotationsPath(paths, arguments));
         }
         catch (Throwable t) {
-            messageCollector.report(CompilerMessageSeverity.EXCEPTION, MessageRenderer.PLAIN.renderException(t),
-                                    CompilerMessageLocation.NO_LOCATION);
+            MessageCollectorUtil.reportException(messageCollector, t);
             return INTERNAL_ERROR;
         }
 
@@ -136,9 +135,9 @@ public class K2JVMCompiler extends CLICompiler<K2JVMCompilerArguments> {
 
             if (arguments.module != null) {
                 MessageCollector sanitizedCollector = new FilteringMessageCollector(messageCollector);
-                List<Module> modules = CompileEnvironmentUtil.loadModuleScript(paths, arguments.module, sanitizedCollector);
+                List<Module> modules = CompileEnvironmentUtil.loadModuleDescriptions(paths, arguments.module, sanitizedCollector);
 
-                File directory = new File(arguments.module).getParentFile();
+                File directory = new File(arguments.module).getAbsoluteFile().getParentFile();
                 KotlinToJVMBytecodeCompiler.compileModules(configuration, modules,
                                                                       directory, jar, outputDir,
                                                                       arguments.includeRuntime);

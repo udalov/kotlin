@@ -263,9 +263,9 @@ public class KotlinBuiltIns {
     }
 
     private void makePrimitive(PrimitiveType primitiveType) {
-        ClassDescriptor theClass = getBuiltInClassByName(primitiveType.getTypeName().getName());
+        ClassDescriptor theClass = getBuiltInClassByName(primitiveType.getTypeName().asString());
         JetType type = new JetTypeImpl(theClass);
-        ClassDescriptor arrayClass = getBuiltInClassByName(primitiveType.getArrayTypeName().getName());
+        ClassDescriptor arrayClass = getBuiltInClassByName(primitiveType.getArrayTypeName().asString());
         JetType arrayType = new JetTypeImpl(arrayClass);
 
         primitiveTypeToClass.put(primitiveType, theClass);
@@ -335,7 +335,7 @@ public class KotlinBuiltIns {
 
     @NotNull
     public ClassDescriptor getPrimitiveClassDescriptor(@NotNull PrimitiveType type) {
-        return getBuiltInClassByName(type.getTypeName().getName());
+        return getBuiltInClassByName(type.getTypeName().asString());
     }
 
     @NotNull
@@ -398,7 +398,7 @@ public class KotlinBuiltIns {
 
     @NotNull
     public ClassDescriptor getPrimitiveArrayClassDescriptor(@NotNull PrimitiveType type) {
-        return getBuiltInClassByName(type.getArrayTypeName().getName());
+        return getBuiltInClassByName(type.getArrayTypeName().asString());
     }
 
     @NotNull
@@ -787,6 +787,16 @@ public class KotlinBuiltIns {
     }
 
     @NotNull
+    public ClassDescriptor getPropertyMetadata() {
+        return getBuiltInClassByName("PropertyMetadata");
+    }
+
+    @NotNull
+    public ClassDescriptor getPropertyMetadataImpl() {
+        return getBuiltInClassByName("PropertyMetadataImpl");
+    }
+
+    @NotNull
     public JetType getFunctionType(
             @NotNull List<AnnotationDescriptor> annotations,
             @Nullable JetType receiverType,
@@ -871,6 +881,10 @@ public class KotlinBuiltIns {
 
     public boolean isPrimitiveArray(@NotNull JetType type) {
         return jetArrayTypeToPrimitiveJetType.containsKey(TypeUtils.makeNotNullable(type));
+    }
+
+    public boolean isPrimitiveType(@NotNull JetType type) {
+        return primitiveJetTypeToJetArrayType.containsKey(type);
     }
 
     // Functions

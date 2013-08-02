@@ -45,6 +45,7 @@ public interface JetNodeTypes {
     JetNodeType DELEGATOR_BY                        = new JetNodeType("DELEGATOR_BY", JetDelegatorByExpressionSpecifier.class);
     JetNodeType DELEGATOR_SUPER_CALL                = new JetNodeType("DELEGATOR_SUPER_CALL", JetDelegatorToSuperCall.class);
     JetNodeType DELEGATOR_SUPER_CLASS               = new JetNodeType("DELEGATOR_SUPER_CLASS", JetDelegatorToSuperClass.class);
+    JetNodeType PROPERTY_DELEGATE                    = new JetNodeType("PROPERTY_DELEGATE", JetPropertyDelegate.class);
     JetNodeType CONSTRUCTOR_CALLEE                  = new JetNodeType("CONSTRUCTOR_CALLEE", JetConstructorCalleeExpression.class);
     IElementType VALUE_PARAMETER_LIST               = JetStubElementTypes.VALUE_PARAMETER_LIST;
     IElementType VALUE_PARAMETER                    = JetStubElementTypes.VALUE_PARAMETER;
@@ -148,4 +149,7 @@ public interface JetNodeTypes {
     JetNodeType SCRIPT = new JetNodeType("SCRIPT", JetScript.class);
 
     JetNodeType IDE_TEMPLATE_EXPRESSION   = new JetNodeType("IDE_TEMPLATE_EXPRESSION", JetIdeTemplate.class);
+
+    IFileElementType TYPE_CODE_FRAGMENT = new JetTypeCodeFragmentType();
+    IFileElementType EXPRESSION_CODE_FRAGMENT = new JetExpressionCodeFragmentType();
 }

@@ -112,8 +112,14 @@ public class ExpressionTypingVisitorForStatements extends ExpressionTypingVisito
             context.trace.report(LOCAL_VARIABLE_WITH_SETTER.on(setter));
         }
 
+        JetExpression delegateExpression = property.getDelegateExpression();
+        if (delegateExpression != null) {
+            context.expressionTypingServices.getType(scope, delegateExpression, TypeUtils.NO_EXPECTED_TYPE, context.dataFlowInfo, context.trace);
+            context.trace.report(LOCAL_VARIABLE_WITH_DELEGATE.on(property.getDelegate()));
+        }
+
         VariableDescriptor propertyDescriptor = context.expressionTypingServices.getDescriptorResolver().
-                resolveLocalVariableDescriptor(scope.getContainingDeclaration(), scope, property, context.dataFlowInfo, context.trace);
+                resolveLocalVariableDescriptor(scope, property, context.dataFlowInfo, context.trace);
         JetExpression initializer = property.getInitializer();
         DataFlowInfo dataFlowInfo = context.dataFlowInfo;
         if (initializer != null) {
@@ -152,7 +158,7 @@ public class ExpressionTypingVisitorForStatements extends ExpressionTypingVisito
     @Override
     public JetTypeInfo visitNamedFunction(JetNamedFunction function, ExpressionTypingContext context) {
         SimpleFunctionDescriptor functionDescriptor = context.expressionTypingServices.getDescriptorResolver().
-                resolveFunctionDescriptor(scope.getContainingDeclaration(), scope, function, context.trace);
+                resolveFunctionDescriptorWithAnnotationArguments(scope.getContainingDeclaration(), scope, function, context.trace);
 
         scope.addFunctionDescriptor(functionDescriptor);
         JetScope functionInnerScope = FunctionDescriptorUtil.getFunctionInnerScope(context.scope, functionDescriptor, context.trace);

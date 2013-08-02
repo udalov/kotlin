@@ -133,13 +133,6 @@ public class JetFlowInformationProvider {
         List<JetElement> returnedExpressions = Lists.newArrayList();
         collectReturnExpressions(returnedExpressions);
 
-        boolean nothingReturned = returnedExpressions.isEmpty();
-
-        returnedExpressions.remove(function); // This will be the only "expression" if the body is empty
-
-        if (expectedReturnType != NO_EXPECTED_TYPE && !KotlinBuiltIns.getInstance().isUnit(expectedReturnType) && returnedExpressions.isEmpty() && !nothingReturned) {
-            trace.report(RETURN_TYPE_MISMATCH.on(bodyExpression, expectedReturnType));
-        }
         final boolean blockBody = function.hasBlockBody();
 
         final Set<JetElement> rootUnreachableElements = collectUnreachableCode();
@@ -284,9 +277,6 @@ public class JetFlowInformationProvider {
         }
 
         boolean isInitializedNotHere = ctxt.enterInitState.isInitialized;
-        if (expression.getParent() instanceof JetProperty && ((JetProperty)expression).getInitializer() != null) {
-            isInitializedNotHere = false;
-        }
         boolean hasBackingField = true;
         if (variableDescriptor instanceof PropertyDescriptor) {
             hasBackingField = trace.get(BindingContext.BACKING_FIELD_REQUIRED, (PropertyDescriptor) variableDescriptor);

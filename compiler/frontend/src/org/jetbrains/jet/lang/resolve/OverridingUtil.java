@@ -21,6 +21,7 @@ import com.google.common.collect.HashBiMap;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.intellij.util.Function;
+import com.intellij.util.containers.ContainerUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.*;
@@ -30,6 +31,12 @@ import org.jetbrains.jet.lang.types.checker.JetTypeChecker;
 import java.util.*;
 
 public class OverridingUtil {
+
+    private static final List<ExternalOverridabilityCondition> EXTERNAL_CONDITIONS =
+            ContainerUtil.collect(ServiceLoader.load(
+                    ExternalOverridabilityCondition.class,
+                    ExternalOverridabilityCondition.class.getClassLoader()).iterator()
+            );
 
     private OverridingUtil() {
     }
@@ -119,15 +126,6 @@ public class OverridingUtil {
         }
         return parameters;
     }
-    
-    private static int compiledValueParameterCount(CallableDescriptor callableDescriptor) {
-        if (callableDescriptor.getReceiverParameter() != null) {
-            return 1 + callableDescriptor.getValueParameters().size();
-        }
-        else {
-            return callableDescriptor.getValueParameters().size();
-        }
-    }
 
     /**
      * @param forOverride true for override, false for overload
@@ -136,7 +134,11 @@ public class OverridingUtil {
 
         // TODO : Visibility
 
-        if (compiledValueParameterCount(superDescriptor) != compiledValueParameterCount(subDescriptor)) {
+        if ((superDescriptor.getReceiverParameter() == null) != (subDescriptor.getReceiverParameter() == null)) {
+            return OverrideCompatibilityInfo.receiverPresenceMismatch();
+        }
+
+        if (superDescriptor.getValueParameters().size() != subDescriptor.getValueParameters().size()) {
             return OverrideCompatibilityInfo.valueParameterNumberMismatch();
         }
 
@@ -188,6 +190,11 @@ public class OverridingUtil {
                 }
             }
 
+            for (ExternalOverridabilityCondition externalCondition : EXTERNAL_CONDITIONS) {
+                if (!externalCondition.isOverridable(superDescriptor, subDescriptor)) {
+                    return OverrideCompatibilityInfo.externalConditionFailed(externalCondition.getClass());
+                }
+            }
         }
         else {
 
@@ -282,7 +289,7 @@ public class OverridingUtil {
         }
         else {
             if (descriptor.getOverriddenDescriptors().isEmpty()) {
-                throw new IllegalStateException();
+                throw new IllegalStateException("No overridden descriptors found for (fake override) " + descriptor);
             }
             for (CallableMemberDescriptor overridden : descriptor.getOverriddenDescriptors()) {
                 getOverriddenDeclarations(overridden, r);
@@ -327,6 +334,11 @@ public class OverridingUtil {
         }
 
         @NotNull
+        public static OverrideCompatibilityInfo receiverPresenceMismatch() {
+            return new OverrideCompatibilityInfo(Result.INCOMPATIBLE, "receiverPresenceMismatch"); // TODO
+        }
+
+        @NotNull
         public static OverrideCompatibilityInfo valueParameterNumberMismatch() {
             return new OverrideCompatibilityInfo(Result.INCOMPATIBLE, "valueParameterNumberMismatch"); // TODO
         }
@@ -354,6 +366,11 @@ public class OverridingUtil {
         @NotNull
         public static OverrideCompatibilityInfo varOverriddenByVal() {
             return new OverrideCompatibilityInfo(Result.INCOMPATIBLE, "varOverriddenByVal"); // TODO
+        }
+
+        @NotNull
+        public static OverrideCompatibilityInfo externalConditionFailed(Class<? extends ExternalOverridabilityCondition> conditionClass) {
+            return new OverrideCompatibilityInfo(Result.INCOMPATIBLE, "externalConditionFailed: " + conditionClass.getName()); // TODO
         }
 
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////

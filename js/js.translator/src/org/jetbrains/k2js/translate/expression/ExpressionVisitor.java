@@ -20,10 +20,14 @@ import com.google.dart.compiler.backend.js.ast.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor;
+import org.jetbrains.jet.lang.descriptors.FunctionDescriptor;
+import org.jetbrains.jet.lang.descriptors.VariableDescriptor;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.BindingContext;
+import org.jetbrains.jet.lang.resolve.BindingContextUtils;
 import org.jetbrains.jet.lang.resolve.constants.CompileTimeConstant;
 import org.jetbrains.jet.lang.resolve.constants.NullValue;
+import org.jetbrains.jet.lexer.JetTokens;
 import org.jetbrains.k2js.translate.context.TemporaryVariable;
 import org.jetbrains.k2js.translate.context.TranslationContext;
 import org.jetbrains.k2js.translate.declaration.ClassTranslator;
@@ -34,8 +38,10 @@ import org.jetbrains.k2js.translate.operation.BinaryOperationTranslator;
 import org.jetbrains.k2js.translate.operation.UnaryOperationTranslator;
 import org.jetbrains.k2js.translate.reference.*;
 import org.jetbrains.k2js.translate.utils.BindingUtils;
+import org.jetbrains.k2js.translate.utils.TranslationUtils;
 import org.jetbrains.k2js.translate.utils.mutator.AssignToExpressionMutator;
 
+import java.util.Collections;
 import java.util.List;
 
 import static org.jetbrains.k2js.translate.general.Translation.translateAsExpression;
@@ -89,7 +95,9 @@ public final class ExpressionVisitor extends TranslatorVisitor<JsNode> {
             assert statement instanceof JetExpression : "Elements in JetBlockExpression " +
                                                         "should be of type JetExpression";
             JsNode jsNode = statement.accept(this, blockContext);
-            jsBlock.getStatements().add(convertToStatement(jsNode));
+            if (jsNode != null) {
+                jsBlock.getStatements().add(convertToStatement(jsNode));
+            }
         }
         return jsBlock;
     }
@@ -128,10 +136,19 @@ public final class ExpressionVisitor extends TranslatorVisitor<JsNode> {
     @NotNull
     // assume it is a local variable declaration
     public JsNode visitProperty(@NotNull JetProperty expression, @NotNull TranslationContext context) {
-        DeclarationDescriptor descriptor = getDescriptorForElement(context.bindingContext(), expression);
-        JsName jsPropertyName = context.getNameForDescriptor(descriptor);
-        JsExpression jsInitExpression = translateInitializerForProperty(expression, context);
-        return newVar(jsPropertyName, jsInitExpression);
+        VariableDescriptor descriptor = context.bindingContext().get(BindingContext.VARIABLE, expression);
+        assert descriptor != null;
+        JsExpression initializer = translateInitializerForProperty(expression, context);
+        JsName name = context.getNameForDescriptor(descriptor);
+        if (descriptor.isVar() && context.bindingContext().get(BindingContext.CAPTURED_IN_CLOSURE, descriptor) != null) {
+            // well, wrap it
+            JsNameRef alias = new JsNameRef("v", new JsNameRef(name));
+            initializer = new JsObjectLiteral(
+                    Collections.singletonList(new JsPropertyInitializer(alias, initializer == null ? JsLiteral.NULL : initializer)));
+            context.aliasingContext().registerAlias(descriptor, alias);
+        }
+
+        return newVar(name, initializer);
     }
 
     @Override
@@ -286,7 +303,7 @@ public final class ExpressionVisitor extends TranslatorVisitor<JsNode> {
     }
 
     @Override
-    @NotNull
+    @Nullable
     public JsNode visitWhenExpression(@NotNull JetWhenExpression expression,
             @NotNull TranslationContext context) {
         return Translation.translateWhenExpression(expression, context);
@@ -297,8 +314,19 @@ public final class ExpressionVisitor extends TranslatorVisitor<JsNode> {
     @NotNull
     public JsNode visitBinaryWithTypeRHSExpression(@NotNull JetBinaryExpressionWithTypeRHS expression,
             @NotNull TranslationContext context) {
+        JsExpression jsExpression = Translation.translateAsExpression(expression.getLeft(), context);
+
+        if (expression.getOperationReference().getReferencedNameElementType() != JetTokens.AS_KEYWORD)
+            return jsExpression;
+
+        JetTypeReference type = expression.getRight();
+        assert type != null;
+        if (BindingContextUtils.getNotNull(context.bindingContext(), BindingContext.TYPE, type).isNullable())
+            return jsExpression;
+
+        // KT-2670
         // we actually do not care for types in js
-        return Translation.translateExpression(expression.getLeft(), context);
+        return TranslationUtils.sure(jsExpression, context);
     }
 
     @Override
@@ -317,15 +345,24 @@ public final class ExpressionVisitor extends TranslatorVisitor<JsNode> {
 
     @Override
     @NotNull
-    public JsNode visitFunctionLiteralExpression(@NotNull JetFunctionLiteralExpression expression,
-                                                 @NotNull TranslationContext context) {
-        return context.literalFunctionTranslator().translate(expression);
+    public JsNode visitFunctionLiteralExpression(@NotNull JetFunctionLiteralExpression expression, @NotNull TranslationContext context) {
+        FunctionDescriptor descriptor = getFunctionDescriptor(context.bindingContext(), expression.getFunctionLiteral());
+        return context.literalFunctionTranslator().translate(expression.getFunctionLiteral(), descriptor, context);
     }
 
     @Override
     @NotNull
-    public JsNode visitThisExpression(@NotNull JetThisExpression expression,
-            @NotNull TranslationContext context) {
+    public JsNode visitNamedFunction(@NotNull JetNamedFunction expression, @NotNull TranslationContext context) {
+        FunctionDescriptor descriptor = getFunctionDescriptor(context.bindingContext(), expression);
+        JsExpression alias = context.literalFunctionTranslator().translate(expression, descriptor, context);
+        JsName name = context.scope().declareFreshName(descriptor.getName().asString());
+        context.aliasingContext().registerAlias(descriptor, name.makeRef());
+        return new JsVars(new JsVars.JsVar(name, alias));
+    }
+
+    @Override
+    @NotNull
+    public JsNode visitThisExpression(@NotNull JetThisExpression expression, @NotNull TranslationContext context) {
         DeclarationDescriptor thisExpression =
                 getDescriptorForReferenceExpression(context.bindingContext(), expression.getInstanceReference());
         assert thisExpression != null : "This expression must reference a descriptor: " + expression.getText();
@@ -378,12 +415,5 @@ public final class ExpressionVisitor extends TranslatorVisitor<JsNode> {
         JsName propertyName = context.getNameForDescriptor(descriptor);
         JsExpression value = ClassTranslator.generateClassCreation(expression, context);
         return newVar(propertyName, value);
-    }
-
-    @Override
-    @NotNull
-    public JsNode visitNamedFunction(@NotNull JetNamedFunction function,
-            @NotNull TranslationContext context) {
-        return FunctionTranslator.newInstance(function, context).translateAsLocalFunction();
     }
 }

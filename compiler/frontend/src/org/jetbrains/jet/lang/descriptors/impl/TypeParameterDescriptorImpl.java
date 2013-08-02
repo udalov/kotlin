@@ -91,7 +91,7 @@ public class TypeParameterDescriptorImpl extends DeclarationDescriptorNonRootImp
                 this,
                 annotations,
                 false,
-                name.getName(),
+                name.asString(),
                 Collections.<TypeParameterDescriptor>emptyList(),
                 upperBounds);
     }
@@ -243,11 +243,6 @@ public class TypeParameterDescriptorImpl extends DeclarationDescriptorNonRootImp
             }
         }
         return classObjectBoundsAsType;
-    }
-
-    @Override
-    public boolean isClassObjectAValue() {
-        return true;
     }
 
     public void addClassObjectBound(@NotNull JetType bound) {
