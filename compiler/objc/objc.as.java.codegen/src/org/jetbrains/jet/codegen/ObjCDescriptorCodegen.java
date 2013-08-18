@@ -69,6 +69,7 @@ public class ObjCDescriptorCodegen {
 
         File outerDir = file.getParentFile();
         if (outerDir != null) {
+            //noinspection ResultOfMethodCallIgnored
             outerDir.mkdirs();
         }
 

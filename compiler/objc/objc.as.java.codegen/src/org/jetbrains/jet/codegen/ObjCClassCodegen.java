@@ -130,14 +130,14 @@ public class ObjCClassCodegen {
     }
 
     private int computeAccessFlagsForClass() {
-        int access = ACC_PUBLIC;
+        int access;
         if (descriptor.getKind() == ClassKind.TRAIT) {
-            access |= ACC_ABSTRACT | ACC_INTERFACE;
+            access = ACC_ABSTRACT | ACC_INTERFACE;
         }
         else {
-            access |= ACC_SUPER;
+            access = ACC_SUPER;
         }
-        return access;
+        return access | ACC_PUBLIC;
     }
 
     @NotNull
