@@ -90,10 +90,8 @@ public class CodegenUtil {
     }
 
     public static boolean isNonLiteralObject(JetClassOrObject myClass) {
-        return myClass instanceof JetObjectDeclaration && !((JetObjectDeclaration) myClass).isObjectLiteral() &&
-               !(myClass.getParent() instanceof JetClassObject);
+        return myClass instanceof JetObjectDeclaration && !((JetObjectDeclaration) myClass).isObjectLiteral();
     }
-
 
     public static String createTmpVariableName(Collection<String> existingNames) {
         String prefix = "tmp";
@@ -294,5 +292,22 @@ public class CodegenUtil {
         // it was introduced when fixing KT-2839, which appeared again (KT-3639).
         // If you try to remove it, run tests on Windows.
         return FileUtil.toSystemDependentName(file.getVirtualFile().getPath()).hashCode();
+    }
+
+    @Nullable
+    public static ClassDescriptor getExpectedThisObjectForConstructorCall(
+            @NotNull ConstructorDescriptor descriptor,
+            @Nullable CalculatedClosure closure
+    ) {
+        //for compilation against sources
+        if (closure != null) {
+            return closure.getCaptureThis();
+        }
+
+        //for compilation against binaries
+        //TODO: It's best to use this code also for compilation against sources
+        // but sometimes structures that have expectedThisObject (bug?) mapped to static classes
+        ReceiverParameterDescriptor expectedThisObject = descriptor.getExpectedThisObject();
+        return expectedThisObject != null ? (ClassDescriptor) expectedThisObject.getContainingDeclaration() : null;
     }
 }

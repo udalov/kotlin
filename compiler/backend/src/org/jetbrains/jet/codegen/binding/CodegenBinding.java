@@ -192,16 +192,11 @@ public class CodegenBinding {
     }
 
     public static boolean isSingleton(BindingContext bindingContext, @NotNull ClassDescriptor classDescriptor) {
-        ClassKind kind = classDescriptor.getKind();
-        if (kind == ClassKind.CLASS_OBJECT) {
+        if (isObjectDeclaration(bindingContext, classDescriptor)) {
             return true;
         }
 
-        if (kind == ClassKind.OBJECT && isObjectDeclaration(bindingContext, classDescriptor)) {
-            return true;
-        }
-
-        if (kind == ClassKind.ENUM_ENTRY) {
+        if (classDescriptor.getKind() == ClassKind.ENUM_ENTRY) {
             return true;
         }
 
@@ -367,15 +362,13 @@ public class CodegenBinding {
                     if (containingKlass.getKind() == ClassKind.ENUM_CLASS) {
                         return getJvmInternalName(bindingTrace, containingKlass).getInternalName();
                     }
+                    else if (klass.getKind() == ClassKind.OBJECT) {
+                        return getJvmInternalName(bindingTrace, containingKlass).getInternalName() + "$" + klass.getName();
+                    }
                     else {
                         return getJvmInternalName(bindingTrace, containingKlass).getInternalName() + JvmAbi.CLASS_OBJECT_SUFFIX;
                     }
                 }
-            }
-
-            JvmClassName name = bindingTrace.getBindingContext().get(FQN, descriptor);
-            if (name != null) {
-                return name.getInternalName();
             }
         }
 

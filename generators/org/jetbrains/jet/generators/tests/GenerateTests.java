@@ -32,6 +32,7 @@ import org.jetbrains.jet.completion.AbstractJavaWithLibCompletionTest;
 import org.jetbrains.jet.completion.AbstractJetJSCompletionTest;
 import org.jetbrains.jet.completion.AbstractKeywordCompletionTest;
 import org.jetbrains.jet.editor.quickDoc.AbstractJetQuickDocProviderTest;
+import org.jetbrains.jet.findUsages.AbstractJetFindUsagesTest;
 import org.jetbrains.jet.jvm.compiler.*;
 import org.jetbrains.jet.lang.resolve.lazy.AbstractLazyResolveDescriptorRendererTest;
 import org.jetbrains.jet.lang.resolve.lazy.AbstractLazyResolveNamespaceComparingTest;
@@ -51,6 +52,7 @@ import org.jetbrains.jet.plugin.quickfix.AbstractQuickFixMultiFileTest;
 import org.jetbrains.jet.plugin.quickfix.AbstractQuickFixTest;
 import org.jetbrains.jet.plugin.refactoring.inline.AbstractInlineTest;
 import org.jetbrains.jet.psi.AbstractJetPsiMatcherTest;
+import org.jetbrains.jet.resolve.AbstractResolveBaseTest;
 import org.jetbrains.jet.resolve.AbstractResolveTest;
 import org.jetbrains.jet.safeDelete.AbstractJetSafeDeleteTest;
 import org.jetbrains.jet.test.generator.SimpleTestClassModel;
@@ -426,11 +428,32 @@ public class GenerateTests {
                 "idea/tests/",
                 "JetSafeDeleteTestGenerated",
                 AbstractJetSafeDeleteTest.class,
-                testModel("idea/testData/safeDelete/deleteClass", "doClassTest"),
-                testModel("idea/testData/safeDelete/deleteObject", "doObjectTest"),
-                testModel("idea/testData/safeDelete/deleteFunction", "doFunctionTest"),
-                testModel("idea/testData/safeDelete/deleteFunctionWithJavaUsages", "doFunctionTestWithJava"),
-                testModel("idea/testData/safeDelete/deleteJavaMethod", "doJavaMethodTest")
+                testModel("idea/testData/safeDelete/deleteClass/kotlinClass", "doClassTest"),
+                testModel("idea/testData/safeDelete/deleteObject/kotlinObject", "doObjectTest"),
+                testModel("idea/testData/safeDelete/deleteFunction/kotlinFunction", "doFunctionTest"),
+                testModel("idea/testData/safeDelete/deleteFunction/kotlinFunctionWithJava", "doFunctionTestWithJava"),
+                testModel("idea/testData/safeDelete/deleteFunction/javaFunctionWithKotlin", "doJavaMethodTest"),
+                testModel("idea/testData/safeDelete/deleteProperty/kotlinProperty", "doPropertyTest"),
+                testModel("idea/testData/safeDelete/deleteProperty/kotlinPropertyWithJava", "doPropertyTestWithJava"),
+                testModel("idea/testData/safeDelete/deleteProperty/javaPropertyWithKotlin", "doJavaPropertyTest"),
+                testModel("idea/testData/safeDelete/deleteTypeParameter/kotlinTypeParameter", "doTypeParameterTest"),
+                testModel("idea/testData/safeDelete/deleteTypeParameter/kotlinTypeParameterWithJava", "doTypeParameterTestWithJava"),
+                testModel("idea/testData/safeDelete/deleteValueParameter/kotlinValueParameter", "doValueParameterTest"),
+                testModel("idea/testData/safeDelete/deleteValueParameter/kotlinValueParameterWithJava", "doValueParameterTestWithJava")
+        );
+
+        generateTest(
+                "idea/tests/",
+                "ReferenceResolveTestGenerated",
+                AbstractResolveBaseTest.class,
+                testModel("idea/testData/resolve/references", "doTest")
+        );
+
+        generateTest(
+                "idea/tests/",
+                "JetFindUsagesTest",
+                AbstractJetFindUsagesTest.class,
+                testModelWithPattern("idea/testData/findUsages", "^(.+).0.kt$", "doTest")
         );
     }
 
@@ -448,6 +471,10 @@ public class GenerateTests {
 
     private static SimpleTestClassModel testModelWithDirectories(@NotNull String rootPath, @NotNull String methodName) {
         return new SimpleTestClassModel(new File(rootPath), false,  Pattern.compile("^(.+)$"), methodName);
+    }
+
+    private static SimpleTestClassModel testModelWithPattern(@NotNull String rootPath, @NotNull String pattern, @NotNull String methodName) {
+        return new SimpleTestClassModel(new File(rootPath), true,  Pattern.compile(pattern), methodName);
     }
 
     private static SimpleTestClassModel testModel(

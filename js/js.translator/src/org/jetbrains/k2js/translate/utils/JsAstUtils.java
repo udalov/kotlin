@@ -22,6 +22,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor;
 import org.jetbrains.jet.lang.descriptors.FunctionDescriptor;
+import org.jetbrains.jet.lang.descriptors.Modality;
 import org.jetbrains.jet.lang.descriptors.PropertyDescriptor;
 import org.jetbrains.k2js.translate.context.TranslationContext;
 
@@ -238,6 +239,15 @@ public final class JsAstUtils {
     }
 
     @NotNull
+    public static JsStatement defineSimpleProperty(@NotNull String name, @NotNull JsExpression value, @NotNull TranslationContext context) {
+        if (context.isEcma5()) {
+            return defineProperty(name, createDataDescriptor(value, false), context).makeStmt();
+        } else {
+            return assignment(new JsNameRef(name, JsLiteral.THIS), value).makeStmt();
+        }
+    }
+
+    @NotNull
     public static JsObjectLiteral createPropertyDataDescriptor(@NotNull FunctionDescriptor descriptor,
             @NotNull JsExpression value) {
         return createPropertyDataDescriptor(descriptor.getModality().isOverridable(), descriptor, value);
@@ -261,7 +271,7 @@ public final class JsAstUtils {
     @NotNull
     public static JsObjectLiteral createPropertyDataDescriptor(@NotNull PropertyDescriptor descriptor,
             @NotNull JsExpression value) {
-        return createPropertyDataDescriptor(descriptor.isVar(), descriptor, value);
+        return createPropertyDataDescriptor(descriptor.isVar() || descriptor.getModality() == Modality.OPEN, descriptor, value);
     }
 
     @NotNull
@@ -280,5 +290,10 @@ public final class JsAstUtils {
         JsFunction packageBlockFunction = createFunctionWithEmptyBody(scope);
         to.add(new JsInvocation(EMPTY_REF, new JsInvocation(packageBlockFunction)).makeStmt());
         return packageBlockFunction;
+    }
+
+    @NotNull
+    public static JsObjectLiteral wrapValue(@NotNull JsExpression label, @NotNull JsExpression value) {
+        return new JsObjectLiteral(Collections.singletonList(new JsPropertyInitializer(label, value)));
     }
 }

@@ -34,10 +34,13 @@ import com.intellij.psi.PsiManager;
 import com.intellij.psi.search.FileTypeIndex;
 import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.util.Function;
+import com.intellij.util.containers.ContainerUtil;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.resolve.java.JetFilesProvider;
 import org.jetbrains.jet.plugin.JetFileType;
+import org.jetbrains.jet.plugin.JetPluginUtil;
 
 import java.util.Collection;
 import java.util.HashSet;
@@ -69,6 +72,7 @@ public class PluginJetFilesProvider extends JetFilesProvider {
                         public boolean processFile(VirtualFile file) {
                             if (file.isDirectory()) return true;
                             if (!index.isInSourceContent(file) && !index.isInTestSourceContent(file)) return true;
+                            if (JetPluginUtil.isKtFileInGradleProjectInWrongFolder(file, project)) return true;
 
                             FileType fileType = FileTypeManager.getInstance().getFileTypeByFile(file);
                             if (fileType != JetFileType.INSTANCE) return true;
@@ -94,27 +98,39 @@ public class PluginJetFilesProvider extends JetFilesProvider {
         return WHOLE_PROJECT_DECLARATION_PROVIDER;
     }
 
+    private boolean isKotlinSourceVirtualFile(@NotNull VirtualFile virtualFile) {
+        return ProjectFileIndex.SERVICE.getInstance(project).isInSourceContent(virtualFile) &&
+               !JetPluginUtil.isKtFileInGradleProjectInWrongFolder(virtualFile, project);
+    }
+
     @Override
-    public Collection<JetFile> allInScope(GlobalSearchScope scope) {
+    public Collection<JetFile> allInScope(@NotNull GlobalSearchScope scope) {
         final PsiManager manager = PsiManager.getInstance(project);
 
-        Collection<JetFile> jetFiles = Collections2.transform(FileTypeIndex.getFiles(JetFileType.INSTANCE, scope),
-               new com.google.common.base.Function<VirtualFile, JetFile>() {
-                   @Override
-                   public JetFile apply(@Nullable VirtualFile file) {
-                       if (file == null || !ProjectFileIndex.SERVICE.getInstance(project).isInSourceContent(file)) {
-                           return null;
-                       }
+        Collection<JetFile> jetFiles = ContainerUtil.map(
+                FileTypeIndex.getFiles(JetFileType.INSTANCE, scope),
+                new Function<VirtualFile, JetFile>() {
+                    @Override
+                    public JetFile fun(@Nullable VirtualFile file) {
+                        if (file == null || !isKotlinSourceVirtualFile(file)) {
+                            return null;
+                        }
 
-                       PsiFile psiFile = manager.findFile(file);
-                       if (!(psiFile instanceof JetFile)) {
-                           return null;
-                       }
+                        PsiFile psiFile = manager.findFile(file);
+                        if (!(psiFile instanceof JetFile)) {
+                            return null;
+                        }
 
-                       return ((JetFile) psiFile);
-                   }
-               });
+                        return ((JetFile) psiFile);
+                    }
+                });
 
         return Sets.newHashSet(Collections2.filter(jetFiles, Predicates.<JetFile>notNull()));
+    }
+
+    @Override
+    public boolean isFileInScope(@NotNull JetFile file, @NotNull GlobalSearchScope scope) {
+        VirtualFile virtualFile = file.getVirtualFile();
+        return virtualFile != null && scope.contains(virtualFile) && isKotlinSourceVirtualFile(virtualFile);
     }
 }

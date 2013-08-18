@@ -18,6 +18,7 @@ package org.jetbrains.jet.plugin.completion;
 
 import com.intellij.codeInsight.completion.*;
 import com.intellij.codeInsight.lookup.LookupElement;
+import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.patterns.ElementPattern;
 import com.intellij.patterns.PlatformPatterns;
 import com.intellij.psi.PsiElement;
@@ -27,9 +28,8 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.psi.JetNamespaceHeader;
 import org.jetbrains.jet.lang.resolve.BindingContext;
-import org.jetbrains.jet.lang.resolve.lazy.ResolveSession;
-import org.jetbrains.jet.lang.resolve.lazy.ResolveSessionUtils;
 import org.jetbrains.jet.plugin.codeInsight.TipsManager;
+import org.jetbrains.jet.plugin.project.CancelableResolveSession;
 import org.jetbrains.jet.plugin.project.WholeProjectAnalyzerFacade;
 import org.jetbrains.jet.plugin.references.JetSimpleNameReference;
 
@@ -67,22 +67,26 @@ public class JetPackagesContributor extends CompletionContributor {
                                return;
                            }
 
-                           int prefixLength = parameters.getOffset() - simpleNameReference.getExpression().getTextOffset();
-                           result = result.withPrefixMatcher(new PlainPrefixMatcher(name.substring(0, prefixLength)));
+                           try {
+                               int prefixLength = parameters.getOffset() - simpleNameReference.getExpression().getTextOffset();
+                               result = result.withPrefixMatcher(new PlainPrefixMatcher(name.substring(0, prefixLength)));
 
-                           ResolveSession resolveSession = WholeProjectAnalyzerFacade.getLazyResolveSessionForFile(
-                                   (JetFile) simpleNameReference.getExpression().getContainingFile());
-                           BindingContext bindingContext = ResolveSessionUtils.resolveToExpression(
-                                   resolveSession, simpleNameReference.getExpression());
+                               CancelableResolveSession resolveSession = WholeProjectAnalyzerFacade.getLazyResolveResultForFile(
+                                       (JetFile) simpleNameReference.getExpression().getContainingFile());
+                               BindingContext bindingContext = resolveSession.resolveToElement(simpleNameReference.getExpression());
 
-                           for (LookupElement variant : DescriptorLookupConverter.collectLookupElements(
-                                   resolveSession, bindingContext, TipsManager.getPackageReferenceVariants(simpleNameReference.getExpression(), bindingContext))) {
-                               if (!variant.getLookupString().contains(DUMMY_IDENTIFIER)) {
-                                   result.addElement(variant);
+                               for (LookupElement variant : DescriptorLookupConverter.collectLookupElements(
+                                       resolveSession, bindingContext, TipsManager.getPackageReferenceVariants(simpleNameReference.getExpression(), bindingContext))) {
+                                   if (!variant.getLookupString().contains(DUMMY_IDENTIFIER)) {
+                                       result.addElement(variant);
+                                   }
                                }
-                           }
 
-                           result.stopHere();
+                               result.stopHere();
+                           }
+                           catch (ProcessCanceledException e) {
+                               throw CompletionProgressIndicatorUtil.rethrowWithCancelIndicator(e);
+                           }
                        }
                    }
                });

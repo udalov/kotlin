@@ -1,7 +1,7 @@
 <project name="Update Dependencies" default="update">
-    <property name="jb.buildserver.build.id" value="1964536"/>
-    <property name="public.buildserver.build.id" value="85865"/>
-    <property name="idea.archive.name" value="ideaIC-129.SNAPSHOT.win.zip"/>
+    <property name="jb.buildserver.build.id" value="2007632"/>
+    <property name="public.buildserver.build.id" value="87877"/>
+    <property name="idea.archive.name" value="ideaIC-130.SNAPSHOT.win.zip"/>
 
     <property name="idea.sdk.fetch.needed" value="true"/>
 
@@ -15,6 +15,13 @@
     <target name="jb_update" depends="fetch-third-party">
         <execute_update
             base.url="http://buildserver.labs.intellij.net/guestAuth/repository/download/bt3498/${jb.buildserver.build.id}:id"
+            build.zip="${idea.archive.name}"
+        />
+    </target>
+
+    <target name="jb_update_continuous" depends="fetch-third-party">
+        <execute_update
+            base.url="file:///${basedir}/idea_artifacts"
             build.zip="${idea.archive.name}"
         />
     </target>
@@ -122,8 +129,8 @@
              dest="dependencies/download/protobuf-java-2.4.1.jar" usetimestamp="true"/>
         <copy file="dependencies/download/protobuf-java-2.4.1.jar" tofile="dependencies/protobuf.jar" overwrite="true"/>
 
-        <!-- Guava 12 sources-->
-        <get-maven-library prefix="com/google/guava" lib="guava" version="12.0" bin="false"/>
+        <!-- Guava 14 sources-->
+        <get-maven-library prefix="com/google/guava" lib="guava" version="14.0.1" bin="false"/>
 
         <!-- ASM 4 -->
         <get-asm4-and-rename-packages/>
@@ -183,9 +190,10 @@
                     <get src="@{base.url.for.core}/core/intellij-core.jar" dest="${core}/intellij-core.jar" usetimestamp="true"/>
                     <get src="@{base.url}/core/annotations.jar" dest="${core}/annotations.jar" usetimestamp="true"/>
                     <get src="@{base.url}/core/cli-parser-1.1.jar" dest="${core}/cli-parser-1.1.jar" usetimestamp="true"/>
-                    <get src="@{base.url}/core/guava-12.0.jar" dest="${core}/guava-12.0.jar" usetimestamp="true"/>
+                    <get src="@{base.url}/core/guava-14.0.1.jar" dest="${core}/guava-14.0.1.jar" usetimestamp="true"/>
                     <get src="@{base.url}/core/picocontainer.jar" dest="${core}/picocontainer.jar" usetimestamp="true"/>
                     <get src="@{base.url}/core/trove4j.jar" dest="${core}/trove4j.jar" usetimestamp="true"/>
+                    <!--<get src="@{base.url}/core/snappy-java-1.0.5.jar" dest="${core}/snappy-java-1.0.5.jar" usetimestamp="true"/>-->
 
                     <copy file="dependencies/jetbrains-asm-debug-all-4.0.jar" todir="${jps}"/>
                     <get src="@{base.url}/jps/groovy-jps-plugin.jar" dest="${jps}/groovy-jps-plugin.jar" usetimestamp="true"/>
@@ -197,7 +205,7 @@
                     <get src="@{base.url}/jps/jps-model.jar" dest="${jps}/jps-model.jar" usetimestamp="true"/>
                     <get src="@{base.url}/jps/log4j.jar" dest="${jps}/log4j.jar" usetimestamp="true"/>
                     <get src="@{base.url}/jps/nanoxml-2.2.3.jar" dest="${jps}/nanoxml-2.2.3.jar" usetimestamp="true"/>
-                    <get src="@{base.url}/jps/protobuf-2.4.1.jar" dest="${jps}/protobuf-2.4.1.jar" usetimestamp="true"/>
+                    <get src="@{base.url}/jps/protobuf-2.5.0.jar" dest="${jps}/protobuf-2.5.0.jar" usetimestamp="true"/>
                     <get src="@{base.url}/jps/trove4j.jar" dest="${jps}/trove4j.jar" usetimestamp="true"/>
                     <get src="@{base.url}/jps/ui-designer-jps-plugin.jar" dest="${jps}/ui-designer-jps-plugin.jar" usetimestamp="true"/>
                     <get src="@{base.url}/jps/util.jar" dest="${jps}/util.jar" usetimestamp="true"/>
@@ -206,6 +214,7 @@
 
                     <get src="@{base.url}/@{build.zip}" dest="dependencies/download/@{build.zip}" usetimestamp="true"/>
 
+                    <delete file="dependencies/download/idea-sdk-sources.zip" failonerror="false"/>
                     <get src="@{base.url}/sources.zip" dest="dependencies/download/idea-sdk-sources.zip" usetimestamp="true"/>
                 </then>
             </if>

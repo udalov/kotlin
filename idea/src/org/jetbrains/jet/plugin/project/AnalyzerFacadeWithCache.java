@@ -32,7 +32,6 @@ import com.intellij.psi.util.CachedValue;
 import com.intellij.psi.util.CachedValueProvider;
 import com.intellij.psi.util.CachedValuesManager;
 import com.intellij.psi.util.PsiModificationTracker;
-import com.intellij.util.Function;
 import com.intellij.util.containers.SLRUCache;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -46,9 +45,7 @@ import org.jetbrains.jet.lang.resolve.java.AnalyzerFacadeForJVM;
 import org.jetbrains.jet.lang.resolve.java.JetFilesProvider;
 import org.jetbrains.jet.lang.resolve.lazy.ResolveSession;
 import org.jetbrains.jet.lang.types.ErrorUtils;
-import org.jetbrains.jet.plugin.caches.resolve.KotlinCacheManagerUtil;
-import org.jetbrains.jet.plugin.caches.resolve.KotlinDeclarationsCache;
-import org.jetbrains.jet.plugin.caches.resolve.KotlinDeclarationsCacheImpl;
+import org.jetbrains.jet.plugin.caches.resolve.*;
 import org.jetbrains.jet.plugin.util.ApplicationUtils;
 
 import java.util.Collection;
@@ -61,12 +58,6 @@ public final class AnalyzerFacadeWithCache {
     private final static Key<CachedValue<SLRUCache<JetFile, AnalyzeExhaust>>> ANALYZE_EXHAUST_FULL = Key.create("ANALYZE_EXHAUST_FULL");
 
     private static final Object lock = new Object();
-    public static final Function<JetFile, Collection<JetFile>> SINGLE_DECLARATION_PROVIDER = new Function<JetFile, Collection<JetFile>>() {
-        @Override
-        public Collection<JetFile> fun(JetFile file) {
-            return Collections.singleton(file);
-        }
-    };
 
     private AnalyzerFacadeWithCache() {
     }
@@ -174,17 +165,55 @@ public final class AnalyzerFacadeWithCache {
         LOG.error(e);
     }
 
-    @NotNull
-    public static ResolveSession getLazyResolveSession(@NotNull JetFile file) {
-        Project fileProject = file.getProject();
+    public static CancelableResolveSession getLazyResolveSessionForFile(@NotNull JetFile file) {
+        Project project = file.getProject();
+        DeclarationsCacheProvider provider = KotlinCacheManager.getInstance(project).getRegisteredProvider(TargetPlatformDetector.getPlatform(file));
 
-        Collection<JetFile> files = JetFilesProvider.getInstance(fileProject).allInScope(GlobalSearchScope.allScope(fileProject));
+        if (!provider.areDeclarationsAvailable(file)) {
+            // There can be request for temp files (in completion) or non-source (in library) files. Create temp sessions for them.
+            CachedValue<CancelableResolveSession> cachedValue;
 
-        // Given file can differ from the original because it can be a virtual copy with some modifications
-        JetFile originalFile = (JetFile) file.getOriginalFile();
-        files.remove(originalFile);
-        files.add(file);
+            synchronized (PER_FILE_SESSION_CACHE) {
+                cachedValue = PER_FILE_SESSION_CACHE.get(file);
+            }
 
-        return AnalyzerFacadeProvider.getAnalyzerFacadeForFile(file).getLazyResolveSession(fileProject, files);
+            return cachedValue.getValue();
+        }
+
+        return provider.getLazyResolveSession();
     }
+
+    private static final SLRUCache<JetFile, CachedValue<CancelableResolveSession>> PER_FILE_SESSION_CACHE = new SLRUCache<JetFile, CachedValue<CancelableResolveSession>>(2, 3) {
+        @NotNull
+        @Override
+        public CachedValue<CancelableResolveSession> createValue(final JetFile file) {
+            final Project fileProject = file.getProject();
+            return CachedValuesManager.getManager(fileProject).createCachedValue(
+                    // Each value monitors OUT_OF_CODE_BLOCK_MODIFICATION_COUNT and modification tracker of the stored value
+                    new CachedValueProvider<CancelableResolveSession>() {
+                        @Nullable
+                        @Override
+                        public Result<CancelableResolveSession> compute() {
+                            Project project = file.getProject();
+
+
+                            Collection<JetFile> files = JetFilesProvider.getInstance(project).allInScope(GlobalSearchScope.allScope(project));
+
+                            // Add requested file to the list of files for searching declarations
+                            files.add(file);
+
+                            if (file != file.getOriginalFile()) {
+                                // Given file can be a non-physical copy of the file in list (completion case). Remove the prototype file.
+
+                                //noinspection SuspiciousMethodCalls
+                                files.remove(file.getOriginalFile());
+                            }
+
+                            ResolveSession resolveSession = AnalyzerFacadeProvider.getAnalyzerFacadeForFile(file).getLazyResolveSession(fileProject, files);
+                            return Result.create(new CancelableResolveSession(file, resolveSession), PsiModificationTracker.OUT_OF_CODE_BLOCK_MODIFICATION_COUNT);
+                        }
+                    },
+                    true);
+        }
+    };
 }
