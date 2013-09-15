@@ -1,5 +1,5 @@
 // Protocol Buffers - Google's data interchange format
-// Copyright 2008 Google Inc.  All rights reserved.
+// Copyright 2012 Google Inc.  All rights reserved.
 // http://code.google.com/p/protobuf/
 //
 // Redistribution and use in source and binary forms, with or without
@@ -28,50 +28,43 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Author: kenton@google.com (Kenton Varda)
-//  Based on original Protocol Buffers design by
-//  Sanjay Ghemawat, Jeff Dean, and others.
-//
-// This file contains miscellaneous helper code used by generated code --
-// including lite types -- but which should not be used directly by users.
-
-#ifndef GOOGLE_PROTOBUF_GENERATED_MESSAGE_UTIL_H__
-#define GOOGLE_PROTOBUF_GENERATED_MESSAGE_UTIL_H__
-
-#include <string>
+#ifndef GOOGLE_PROTOBUF_PLATFORM_MACROS_H_
+#define GOOGLE_PROTOBUF_PLATFORM_MACROS_H_
 
 #include <google/protobuf/stubs/common.h>
-namespace google {
-namespace protobuf {
-namespace internal {
 
-// Annotation for the compiler to emit a deprecation message if a field marked
-// with option 'deprecated=true' is used in the code, or for other things in
-// generated code which are deprecated.
-//
-// For internal use in the pb.cc files, deprecation warnings are suppressed
-// there.
-#undef DEPRECATED_PROTOBUF_FIELD
-#define PROTOBUF_DEPRECATED
+// Processor architecture detection.  For more info on what's defined, see:
+//   http://msdn.microsoft.com/en-us/library/b0084kay.aspx
+//   http://www.agner.org/optimize/calling_conventions.pdf
+//   or with gcc, run: "echo | gcc -E -dM -"
+#if defined(_M_X64) || defined(__x86_64__)
+#define GOOGLE_PROTOBUF_ARCH_X64 1
+#define GOOGLE_PROTOBUF_ARCH_64_BIT 1
+#elif defined(_M_IX86) || defined(__i386__)
+#define GOOGLE_PROTOBUF_ARCH_IA32 1
+#define GOOGLE_PROTOBUF_ARCH_32_BIT 1
+#elif defined(__QNX__)
+#define GOOGLE_PROTOBUF_ARCH_ARM_QNX 1
+#define GOOGLE_PROTOBUF_ARCH_32_BIT 1
+#elif defined(__ARMEL__)
+#define GOOGLE_PROTOBUF_ARCH_ARM 1
+#define GOOGLE_PROTOBUF_ARCH_32_BIT 1
+#elif defined(__MIPSEL__)
+#define GOOGLE_PROTOBUF_ARCH_MIPS 1
+#define GOOGLE_PROTOBUF_ARCH_32_BIT 1
+#elif defined(__pnacl__)
+#define GOOGLE_PROTOBUF_ARCH_32_BIT 1
+#elif defined(__ppc__)
+#define GOOGLE_PROTOBUF_ARCH_PPC 1
+#define GOOGLE_PROTOBUF_ARCH_32_BIT 1
+#else
+#error Host architecture was not detected as supported by protobuf
+#endif
 
+#if defined(__APPLE__)
+#define GOOGLE_PROTOBUF_OS_APPLE
+#elif defined(__native_client__)
+#define GOOGLE_PROTOBUF_OS_NACL
+#endif
 
-// Constants for special floating point values.
-LIBPROTOBUF_EXPORT double Infinity();
-LIBPROTOBUF_EXPORT double NaN();
-
-// Constant used for empty default strings.
-LIBPROTOBUF_EXPORT extern const ::std::string kEmptyString;
-
-// Defined in generated_message_reflection.cc -- not actually part of the lite
-// library.
-//
-// TODO(jasonh): The various callers get this declaration from a variety of
-// places: probably in most cases repeated_field.h. Clean these up so they all
-// get the declaration from this file.
-LIBPROTOBUF_EXPORT int StringSpaceUsedExcludingSelf(const string& str);
-
-}  // namespace internal
-}  // namespace protobuf
-
-}  // namespace google
-#endif  // GOOGLE_PROTOBUF_GENERATED_MESSAGE_UTIL_H__
+#endif  // GOOGLE_PROTOBUF_PLATFORM_MACROS_H_

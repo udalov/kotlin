@@ -1,5 +1,5 @@
 // Protocol Buffers - Google's data interchange format
-// Copyright 2008 Google Inc.  All rights reserved.
+// Copyright 2012 Google Inc.  All rights reserved.
 // http://code.google.com/p/protobuf/
 //
 // Redistribution and use in source and binary forms, with or without
@@ -28,50 +28,46 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Author: kenton@google.com (Kenton Varda)
-//  Based on original Protocol Buffers design by
-//  Sanjay Ghemawat, Jeff Dean, and others.
-//
-// This file contains miscellaneous helper code used by generated code --
-// including lite types -- but which should not be used directly by users.
+// This file is an internal atomic implementation, use atomicops.h instead.
 
-#ifndef GOOGLE_PROTOBUF_GENERATED_MESSAGE_UTIL_H__
-#define GOOGLE_PROTOBUF_GENERATED_MESSAGE_UTIL_H__
+#ifndef GOOGLE_PROTOBUF_ATOMICOPS_INTERNALS_PNACL_H_
+#define GOOGLE_PROTOBUF_ATOMICOPS_INTERNALS_PNACL_H_
 
-#include <string>
-
-#include <google/protobuf/stubs/common.h>
 namespace google {
 namespace protobuf {
 namespace internal {
 
-// Annotation for the compiler to emit a deprecation message if a field marked
-// with option 'deprecated=true' is used in the code, or for other things in
-// generated code which are deprecated.
-//
-// For internal use in the pb.cc files, deprecation warnings are suppressed
-// there.
-#undef DEPRECATED_PROTOBUF_FIELD
-#define PROTOBUF_DEPRECATED
+inline Atomic32 NoBarrier_CompareAndSwap(volatile Atomic32* ptr,
+                                         Atomic32 old_value,
+                                         Atomic32 new_value) {
+  return __sync_val_compare_and_swap(ptr, old_value, new_value);
+}
 
+inline void MemoryBarrier() {
+  __sync_synchronize();
+}
 
-// Constants for special floating point values.
-LIBPROTOBUF_EXPORT double Infinity();
-LIBPROTOBUF_EXPORT double NaN();
+inline Atomic32 Acquire_CompareAndSwap(volatile Atomic32* ptr,
+                                       Atomic32 old_value,
+                                       Atomic32 new_value) {
+  Atomic32 ret = NoBarrier_CompareAndSwap(ptr, old_value, new_value);
+  MemoryBarrier();
+  return ret;
+}
 
-// Constant used for empty default strings.
-LIBPROTOBUF_EXPORT extern const ::std::string kEmptyString;
+inline void Release_Store(volatile Atomic32* ptr, Atomic32 value) {
+  MemoryBarrier();
+  *ptr = value;
+}
 
-// Defined in generated_message_reflection.cc -- not actually part of the lite
-// library.
-//
-// TODO(jasonh): The various callers get this declaration from a variety of
-// places: probably in most cases repeated_field.h. Clean these up so they all
-// get the declaration from this file.
-LIBPROTOBUF_EXPORT int StringSpaceUsedExcludingSelf(const string& str);
+inline Atomic32 Acquire_Load(volatile const Atomic32* ptr) {
+  Atomic32 value = *ptr;
+  MemoryBarrier();
+  return value;
+}
 
 }  // namespace internal
 }  // namespace protobuf
-
 }  // namespace google
-#endif  // GOOGLE_PROTOBUF_GENERATED_MESSAGE_UTIL_H__
+
+#endif  // GOOGLE_PROTOBUF_ATOMICOPS_INTERNALS_PNACL_H_

@@ -119,11 +119,6 @@
         <get-maven-library prefix="org/fusesource/jansi" lib="jansi" version="1.9"/>
         -->
 
-        <!-- Protocol Buffers -->
-        <get src="http://repository.jetbrains.com/remote-repos/com/google/protobuf/protobuf-java/2.4.1/protobuf-java-2.4.1.jar"
-             dest="dependencies/download/protobuf-java-2.4.1.jar" usetimestamp="true"/>
-        <copy file="dependencies/download/protobuf-java-2.4.1.jar" tofile="dependencies/protobuf.jar" overwrite="true"/>
-
         <!-- Guava 14 sources-->
         <get-maven-library prefix="com/google/guava" lib="guava" version="14.0.1" bin="false"/>
 
