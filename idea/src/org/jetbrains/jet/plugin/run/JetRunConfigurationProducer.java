@@ -32,7 +32,10 @@ import org.jetbrains.jet.lang.psi.JetPsiUtil;
 import org.jetbrains.jet.lang.resolve.java.PackageClassUtils;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.plugin.JetMainDetector;
+import org.jetbrains.jet.plugin.JetPluginUtil;
 import org.jetbrains.jet.plugin.framework.KotlinFrameworkDetector;
+
+import java.util.List;
 
 public class JetRunConfigurationProducer extends RuntimeConfigurationProducer implements Cloneable {
     @Nullable
@@ -59,29 +62,30 @@ public class JetRunConfigurationProducer extends RuntimeConfigurationProducer im
             return null;
         }
 
-        FqName startClassFQName = getStartClassFQName(location);
-        if (startClassFQName == null) {
+        JetFile file = getStartClassFile(location);
+        if (file == null || !JetPluginUtil.isInSource(file, true)) {
             return null;
         }
+
+        mySourceElement = file;
+
+        FqName startClassFQName = PackageClassUtils.getPackageClassFqName(JetPsiUtil.getFQName(file));
 
         return createConfigurationByQName(module, configurationContext, startClassFQName);
     }
 
     @Nullable
-    private FqName getStartClassFQName(Location location) {
+    private static JetFile getStartClassFile(@NotNull Location location) {
         PsiFile psiFile = location.getPsiElement().getContainingFile();
         if (psiFile instanceof JetFile) {
             JetFile jetFile = (JetFile) psiFile;
             if (JetMainDetector.hasMain(jetFile.getDeclarations())) {
-                mySourceElement = jetFile;
-                FqName fqName = JetPsiUtil.getFQName(jetFile);
-                return PackageClassUtils.getPackageClassFqName(fqName);
+                return jetFile;
             }
         }
 
         return null;
     }
-
 
     @NotNull
     private RunnerAndConfigurationSettings createConfigurationByQName(
@@ -100,13 +104,15 @@ public class JetRunConfigurationProducer extends RuntimeConfigurationProducer im
     @Override
     protected RunnerAndConfigurationSettings findExistingByElement(
             Location location,
-            @NotNull RunnerAndConfigurationSettings[] existingConfigurations,
+            @NotNull List<RunnerAndConfigurationSettings> existingConfigurations,
             ConfigurationContext context
     ) {
-        FqName startClassFQName = getStartClassFQName(location);
-        if (startClassFQName == null) {
+        JetFile file = getStartClassFile(location);
+        if (file == null) {
             return null;
         }
+
+        FqName startClassFQName = PackageClassUtils.getPackageClassFqName(JetPsiUtil.getFQName(file));
 
         for (RunnerAndConfigurationSettings existingConfiguration : existingConfigurations) {
             if (existingConfiguration.getType() instanceof JetRunConfigurationType) {

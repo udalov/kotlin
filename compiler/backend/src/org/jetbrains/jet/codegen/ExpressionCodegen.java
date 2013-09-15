@@ -51,8 +51,12 @@ import org.jetbrains.jet.lang.resolve.calls.model.*;
 import org.jetbrains.jet.lang.resolve.calls.util.CallMaker;
 import org.jetbrains.jet.lang.resolve.calls.util.ExpressionAsFunctionDescriptor;
 import org.jetbrains.jet.lang.resolve.constants.CompileTimeConstant;
-import org.jetbrains.jet.lang.resolve.java.*;
+import org.jetbrains.jet.lang.resolve.java.AsmTypeConstants;
+import org.jetbrains.jet.lang.resolve.java.JvmAbi;
+import org.jetbrains.jet.lang.resolve.java.JvmClassName;
+import org.jetbrains.jet.lang.resolve.java.JvmPrimitiveType;
 import org.jetbrains.jet.lang.resolve.java.descriptor.ClassDescriptorFromJvmBytecode;
+import org.jetbrains.jet.lang.resolve.java.descriptor.SamConstructorDescriptor;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.resolve.scopes.receivers.*;
 import org.jetbrains.jet.lang.types.JetType;
@@ -106,14 +110,11 @@ public class ExpressionCodegen extends JetVisitor<StackValue, StackValue> implem
      */
     private final Map<JetElement, StackValue.Local> tempVariables = Maps.newHashMap();
 
-    public CalculatedClosure generateObjectLiteral(
-            GenerationState state,
-            JetObjectLiteralExpression literal
-    ) {
+    public CalculatedClosure generateObjectLiteral(GenerationState state, JetObjectLiteralExpression literal) {
         JetObjectDeclaration objectDeclaration = literal.getObjectDeclaration();
 
         JvmClassName className = classNameForAnonymousClass(bindingContext, objectDeclaration);
-        ClassBuilder classBuilder = state.getFactory().newVisitor(className.getInternalName(), literal.getContainingFile());
+        ClassBuilder classBuilder = state.getFactory().newVisitor(className, literal.getContainingFile());
 
         ClassDescriptor classDescriptor = bindingContext.get(CLASS, objectDeclaration);
         assert classDescriptor != null;
@@ -145,13 +146,18 @@ public class ExpressionCodegen extends JetVisitor<StackValue, StackValue> implem
     }
 
     static class FinallyBlockStackElement extends BlockStackElement {
+        List<Label> gaps = new ArrayList();
+
         final JetTryExpression expression;
 
         FinallyBlockStackElement(JetTryExpression expression) {
             this.expression = expression;
         }
-    }
 
+        private void addGapLabel(Label label){
+            gaps.add(label);
+        }
+    }
 
     public ExpressionCodegen(
             @NotNull MethodVisitor v,
@@ -281,10 +287,8 @@ public class ExpressionCodegen extends JetVisitor<StackValue, StackValue> implem
         ClassDescriptor descriptor = bindingContext.get(BindingContext.CLASS, declaration);
         assert descriptor != null;
 
-        JvmClassName className =
-                classNameForAnonymousClass(bindingContext, declaration);
-        ClassBuilder classBuilder = state.getFactory().newVisitor(className.getInternalName(), declaration.getContainingFile()
-        );
+        JvmClassName className = classNameForAnonymousClass(bindingContext, declaration);
+        ClassBuilder classBuilder = state.getFactory().newVisitor(className, declaration.getContainingFile());
 
         ClassContext objectContext = context.intoAnonymousClass(descriptor, this);
 
@@ -1139,62 +1143,50 @@ public class ExpressionCodegen extends JetVisitor<StackValue, StackValue> implem
 
     @Override
     public StackValue visitBreakExpression(JetBreakExpression expression, StackValue receiver) {
-        JetSimpleNameExpression labelElement = expression.getTargetLabel();
-
-        for (int i = blockStackElements.size() - 1; i >= 0; --i) {
-            BlockStackElement stackElement = blockStackElements.get(i);
-            if (stackElement instanceof FinallyBlockStackElement) {
-                FinallyBlockStackElement finallyBlockStackElement = (FinallyBlockStackElement) stackElement;
-                JetTryExpression jetTryExpression = finallyBlockStackElement.expression;
-                //noinspection ConstantConditions
-                gen(jetTryExpression.getFinallyBlock().getFinalExpression(), Type.VOID_TYPE);
-            }
-            else if (stackElement instanceof LoopBlockStackElement) {
-                LoopBlockStackElement loopBlockStackElement = (LoopBlockStackElement) stackElement;
-                //noinspection ConstantConditions
-                if (labelElement == null ||
-                    loopBlockStackElement.targetLabel != null &&
-                    labelElement.getReferencedName().equals(loopBlockStackElement.targetLabel.getReferencedName())) {
-                    v.goTo(loopBlockStackElement.breakLabel);
-                    return StackValue.none();
-                }
-            }
-            else {
-                throw new UnsupportedOperationException();
-            }
-        }
-
-        throw new UnsupportedOperationException();
+        return visitBreakOrContinueExpression(expression, receiver, true);
     }
 
     @Override
     public StackValue visitContinueExpression(JetContinueExpression expression, StackValue receiver) {
-        JetSimpleNameExpression labelElement = expression.getTargetLabel();
+        return visitBreakOrContinueExpression(expression, receiver, false);
+    }
 
-        for (int i = blockStackElements.size() - 1; i >= 0; --i) {
-            BlockStackElement stackElement = blockStackElements.get(i);
+    @NotNull
+    private StackValue visitBreakOrContinueExpression(@NotNull JetLabelQualifiedExpression expression, StackValue receiver, boolean isBreak) {
+        assert expression instanceof JetContinueExpression || expression instanceof JetBreakExpression;
+
+        if (!blockStackElements.isEmpty()) {
+            BlockStackElement stackElement = blockStackElements.peek();
+
             if (stackElement instanceof FinallyBlockStackElement) {
                 FinallyBlockStackElement finallyBlockStackElement = (FinallyBlockStackElement) stackElement;
-                JetTryExpression jetTryExpression = finallyBlockStackElement.expression;
                 //noinspection ConstantConditions
-                gen(jetTryExpression.getFinallyBlock().getFinalExpression(), Type.VOID_TYPE);
+                genFinallyBlockOrGoto(finallyBlockStackElement, null);
             }
             else if (stackElement instanceof LoopBlockStackElement) {
                 LoopBlockStackElement loopBlockStackElement = (LoopBlockStackElement) stackElement;
+                JetSimpleNameExpression labelElement = expression.getTargetLabel();
                 //noinspection ConstantConditions
                 if (labelElement == null ||
                     loopBlockStackElement.targetLabel != null &&
                     labelElement.getReferencedName().equals(loopBlockStackElement.targetLabel.getReferencedName())) {
-                    v.goTo(loopBlockStackElement.continueLabel);
+                    v.goTo(isBreak ? loopBlockStackElement.breakLabel : loopBlockStackElement.continueLabel);
                     return StackValue.none();
                 }
             }
             else {
-                throw new UnsupportedOperationException();
+                throw new UnsupportedOperationException("Wrong BlockStackElement in processing stack");
             }
+
+            blockStackElements.pop();
+            StackValue result = visitBreakOrContinueExpression(expression, receiver, isBreak);
+            blockStackElements.push(stackElement);
+            return result;
+
+
         }
 
-        throw new UnsupportedOperationException();
+        throw new UnsupportedOperationException("Target label for break/continue not found");
     }
 
     private StackValue generateSingleBranchIf(
@@ -1524,19 +1516,54 @@ public class ExpressionCodegen extends JetVisitor<StackValue, StackValue> implem
     }
 
     private void doFinallyOnReturn() {
-        for (int i = blockStackElements.size() - 1; i >= 0; --i) {
-            BlockStackElement stackElement = blockStackElements.get(i);
+        if(!blockStackElements.isEmpty()) {
+            BlockStackElement stackElement = blockStackElements.peek();
             if (stackElement instanceof FinallyBlockStackElement) {
                 FinallyBlockStackElement finallyBlockStackElement = (FinallyBlockStackElement) stackElement;
-                JetTryExpression jetTryExpression = finallyBlockStackElement.expression;
-                blockStackElements.pop();
-                //noinspection ConstantConditions
-                gen(jetTryExpression.getFinallyBlock().getFinalExpression(), Type.VOID_TYPE);
-                blockStackElements.push(finallyBlockStackElement);
+                genFinallyBlockOrGoto(finallyBlockStackElement, null);
             }
-            else {
-                break;
+            else if (stackElement instanceof LoopBlockStackElement) {
+
+            } else {
+                throw new UnsupportedOperationException("Wrong BlockStackElement in processing stack");
             }
+
+            blockStackElements.pop();
+            doFinallyOnReturn();
+            blockStackElements.push(stackElement);
+        }
+    }
+
+    private void genFinallyBlockOrGoto(
+            @Nullable FinallyBlockStackElement finallyBlockStackElement,
+            @Nullable Label tryCatchBlockEnd
+    ) {
+
+        if (finallyBlockStackElement != null) {
+            assert finallyBlockStackElement.gaps.size() % 2 == 0 : "Finally block gaps are inconsistent";
+
+            BlockStackElement topOfStack = blockStackElements.pop();
+            assert topOfStack == finallyBlockStackElement : "Top element of stack doesn't equals processing finally block";
+
+            JetTryExpression jetTryExpression = finallyBlockStackElement.expression;
+            Label finallyStart = new Label();
+            v.mark(finallyStart);
+            finallyBlockStackElement.addGapLabel(finallyStart);
+
+            //noinspection ConstantConditions
+            gen(jetTryExpression.getFinallyBlock().getFinalExpression(), Type.VOID_TYPE);
+        }
+
+        if (tryCatchBlockEnd != null) {
+            v.goTo(tryCatchBlockEnd);
+        }
+
+        if (finallyBlockStackElement != null) {
+            Label finallyEnd = new Label();
+            v.mark(finallyEnd);
+            finallyBlockStackElement.addGapLabel(finallyEnd);
+
+            blockStackElements.push(finallyBlockStackElement);
         }
     }
 
@@ -1611,12 +1638,10 @@ public class ExpressionCodegen extends JetVisitor<StackValue, StackValue> implem
 
         assert descriptor != null;
 
-        if (descriptor instanceof VariableDescriptor) {
-            VariableDescriptor variableDescriptor = (VariableDescriptor) descriptor;
-            ClassDescriptor objectClassDescriptor = getBindingContext().get(BindingContext.OBJECT_DECLARATION_CLASS, variableDescriptor);
-            if (objectClassDescriptor != null) {
-                return genObjectClassInstance(variableDescriptor, objectClassDescriptor);
-            }
+        if (descriptor instanceof VariableDescriptorForObject) {
+            VariableDescriptorForObject variableDescriptor = (VariableDescriptorForObject) descriptor;
+            ClassDescriptor objectClassDescriptor = variableDescriptor.getObjectClass();
+            return genObjectClassInstance(variableDescriptor, objectClassDescriptor);
         }
 
         int index = lookupLocalIndex(descriptor);
@@ -1881,11 +1906,9 @@ public class ExpressionCodegen extends JetVisitor<StackValue, StackValue> implem
         }
 
         if (funDescriptor instanceof SimpleFunctionDescriptor) {
-            ClassDescriptorFromJvmBytecode samInterface = bindingContext.get(
-                    JavaBindingContext.SAM_CONSTRUCTOR_TO_INTERFACE, ((SimpleFunctionDescriptor) funDescriptor).getOriginal());
-
-            if (samInterface != null) {
-                return invokeSamConstructor(expression, resolvedCall, samInterface);
+            SimpleFunctionDescriptor original = ((SimpleFunctionDescriptor) funDescriptor).getOriginal();
+            if (original instanceof SamConstructorDescriptor) {
+                return invokeSamConstructor(expression, resolvedCall, ((SamConstructorDescriptor) original).getBaseForSynthesized());
             }
         }
 
@@ -2063,8 +2086,7 @@ public class ExpressionCodegen extends JetVisitor<StackValue, StackValue> implem
             return typeMapper.mapToFunctionInvokeCallableMethod(createInvoke(fd));
         }
         else {
-            SimpleFunctionDescriptor originalOfSamAdapter = (SimpleFunctionDescriptor) SamCodegenUtil
-                    .getOriginalIfSamAdapter(bindingContext, fd);
+            SimpleFunctionDescriptor originalOfSamAdapter = (SimpleFunctionDescriptor) SamCodegenUtil.getOriginalIfSamAdapter(fd);
             return typeMapper.mapToCallableMethod(originalOfSamAdapter != null ? originalOfSamAdapter : fd, superCall,
                                                   isCallInsideSameClassAsDeclared(fd, context),
                                                   isCallInsideSameModuleAsDeclared(fd, context),
@@ -2117,12 +2139,16 @@ public class ExpressionCodegen extends JetVisitor<StackValue, StackValue> implem
             }
         }
 
-        int mask = pushMethodArguments(resolvedCall, callableMethod.getValueParameterTypes());
+        pushArgumentsAndInvoke(resolvedCall, callableMethod);
+    }
+
+    private void pushArgumentsAndInvoke(@NotNull ResolvedCall<?> resolvedCall, @NotNull CallableMethod callable) {
+        int mask = pushMethodArguments(resolvedCall, callable.getValueParameterTypes());
         if (mask == 0) {
-            callableMethod.invokeWithNotNullAssertion(v, state, resolvedCall);
+            callable.invokeWithNotNullAssertion(v, state, resolvedCall);
         }
         else {
-            callableMethod.invokeDefaultWithNotNullAssertion(v, state, resolvedCall, mask);
+            callable.invokeDefaultWithNotNullAssertion(v, state, resolvedCall, mask);
         }
     }
 
@@ -2926,8 +2952,8 @@ public class ExpressionCodegen extends JetVisitor<StackValue, StackValue> implem
             receiver.put(receiver.type, v);
         }
 
-        pushMethodArguments(resolvedCall, callable.getValueParameterTypes());
-        callable.invokeWithNotNullAssertion(v, state, resolvedCall);
+        pushArgumentsAndInvoke(resolvedCall, callable);
+
         if (keepReturnValue) {
             value.store(callable.getReturnType(), v);
         }
@@ -3017,8 +3043,7 @@ public class ExpressionCodegen extends JetVisitor<StackValue, StackValue> implem
                 bindingContext.get(BindingContext.RESOLVED_CALL, expression.getOperationReference());
         assert resolvedCall != null;
         genThisAndReceiverFromResolvedCall(StackValue.none(), resolvedCall, callable);
-        pushMethodArguments(resolvedCall, callable.getValueParameterTypes());
-        callable.invokeWithNotNullAssertion(v, state, resolvedCall);
+        pushArgumentsAndInvoke(resolvedCall, callable);
 
         return returnValueAsStackValue(op, callable.getSignature().getAsmMethod().getReturnType());
     }
@@ -3265,8 +3290,7 @@ public class ExpressionCodegen extends JetVisitor<StackValue, StackValue> implem
         //See StackValue.receiver for more info
         pushClosureOnStack(closure, resolvedCall.getThisObject().exists() || resolvedCall.getReceiverArgument().exists());
 
-        ConstructorDescriptor originalOfSamAdapter = (ConstructorDescriptor) SamCodegenUtil
-                .getOriginalIfSamAdapter(bindingContext, constructorDescriptor);
+        ConstructorDescriptor originalOfSamAdapter = (ConstructorDescriptor) SamCodegenUtil.getOriginalIfSamAdapter(constructorDescriptor);
         CallableMethod method = typeMapper.mapToCallableMethod(originalOfSamAdapter == null ? constructorDescriptor : originalOfSamAdapter);
         invokeMethodWithArguments(method, resolvedCall, null, StackValue.none());
 
@@ -3452,13 +3476,13 @@ The "returned" value of try expression with no finally is either the last expres
 
         Label tryEnd = new Label();
         v.mark(tryEnd);
-        if (finallyBlock != null) {
-            blockStackElements.pop();
-            gen(finallyBlock.getFinalExpression(), Type.VOID_TYPE);
-            blockStackElements.push(finallyBlockStackElement);
-        }
+
+        //do it before finally block generation
+        List<Label> tryBlockRegions = getCurrentCatchIntervals(finallyBlockStackElement, tryStart, tryEnd);
+
         Label end = new Label();
-        v.goTo(end);
+
+        genFinallyBlockOrGoto(finallyBlockStackElement, end);
 
         List<JetCatchClause> clauses = expression.getCatchClauses();
         for (int i = 0, size = clauses.size(); i < size; i++) {
@@ -3482,36 +3506,34 @@ The "returned" value of try expression with no finally is either the last expres
 
             myFrameMap.leave(descriptor);
 
-            if (finallyBlock != null) {
-                blockStackElements.pop();
-                gen(finallyBlock.getFinalExpression(), Type.VOID_TYPE);
-                blockStackElements.push(finallyBlockStackElement);
-            }
+            genFinallyBlockOrGoto(finallyBlockStackElement, i != size - 1 || finallyBlock != null ? end : null);
 
-            if (i != size - 1 || finallyBlock != null) {
-                v.goTo(end);
-            }
-
-            v.visitTryCatchBlock(tryStart, tryEnd, clauseStart, descriptorType.getInternalName());
+            generateExceptionTable(clauseStart, tryBlockRegions, descriptorType.getInternalName());
         }
 
-        if (finallyBlock != null) {
-            Label finallyStart = new Label();
-            v.mark(finallyStart);
 
+        //for default catch clause
+        if (finallyBlock != null) {
+            Label defaultCatchStart = new Label();
+            v.mark(defaultCatchStart);
             int savedException = myFrameMap.enterTemp(JAVA_THROWABLE_TYPE);
             v.store(savedException, JAVA_THROWABLE_TYPE);
+            Label defaultCatchEnd = new Label();
+            v.mark(defaultCatchEnd);
 
-            blockStackElements.pop();
-            gen(finallyBlock.getFinalExpression(), Type.VOID_TYPE);
-            blockStackElements.push(finallyBlockStackElement);
+            //do it before finally block generation
+            //javac also generates entry in exception table for default catch clause too!!!! so defaultCatchEnd as end parameter
+            List<Label> defaultCatchRegions = getCurrentCatchIntervals(finallyBlockStackElement, tryStart, defaultCatchEnd);
+
+
+            genFinallyBlockOrGoto(finallyBlockStackElement, null);
 
             v.load(savedException, JAVA_THROWABLE_TYPE);
             myFrameMap.leaveTemp(JAVA_THROWABLE_TYPE);
 
             v.athrow();
 
-            v.visitTryCatchBlock(tryStart, tryEnd, finallyStart, null);
+            generateExceptionTable(defaultCatchStart, defaultCatchRegions, null);
         }
 
         markLineNumber(expression);
@@ -3527,6 +3549,30 @@ The "returned" value of try expression with no finally is either the last expres
         }
 
         return StackValue.onStack(expectedAsmType);
+    }
+
+    private void generateExceptionTable(@NotNull Label catchStart, @NotNull List<Label> catchedRegions, @Nullable String exception) {
+        for (int i = 0; i < catchedRegions.size(); i += 2) {
+            Label startRegion = catchedRegions.get(i);
+            Label endRegion = catchedRegions.get(i+1);
+            v.visitTryCatchBlock(startRegion, endRegion, catchStart, exception);
+        }
+    }
+
+
+    private List<Label> getCurrentCatchIntervals(
+            @Nullable FinallyBlockStackElement finallyBlockStackElement,
+            @NotNull Label blockStart,
+            @NotNull Label blockEnd
+    ) {
+        List<Label> gapsInBlock =
+                finallyBlockStackElement != null ? new ArrayList<Label>(finallyBlockStackElement.gaps) : Collections.<Label>emptyList();
+        assert gapsInBlock.size() % 2 == 0;
+        List<Label> blockRegions = new ArrayList<Label>(gapsInBlock.size() + 2);
+        blockRegions.add(blockStart);
+        blockRegions.addAll(gapsInBlock);
+        blockRegions.add(blockEnd);
+        return blockRegions;
     }
 
     @Override

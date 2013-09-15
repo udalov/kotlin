@@ -38,6 +38,7 @@ import com.intellij.openapi.ui.popup.JBPopupFactory;
 import com.intellij.openapi.util.Pair;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.psi.*;
+import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.psi.search.PsiElementProcessor;
 import com.intellij.psi.search.PsiElementProcessorAdapter;
 import com.intellij.psi.search.searches.AllOverridingMethodsSearch;
@@ -61,7 +62,7 @@ import org.jetbrains.jet.lexer.JetTokens;
 import org.jetbrains.jet.plugin.JetBundle;
 import org.jetbrains.jet.plugin.JetPluginUtil;
 import org.jetbrains.jet.plugin.codeInsight.JetFunctionPsiElementCellRenderer;
-import org.jetbrains.jet.plugin.project.WholeProjectAnalyzerFacade;
+import org.jetbrains.jet.plugin.project.AnalyzerFacadeWithCache;
 import org.jetbrains.jet.plugin.search.KotlinDefinitionsSearcher;
 import org.jetbrains.jet.renderer.DescriptorRenderer;
 
@@ -163,7 +164,7 @@ public class JetLineMarkerProvider implements LineMarkerProvider {
 
             new LineMarkerNavigator() {
                 @Override
-                public void browse(@Nullable MouseEvent e, @Nullable PsiElement element) {
+                public void browse(@Nullable MouseEvent e, @Nullable final PsiElement element) {
                     if (element == null) return;
 
                     assert element.getParent() instanceof JetProperty : "This marker navigator should be placed only on identifies in properties";
@@ -181,7 +182,7 @@ public class JetLineMarkerProvider implements LineMarkerProvider {
                     Runnable jetPsiMethodProcessor = new Runnable() {
                         @Override
                         public void run() {
-                            KotlinDefinitionsSearcher.processPropertyImplementationsMethods(psiPropertyMethods, elementProcessor);
+                            KotlinDefinitionsSearcher.processPropertyImplementationsMethods(psiPropertyMethods, GlobalSearchScope.allScope(element.getProject()), elementProcessor);
                         }
                     };
 
@@ -237,7 +238,7 @@ public class JetLineMarkerProvider implements LineMarkerProvider {
 
         if (!(element instanceof JetNamedFunction || element instanceof JetProperty)) return null;
 
-        BindingContext bindingContext = WholeProjectAnalyzerFacade.getContextForElement((JetElement) element);
+        BindingContext bindingContext = AnalyzerFacadeWithCache.getContextForElement((JetElement) element);
         DeclarationDescriptor descriptor = bindingContext.get(BindingContext.DECLARATION_TO_DESCRIPTOR, element);
 
         if (!(descriptor instanceof CallableMemberDescriptor)) {
@@ -280,7 +281,7 @@ public class JetLineMarkerProvider implements LineMarkerProvider {
         JetFile file = (JetFile)elt.getContainingFile();
         assert file != null;
 
-        BindingContext bindingContext = WholeProjectAnalyzerFacade.getContextForElement((JetElement) elt);
+        BindingContext bindingContext = AnalyzerFacadeWithCache.getContextForElement((JetElement) elt);
         DeclarationDescriptor descriptor = bindingContext.get(BindingContext.DECLARATION_TO_DESCRIPTOR, elt);
         if (!(descriptor instanceof CallableMemberDescriptor)) {
             return;
@@ -323,7 +324,7 @@ public class JetLineMarkerProvider implements LineMarkerProvider {
         JetFile file = (JetFile)element.getContainingFile();
         if (file == null) return "";
 
-        BindingContext bindingContext = WholeProjectAnalyzerFacade.analyzeProjectWithCacheOnAFile(file).getBindingContext();
+        BindingContext bindingContext = AnalyzerFacadeWithCache.analyzeFileWithCache(file).getBindingContext();
 
         DeclarationDescriptor descriptor = bindingContext.get(BindingContext.DECLARATION_TO_DESCRIPTOR, element);
         if (!(descriptor instanceof CallableMemberDescriptor)) {
@@ -363,7 +364,7 @@ public class JetLineMarkerProvider implements LineMarkerProvider {
     public void collectSlowLineMarkers(@NotNull List<PsiElement> elements, @NotNull Collection<LineMarkerInfo> result) {
         if (elements.isEmpty() ||
             DumbService.getInstance(elements.get(0).getProject()).isDumb() ||
-            !JetPluginUtil.isInSourceContent(elements.get(0)) ||
+            !JetPluginUtil.isInSource(elements.get(0)) ||
             JetPluginUtil.isKtFileInGradleProjectInWrongFolder(elements.get(0))) {
             return;
         }

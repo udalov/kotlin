@@ -21,7 +21,7 @@ import com.intellij.psi.*;
 import junit.framework.Assert;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.JetTestUtils;
-import org.jetbrains.jet.di.InjectorForJavaSemanticServices;
+import org.jetbrains.jet.di.InjectorForJavaDescriptorResolver;
 import org.jetbrains.jet.di.InjectorForTests;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.resolve.BindingTraceContext;
@@ -29,7 +29,6 @@ import org.jetbrains.jet.lang.resolve.calls.autocasts.DataFlowInfo;
 import org.jetbrains.jet.lang.resolve.calls.context.ExpressionPosition;
 import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCall;
 import org.jetbrains.jet.lang.resolve.calls.results.OverloadResolutionResults;
-import org.jetbrains.jet.lang.resolve.java.PsiClassFinder;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.resolve.scopes.receivers.ReceiverValue;
@@ -114,8 +113,8 @@ public class JetExpectedResolveDataUtil {
 
     @NotNull
     private static PsiClass findClass(String qualifiedName, Project project) {
-        InjectorForJavaSemanticServices injector = new InjectorForJavaSemanticServices(project);
-        PsiClass psiClass = injector.getPsiClassFinder().findPsiClass(new FqName(qualifiedName), PsiClassFinder.RuntimeClassesHandleMode.REPORT_ERROR);
+        InjectorForJavaDescriptorResolver injector = new InjectorForJavaDescriptorResolver(project, new BindingTraceContext());
+        PsiClass psiClass = injector.getPsiClassFinder().findPsiClass(new FqName(qualifiedName));
         Assert.assertNotNull("Class wasn't found: " + qualifiedName, psiClass);
         return psiClass;
     }

@@ -50,7 +50,7 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
 
     private final boolean shortNames;
     private final boolean withDefinedIn;
-    private final boolean modifiers;
+    private final Set<DescriptorRenderer.Modifier> modifiers;
     private final boolean startFromName;
     private final boolean debugMode;
     private final boolean classWithPrimaryConstructor;
@@ -58,6 +58,8 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
     private final boolean unitReturnType;
     private final boolean normalizedVisibilities;
     private final boolean showInternalKeyword;
+    private final boolean alwaysRenderAny;
+    private final boolean prettyFunctionTypes;
     @NotNull
     private final OverrideRenderingPolicy overrideRenderingPolicy;
     @NotNull
@@ -70,7 +72,7 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
     /* package */ DescriptorRendererImpl(
             boolean shortNames,
             boolean withDefinedIn,
-            boolean modifiers,
+            Set<DescriptorRenderer.Modifier> modifiers,
             boolean startFromName,
             boolean debugMode,
             boolean classWithPrimaryConstructor,
@@ -78,6 +80,8 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
             boolean unitReturnType,
             boolean normalizedVisibilities,
             boolean showInternalKeyword,
+            boolean alwaysRenderAny,
+            boolean prettyFunctionTypes,
             @NotNull OverrideRenderingPolicy overrideRenderingPolicy,
             @NotNull ValueParametersHandler handler,
             @NotNull TextFormat textFormat,
@@ -97,6 +101,8 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
         this.debugMode = debugMode;
         this.textFormat = textFormat;
         this.excludedAnnotationClasses = Sets.newHashSet(excludedAnnotationClasses);
+        this.alwaysRenderAny = alwaysRenderAny;
+        this.prettyFunctionTypes = prettyFunctionTypes;
     }
 
 
@@ -182,6 +188,9 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
 
     @NotNull
     private String renderClassName(@NotNull ClassDescriptor klass) {
+        if (ErrorUtils.isError(klass)) {
+            return klass.getTypeConstructor().toString();
+        }
         if (shortNames) {
             List<Name> qualifiedNameElements = Lists.newArrayList();
 
@@ -215,7 +224,7 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
         if (ErrorUtils.isErrorType(type)) {
             return type.toString();
         }
-        if (KotlinBuiltIns.getInstance().isFunctionOrExtensionFunctionType(type)) {
+        if (KotlinBuiltIns.getInstance().isFunctionOrExtensionFunctionType(type) && prettyFunctionTypes) {
             return renderFunctionType(type);
         }
         return renderDefaultType(type);
@@ -303,7 +312,7 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
     }
 
     private void renderAnnotations(@NotNull Annotated annotated, @NotNull StringBuilder builder) {
-        if (!modifiers) return;
+        if (!modifiers.contains(Modifier.ANNOTATIONS)) return;
         for (AnnotationDescriptor annotation : annotated.getAnnotations()) {
             ClassDescriptor annotationClass = (ClassDescriptor) annotation.getType().getConstructor().getDeclarationDescriptor();
             assert annotationClass != null;
@@ -319,7 +328,7 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
     }
 
     private void renderVisibility(@NotNull Visibility visibility, @NotNull StringBuilder builder) {
-        if (!modifiers) return;
+        if (!modifiers.contains(Modifier.VISIBILITY)) return;
         if (normalizedVisibilities) {
             visibility = visibility.normalize();
         }
@@ -328,13 +337,13 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
     }
 
     private void renderModality(@NotNull Modality modality, @NotNull StringBuilder builder) {
-        if (!modifiers) return;
+        if (!modifiers.contains(Modifier.MODALITY)) return;
         String keyword = modality.name().toLowerCase();
         builder.append(renderKeyword(keyword)).append(" ");
     }
 
     private void renderInner(boolean isInner, @NotNull StringBuilder builder) {
-        if (!modifiers) return;
+        if (!modifiers.contains(Modifier.INNER)) return;
         if (isInner) {
             builder.append(renderKeyword("inner")).append(" ");
         }
@@ -356,7 +365,7 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
     }
 
     private void renderOverride(@NotNull CallableMemberDescriptor callableMember, @NotNull StringBuilder builder) {
-        if (!modifiers) return;
+        if (!modifiers.contains(Modifier.OVERRIDE)) return;
         if (overridesSomething(callableMember)) {
             if (overrideRenderingPolicy != OverrideRenderingPolicy.RENDER_OPEN) {
                 builder.append("override ");
@@ -368,7 +377,7 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
     }
 
     private void renderMemberKind(CallableMemberDescriptor callableMember, StringBuilder builder) {
-        if (!modifiers) return;
+        if (!modifiers.contains(Modifier.MEMBER_KIND)) return;
         if (verbose && callableMember.getKind() != CallableMemberDescriptor.Kind.DECLARATION) {
             builder.append("/*").append(callableMember.getKind().name().toLowerCase()).append("*/ ");
         }
@@ -408,7 +417,7 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
         int upperBoundsCount = typeParameter.getUpperBounds().size();
         if ((upperBoundsCount > 1 && !topLevel) || upperBoundsCount == 1) {
             JetType upperBound = typeParameter.getUpperBounds().iterator().next();
-            if (!KotlinBuiltIns.getInstance().getDefaultBound().equals(upperBound)) {
+            if (!KotlinBuiltIns.getInstance().getDefaultBound().equals(upperBound) || alwaysRenderAny) {
                 builder.append(" : ").append(renderType(upperBound));
             }
         }
@@ -637,7 +646,7 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
 
         if (!klass.equals(KotlinBuiltIns.getInstance().getNothing())) {
             Collection<JetType> supertypes = klass.getTypeConstructor().getSupertypes();
-            if (supertypes.isEmpty() || supertypes.size() == 1 && KotlinBuiltIns.getInstance().isAny(supertypes.iterator().next())) {
+            if (supertypes.isEmpty() || !alwaysRenderAny && supertypes.size() == 1 && KotlinBuiltIns.getInstance().isAny(supertypes.iterator().next())) {
             }
             else {
                 builder.append(" : ");

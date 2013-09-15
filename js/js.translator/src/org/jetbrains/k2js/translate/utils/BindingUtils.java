@@ -58,7 +58,7 @@ public final class BindingUtils {
     @NotNull
     public static ClassDescriptor getClassDescriptor(@NotNull BindingContext context,
             @NotNull JetClassOrObject declaration) {
-        return getDescriptorForExpression(context, declaration, ClassDescriptor.class);
+        return BindingContextUtils.getNotNull(context, BindingContext.CLASS, declaration);
     }
 
     @NotNull
@@ -233,12 +233,6 @@ public final class BindingUtils {
     }
 
     @NotNull
-    public static PropertyDescriptor getPropertyDescriptorForObjectDeclaration(@NotNull BindingContext context,
-            @NotNull JetObjectDeclarationName name) {
-        return BindingContextUtils.getNotNull(context, BindingContext.OBJECT_DECLARATION, name);
-    }
-
-    @NotNull
     public static JetType getTypeForExpression(@NotNull BindingContext context,
             @NotNull JetExpression expression) {
         return BindingContextUtils.getNotNull(context, BindingContext.EXPRESSION_TYPE, expression);
@@ -264,10 +258,7 @@ public final class BindingUtils {
         return bindingContext.get(BindingContext.FUNCTION, function);
     }
 
-    public static boolean isObjectDeclaration(
-            @NotNull BindingContext bindingContext,
-            @NotNull PropertyDescriptor propertyDescriptor
-    ) {
-        return bindingContext.get(BindingContext.OBJECT_DECLARATION_CLASS, propertyDescriptor) != null;
+    public static boolean isObjectDeclaration(@NotNull PropertyDescriptor propertyDescriptor) {
+        return propertyDescriptor instanceof VariableDescriptorForObject;
     }
 }

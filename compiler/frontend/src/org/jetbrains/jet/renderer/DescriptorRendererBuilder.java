@@ -16,16 +16,18 @@
 
 package org.jetbrains.jet.renderer;
 
+import com.google.common.collect.ImmutableSet;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Set;
 
 public class DescriptorRendererBuilder {
     private boolean shortNames = false;
     private boolean withDefinedIn = true;
-    private boolean modifiers = true;
+    private Set<DescriptorRenderer.Modifier> modifiers = ImmutableSet.copyOf(DescriptorRenderer.Modifier.values());
     private boolean startFromName = false;
     private boolean debugMode = false;
     private boolean classWithPrimaryConstructor = false;
@@ -33,6 +35,8 @@ public class DescriptorRendererBuilder {
     private boolean unitReturnType = true;
     private boolean normalizedVisibilities = false;
     private boolean showInternalKeyword = true;
+    private boolean alwaysRenderAny = false;
+    private boolean prettyFunctionTypes = true;
     @NotNull
     private DescriptorRenderer.OverrideRenderingPolicy overrideRenderingPolicy = DescriptorRenderer.OverrideRenderingPolicy.RENDER_OPEN;
     @NotNull
@@ -55,9 +59,13 @@ public class DescriptorRendererBuilder {
         return this;
     }
 
-    public DescriptorRendererBuilder setModifiers(boolean modifiers) {
+    public DescriptorRendererBuilder setModifiers(Set<DescriptorRenderer.Modifier> modifiers) {
         this.modifiers = modifiers;
         return this;
+    }
+
+    public DescriptorRendererBuilder setModifiers(DescriptorRenderer.Modifier... modifiers) {
+        return setModifiers(ImmutableSet.copyOf(modifiers));
     }
 
     public DescriptorRendererBuilder setStartFromName(boolean startFromName) {
@@ -115,10 +123,20 @@ public class DescriptorRendererBuilder {
         return this;
     }
 
+    public DescriptorRendererBuilder setAlwaysRenderAny(boolean alwaysRenderAny) {
+        this.alwaysRenderAny = alwaysRenderAny;
+        return this;
+    }
+
+    public DescriptorRendererBuilder setPrettyFunctionTypes(boolean prettyFunctionTypes) {
+        this.prettyFunctionTypes = prettyFunctionTypes;
+        return this;
+    }
+
     public DescriptorRenderer build() {
         return new DescriptorRendererImpl(shortNames, withDefinedIn, modifiers, startFromName, debugMode, classWithPrimaryConstructor,
-                                          verbose, unitReturnType, normalizedVisibilities, showInternalKeyword, overrideRenderingPolicy,
-                                          valueParametersHandler, textFormat, excludedAnnotationClasses);
+                                          verbose, unitReturnType, normalizedVisibilities, showInternalKeyword, alwaysRenderAny, prettyFunctionTypes,
+                                          overrideRenderingPolicy, valueParametersHandler, textFormat, excludedAnnotationClasses);
     }
 
 }

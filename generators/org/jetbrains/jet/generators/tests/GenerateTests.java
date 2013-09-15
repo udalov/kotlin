@@ -31,6 +31,7 @@ import org.jetbrains.jet.completion.AbstractJavaCompletionTest;
 import org.jetbrains.jet.completion.AbstractJavaWithLibCompletionTest;
 import org.jetbrains.jet.completion.AbstractJetJSCompletionTest;
 import org.jetbrains.jet.completion.AbstractKeywordCompletionTest;
+import org.jetbrains.jet.descriptors.serialization.AbstractDescriptorSerializationTest;
 import org.jetbrains.jet.editor.quickDoc.AbstractJetQuickDocProviderTest;
 import org.jetbrains.jet.findUsages.AbstractJetFindUsagesTest;
 import org.jetbrains.jet.jvm.compiler.*;
@@ -43,6 +44,7 @@ import org.jetbrains.jet.objc.AbstractObjCWithJavaTest;
 import org.jetbrains.jet.plugin.codeInsight.moveUpDown.AbstractCodeMoverTest;
 import org.jetbrains.jet.plugin.codeInsight.surroundWith.AbstractSurroundWithTest;
 import org.jetbrains.jet.plugin.codeInsight.unwrap.AbstractUnwrapRemoveTest;
+import org.jetbrains.jet.plugin.configuration.AbstractConfigureProjectByChangingFileTest;
 import org.jetbrains.jet.plugin.folding.AbstractKotlinFoldingTest;
 import org.jetbrains.jet.plugin.hierarchy.AbstractHierarchyTest;
 import org.jetbrains.jet.plugin.highlighter.AbstractDeprecatedHighlightingTest;
@@ -82,6 +84,7 @@ public class GenerateTests {
     }
 
     public static void main(String[] args) throws IOException {
+        System.setProperty("java.awt.headless", "true");
         generateTest(
                 "compiler/tests/",
                 "JetDiagnosticsTestGenerated",
@@ -190,7 +193,8 @@ public class GenerateTests {
                 "LoadJavaTestGenerated",
                 AbstractLoadJavaTest.class,
                 testModel("compiler/testData/loadJava/compiledJavaCompareWithKotlin", true, "java", "doTest"),
-                testModel("compiler/testData/loadJava/compiledJavaIncludeObjectMethods", true, "java", "doTestCompiledJavaIncludeObjectMethods"),
+                testModel("compiler/testData/loadJava/compiledJavaIncludeObjectMethods", true, "java",
+                          "doTestCompiledJavaIncludeObjectMethods"),
                 testModel("compiler/testData/loadJava/compiledJava", true, "java", "doTestCompiledJava"),
                 testModel("compiler/testData/loadJava/sourceJava", true, "java", "doTestSourceJava"),
                 testModel("compiler/testData/loadJava/javaAgainstKotlin", true, "txt", "doTestJavaAgainstKotlin")
@@ -212,9 +216,9 @@ public class GenerateTests {
 
         generateTest(
                 "compiler/tests/",
-                "CompileKotlinAgainstCustomJavaGenerated",
-                AbstractCompileKotlinAgainstCustomJavaTest.class,
-                testModel("compiler/testData/compileKotlinAgainstCustomJava")
+                "CompileKotlinAgainstCustomBinariesGenerated",
+                AbstractCompileKotlinAgainstCustomBinariesTest.class,
+                testModel("compiler/testData/compileKotlinAgainstCustomBinaries")
         );
 
         generateTest(
@@ -243,6 +247,20 @@ public class GenerateTests {
                 "ModuleXmlParserTestGenerated",
                 AbstractModuleXmlParserTest.class,
                 testModel("compiler/testData/modules.xml", true, "xml", "doTest")
+        );
+
+        generateTest(
+                "compiler/tests/",
+                "DescriptorSerializationTestGenerated",
+                AbstractDescriptorSerializationTest.class,
+                testModel("compiler/testData/loadKotlin/class"),
+                testModel("compiler/testData/loadKotlin/classFun"),
+                testModel("compiler/testData/loadKotlin/classObject"),
+                testModel("compiler/testData/loadKotlin/constructor"),
+                testModel("compiler/testData/loadKotlin/fun"),
+                testModel("compiler/testData/loadKotlin/prop"),
+                testModel("compiler/testData/loadKotlin/type"),
+                testModel("compiler/testData/loadKotlin/visibility")
         );
 
         generateTest(
@@ -316,7 +334,8 @@ public class GenerateTests {
                 "idea/tests/",
                 "QuickFixMultiFileTestGenerated",
                 AbstractQuickFixMultiFileTest.class,
-                new SimpleTestClassModel(new File("idea/testData/quickfix"), true, Pattern.compile("^(\\w+)\\.before\\.Main\\.kt$"), "doTestWithExtraFile")
+                new SimpleTestClassModel(new File("idea/testData/quickfix"), true, Pattern.compile("^(\\w+)\\.before\\.Main\\.kt$"),
+                                         "doTestWithExtraFile")
         );
 
         generateTest(
@@ -372,6 +391,8 @@ public class GenerateTests {
                 testModel("idea/testData/intentions/branched/when/eliminateSubject", "doTestEliminateWhenSubject"),
                 testModel("idea/testData/intentions/declarations/split", "doTestSplitProperty"),
                 testModel("idea/testData/intentions/declarations/join", "doTestJoinProperty"),
+                testModel("idea/testData/intentions/declarations/convertMemberToExtension", "doTestConvertMemberToExtension"),
+                testModel("idea/testData/intentions/reconstructedType", "doTestReconstructType"),
                 testModel("idea/testData/intentions/removeUnnecessaryParentheses", "doTestRemoveUnnecessaryParentheses")
         );
 
@@ -446,7 +467,7 @@ public class GenerateTests {
                 "idea/tests/",
                 "ReferenceResolveTestGenerated",
                 AbstractResolveBaseTest.class,
-                testModel("idea/testData/resolve/references", "doTest")
+                testModel("idea/testData/resolve/references", true, "doTest")
         );
 
         generateTest(
@@ -454,6 +475,15 @@ public class GenerateTests {
                 "JetFindUsagesTest",
                 AbstractJetFindUsagesTest.class,
                 testModelWithPattern("idea/testData/findUsages", "^(.+).0.kt$", "doTest")
+        );
+
+        generateTest(
+                "idea/tests/",
+                "ConfigureProjectByChangingFileTestGenerated",
+                AbstractConfigureProjectByChangingFileTest.class,
+                new SimpleTestClassModel(new File("idea/testData/configuration/android-gradle"), true, Pattern.compile("(\\w+)_before\\.gradle$"), "doTestAndroidGradle"),
+                new SimpleTestClassModel(new File("idea/testData/configuration/gradle"), true, Pattern.compile("(\\w+)_before\\.gradle$"), "doTestGradle"),
+                testModelWithDirectories("idea/testData/configuration/maven", "doTestWithMaven")
         );
     }
 
@@ -470,11 +500,15 @@ public class GenerateTests {
     }
 
     private static SimpleTestClassModel testModelWithDirectories(@NotNull String rootPath, @NotNull String methodName) {
-        return new SimpleTestClassModel(new File(rootPath), false,  Pattern.compile("^(.+)$"), methodName);
+        return new SimpleTestClassModel(new File(rootPath), false, Pattern.compile("^(.+)$"), methodName);
     }
 
-    private static SimpleTestClassModel testModelWithPattern(@NotNull String rootPath, @NotNull String pattern, @NotNull String methodName) {
-        return new SimpleTestClassModel(new File(rootPath), true,  Pattern.compile(pattern), methodName);
+    private static SimpleTestClassModel testModelWithPattern(
+            @NotNull String rootPath,
+            @NotNull String pattern,
+            @NotNull String methodName
+    ) {
+        return new SimpleTestClassModel(new File(rootPath), true, Pattern.compile(pattern), methodName);
     }
 
     private static SimpleTestClassModel testModel(

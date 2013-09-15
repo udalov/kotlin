@@ -85,7 +85,7 @@ public interface Errors {
     DiagnosticFactory0<JetNullableType> REDUNDANT_NULLABLE = DiagnosticFactory0.create(WARNING, NULLABLE_TYPE);
     DiagnosticFactory1<JetNullableType, JetType> BASE_WITH_NULLABLE_UPPER_BOUND = DiagnosticFactory1.create(WARNING, NULLABLE_TYPE);
     DiagnosticFactory1<JetElement, Integer> WRONG_NUMBER_OF_TYPE_ARGUMENTS = DiagnosticFactory1.create(ERROR);
-    DiagnosticFactory2<JetUserType, Integer, String> NO_TYPE_ARGUMENTS_ON_RHS_OF_IS_EXPRESSION = DiagnosticFactory2.create(ERROR);
+    DiagnosticFactory2<JetTypeReference, Integer, String> NO_TYPE_ARGUMENTS_ON_RHS = DiagnosticFactory2.create(ERROR);
     DiagnosticFactory1<JetTypeProjection, ClassifierDescriptor> CONFLICTING_PROJECTION = DiagnosticFactory1.create(ERROR, VARIANCE_IN_PROJECTION);
     DiagnosticFactory1<JetTypeProjection, ClassifierDescriptor> REDUNDANT_PROJECTION = DiagnosticFactory1.create(WARNING, VARIANCE_IN_PROJECTION);
 
@@ -353,7 +353,7 @@ public interface Errors {
     DiagnosticFactory1<PsiElement, ExtendedInferenceErrorData> TYPE_INFERENCE_CONFLICTING_SUBSTITUTIONS = DiagnosticFactory1.create(ERROR);
     DiagnosticFactory1<PsiElement, ExtendedInferenceErrorData> TYPE_INFERENCE_TYPE_CONSTRUCTOR_MISMATCH = DiagnosticFactory1.create(ERROR);
     DiagnosticFactory1<PsiElement, InferenceErrorData> TYPE_INFERENCE_UPPER_BOUND_VIOLATED = DiagnosticFactory1.create(ERROR);
-    DiagnosticFactory2<PsiElement, JetType, JetType> TYPE_INFERENCE_EXPECTED_TYPE_MISMATCH = DiagnosticFactory2.create(ERROR);
+    DiagnosticFactory2<JetExpression, JetType, JetType> TYPE_INFERENCE_EXPECTED_TYPE_MISMATCH = DiagnosticFactory2.create(ERROR);
 
     // Callable references
 
@@ -462,7 +462,14 @@ public interface Errors {
 
     // Compile-time values
 
-    DiagnosticFactory1<PsiElement, String> ERROR_COMPILE_TIME_VALUE = DiagnosticFactory1.create(ERROR);
+    DiagnosticFactory0<JetConstantExpression> INT_LITERAL_OUT_OF_RANGE = DiagnosticFactory0.create(ERROR);
+    DiagnosticFactory0<JetConstantExpression> FLOAT_LITERAL_OUT_OF_RANGE = DiagnosticFactory0.create(ERROR);
+    DiagnosticFactory2<JetConstantExpression, String, JetType> CONSTANT_EXPECTED_TYPE_MISMATCH = DiagnosticFactory2.create(ERROR);
+    DiagnosticFactory0<JetConstantExpression> INCORRECT_CHARACTER_LITERAL = DiagnosticFactory0.create(ERROR);
+    DiagnosticFactory0<JetConstantExpression> EMPTY_CHARACTER_LITERAL = DiagnosticFactory0.create(ERROR);
+    DiagnosticFactory1<JetConstantExpression, JetConstantExpression> TOO_MANY_CHARACTERS_IN_CHARACTER_LITERAL = DiagnosticFactory1.create(ERROR);
+    DiagnosticFactory1<JetElement, JetElement> ILLEGAL_ESCAPE = DiagnosticFactory1.create(ERROR, CUT_CHAR_QUOTES);
+    DiagnosticFactory1<JetConstantExpression, JetType> NULL_FOR_NONNULL_TYPE = DiagnosticFactory1.create(ERROR);
     DiagnosticFactory0<JetEscapeStringTemplateEntry> ILLEGAL_ESCAPE_SEQUENCE = DiagnosticFactory0.create(ERROR);
 
     // Casts and is-checks
@@ -535,6 +542,7 @@ public interface Errors {
     DiagnosticFactory0<JetSimpleNameExpression> EXPRESSION_EXPECTED_NAMESPACE_FOUND = DiagnosticFactory0.create(ERROR);
 
     DiagnosticFactory0<JetReturnExpression> RETURN_NOT_ALLOWED = DiagnosticFactory0.create(ERROR);
+    DiagnosticFactory0<JetReturnExpression> RETURN_NOT_ALLOWED_EXPLICIT_RETURN_TYPE_REQUIRED = DiagnosticFactory0.create(ERROR);
     DiagnosticFactory0<JetReturnExpression> RETURN_IN_FUNCTION_WITH_EXPRESSION_BODY = DiagnosticFactory0.create(ERROR);
     DiagnosticFactory0<JetDeclarationWithBody>
             NO_RETURN_IN_FUNCTION_WITH_BLOCK_BODY = DiagnosticFactory0.create(ERROR, DECLARATION_WITH_BODY);

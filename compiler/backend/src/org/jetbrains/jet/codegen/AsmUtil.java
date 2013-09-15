@@ -30,10 +30,13 @@ import org.jetbrains.jet.codegen.binding.CalculatedClosure;
 import org.jetbrains.jet.codegen.state.GenerationState;
 import org.jetbrains.jet.codegen.state.JetTypeMapper;
 import org.jetbrains.jet.lang.descriptors.*;
-import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.DescriptorUtils;
 import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCall;
-import org.jetbrains.jet.lang.resolve.java.*;
+import org.jetbrains.jet.lang.resolve.java.AsmTypeConstants;
+import org.jetbrains.jet.lang.resolve.java.JavaVisibilities;
+import org.jetbrains.jet.lang.resolve.java.JvmAbi;
+import org.jetbrains.jet.lang.resolve.java.JvmPrimitiveType;
+import org.jetbrains.jet.lang.resolve.java.descriptor.JavaCallableMemberDescriptor;
 import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 import org.jetbrains.jet.lexer.JetTokens;
@@ -65,12 +68,12 @@ public class AsmUtil {
     private static final Map<Visibility, Integer> visibilityToAccessFlag = ImmutableMap.<Visibility, Integer>builder()
             .put(Visibilities.PRIVATE, ACC_PRIVATE)
             .put(Visibilities.PROTECTED, ACC_PROTECTED)
-            .put(JavaDescriptorResolver.PROTECTED_STATIC_VISIBILITY, ACC_PROTECTED)
-            .put(JavaDescriptorResolver.PROTECTED_AND_PACKAGE, ACC_PROTECTED)
+            .put(JavaVisibilities.PROTECTED_STATIC_VISIBILITY, ACC_PROTECTED)
+            .put(JavaVisibilities.PROTECTED_AND_PACKAGE, ACC_PROTECTED)
             .put(Visibilities.PUBLIC, ACC_PUBLIC)
             .put(Visibilities.INTERNAL, ACC_PUBLIC)
             .put(Visibilities.LOCAL, NO_FLAG_LOCAL)
-            .put(JavaDescriptorResolver.PACKAGE_VISIBILITY, NO_FLAG_PACKAGE_PRIVATE)
+            .put(JavaVisibilities.PACKAGE_VISIBILITY, NO_FLAG_PACKAGE_PRIVATE)
             .build();
 
     public static final String CAPTURED_RECEIVER_FIELD = "receiver$0";
@@ -531,7 +534,7 @@ public class AsmUtil {
     ) {
         if (!state.isGenerateNotNullAssertions()) return;
 
-        if (!isDeclaredInJava(descriptor, state.getBindingContext())) return;
+        if (!isDeclaredInJava(descriptor)) return;
 
         JetType type = descriptor.getReturnType();
         if (type == null || isNullableType(type)) return;
@@ -545,10 +548,10 @@ public class AsmUtil {
         }
     }
 
-    private static boolean isDeclaredInJava(@NotNull CallableDescriptor callableDescriptor, @NotNull BindingContext context) {
+    private static boolean isDeclaredInJava(@NotNull CallableDescriptor callableDescriptor) {
         CallableDescriptor descriptor = callableDescriptor;
         while (true) {
-            if (Boolean.TRUE.equals(context.get(JavaBindingContext.IS_DECLARED_IN_JAVA, descriptor))) {
+            if (descriptor instanceof JavaCallableMemberDescriptor) {
                 return true;
             }
             CallableDescriptor original = descriptor.getOriginal();

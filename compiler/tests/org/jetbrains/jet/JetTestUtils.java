@@ -18,6 +18,7 @@ package org.jetbrains.jet;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.editor.Document;
@@ -43,12 +44,15 @@ import org.jetbrains.jet.config.CompilerConfiguration;
 import org.jetbrains.jet.lang.ModuleConfiguration;
 import org.jetbrains.jet.lang.PlatformToKotlinClassMap;
 import org.jetbrains.jet.lang.descriptors.ModuleDescriptorImpl;
+import org.jetbrains.jet.lang.descriptors.annotations.AnnotationDescriptor;
+import org.jetbrains.jet.lang.descriptors.impl.NamespaceDescriptorImpl;
 import org.jetbrains.jet.lang.diagnostics.Diagnostic;
 import org.jetbrains.jet.lang.diagnostics.Errors;
 import org.jetbrains.jet.lang.diagnostics.Severity;
 import org.jetbrains.jet.lang.diagnostics.rendering.DefaultErrorMessages;
 import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.psi.JetPsiFactory;
+import org.jetbrains.jet.lang.psi.JetPsiUtil;
 import org.jetbrains.jet.lang.resolve.AnalyzerScriptParameter;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.BindingTrace;
@@ -56,6 +60,9 @@ import org.jetbrains.jet.lang.resolve.ImportPath;
 import org.jetbrains.jet.lang.resolve.java.AnalyzerFacadeForJVM;
 import org.jetbrains.jet.lang.resolve.lazy.LazyResolveTestUtil;
 import org.jetbrains.jet.lang.resolve.name.Name;
+import org.jetbrains.jet.lang.resolve.scopes.JetScope;
+import org.jetbrains.jet.lang.resolve.scopes.RedeclarationHandler;
+import org.jetbrains.jet.lang.resolve.scopes.WritableScopeImpl;
 import org.jetbrains.jet.plugin.JetLanguage;
 import org.jetbrains.jet.test.InnerTestClasses;
 import org.jetbrains.jet.test.TestMetadata;
@@ -83,7 +90,11 @@ import static org.jetbrains.jet.cli.jvm.JVMConfigurationKeys.ANNOTATIONS_PATH_KE
 import static org.jetbrains.jet.cli.jvm.JVMConfigurationKeys.CLASSPATH_KEY;
 
 public class JetTestUtils {
+    private static final Pattern KT_FILES = Pattern.compile(".*?.kt");
     private static List<File> filesToDelete = new ArrayList<File>();
+
+    public static final Pattern FILE_PATTERN = Pattern.compile("//\\s*FILE:\\s*(.*)$", Pattern.MULTILINE);
+    public static final Pattern DIRECTIVE_PATTERN = Pattern.compile("^//\\s*!(\\w+):\\s*(.*)$", Pattern.MULTILINE);
 
     public static final BindingTrace DUMMY_TRACE = new BindingTrace() {
 
@@ -92,6 +103,7 @@ public class JetTestUtils {
         public BindingContext getBindingContext() {
             return new BindingContext() {
 
+                @NotNull
                 @Override
                 public Collection<Diagnostic> getDiagnostics() {
                     throw new UnsupportedOperationException(); // TODO
@@ -150,6 +162,7 @@ public class JetTestUtils {
         @Override
         public BindingContext getBindingContext() {
             return new BindingContext() {
+                @NotNull
                 @Override
                 public Collection<Diagnostic> getDiagnostics() {
                     throw new UnsupportedOperationException();
@@ -301,8 +314,6 @@ public class JetTestUtils {
         }
     }
 
-    public static final Pattern FILE_PATTERN = Pattern.compile("//\\s*FILE:\\s*(.*)$", Pattern.MULTILINE);
-
     public static JetFile createFile(@NonNls String name, String text, @NotNull Project project) {
         LightVirtualFile virtualFile = new LightVirtualFile(name, JetLanguage.INSTANCE, text);
         virtualFile.setCharset(CharsetToolkit.UTF8_CHARSET);
@@ -361,16 +372,25 @@ public class JetTestUtils {
         LazyResolveTestUtil.resolveEagerly(jetFiles, environment);
     }
 
+    @NotNull
+    public static List<File> collectKtFiles(@NotNull File root) {
+        List<File> files = Lists.newArrayList();
+        FileUtil.collectMatchedFiles(root, KT_FILES, files);
+        return files;
+    }
+
     public interface TestFileFactory<F> {
-        F create(String fileName, String text);
+        F create(String fileName, String text, Map<String, String> directives);
     }
 
     public static <F> List<F> createTestFiles(String testFileName, String expectedText, TestFileFactory<F> factory) {
-        List<F> testFileFiles = Lists.newArrayList();
+        Map<String, String> directives = parseDirectives(expectedText);
+
+        List<F> testFiles = Lists.newArrayList();
         Matcher matcher = FILE_PATTERN.matcher(expectedText);
         if (!matcher.find()) {
             // One file
-            testFileFiles.add(factory.create(testFileName, expectedText));
+            testFiles.add(factory.create(testFileName, expectedText, directives));
         }
         else {
             int processedChars = 0;
@@ -391,7 +411,7 @@ public class JetTestUtils {
                 String fileText = expectedText.substring(start, end);
                 processedChars = end;
 
-                testFileFiles.add(factory.create(fileName, fileText));
+                testFiles.add(factory.create(fileName, fileText, directives));
 
                 if (!nextFileExists) break;
             }
@@ -400,7 +420,24 @@ public class JetTestUtils {
                                                              " to " +
                                                              (expectedText.length() - 1);
         }
-        return testFileFiles;
+        return testFiles;
+    }
+
+    private static Map<String, String> parseDirectives(String expectedText) {
+        Map<String, String> directives = Maps.newHashMap();
+        Matcher directiveMatcher = DIRECTIVE_PATTERN.matcher(expectedText);
+        int start = 0;
+        while (directiveMatcher.find()) {
+            if (directiveMatcher.start() != start) {
+                Assert.fail("Directives should only occur at the beginning of a file: " + directiveMatcher.group());
+            }
+            String name = directiveMatcher.group(1);
+            String value = directiveMatcher.group(2);
+            String oldValue = directives.put(name, value);
+            Assert.assertNull("Directive overwritten: " + name + " old value: " + oldValue + " new value: " + value, oldValue);
+            start = directiveMatcher.end() + 1;
+        }
+        return directives;
     }
 
     public static List<String> loadBeforeAfterText(String filePath) {
@@ -415,7 +452,7 @@ public class JetTestUtils {
 
         List<String> files = createTestFiles("", content, new TestFileFactory<String>() {
             @Override
-            public String create(String fileName, String text) {
+            public String create(String fileName, String text, Map<String, String> directives) {
                 int firstLineEnd = text.indexOf('\n');
                 return StringUtil.trimTrailing(text.substring(firstLineEnd + 1));
             }
@@ -583,6 +620,18 @@ public class JetTestUtils {
         return JetPsiFactory.createPhysicalFile(project, ioFile.getName(), text);
     }
 
+    @NotNull
+    public static List<JetFile> loadToJetFiles(
+            @NotNull JetCoreEnvironment environment,
+            @NotNull List<File> files
+    ) throws IOException {
+        List<JetFile> jetFiles = Lists.newArrayList();
+        for (File file : files) {
+            jetFiles.add(loadJetFile(environment.getProject(), file));
+        }
+        return jetFiles;
+    }
+
     public static ModuleDescriptorImpl createEmptyModule() {
         return createEmptyModule("<empty-for-test>");
     }
@@ -593,5 +642,16 @@ public class JetTestUtils {
                                                                    PlatformToKotlinClassMap.EMPTY);
         descriptor.setModuleConfiguration(ModuleConfiguration.EMPTY);
         return descriptor;
+    }
+
+    @NotNull
+    public static NamespaceDescriptorImpl createTestNamespace(@NotNull Name testPackageName) {
+        ModuleDescriptorImpl module = AnalyzerFacadeForJVM.createJavaModule("<test module>");
+        NamespaceDescriptorImpl rootNamespace =
+                new NamespaceDescriptorImpl(module, Collections.<AnnotationDescriptor>emptyList(), JetPsiUtil.ROOT_NAMESPACE_NAME);
+        module.setRootNamespace(rootNamespace);
+        NamespaceDescriptorImpl test = new NamespaceDescriptorImpl(rootNamespace, Collections.<AnnotationDescriptor>emptyList(), testPackageName);
+        test.initialize(new WritableScopeImpl(JetScope.EMPTY, test, RedeclarationHandler.DO_NOTHING, "members of test namespace"));
+        return test;
     }
 }

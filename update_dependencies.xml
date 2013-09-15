@@ -1,7 +1,7 @@
 <project name="Update Dependencies" default="update">
-    <property name="jb.buildserver.build.id" value="2007632"/>
-    <property name="public.buildserver.build.id" value="87877"/>
-    <property name="idea.archive.name" value="ideaIC-130.SNAPSHOT.win.zip"/>
+    <property name="jb.buildserver.build.id" value="2066073"/>
+    <property name="public.buildserver.build.id" value="91714"/>
+    <property name="idea.archive.name" value="ideaIC-132.SNAPSHOT.win.zip"/>
 
     <property name="idea.sdk.fetch.needed" value="true"/>
 
@@ -92,11 +92,6 @@
         <get src="http://jarjar.googlecode.com/files/jarjar-1.2.jar" dest="dependencies/download/jarjar-1.2.jar" usetimestamp="true"/>
         <copy file="dependencies/download/jarjar-1.2.jar" tofile="dependencies/jarjar.jar" overwrite="true"/>
 
-        <!-- PluginVerifier -->
-        <get src="http://teamcity.jetbrains.com/guestAuth/repository/download/bt351/.lastPinned/plugin-verifier-1.0-SNAPSHOT.jar"
-             dest="dependencies/download/plugin-verifier-1.0-SNAPSHOT.jar" usetimestamp="true"/>
-        <copy file="dependencies/download/plugin-verifier-1.0-SNAPSHOT.jar" tofile="dependencies/plugin-verifier.jar" overwrite="true"/>
-
         <!-- ant 1.7.0 -->
         <get src="http://archive.apache.org/dist/ant/binaries/apache-ant-1.7.0-bin.tar.gz"
              dest="dependencies/download/apache-ant-1.7.0-bin.tar.gz" usetimestamp="true"/>
@@ -134,6 +129,9 @@
 
         <!-- ASM 4 -->
         <get-asm4-and-rename-packages/>
+
+        <!-- Protocol Buffers -->
+        <get-maven-library prefix="com/google/protobuf" lib="protobuf-java" version="2.5.0" bin="false"/>
     </target>
 
     <macrodef name="get-asm4-and-rename-packages">

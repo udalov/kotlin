@@ -6,16 +6,16 @@
   <version>@snapshot@</version>
   <vendor url="http://www.jetbrains.com">JetBrains Inc.</vendor>
 
-  <idea-version since-build="130.1364" until-build="131.0"/>
+  <idea-version since-build="132.27" until-build="133.0"/>
 
   <depends optional="true" config-file="junit.xml">JUnit</depends>
+  <depends optional="true" config-file="gradle.xml">org.jetbrains.plugins.gradle</depends>
+  <depends optional="true" config-file="maven.xml">org.jetbrains.idea.maven</depends>
   <depends optional="true" config-file="testng-j.xml">TestNG-J</depends>
   <depends optional="true" config-file="kotlin-copyright.xml">com.intellij.copyright</depends>
+  <depends optional="true" config-file="javaScriptDebug.xml">JavaScriptDebugger</depends>
 
   <project-components>
-    <component>
-      <implementation-class>org.jetbrains.jet.plugin.BuiltInsInitializer</implementation-class>
-    </component>
     <component>
       <implementation-class>org.jetbrains.jet.plugin.compiler.JetCompilerManager</implementation-class>
     </component>
@@ -27,6 +27,9 @@
     </component>
     <component>
       <implementation-class>org.jetbrains.jet.plugin.versions.OutdatedKotlinRuntimeNotification</implementation-class>
+    </component>
+    <component>
+      <implementation-class>org.jetbrains.jet.plugin.configuration.ui.NonConfiguredKotlinProjectNotification</implementation-class>
     </component>
     <component>
       <implementation-class>org.jetbrains.jet.plugin.ktSignature.KotlinSignatureInJavaMarkerUpdater</implementation-class>
@@ -66,16 +69,26 @@
       <keyboard-shortcut keymap="$default" first-keystroke="control alt shift J"/>
       <add-to-group group-id="CodeMenu" anchor="last"/>
     </action>
-    <action id="ToggleJetErrorReporting" class="org.jetbrains.jet.plugin.actions.ToggleErrorReportingAction"
-            text="Error Reporting Enabled">
-      <keyboard-shortcut keymap="$default" first-keystroke="control alt shift E"/>
-      <add-to-group group-id="CodeMenu" anchor="last"/>
-    </action>
 
     <group id="EditorGutterKotlinPopupMenu">
       <action id="ShowKotlinSignatures" class="org.jetbrains.jet.plugin.ktSignature.ShowKotlinSignaturesAction"/>
       <add-to-group group-id="EditorGutterPopupMenu" anchor="last"/>
     </group>
+
+    <group id="KotlinToolsGroup" popup="true" text="Kotlin" icon="/org/jetbrains/jet/plugin/icons/kotlin13.png"
+           class="org.jetbrains.jet.plugin.actions.KotlinActionGroup">
+      <add-to-group group-id="ToolsMenu" anchor="last"/>
+    </group>
+
+    <action id="ConfigureKotlinInProject" class="org.jetbrains.jet.plugin.actions.ConfigureKotlinInProjectAction"
+            text="Configure Kotlin in Project">
+      <add-to-group group-id="KotlinToolsGroup"/>
+    </action>
+
+    <action id="ConfigureKotlinJsInProject" class="org.jetbrains.jet.plugin.actions.ConfigureKotlinJsInProjectAction"
+            text="Configure Kotlin (JavaScript) in Project">
+      <add-to-group group-id="KotlinToolsGroup"/>
+    </action>
   </actions>
 
   <extensions defaultExtensionNs="com.intellij">
@@ -90,6 +103,9 @@
 
     <projectService serviceInterface="org.jetbrains.jet.plugin.caches.resolve.KotlinCacheManager"
                     serviceImplementation="org.jetbrains.jet.plugin.caches.resolve.KotlinCacheManager"/>
+
+    <projectService serviceInterface="org.jetbrains.jet.lang.resolve.java.vfilefinder.VirtualFileFinder"
+                    serviceImplementation="org.jetbrains.jet.plugin.vfilefinder.IDEVirtualFileFinder"/>
 
     <projectService serviceInterface="org.jetbrains.jet.asJava.LightClassGenerationSupport"
                     serviceImplementation="org.jetbrains.jet.plugin.caches.resolve.IDELightClassGenerationSupport"/>
@@ -198,6 +214,7 @@
 
     <annotator language="jet" implementationClass="org.jetbrains.jet.plugin.highlighter.JetPsiChecker"/>
     <annotator language="jet" implementationClass="org.jetbrains.jet.plugin.highlighter.DebugInfoAnnotator"/>
+    <problemHighlightFilter implementation="org.jetbrains.jet.plugin.highlighter.KotlinProblemHighlightFilter"/>
 
     <extendWordSelectionHandler implementation="org.jetbrains.jet.plugin.editor.wordSelection.JetStatementGroupSelectioner"/>
     <extendWordSelectionHandler implementation="org.jetbrains.jet.plugin.editor.wordSelection.JetCodeBlockSelectioner"/>
@@ -268,12 +285,10 @@
     <stubIndex implementation="org.jetbrains.jet.plugin.stubindex.JetTopLevelShortObjectNameIndex"/>
 
     <fileBasedIndex implementation="org.jetbrains.jet.plugin.versions.KotlinAbiVersionIndex"/>
+    <fileBasedIndex implementation="org.jetbrains.jet.plugin.vfilefinder.KotlinClassFileIndex"/>
 
     <contentBasedClassFileProcessor implementation="org.jetbrains.jet.plugin.libraries.JetContentBasedFileSubstitutor"/>
-    <psi.clsCustomNavigationPolicy implementation="org.jetbrains.jet.plugin.libraries.JetClsNavigationPolicy"/>
-    <psi.clsDecompiledFileProvider implementation="org.jetbrains.jet.plugin.libraries.JetClsFileDecompiledPsiFileProvider"/>
 
-    <editorNotificationProvider implementation="org.jetbrains.jet.plugin.versions.KotlinLibrariesNotificationProvider"/>
     <editorNotificationProvider implementation="org.jetbrains.jet.plugin.quickfix.AbsentJdkAnnotationsNotifications"/>
     <editorNotificationProvider implementation="org.jetbrains.jet.plugin.quickfix.IncorrectSourceRootNameNotification"/>
 
@@ -281,7 +296,7 @@
 
     <referencesSearch implementation="org.jetbrains.jet.plugin.search.KotlinReferencesSearcher"/>
     <directClassInheritorsSearch implementation="org.jetbrains.jet.plugin.search.KotlinDirectInheritorsSearcher"/>
-    <definitionsSearch implementation="org.jetbrains.jet.plugin.search.KotlinDefinitionsSearcher"/>
+    <definitionsScopedSearch implementation="org.jetbrains.jet.plugin.search.KotlinDefinitionsSearcher"/>
     <annotatedElementsSearch implementation="org.jetbrains.jet.plugin.search.KotlinAnnotatedElementsSearcher"/>
 
     <exceptionFilter implementation="org.jetbrains.jet.plugin.filters.JetExceptionFilterFactory" order="first"/>
@@ -406,11 +421,27 @@
       <category>Kotlin</category>
     </intentionAction>
 
+    <intentionAction>
+      <className>org.jetbrains.jet.plugin.intentions.declarations.ConvertMemberToExtension</className>
+      <category>Kotlin</category>
+    </intentionAction>
+
+    <intentionAction>
+      <className>org.jetbrains.jet.plugin.intentions.ReconstructTypeInCastOrIsAction</className>
+      <category>Kotlin</category>
+    </intentionAction>
+
     <project.converterProvider implementation="org.jetbrains.jet.plugin.converters.JetRunConfigurationSettingsFormatConverterProvider"/>
 
   </extensions>
 
   <extensionPoints>
     <extensionPoint name="updater" beanClass="com.intellij.openapi.fileTypes.FileTypeExtensionPoint"/>
+    <extensionPoint name="projectConfigurator" interface="org.jetbrains.jet.plugin.configuration.KotlinProjectConfigurator"/>
   </extensionPoints>
+
+  <extensions defaultExtensionNs="org.jetbrains.kotlin">
+    <projectConfigurator implementation="org.jetbrains.jet.plugin.configuration.KotlinJavaModuleConfigurator"/>
+    <projectConfigurator implementation="org.jetbrains.jet.plugin.configuration.KotlinJsModuleConfigurator"/>
+  </extensions>
 </idea-plugin>

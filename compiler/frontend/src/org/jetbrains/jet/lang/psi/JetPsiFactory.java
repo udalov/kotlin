@@ -31,6 +31,7 @@ import org.jetbrains.jet.lexer.JetKeywordToken;
 import org.jetbrains.jet.lexer.JetTokens;
 import org.jetbrains.jet.plugin.JetFileType;
 
+import java.util.Collections;
 import java.util.List;
 
 public class JetPsiFactory {
@@ -167,7 +168,7 @@ public class JetPsiFactory {
         return createDeclaration(project, text, JetProperty.class);
     }
 
-    private static <T> T createDeclaration(Project project, String text, Class<T> clazz) {
+    public static <T> T createDeclaration(Project project, String text, Class<T> clazz) {
         JetFile file = createFile(project, text);
         List<JetDeclaration> dcls = file.getDeclarations();
         assert dcls.size() == 1 : dcls.size() + " declarations in " + text;
@@ -483,5 +484,21 @@ public class JetPsiFactory {
     public static JetClassObject createEmptyClassObject(Project project) {
         JetClass klass = createClass(project, "class foo { class object { } }");
         return klass.getClassObject();
+    }
+
+    public static JetBlockExpression wrapInABlock(@NotNull final JetExpression expression) {
+        if (expression instanceof JetBlockExpression) {
+            return (JetBlockExpression) expression;
+        }
+        JetNamedFunction function = createFunction(expression.getProject(), "fun f() { " + expression.getText() + "}");
+        JetBlockExpression block = (JetBlockExpression) function.getBodyExpression();
+        assert block != null;
+        return new JetBlockExpression(block.getNode()) {
+            @NotNull
+            @Override
+            public List<JetElement> getStatements() {
+                return Collections.<JetElement>singletonList(expression);
+            }
+        };
     }
 }

@@ -19,12 +19,11 @@ package org.jetbrains.jet.plugin;
 import com.google.common.base.Predicate;
 import com.intellij.lang.documentation.AbstractDocumentationProvider;
 import com.intellij.lang.java.JavaDocumentationProvider;
-import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.text.StringUtil;
+import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiWhiteSpace;
 import com.intellij.psi.impl.compiled.ClsClassImpl;
-import com.intellij.psi.impl.compiled.ClsFileImpl;
 import com.intellij.psi.tree.IElementType;
 import com.intellij.psi.util.PsiTreeUtil;
 import org.jetbrains.annotations.NotNull;
@@ -35,8 +34,8 @@ import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.BindingContextUtils;
-import org.jetbrains.jet.plugin.libraries.JetDecompiledData;
-import org.jetbrains.jet.plugin.project.WholeProjectAnalyzerFacade;
+import org.jetbrains.jet.plugin.libraries.DecompiledUtils;
+import org.jetbrains.jet.plugin.project.AnalyzerFacadeWithCache;
 import org.jetbrains.jet.plugin.references.BuiltInsReferenceResolver;
 import org.jetbrains.jet.renderer.DescriptorRenderer;
 
@@ -57,8 +56,8 @@ public class JetQuickDocumentationProvider extends AbstractDocumentationProvider
 
         PsiElement declarationPsiElement = PsiTreeUtil.getParentOfType(originalElement, JetDeclaration.class);
         if (ref != null || declarationPsiElement != null) {
-            BindingContext bindingContext = WholeProjectAnalyzerFacade.analyzeProjectWithCacheOnAFile(
-                    (JetFile) originalElement.getContainingFile()).getBindingContext();
+            BindingContext bindingContext = AnalyzerFacadeWithCache.analyzeFileWithCache((JetFile) originalElement.getContainingFile())
+                    .getBindingContext();
 
             if (ref != null) {
                 DeclarationDescriptor declarationDescriptor = bindingContext.get(BindingContext.REFERENCE_TARGET, ref);
@@ -87,7 +86,7 @@ public class JetQuickDocumentationProvider extends AbstractDocumentationProvider
             @NotNull DeclarationDescriptor declarationDescriptor, @NotNull BindingContext bindingContext,
             PsiElement element, PsiElement originalElement, boolean mergeKotlinAndJava) {
         String renderedDecl = DescriptorRenderer.HTML.render(declarationDescriptor);
-        if (isKotlinDeclaration(declarationDescriptor, bindingContext, originalElement.getProject())) {
+        if (isKotlinDeclaration(declarationDescriptor, bindingContext, element)) {
             KDoc comment = findElementKDoc(element);
             if (comment != null) {
                 renderedDecl = renderedDecl + "<br/>" + kDocToHtml(comment);
@@ -105,19 +104,23 @@ public class JetQuickDocumentationProvider extends AbstractDocumentationProvider
         return null;
     }
 
-    private static boolean isKotlinDeclaration(DeclarationDescriptor descriptor, BindingContext bindingContext, Project project) {
+    private static boolean isKotlinDeclaration(
+            DeclarationDescriptor descriptor,
+            BindingContext bindingContext,
+            PsiElement element
+    ) {
+        if (JetLanguage.INSTANCE == element.getLanguage()) return true;
         PsiElement declaration = BindingContextUtils.descriptorToDeclaration(bindingContext, descriptor);
         if (declaration == null) {
-            BuiltInsReferenceResolver libraryReferenceResolver = project
-                    .getComponent(BuiltInsReferenceResolver.class);
-            Collection<PsiElement> elements = libraryReferenceResolver.resolveStandardLibrarySymbol(descriptor);
+            BuiltInsReferenceResolver libraryReferenceResolver = element.getProject().getComponent(BuiltInsReferenceResolver.class);
+            Collection<PsiElement> elements = libraryReferenceResolver.resolveBuiltInSymbol(descriptor);
             return !elements.isEmpty();
         }
 
-        if (JetLanguage.INSTANCE == declaration.getLanguage()) return true;
         ClsClassImpl clsClass = PsiTreeUtil.getParentOfType(declaration, ClsClassImpl.class);
         if (clsClass == null) return false;
-        return JetDecompiledData.isKotlinFile((ClsFileImpl) clsClass.getContainingFile());
+        VirtualFile file = clsClass.getContainingFile().getVirtualFile();
+        return file != null && DecompiledUtils.isKotlinCompiledFile(file);
     }
 
     @Override

@@ -39,12 +39,12 @@ import org.jetbrains.jet.util.slicedmap.*;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
 
 import static org.jetbrains.jet.util.slicedmap.RewritePolicy.DO_NOTHING;
 
 public interface BindingContext {
     BindingContext EMPTY = new BindingContext() {
+        @NotNull
         @Override
         public Collection<Diagnostic> getDiagnostics() {
             return Collections.emptyList();
@@ -141,8 +141,6 @@ public interface BindingContext {
     //    WritableSlice<DeferredTypeKey, Collection<DeferredType>> DEFERRED_TYPES = Slices.createSimpleSlice();
 
     WritableSlice<Box<DeferredType>, Boolean> DEFERRED_TYPE = Slices.createCollectiveSetSlice();
-
-    WritableSlice<VariableDescriptor, ClassDescriptor> OBJECT_DECLARATION_CLASS = Slices.createSimpleSlice();
 
     WritableSlice<PropertyDescriptor, Boolean> BACKING_FIELD_REQUIRED = new Slices.SetSlice<PropertyDescriptor>(DO_NOTHING) {
         @Override
@@ -262,12 +260,11 @@ public interface BindingContext {
 
     WritableSlice<ClassDescriptor, Boolean> INCOMPLETE_HIERARCHY = Slices.createCollectiveSetSlice();
 
-    WritableSlice<CallableMemberDescriptor, DeclarationDescriptor> SOURCE_DESCRIPTOR_FOR_SYNTHESIZED = Slices.createSimpleSlice();
-
     @SuppressWarnings("UnusedDeclaration")
     @Deprecated // This field is needed only for the side effects of its initializer
             Void _static_initializer = BasicWritableSlice.initSliceDebugNames(BindingContext.class);
 
+    @NotNull
     Collection<Diagnostic> getDiagnostics();
 
     @Nullable

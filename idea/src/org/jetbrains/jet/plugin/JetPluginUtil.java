@@ -23,8 +23,6 @@ import com.intellij.ide.plugins.IdeaPluginDescriptor;
 import com.intellij.ide.plugins.PluginManager;
 import com.intellij.openapi.extensions.PluginId;
 import com.intellij.openapi.module.Module;
-import com.intellij.openapi.module.ModuleManager;
-import com.intellij.openapi.module.ModuleUtil;
 import com.intellij.openapi.module.ModuleUtilCore;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.roots.ProjectFileIndex;
@@ -43,6 +41,7 @@ import org.jetbrains.jet.lang.types.ErrorUtils;
 import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 
+import java.io.File;
 import java.util.LinkedList;
 
 public class JetPluginUtil {
@@ -89,7 +88,11 @@ public class JetPluginUtil {
         return libraryScope == ((NamespaceDescriptor) declaration).getMemberScope();
     }
 
-    public static boolean isInSourceContent(@NotNull PsiElement element) {
+    public static boolean isInSource(@NotNull PsiElement element) {
+        return isInSource(element, true);
+    }
+
+    public static boolean isInSource(@NotNull PsiElement element, boolean includeLibrarySources) {
         PsiFile containingFile = element.getContainingFile();
         if (containingFile == null) {
             return false;
@@ -98,7 +101,8 @@ public class JetPluginUtil {
         if (virtualFile == null) {
             return false;
         }
-        return ProjectFileIndex.SERVICE.getInstance(element.getProject()).isInSourceContent(virtualFile);
+        ProjectFileIndex index = ProjectFileIndex.SERVICE.getInstance(element.getProject());
+        return includeLibrarySources ? index.isInSource(virtualFile) : index.isInSourceContent(virtualFile);
     }
 
     @NotNull
@@ -144,5 +148,21 @@ public class JetPluginUtil {
             }
         }
         return false;
+    }
+
+    public static boolean isGradleModule(@NotNull Module module) {
+        VirtualFile moduleFile = module.getModuleFile();
+        if (moduleFile == null) return false;
+
+        String moduleFilePath = moduleFile.getPath();
+        String buildGradle = moduleFilePath.replace(moduleFile.getName(), "build.gradle");
+
+        return new File(buildGradle).exists();
+    }
+
+    public static boolean isMavenModule(@NotNull Module module) {
+        // This constant could be acquired from MavenProjectsManager, but we don't want to depend on the Maven plugin...
+        // See MavenProjectsManager.isMavenizedModule()
+        return "true".equals(module.getOptionValue("org.jetbrains.idea.maven.project.MavenProjectsManager.isMavenModule"));
     }
 }

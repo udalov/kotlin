@@ -24,17 +24,25 @@ import org.jetbrains.jet.codegen.ScriptCodegen;
 import org.jetbrains.jet.codegen.intrinsics.IntrinsicMethods;
 import org.jetbrains.jet.codegen.state.GenerationState;
 import org.jetbrains.jet.codegen.state.JetTypeMapper;
-import org.jetbrains.jet.di.*;
+import org.jetbrains.jet.di.DependencyInjectorGenerator;
+import org.jetbrains.jet.di.GivenExpression;
+import org.jetbrains.jet.di.InjectorForTopDownAnalyzer;
+import org.jetbrains.jet.lang.PlatformToKotlinClassMap;
 import org.jetbrains.jet.lang.descriptors.ModuleDescriptor;
 import org.jetbrains.jet.lang.descriptors.ModuleDescriptorImpl;
 import org.jetbrains.jet.lang.psi.JetImportsFactory;
 import org.jetbrains.jet.lang.resolve.*;
 import org.jetbrains.jet.lang.resolve.calls.CallResolver;
 import org.jetbrains.jet.lang.resolve.calls.NeedSyntheticCallResolverExtension;
-import org.jetbrains.jet.lang.resolve.java.*;
+import org.jetbrains.jet.lang.resolve.java.JavaBridgeConfiguration;
+import org.jetbrains.jet.lang.resolve.java.JavaClassFinderImpl;
+import org.jetbrains.jet.lang.resolve.java.JavaDescriptorResolver;
+import org.jetbrains.jet.lang.resolve.java.PsiClassFinderImpl;
+import org.jetbrains.jet.lang.resolve.java.mapping.JavaToKotlinClassMap;
+import org.jetbrains.jet.lang.resolve.java.resolver.*;
+import org.jetbrains.jet.lang.resolve.java.vfilefinder.VirtualFileFinder;
 import org.jetbrains.jet.lang.resolve.lazy.ResolveSession;
 import org.jetbrains.jet.lang.resolve.lazy.ScopeProvider;
-import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.resolve.objc.ObjCModuleConfiguration;
 import org.jetbrains.jet.lang.types.DependencyClassByQualifiedNameResolverDummyImpl;
 import org.jetbrains.jet.lang.types.expressions.ExpressionTypingServices;
@@ -57,7 +65,6 @@ public class GenerateInjectors {
         generateInjectorForTopDownAnalyzerForObjC();
         generateMacroInjector();
         generateTestInjector();
-        generateInjectorForJavaSemanticServices();
         generateInjectorForJvmCodegen();
         generateInjectorForLazyResolve();
         generateInjectorForBodyResolve();
@@ -76,6 +83,7 @@ public class GenerateInjectors {
         generator.addPublicField(QualifiedExpressionResolver.class);
         generator.addPublicField(JetImportsFactory.class);
         generator.addField(NeedSyntheticCallResolverExtension.class);
+        generator.addField(false, PlatformToKotlinClassMap.class, null, new GivenExpression("moduleDescriptor.getPlatformToKotlinClassMap()"));
         generator.generate("compiler/frontend/src", "org.jetbrains.jet.di", "InjectorForLazyResolve", GenerateInjectors.class);
     }
 
@@ -84,6 +92,7 @@ public class GenerateInjectors {
         generateInjectorForTopDownAnalyzerCommon(generator);
         generator.addField(DependencyClassByQualifiedNameResolverDummyImpl.class);
         generator.addField(NamespaceFactoryImpl.class);
+        generator.addParameter(PlatformToKotlinClassMap.class);
         generator.generate("compiler/frontend/src", "org.jetbrains.jet.di", "InjectorForTopDownAnalyzerBasic", GenerateInjectors.class);
     }
 
@@ -92,6 +101,7 @@ public class GenerateInjectors {
         generateInjectorForTopDownAnalyzerCommon(generator);
         generator.addField(DependencyClassByQualifiedNameResolverDummyImpl.class);
         generator.addField(NamespaceFactoryImpl.class);
+        generator.addField(false, PlatformToKotlinClassMap.class, null, new GivenExpression("org.jetbrains.jet.lang.PlatformToKotlinClassMap.EMPTY"));
         generator.generate("js/js.translator/src", "org.jetbrains.jet.di", "InjectorForTopDownAnalyzerForJs", GenerateInjectors.class);
     }
 
@@ -101,9 +111,19 @@ public class GenerateInjectors {
         generateInjectorForTopDownAnalyzerCommon(generator);
         generator.addPublicField(ObjCModuleConfiguration.class);
         generator.addField(JavaBridgeConfiguration.class);
+        generator.addField(false, JavaToKotlinClassMap.class, null, new GivenExpression("org.jetbrains.jet.lang.resolve.java.mapping.JavaToKotlinClassMap.getInstance()"));
+        generator.addField(JavaClassFinderImpl.class);
+        generator.addField(TraceBasedExternalSignatureResolver.class);
+        generator.addField(TraceBasedJavaResolverCache.class);
+        generator.addField(FakeOverrideVisibilityResolverImpl.class);
+        generator.addField(TraceBasedErrorReporter.class);
+        generator.addField(PsiBasedMethodSignatureChecker.class);
+        generator.addField(PsiBasedExternalAnnotationResolver.class);
         generator.addPublicField(JavaDescriptorResolver.class);
         generator.addField(PsiClassFinderImpl.class);
         generator.addPublicField(NamespaceFactoryImpl.class);
+        generator.addField(false, VirtualFileFinder.class, "virtualFileFinder",
+                           new GivenExpression("com.intellij.openapi.components.ServiceManager.getService(project, VirtualFileFinder.class)"));
         generator.generate("compiler/objc/frontend.objc/src", "org.jetbrains.jet.di", "InjectorForTopDownAnalyzerForObjC",
                            GenerateInjectors.class);
     }
@@ -115,7 +135,18 @@ public class GenerateInjectors {
         generator.addPublicField(JavaBridgeConfiguration.class);
         generator.addField(JavaDescriptorResolver.class);
         generator.addField(PsiClassFinderImpl.class);
+        generator.addField(false, JavaToKotlinClassMap.class, null, new GivenExpression("org.jetbrains.jet.lang.resolve.java.mapping.JavaToKotlinClassMap.getInstance()"));
+        generator.addField(JavaClassFinderImpl.class);
+        generator.addField(TraceBasedExternalSignatureResolver.class);
+        generator.addField(TraceBasedJavaResolverCache.class);
+        generator.addField(FakeOverrideVisibilityResolverImpl.class);
+        generator.addField(TraceBasedErrorReporter.class);
+        generator.addField(PsiBasedMethodSignatureChecker.class);
+        generator.addField(PsiBasedExternalAnnotationResolver.class);
         generator.addPublicField(NamespaceFactoryImpl.class);
+        generator.addField(false, VirtualFileFinder.class, "virtualFileFinder",
+                           new GivenExpression(
+                                   "com.intellij.openapi.components.ServiceManager.getService(project, VirtualFileFinder.class)"));
         generator.generate("compiler/frontend.java/src", "org.jetbrains.jet.di", "InjectorForTopDownAnalyzerForJvm",
                            GenerateInjectors.class);
     }
@@ -124,15 +155,21 @@ public class GenerateInjectors {
         DependencyInjectorGenerator generator = new DependencyInjectorGenerator();
 
         // Parameters
-        generator.addPublicParameter(Project.class);
-        generator.addPublicParameter(BindingTrace.class);
-        generator.addPublicParameter(ModuleDescriptor.class);
+        generator.addParameter(Project.class);
+        generator.addParameter(BindingTrace.class);
 
         // Fields
-        generator.addPublicField(JavaBridgeConfiguration.class);
-        generator.addPublicField(JavaSemanticServices.class);
+        generator.addField(JavaClassFinderImpl.class);
+        generator.addField(TraceBasedExternalSignatureResolver.class);
+        generator.addField(TraceBasedJavaResolverCache.class);
+        generator.addField(FakeOverrideVisibilityResolverImpl.class);
+        generator.addField(TraceBasedErrorReporter.class);
+        generator.addField(PsiBasedMethodSignatureChecker.class);
+        generator.addField(PsiBasedExternalAnnotationResolver.class);
         generator.addPublicField(JavaDescriptorResolver.class);
         generator.addPublicField(PsiClassFinderImpl.class);
+        generator.addField(false, VirtualFileFinder.class, "virtualFileFinder",
+                           new GivenExpression("com.intellij.openapi.components.ServiceManager.getService(project, VirtualFileFinder.class)"));
 
         generator.generate("compiler/frontend.java/src", "org.jetbrains.jet.di", "InjectorForJavaDescriptorResolver",
                            GenerateInjectors.class);
@@ -161,6 +198,7 @@ public class GenerateInjectors {
         // Fields
         generator.addPublicField(ExpressionTypingServices.class);
         generator.addField(NeedSyntheticCallResolverExtension.class);
+        generator.addField(false, PlatformToKotlinClassMap.class, null, new GivenExpression("moduleDescriptor.getPlatformToKotlinClassMap()"));
 
         // Parameters
         generator.addPublicParameter(Project.class);
@@ -179,35 +217,13 @@ public class GenerateInjectors {
         generator.addPublicField(CallResolver.class);
         generator.addField(NeedSyntheticCallResolverExtension.class);
         generator.addField(true, KotlinBuiltIns.class, null, new GivenExpression("KotlinBuiltIns.getInstance()"));
+        generator.addField(false, PlatformToKotlinClassMap.class, null, new GivenExpression("moduleDescriptor.getPlatformToKotlinClassMap()"));
 
         // Parameters
         generator.addPublicParameter(Project.class);
         generator.addParameter(ModuleDescriptor.class);
 
         generator.generate("compiler/tests", "org.jetbrains.jet.di", "InjectorForTests", GenerateInjectors.class);
-    }
-
-    private static void generateInjectorForJavaSemanticServices() throws IOException {
-        DependencyInjectorGenerator generator = new DependencyInjectorGenerator();
-
-        // Fields
-        generator.addPublicField(JavaSemanticServices.class);
-        generator.addPublicField(JavaDescriptorResolver.class);
-        generator.addField(true, BindingTrace.class, null,
-                           new GivenExpression("new org.jetbrains.jet.lang.resolve.BindingTraceContext()"));
-        generator.addField(JavaBridgeConfiguration.class);
-        generator.addPublicField(PsiClassFinderImpl.class);
-        generator.addField(false, ModuleDescriptorImpl.class, null,
-                           new GivenExpression("new " + ModuleDescriptorImpl.class.getCanonicalName() + "(" +
-                                               Name.class.getCanonicalName() + ".special(\"<dummy>\"), " +
-                                               JavaBridgeConfiguration.class.getCanonicalName() + ".ALL_JAVA_IMPORTS, " +
-                                               JavaToKotlinClassMap.class.getCanonicalName() + ".getInstance())"));
-
-        // Parameters
-        generator.addPublicParameter(Project.class);
-
-        generator.generate("compiler/frontend.java/src", "org.jetbrains.jet.di", "InjectorForJavaSemanticServices",
-                           GenerateInjectors.class);
     }
 
     private static void generateInjectorForJvmCodegen() throws IOException {
@@ -238,6 +254,7 @@ public class GenerateInjectors {
         // Fields
         generator.addPublicField(BodyResolver.class);
         generator.addField(NeedSyntheticCallResolverExtension.class);
+        generator.addField(false, PlatformToKotlinClassMap.class, null, new GivenExpression("moduleDescriptor.getPlatformToKotlinClassMap()"));
 
         // Parameters
         generator.addPublicParameter(Project.class);

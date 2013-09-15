@@ -28,6 +28,7 @@ import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Pair;
+import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.util.Alarm;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.analyzer.AnalyzeExhaust;
@@ -36,7 +37,7 @@ import org.jetbrains.jet.codegen.state.GenerationState;
 import org.jetbrains.jet.codegen.state.Progress;
 import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.plugin.internal.Location;
-import org.jetbrains.jet.plugin.project.WholeProjectAnalyzerFacade;
+import org.jetbrains.jet.plugin.project.AnalyzerFacadeWithCache;
 import org.jetbrains.jet.plugin.util.LongRunningReadTask;
 
 import javax.swing.*;
@@ -87,7 +88,7 @@ public class BytecodeToolwindow extends JPanel implements Disposable {
 
             GenerationState state;
             try {
-                AnalyzeExhaust exhaust = WholeProjectAnalyzerFacade.analyzeProjectWithCacheOnAFile(jetFile);
+                AnalyzeExhaust exhaust = AnalyzerFacadeWithCache.analyzeFileWithCache(jetFile);
                 if (exhaust.isError()) {
                     return printStackTraceToString(exhaust.getError());
                 }
@@ -257,7 +258,7 @@ public class BytecodeToolwindow extends JPanel implements Disposable {
         new WriteCommandAction(myProject) {
             @Override
             protected void run(Result result) throws Throwable {
-                myEditor.getDocument().setText(resultText);
+                myEditor.getDocument().setText(StringUtil.convertLineSeparators(resultText));
             }
         }.execute();
     }

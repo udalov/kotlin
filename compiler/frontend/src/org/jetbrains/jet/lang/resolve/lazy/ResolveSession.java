@@ -215,7 +215,7 @@ public class ResolveSession implements KotlinCodeAnalyzer {
             // build descriptors for such class objects.
             final JetClassLikeInfo classObjectInfo = parentClassDescriptor.getClassObjectInfo(classObject);
             if (classObjectInfo != null) {
-                final Name name = DescriptorUtils.getClassObjectName(parentClassDescriptor.getName().asString());
+                final Name name = DescriptorUtils.getClassObjectName(parentClassDescriptor.getName());
                 return storageManager.compute(new Computable<LazyClassDescriptor>() {
                     @Override
                     public LazyClassDescriptor compute() {
@@ -341,7 +341,8 @@ public class ResolveSession implements KotlinCodeAnalyzer {
 
             @Override
             public DeclarationDescriptor visitJetElement(JetElement element, Void data) {
-                throw new IllegalArgumentException("Unsupported declaration type: " + element + " " + element.getText());
+                throw new IllegalArgumentException("Unsupported declaration type: " + element + " " +
+                                                   JetPsiUtil.getElementTextWithContext(element));
             }
         }, null);
         if (result == null) {

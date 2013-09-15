@@ -42,7 +42,7 @@ import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.psi.JetReferenceExpression;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.plugin.JetPluginUtil;
-import org.jetbrains.jet.plugin.project.WholeProjectAnalyzerFacade;
+import org.jetbrains.jet.plugin.project.AnalyzerFacadeWithCache;
 import org.jetbrains.jet.plugin.quickfix.JetIntentionActionsFactory;
 import org.jetbrains.jet.plugin.quickfix.QuickFixes;
 
@@ -51,18 +51,9 @@ import java.util.List;
 import java.util.Set;
 
 public class JetPsiChecker implements Annotator {
-    private static volatile boolean errorReportingEnabled = true;
     private static boolean namesHighlightingTest;
 
     private static final Logger LOG = Logger.getInstance(JetPsiChecker.class);
-
-    public static void setErrorReportingEnabled(boolean value) {
-        errorReportingEnabled = value;
-    }
-
-    public static boolean isErrorReportingEnabled() {
-        return errorReportingEnabled;
-    }
 
     @TestOnly
     public static void setNamesHighlightingTest(boolean namesHighlightingTest) {
@@ -100,7 +91,7 @@ public class JetPsiChecker implements Annotator {
 
     @Override
     public void annotate(@NotNull PsiElement element, @NotNull AnnotationHolder holder) {
-        if (!JetPluginUtil.isInSourceContent(element) ||
+        if (!JetPluginUtil.isInSource(element) ||
                 JetPluginUtil.isKtFileInGradleProjectInWrongFolder(element)) {
             return;
         }
@@ -113,9 +104,9 @@ public class JetPsiChecker implements Annotator {
             JetFile file = (JetFile) element;
 
             try {
-                BindingContext bindingContext = WholeProjectAnalyzerFacade.analyzeProjectWithCacheOnAFile(file).getBindingContext();
+                BindingContext bindingContext = AnalyzerFacadeWithCache.analyzeFileWithCache(file).getBindingContext();
 
-                if (errorReportingEnabled) {
+                if (JetPluginUtil.isInSource(element, /* includeLibrarySources = */ false)) {
                     Collection<Diagnostic> diagnostics = Sets.newLinkedHashSet(bindingContext.getDiagnostics());
                     Set<PsiElement> redeclarations = Sets.newHashSet();
                     for (Diagnostic diagnostic : diagnostics) {
@@ -173,7 +164,7 @@ public class JetPsiChecker implements Annotator {
                 return;
             }
 
-            if (diagnostic.getFactory() == Errors.ILLEGAL_ESCAPE_SEQUENCE) {
+            if (diagnostic.getFactory() == Errors.ILLEGAL_ESCAPE) {
                 for (TextRange textRange : diagnostic.getTextRanges()) {
                     Annotation annotation = holder.createErrorAnnotation(textRange, getDefaultMessage(diagnostic));
                     annotation.setTooltip(getMessage(diagnostic));

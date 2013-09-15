@@ -83,6 +83,7 @@ public class DefaultErrorMessages {
         MAP.put(TYPECHECKER_HAS_RUN_INTO_RECURSIVE_PROBLEM,
                 "Type checking has run into a recursive problem. Easiest workaround: specify types of your declarations explicitly"); // TODO: message
         MAP.put(RETURN_NOT_ALLOWED, "'return' is not allowed here");
+        MAP.put(RETURN_NOT_ALLOWED_EXPLICIT_RETURN_TYPE_REQUIRED, "'return' is only allowed in function literals that have return types specified explicitly");
         MAP.put(PROJECTION_IN_IMMEDIATE_ARGUMENT_TO_SUPERTYPE, "Projections are not allowed for immediate arguments of a supertype");
         MAP.put(LABEL_NAME_CLASH, "There is more than one label with such a name in this scope");
         MAP.put(EXPRESSION_EXPECTED_NAMESPACE_FOUND, "Expression expected, but a namespace name found");
@@ -291,7 +292,15 @@ public class DefaultErrorMessages {
         MAP.put(CONFLICTING_CLASS_OBJECT_UPPER_BOUNDS, "Class object upper bounds of {0} have empty intersection", NAME);
 
         MAP.put(TOO_MANY_ARGUMENTS, "Too many arguments for {0}", DescriptorRenderer.TEXT);
-        MAP.put(ERROR_COMPILE_TIME_VALUE, "{0}", TO_STRING);
+
+        MAP.put(CONSTANT_EXPECTED_TYPE_MISMATCH, "An {0} literal does not conform to the expected type {1}", TO_STRING, RENDER_TYPE);
+        MAP.put(INT_LITERAL_OUT_OF_RANGE, "The value is out of range");
+        MAP.put(FLOAT_LITERAL_OUT_OF_RANGE, "The value is out of range");
+        MAP.put(INCORRECT_CHARACTER_LITERAL, "Incorrect character literal");
+        MAP.put(EMPTY_CHARACTER_LITERAL, "Empty character literal");
+        MAP.put(TOO_MANY_CHARACTERS_IN_CHARACTER_LITERAL, "Too many characters in a character literal ''{0}''", ELEMENT_TEXT);
+        MAP.put(ILLEGAL_ESCAPE, "Illegal escape: ''{0}''", ELEMENT_TEXT);
+        MAP.put(NULL_FOR_NONNULL_TYPE, "Null can not be a value of a non-null type {0}", RENDER_TYPE);
 
         MAP.put(ELSE_MISPLACED_IN_WHEN, "'else' entry must be the last one in a when-expression");
 
@@ -422,10 +431,10 @@ public class DefaultErrorMessages {
         MAP.put(TYPE_INFERENCE_NO_INFORMATION_FOR_PARAMETER, "Type inference failed: {0}", TYPE_INFERENCE_NO_INFORMATION_FOR_PARAMETER_RENDERER);
         MAP.put(TYPE_INFERENCE_TYPE_CONSTRUCTOR_MISMATCH, "Type inference failed: {0}", TYPE_INFERENCE_TYPE_CONSTRUCTOR_MISMATCH_RENDERER);
         MAP.put(TYPE_INFERENCE_UPPER_BOUND_VIOLATED, "{0}", TYPE_INFERENCE_UPPER_BOUND_VIOLATED_RENDERER);
-        MAP.put(TYPE_INFERENCE_EXPECTED_TYPE_MISMATCH, "Type inference failed. Expected type mismatch: found: {0} required: {1}", RENDER_TYPE, RENDER_TYPE);
+        MAP.put(TYPE_INFERENCE_EXPECTED_TYPE_MISMATCH, "Type inference failed. Expected type mismatch: found: {1} required: {0}", RENDER_TYPE, RENDER_TYPE);
 
         MAP.put(WRONG_NUMBER_OF_TYPE_ARGUMENTS, "{0,choice,0#No type arguments|1#Type argument|1<{0,number,integer} type arguments} expected", null);
-        MAP.put(NO_TYPE_ARGUMENTS_ON_RHS_OF_IS_EXPRESSION, "{0,choice,0#No type arguments|1#Type argument|1<{0,number,integer} type arguments} expected. " +
+        MAP.put(NO_TYPE_ARGUMENTS_ON_RHS, "{0,choice,0#No type arguments|1#Type argument|1<{0,number,integer} type arguments} expected. " +
                                                            "Use ''{1}'' if you don''t want to pass type arguments", null, TO_STRING);
 
         MAP.put(DANGLING_FUNCTION_LITERAL_ARGUMENT_SUSPECTED,
