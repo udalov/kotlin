@@ -24,6 +24,7 @@ import com.intellij.util.Function;
 import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
+import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.Collections;
@@ -34,7 +35,7 @@ public class ChooseModulePanel {
     private JRadioButton allModulesWithKtRadioButton;
     private JRadioButton singleModuleRadioButton;
     private JComboBox singleModuleComboBox;
-    private JSeparator separator;
+    private JTextField allModulesNames;
 
     @NotNull private final Project project;
     @NotNull private final List<Module> modules;
@@ -62,27 +63,22 @@ public class ChooseModulePanel {
                 updateComponents();
             }
         });
+
         String fullList = StringUtil.join(modules, new Function<Module, String>() {
             @Override
             public String fun(Module module) {
                 return module.getName();
             }
         }, ", ");
-
-        allModulesWithKtRadioButton.setText(allModulesWithKtRadioButton.getText() + StringUtil.shortenTextWithEllipsis(fullList, 80, 0));
+        allModulesNames.setText(fullList);
+        allModulesNames.setBorder(null);
 
         ButtonGroup modulesGroup = new ButtonGroup();
         modulesGroup.add(allModulesWithKtRadioButton);
         modulesGroup.add(singleModuleRadioButton);
         allModulesWithKtRadioButton.setSelected(true);
 
-        separator.setVisible(false);
-
         updateComponents();
-    }
-
-    public void showSeparator() {
-        separator.setVisible(true);
     }
 
     public JComponent getContentPane() {

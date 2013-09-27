@@ -19,7 +19,6 @@ package org.jetbrains.jet.lang.resolve.objc;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.lang.ModuleConfiguration;
 import org.jetbrains.jet.lang.descriptors.NamespaceDescriptor;
-import org.jetbrains.jet.lang.resolve.BindingTrace;
 import org.jetbrains.jet.lang.resolve.DescriptorUtils;
 import org.jetbrains.jet.lang.resolve.java.JavaBridgeConfiguration;
 import org.jetbrains.jet.lang.resolve.scopes.WritableScope;
@@ -47,13 +46,11 @@ public class ObjCModuleConfiguration implements ModuleConfiguration {
     }
 
     @Override
-    public void extendNamespaceScope(
-            @NotNull BindingTrace trace, @NotNull NamespaceDescriptor namespaceDescriptor, @NotNull WritableScope namespaceMemberScope
-    ) {
+    public void extendNamespaceScope(@NotNull NamespaceDescriptor namespaceDescriptor, @NotNull WritableScope namespaceMemberScope) {
         if (DescriptorUtils.getFQName(namespaceDescriptor).isRoot()) {
             resolver.setRootNamespace(namespaceDescriptor);
             resolver.resolve();
         }
-        delegateConfiguration.extendNamespaceScope(trace, namespaceDescriptor, namespaceMemberScope);
+        delegateConfiguration.extendNamespaceScope(namespaceDescriptor, namespaceMemberScope);
     }
 }

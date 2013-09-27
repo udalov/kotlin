@@ -17,16 +17,16 @@
 package org.jetbrains.jet.lang.diagnostics.rendering;
 
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.jet.lang.diagnostics.AbstractDiagnosticFactory;
+import org.jetbrains.jet.lang.diagnostics.DiagnosticFactory;
 import org.jetbrains.jet.lang.diagnostics.Diagnostic;
 import org.jetbrains.jet.lang.diagnostics.Errors;
 import org.jetbrains.jet.lang.psi.JetExpression;
 import org.jetbrains.jet.lang.psi.JetSimpleNameExpression;
 import org.jetbrains.jet.lang.psi.JetTypeConstraint;
-import org.jetbrains.jet.lang.types.ErrorUtils;
 import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.lexer.JetKeywordToken;
 import org.jetbrains.jet.renderer.DescriptorRenderer;
+import org.jetbrains.jet.renderer.Renderer;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -397,7 +397,7 @@ public class DefaultErrorMessages {
             @NotNull
             @Override
             public String render(@NotNull JetType type) {
-                if (ErrorUtils.isErrorType(type)) return "";
+                if (type.isError()) return "";
                 return " of type '" + type.toString() + "'";
             }
         });
@@ -474,9 +474,9 @@ public class DefaultErrorMessages {
             if (Modifier.isStatic(field.getModifiers())) {
                 try {
                     Object fieldValue = field.get(null);
-                    if (fieldValue instanceof AbstractDiagnosticFactory) {
-                        if (MAP.get((AbstractDiagnosticFactory) fieldValue) == null) {
-                            throw new IllegalStateException("No default diagnostic renderer is provided for " + ((AbstractDiagnosticFactory)fieldValue).getName());
+                    if (fieldValue instanceof DiagnosticFactory) {
+                        if (MAP.get((DiagnosticFactory) fieldValue) == null) {
+                            throw new IllegalStateException("No default diagnostic renderer is provided for " + ((DiagnosticFactory)fieldValue).getName());
                         }
                     }
                 }

@@ -22,11 +22,11 @@ import com.intellij.psi.tree.IElementType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.JetNodeTypes;
-import org.jetbrains.jet.lang.diagnostics.AbstractDiagnosticFactory;
+import org.jetbrains.jet.lang.diagnostics.DiagnosticFactory;
 import org.jetbrains.jet.lang.diagnostics.Diagnostic;
+import org.jetbrains.jet.lang.diagnostics.rendering.DefaultErrorMessages;
 import org.jetbrains.jet.lang.psi.JetConstantExpression;
 import org.jetbrains.jet.lang.psi.JetElement;
-import org.jetbrains.jet.lang.types.ErrorUtils;
 import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.lang.types.TypeConstructor;
 import org.jetbrains.jet.lang.types.TypeUtils;
@@ -36,7 +36,6 @@ import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 import java.util.Set;
 
 import static org.jetbrains.jet.lang.diagnostics.Errors.*;
-import static org.jetbrains.jet.lang.resolve.constants.ErrorValue.ErrorValueWithDiagnostic;
 
 public class CompileTimeConstantResolver {
     private final KotlinBuiltIns builtIns;
@@ -51,8 +50,8 @@ public class CompileTimeConstantResolver {
             @NotNull JetType expectedType
     ) {
         CompileTimeConstant<?> compileTimeConstant = getCompileTimeConstant(expression, expectedType);
-        Set<AbstractDiagnosticFactory> errorsThatDependOnExpectedType =
-                Sets.<AbstractDiagnosticFactory>newHashSet(CONSTANT_EXPECTED_TYPE_MISMATCH, NULL_FOR_NONNULL_TYPE);
+        Set<DiagnosticFactory> errorsThatDependOnExpectedType =
+                Sets.<DiagnosticFactory>newHashSet(CONSTANT_EXPECTED_TYPE_MISMATCH, NULL_FOR_NONNULL_TYPE);
 
         if (compileTimeConstant instanceof ErrorValueWithDiagnostic) {
             Diagnostic diagnostic = ((ErrorValueWithDiagnostic) compileTimeConstant).getDiagnostic();
@@ -107,7 +106,7 @@ public class CompileTimeConstantResolver {
             @NotNull JetConstantExpression expression
     ) {
         if (value == null) {
-            return ErrorValue.create(INT_LITERAL_OUT_OF_RANGE.on(expression));
+            return createErrorValue(INT_LITERAL_OUT_OF_RANGE.on(expression));
         }
         if (noExpectedTypeOrError(expectedType)) {
             if (Integer.MIN_VALUE <= value && value <= Integer.MAX_VALUE) {
@@ -150,14 +149,14 @@ public class CompileTimeConstantResolver {
                 return getIntegerValue(value, longType, expression);
             }
             else {
-                return ErrorValue.create(CONSTANT_EXPECTED_TYPE_MISMATCH.on(expression, "integer", expectedType));
+                return createErrorValue(CONSTANT_EXPECTED_TYPE_MISMATCH.on(expression, "integer", expectedType));
             }
         }
 
         if (value != null && lowerBound <= value && value <= upperBound) {
             return create.apply(value);
         }
-        return ErrorValue.create(CONSTANT_EXPECTED_TYPE_MISMATCH.on(expression, "integer", expectedType));
+        return createErrorValue(CONSTANT_EXPECTED_TYPE_MISMATCH.on(expression, "integer", expectedType));
     }
 
     @Nullable
@@ -206,16 +205,16 @@ public class CompileTimeConstantResolver {
                 return new FloatValue(Float.parseFloat(text));
             }
             else {
-                return ErrorValue.create(CONSTANT_EXPECTED_TYPE_MISMATCH.on(expression, "floating-point", expectedType));
+                return createErrorValue(CONSTANT_EXPECTED_TYPE_MISMATCH.on(expression, "floating-point", expectedType));
             }
         }
         catch (NumberFormatException e) {
-            return ErrorValue.create(FLOAT_LITERAL_OUT_OF_RANGE.on(expression));
+            return createErrorValue(FLOAT_LITERAL_OUT_OF_RANGE.on(expression));
         }
     }
 
     @Nullable
-    private CompileTimeConstant<?> checkNativeType(
+    private static CompileTimeConstant<?> checkNativeType(
             JetType expectedType,
             String title,
             JetType nativeType,
@@ -224,7 +223,7 @@ public class CompileTimeConstantResolver {
         if (!noExpectedTypeOrError(expectedType)
             && !JetTypeChecker.INSTANCE.isSubtypeOf(nativeType, expectedType)) {
 
-            return ErrorValue.create(CONSTANT_EXPECTED_TYPE_MISMATCH.on(expression, title, expectedType));
+            return createErrorValue(CONSTANT_EXPECTED_TYPE_MISMATCH.on(expression, title, expectedType));
         }
         return null;
     }
@@ -259,12 +258,12 @@ public class CompileTimeConstantResolver {
 
         // Strip the quotes
         if (text.length() < 2 || text.charAt(0) != '\'' || text.charAt(text.length() - 1) != '\'') {
-            return ErrorValue.create(INCORRECT_CHARACTER_LITERAL.on(expression));
+            return createErrorValue(INCORRECT_CHARACTER_LITERAL.on(expression));
         }
         text = text.substring(1, text.length() - 1); // now there're no quotes
 
         if (text.length() == 0) {
-            return ErrorValue.create(EMPTY_CHARACTER_LITERAL.on(expression));
+            return createErrorValue(EMPTY_CHARACTER_LITERAL.on(expression));
         }
 
         if (text.charAt(0) != '\\') {
@@ -272,7 +271,7 @@ public class CompileTimeConstantResolver {
             if (text.length() == 1) {
                 return new CharValue(text.charAt(0));
             }
-            return ErrorValue.create(TOO_MANY_CHARACTERS_IN_CHARACTER_LITERAL.on(expression, expression));
+            return createErrorValue(TOO_MANY_CHARACTERS_IN_CHARACTER_LITERAL.on(expression, expression));
         }
         return escapedStringToCharValue(text, expression);
     }
@@ -313,10 +312,8 @@ public class CompileTimeConstantResolver {
     }
 
     @NotNull
-    private static CompileTimeConstant<?> illegalEscape(
-            @NotNull JetElement expression
-    ) {
-        return ErrorValue.create(ILLEGAL_ESCAPE.on(expression, expression));
+    private static CompileTimeConstant<?> illegalEscape(@NotNull JetElement expression) {
+        return createErrorValue(ILLEGAL_ESCAPE.on(expression, expression));
     }
 
     @Nullable
@@ -343,16 +340,43 @@ public class CompileTimeConstantResolver {
     }
 
     @NotNull
-    public CompileTimeConstant<?> getNullValue(
-            @NotNull JetConstantExpression expression, @NotNull JetType expectedType
-    ) {
+    public static CompileTimeConstant<?> getNullValue(@NotNull JetConstantExpression expression, @NotNull JetType expectedType) {
         if (noExpectedTypeOrError(expectedType) || expectedType.isNullable()) {
             return NullValue.NULL;
         }
-        return ErrorValue.create(NULL_FOR_NONNULL_TYPE.on(expression, expectedType));
+        return createErrorValue(NULL_FOR_NONNULL_TYPE.on(expression, expectedType));
     }
 
     private static boolean noExpectedTypeOrError(JetType expectedType) {
-        return TypeUtils.noExpectedType(expectedType) || ErrorUtils.isErrorType(expectedType);
+        return TypeUtils.noExpectedType(expectedType) || expectedType.isError();
+    }
+
+    @NotNull
+    private static ErrorValue createErrorValue(@NotNull Diagnostic diagnostic) {
+        return new ErrorValueWithDiagnostic(diagnostic);
+    }
+
+    public static class ErrorValueWithDiagnostic extends ErrorValue {
+        private final Diagnostic diagnostic;
+
+        public ErrorValueWithDiagnostic(@NotNull Diagnostic diagnostic) {
+            this.diagnostic = diagnostic;
+        }
+
+        @NotNull
+        public Diagnostic getDiagnostic() {
+            return diagnostic;
+        }
+
+        @NotNull
+        @Override
+        public JetType getType(@NotNull KotlinBuiltIns kotlinBuiltIns) {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public String toString() {
+            return DefaultErrorMessages.RENDERER.render(diagnostic);
+        }
     }
 }

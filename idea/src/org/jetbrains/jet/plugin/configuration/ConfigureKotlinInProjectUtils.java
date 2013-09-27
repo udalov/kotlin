@@ -16,19 +16,15 @@
 
 package org.jetbrains.jet.plugin.configuration;
 
-import com.beust.jcommander.internal.Lists;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import com.intellij.notification.Notification;
-import com.intellij.notification.NotificationListener;
-import com.intellij.notification.NotificationType;
-import com.intellij.notification.Notifications;
+import com.intellij.notification.*;
 import com.intellij.openapi.extensions.Extensions;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.module.ModuleManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.psi.search.FileTypeIndex;
-import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.util.Function;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -41,6 +37,7 @@ import java.util.List;
 import java.util.Set;
 
 public class ConfigureKotlinInProjectUtils {
+    private static final NotificationGroup CONFIGURE_KOTLIN_STICKY_BALLOON_GROUP = new NotificationGroup("Configure Kotlin: balloon", NotificationDisplayType.STICKY_BALLOON, true);
 
     public static boolean isProjectConfigured(@NotNull Project project) {
         Collection<Module> modules = getModulesWithKotlinFiles(project);
@@ -62,14 +59,18 @@ public class ConfigureKotlinInProjectUtils {
         return false;
     }
 
-    public static boolean hasKotlinFiles(@NotNull Module module) {
-        return !FileTypeIndex.getFiles(JetFileType.INSTANCE, GlobalSearchScope.moduleScope(module)).isEmpty();
+    public static boolean hasKotlinFilesInSources(@NotNull Module module) {
+        return !FileTypeIndex.getFiles(JetFileType.INSTANCE, module.getModuleScope(false)).isEmpty();
+    }
+
+    public static boolean hasKotlinFilesOnlyInTests(@NotNull Module module) {
+        return !hasKotlinFilesInSources(module) && !FileTypeIndex.getFiles(JetFileType.INSTANCE, module.getModuleScope(true)).isEmpty();
     }
 
     public static Collection<Module> getModulesWithKotlinFiles(@NotNull Project project) {
         List<Module> modulesWithKotlin = Lists.newArrayList();
         for (Module module : ModuleManager.getInstance(project).getModules()) {
-            if (hasKotlinFiles(module)) {
+            if (hasKotlinFilesInSources(module) || hasKotlinFilesOnlyInTests(module)) {
                 modulesWithKotlin.add(module);
             }
         }
@@ -88,33 +89,52 @@ public class ConfigureKotlinInProjectUtils {
         showConfigureKotlinNotification(project);
     }
 
-    private static void showConfigureKotlinNotification(final Project project) {
-        Collection<KotlinProjectConfigurator> configurators = getApplicableConfigurators(project);
+    private static void showConfigureKotlinNotification(@NotNull final Project project) {
+        CONFIGURE_KOTLIN_STICKY_BALLOON_GROUP.
+                createNotification(
+                        "Configure Kotlin",
+                        getNotificationString(project),
+                        NotificationType.WARNING,
+                        new NotificationListener() {
+                            @Override
+                            public void hyperlinkUpdate(@NotNull Notification notification, @NotNull HyperlinkEvent event) {
+                                if (event.getEventType() == HyperlinkEvent.EventType.ACTIVATED) {
+                                    KotlinProjectConfigurator configurator = getConfiguratorByName(event.getDescription());
+                                    if (configurator == null) {
+                                        throw new AssertionError("Missed action: " + event.getDescription());
+                                    }
+                                    configurator.configure(project);
+                                    notification.expire();
+                                }
+                            }
+                        }
+                ).notify(project);
+    }
 
-        String links = StringUtil.join(configurators, new Function<KotlinProjectConfigurator, String>() {
+    private static String getNotificationString(Project project) {
+        StringBuilder builder = new StringBuilder("Configure ");
+
+        Collection<Module> modules = getModulesWithKotlinFiles(project);
+        final boolean isOnlyOneModule = modules.size() == 1;
+        if (isOnlyOneModule) {
+            builder.append("'").append(modules.iterator().next().getName()).append("' module");
+        }
+        else {
+            builder.append("modules");
+        }
+
+        builder.append(" in '").append(project.getName()).append("' project");
+        builder.append("<br/>");
+
+        String links = StringUtil.join(getApplicableConfigurators(project), new Function<KotlinProjectConfigurator, String>() {
             @Override
             public String fun(KotlinProjectConfigurator configurator) {
-                return getLink(configurator);
+                return getLink(configurator, isOnlyOneModule);
             }
-        }, "  ");
+        }, "<br/>");
+        builder.append(links);
 
-        Notifications.Bus.notify(
-                new Notification("Configure Kotlin",
-                                 "Kotlin file(s) found in your project.",
-                                 "Configure Kotlin:\n" + links,
-                                 NotificationType.ERROR, new NotificationListener() {
-            @Override
-            public void hyperlinkUpdate(@NotNull Notification notification, @NotNull HyperlinkEvent event) {
-                if (event.getEventType() == HyperlinkEvent.EventType.ACTIVATED) {
-                    KotlinProjectConfigurator configurator = getConfiguratorByName(event.getDescription());
-                    if (configurator == null) {
-                        throw new AssertionError("Missed action: " + event.getDescription());
-                    }
-                    configurator.configure(project);
-                    notification.expire();
-                }
-            }
-        }), project);
+        return builder.toString();
     }
 
     @NotNull
@@ -162,14 +182,17 @@ public class ConfigureKotlinInProjectUtils {
         return result;
     }
     @NotNull
-    public static String getLink(@NotNull KotlinProjectConfigurator configurator) {
-        return StringUtil.join("<a href=\"", configurator.getName(), "\">", configurator.getPresentableText(), "</a>");
+    public static String getLink(@NotNull KotlinProjectConfigurator configurator, boolean isOnlyOneModule) {
+        return StringUtil.join("<a href=\"", configurator.getName(), "\">as Kotlin (",
+                               configurator.getPresentableText(),
+                               isOnlyOneModule ? ") module" : ") modules",
+                               "</a>");
     }
 
     private ConfigureKotlinInProjectUtils() {
     }
 
     public static void showInfoNotification(@NotNull String message) {
-        Notifications.Bus.notify(new Notification("Configure Kotlin", "Configure Kotlin", message, NotificationType.INFORMATION));
+        Notifications.Bus.notify(new Notification("Configure Kotlin: info notification", "Configure Kotlin", message, NotificationType.INFORMATION));
     }
 }

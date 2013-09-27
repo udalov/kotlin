@@ -1,15 +1,16 @@
 package org.jetbrains.jet.plugin.configuration;
 
-import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.module.Module;
+import com.intellij.openapi.module.impl.scopes.LibraryScope;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.roots.OrderRootType;
 import com.intellij.openapi.roots.libraries.Library;
-import com.intellij.openapi.vfs.VfsUtil;
+import com.intellij.openapi.vfs.VirtualFile;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.plugin.framework.JavaRuntimeLibraryDescription;
 import org.jetbrains.jet.plugin.framework.KotlinFrameworkDetector;
 import org.jetbrains.jet.plugin.framework.ui.CreateJavaLibraryDialogWithModules;
+import org.jetbrains.jet.plugin.versions.KotlinRuntimeLibraryUtil;
 import org.jetbrains.jet.utils.PathUtil;
 
 import java.io.File;
@@ -31,15 +32,14 @@ public class KotlinJavaModuleConfigurator extends KotlinWithLibraryConfigurator 
 
     @NotNull
     @Override
-    protected String getJarName() {
+    public String getJarName() {
         return PathUtil.KOTLIN_JAVA_RUNTIME_JAR;
     }
 
+    @NotNull
     @Override
-    protected void addRootsToLibrary(@NotNull Library.ModifiableModel library, @NotNull File jarFile) {
-        String libraryRoot = VfsUtil.getUrlForLibraryRoot(jarFile);
-        library.addRoot(libraryRoot, OrderRootType.CLASSES);
-        library.addRoot(libraryRoot + "src", OrderRootType.SOURCES);
+    public String getSourcesJarName() {
+        return PathUtil.KOTLIN_JAVA_RUNTIME_SRC_JAR;
     }
 
     @NotNull
@@ -51,7 +51,7 @@ public class KotlinJavaModuleConfigurator extends KotlinWithLibraryConfigurator 
     @NotNull
     @Override
     public String getPresentableText() {
-        return "As Java project";
+        return "Java";
     }
 
     @NotNull
@@ -86,17 +86,22 @@ public class KotlinJavaModuleConfigurator extends KotlinWithLibraryConfigurator 
     @Override
     @NotNull
     public File getExistedJarFile() {
-        File result;
-        if (ApplicationManager.getApplication().isUnitTestMode()) {
-            result = PathUtil.getKotlinPathsForDistDirectory().getRuntimePath();
+        return assertFileExists(getKotlinPaths().getRuntimePath());
+    }
+
+    @Override
+    public File getExistedSourcesJarFile() {
+        return assertFileExists(getKotlinPaths().getRuntimeSourcesPath());
+    }
+
+    @Override
+    protected boolean isKotlinLibrary(@NotNull Project project, @NotNull Library library) {
+        if (super.isKotlinLibrary(project, library)) {
+            return true;
         }
-        else {
-            result = PathUtil.getKotlinPathsForIdeaPlugin().getRuntimePath();
-        }
-        if (!result.exists()) {
-            showError("Jar file wasn't found in " + result.getPath());
-        }
-        return result;
+
+        LibraryScope scope = new LibraryScope(project, library);
+        return KotlinRuntimeLibraryUtil.getKotlinRuntimeMarkerClass(scope) != null;
     }
 
     KotlinJavaModuleConfigurator() {

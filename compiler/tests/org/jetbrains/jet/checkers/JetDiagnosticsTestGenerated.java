@@ -33,7 +33,7 @@ import org.jetbrains.jet.checkers.AbstractDiagnosticsTestWithEagerResolve;
 @InnerTestClasses({JetDiagnosticsTestGenerated.Tests.class, JetDiagnosticsTestGenerated.Script.class})
 public class JetDiagnosticsTestGenerated extends AbstractDiagnosticsTestWithEagerResolve {
     @TestMetadata("compiler/testData/diagnostics/tests")
-    @InnerTestClasses({Tests.Annotations.class, Tests.BackingField.class, Tests.CallableReference.class, Tests.Cast.class, Tests.CheckArguments.class, Tests.ControlFlowAnalysis.class, Tests.ControlStructures.class, Tests.DataClasses.class, Tests.DataFlow.class, Tests.DataFlowInfoTraversal.class, Tests.DeclarationChecks.class, Tests.DelegatedProperty.class, Tests.Deparenthesize.class, Tests.Enum.class, Tests.Extensions.class, Tests.FunctionLiterals.class, Tests.Generics.class, Tests.IncompleteCode.class, Tests.Inference.class, Tests.Infos.class, Tests.Inner.class, Tests.J_k.class, Tests.Jdk_annotations.class, Tests.Library.class, Tests.NullabilityAndAutoCasts.class, Tests.NullableTypes.class, Tests.Numbers.class, Tests.Objects.class, Tests.OperatorsOverloading.class, Tests.Overload.class, Tests.Override.class, Tests.Recovery.class, Tests.Redeclarations.class, Tests.Regressions.class, Tests.Resolve.class, Tests.Scopes.class, Tests.SenselessComparison.class, Tests.Shadowing.class, Tests.SmartCasts.class, Tests.Substitutions.class, Tests.Subtyping.class, Tests.ThisAndSuper.class, Tests.Varargs.class, Tests.When.class})
+    @InnerTestClasses({Tests.Annotations.class, Tests.BackingField.class, Tests.CallableReference.class, Tests.Cast.class, Tests.CheckArguments.class, Tests.ControlFlowAnalysis.class, Tests.ControlStructures.class, Tests.DataClasses.class, Tests.DataFlow.class, Tests.DataFlowInfoTraversal.class, Tests.DeclarationChecks.class, Tests.DelegatedProperty.class, Tests.Deparenthesize.class, Tests.Enum.class, Tests.Extensions.class, Tests.FunctionLiterals.class, Tests.Generics.class, Tests.IncompleteCode.class, Tests.Inference.class, Tests.Infos.class, Tests.Inner.class, Tests.J_k.class, Tests.Jdk_annotations.class, Tests.Library.class, Tests.NullabilityAndAutoCasts.class, Tests.NullableTypes.class, Tests.Numbers.class, Tests.Objects.class, Tests.OperatorsOverloading.class, Tests.Overload.class, Tests.Override.class, Tests.Recovery.class, Tests.Redeclarations.class, Tests.Regressions.class, Tests.Resolve.class, Tests.Scopes.class, Tests.SenselessComparison.class, Tests.Shadowing.class, Tests.SmartCasts.class, Tests.Substitutions.class, Tests.Subtyping.class, Tests.Suppress.class, Tests.ThisAndSuper.class, Tests.Varargs.class, Tests.When.class})
     public static class Tests extends AbstractDiagnosticsTestWithEagerResolve {
         @TestMetadata("Abstract.kt")
         public void testAbstract() throws Exception {
@@ -608,6 +608,21 @@ public class JetDiagnosticsTestGenerated extends AbstractDiagnosticsTestWithEage
             @TestMetadata("NonAnnotationClass.kt")
             public void testNonAnnotationClass() throws Exception {
                 doTest("compiler/testData/diagnostics/tests/annotations/NonAnnotationClass.kt");
+            }
+            
+            @TestMetadata("onExpression.kt")
+            public void testOnExpression() throws Exception {
+                doTest("compiler/testData/diagnostics/tests/annotations/onExpression.kt");
+            }
+            
+            @TestMetadata("onLoops.kt")
+            public void testOnLoops() throws Exception {
+                doTest("compiler/testData/diagnostics/tests/annotations/onLoops.kt");
+            }
+            
+            @TestMetadata("onMultiDeclaration.kt")
+            public void testOnMultiDeclaration() throws Exception {
+                doTest("compiler/testData/diagnostics/tests/annotations/onMultiDeclaration.kt");
             }
             
         }
@@ -2685,6 +2700,11 @@ public class JetDiagnosticsTestGenerated extends AbstractDiagnosticsTestWithEage
                 doTest("compiler/testData/diagnostics/tests/functionLiterals/NoDanglingFunctionLiteralForNestedCalls.kt");
             }
             
+            @TestMetadata("returnNull.kt")
+            public void testReturnNull() throws Exception {
+                doTest("compiler/testData/diagnostics/tests/functionLiterals/returnNull.kt");
+            }
+            
             @TestMetadata("unusedLiteral.kt")
             public void testUnusedLiteral() throws Exception {
                 doTest("compiler/testData/diagnostics/tests/functionLiterals/unusedLiteral.kt");
@@ -3097,6 +3117,11 @@ public class JetDiagnosticsTestGenerated extends AbstractDiagnosticsTestWithEage
             @TestMetadata("typeInferenceExpectedTypeMismatch.kt")
             public void testTypeInferenceExpectedTypeMismatch() throws Exception {
                 doTest("compiler/testData/diagnostics/tests/inference/typeInferenceExpectedTypeMismatch.kt");
+            }
+            
+            @TestMetadata("useFunctionLiteralsToInferType.kt")
+            public void testUseFunctionLiteralsToInferType() throws Exception {
+                doTest("compiler/testData/diagnostics/tests/inference/useFunctionLiteralsToInferType.kt");
             }
             
             @TestMetadata("compiler/testData/diagnostics/tests/inference/nestedCalls")
@@ -5555,6 +5580,177 @@ public class JetDiagnosticsTestGenerated extends AbstractDiagnosticsTestWithEage
             
         }
         
+        @TestMetadata("compiler/testData/diagnostics/tests/suppress")
+        @InnerTestClasses({Suppress.AllWarnings.class, Suppress.ManyWarnings.class, Suppress.OneWarning.class})
+        public static class Suppress extends AbstractDiagnosticsTestWithEagerResolve {
+            public void testAllFilesPresentInSuppress() throws Exception {
+                JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), "org.jetbrains.jet.generators.tests.GenerateTests", new File("compiler/testData/diagnostics/tests/suppress"), Pattern.compile("^(.+)\\.kt$"), true);
+            }
+            
+            @TestMetadata("compiler/testData/diagnostics/tests/suppress/allWarnings")
+            public static class AllWarnings extends AbstractDiagnosticsTestWithEagerResolve {
+                public void testAllFilesPresentInAllWarnings() throws Exception {
+                    JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), "org.jetbrains.jet.generators.tests.GenerateTests", new File("compiler/testData/diagnostics/tests/suppress/allWarnings"), Pattern.compile("^(.+)\\.kt$"), true);
+                }
+                
+                @TestMetadata("suppressWarningsOnClass.kt")
+                public void testSuppressWarningsOnClass() throws Exception {
+                    doTest("compiler/testData/diagnostics/tests/suppress/allWarnings/suppressWarningsOnClass.kt");
+                }
+                
+                @TestMetadata("suppressWarningsOnClassObject.kt")
+                public void testSuppressWarningsOnClassObject() throws Exception {
+                    doTest("compiler/testData/diagnostics/tests/suppress/allWarnings/suppressWarningsOnClassObject.kt");
+                }
+                
+                @TestMetadata("suppressWarningsOnExpression.kt")
+                public void testSuppressWarningsOnExpression() throws Exception {
+                    doTest("compiler/testData/diagnostics/tests/suppress/allWarnings/suppressWarningsOnExpression.kt");
+                }
+                
+                @TestMetadata("suppressWarningsOnFunction.kt")
+                public void testSuppressWarningsOnFunction() throws Exception {
+                    doTest("compiler/testData/diagnostics/tests/suppress/allWarnings/suppressWarningsOnFunction.kt");
+                }
+                
+                @TestMetadata("suppressWarningsOnObject.kt")
+                public void testSuppressWarningsOnObject() throws Exception {
+                    doTest("compiler/testData/diagnostics/tests/suppress/allWarnings/suppressWarningsOnObject.kt");
+                }
+                
+                @TestMetadata("suppressWarningsOnParameter.kt")
+                public void testSuppressWarningsOnParameter() throws Exception {
+                    doTest("compiler/testData/diagnostics/tests/suppress/allWarnings/suppressWarningsOnParameter.kt");
+                }
+                
+                @TestMetadata("suppressWarningsOnProperty.kt")
+                public void testSuppressWarningsOnProperty() throws Exception {
+                    doTest("compiler/testData/diagnostics/tests/suppress/allWarnings/suppressWarningsOnProperty.kt");
+                }
+                
+                @TestMetadata("suppressWarningsOnPropertyAccessor.kt")
+                public void testSuppressWarningsOnPropertyAccessor() throws Exception {
+                    doTest("compiler/testData/diagnostics/tests/suppress/allWarnings/suppressWarningsOnPropertyAccessor.kt");
+                }
+                
+            }
+            
+            @TestMetadata("compiler/testData/diagnostics/tests/suppress/manyWarnings")
+            public static class ManyWarnings extends AbstractDiagnosticsTestWithEagerResolve {
+                public void testAllFilesPresentInManyWarnings() throws Exception {
+                    JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), "org.jetbrains.jet.generators.tests.GenerateTests", new File("compiler/testData/diagnostics/tests/suppress/manyWarnings"), Pattern.compile("^(.+)\\.kt$"), true);
+                }
+                
+                @TestMetadata("mixed.kt")
+                public void testMixed() throws Exception {
+                    doTest("compiler/testData/diagnostics/tests/suppress/manyWarnings/mixed.kt");
+                }
+                
+                @TestMetadata("onClass.kt")
+                public void testOnClass() throws Exception {
+                    doTest("compiler/testData/diagnostics/tests/suppress/manyWarnings/onClass.kt");
+                }
+                
+                @TestMetadata("onClassObject.kt")
+                public void testOnClassObject() throws Exception {
+                    doTest("compiler/testData/diagnostics/tests/suppress/manyWarnings/onClassObject.kt");
+                }
+                
+                @TestMetadata("onExpression.kt")
+                public void testOnExpression() throws Exception {
+                    doTest("compiler/testData/diagnostics/tests/suppress/manyWarnings/onExpression.kt");
+                }
+                
+                @TestMetadata("onFunction.kt")
+                public void testOnFunction() throws Exception {
+                    doTest("compiler/testData/diagnostics/tests/suppress/manyWarnings/onFunction.kt");
+                }
+                
+                @TestMetadata("onObject.kt")
+                public void testOnObject() throws Exception {
+                    doTest("compiler/testData/diagnostics/tests/suppress/manyWarnings/onObject.kt");
+                }
+                
+                @TestMetadata("onParameter.kt")
+                public void testOnParameter() throws Exception {
+                    doTest("compiler/testData/diagnostics/tests/suppress/manyWarnings/onParameter.kt");
+                }
+                
+                @TestMetadata("onProperty.kt")
+                public void testOnProperty() throws Exception {
+                    doTest("compiler/testData/diagnostics/tests/suppress/manyWarnings/onProperty.kt");
+                }
+                
+                @TestMetadata("onPropertyAccessor.kt")
+                public void testOnPropertyAccessor() throws Exception {
+                    doTest("compiler/testData/diagnostics/tests/suppress/manyWarnings/onPropertyAccessor.kt");
+                }
+                
+            }
+            
+            @TestMetadata("compiler/testData/diagnostics/tests/suppress/oneWarning")
+            public static class OneWarning extends AbstractDiagnosticsTestWithEagerResolve {
+                public void testAllFilesPresentInOneWarning() throws Exception {
+                    JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), "org.jetbrains.jet.generators.tests.GenerateTests", new File("compiler/testData/diagnostics/tests/suppress/oneWarning"), Pattern.compile("^(.+)\\.kt$"), true);
+                }
+                
+                @TestMetadata("onClass.kt")
+                public void testOnClass() throws Exception {
+                    doTest("compiler/testData/diagnostics/tests/suppress/oneWarning/onClass.kt");
+                }
+                
+                @TestMetadata("onClassObject.kt")
+                public void testOnClassObject() throws Exception {
+                    doTest("compiler/testData/diagnostics/tests/suppress/oneWarning/onClassObject.kt");
+                }
+                
+                @TestMetadata("onExpression.kt")
+                public void testOnExpression() throws Exception {
+                    doTest("compiler/testData/diagnostics/tests/suppress/oneWarning/onExpression.kt");
+                }
+                
+                @TestMetadata("onFunction.kt")
+                public void testOnFunction() throws Exception {
+                    doTest("compiler/testData/diagnostics/tests/suppress/oneWarning/onFunction.kt");
+                }
+                
+                @TestMetadata("onLocalVariable.kt")
+                public void testOnLocalVariable() throws Exception {
+                    doTest("compiler/testData/diagnostics/tests/suppress/oneWarning/onLocalVariable.kt");
+                }
+                
+                @TestMetadata("onObject.kt")
+                public void testOnObject() throws Exception {
+                    doTest("compiler/testData/diagnostics/tests/suppress/oneWarning/onObject.kt");
+                }
+                
+                @TestMetadata("onParameter.kt")
+                public void testOnParameter() throws Exception {
+                    doTest("compiler/testData/diagnostics/tests/suppress/oneWarning/onParameter.kt");
+                }
+                
+                @TestMetadata("onProperty.kt")
+                public void testOnProperty() throws Exception {
+                    doTest("compiler/testData/diagnostics/tests/suppress/oneWarning/onProperty.kt");
+                }
+                
+                @TestMetadata("onPropertyAccessor.kt")
+                public void testOnPropertyAccessor() throws Exception {
+                    doTest("compiler/testData/diagnostics/tests/suppress/oneWarning/onPropertyAccessor.kt");
+                }
+                
+            }
+            
+            public static Test innerSuite() {
+                TestSuite suite = new TestSuite("Suppress");
+                suite.addTestSuite(Suppress.class);
+                suite.addTestSuite(AllWarnings.class);
+                suite.addTestSuite(ManyWarnings.class);
+                suite.addTestSuite(OneWarning.class);
+                return suite;
+            }
+        }
+        
         @TestMetadata("compiler/testData/diagnostics/tests/thisAndSuper")
         public static class ThisAndSuper extends AbstractDiagnosticsTestWithEagerResolve {
             public void testAllFilesPresentInThisAndSuper() throws Exception {
@@ -5692,6 +5888,11 @@ public class JetDiagnosticsTestGenerated extends AbstractDiagnosticsTestWithEage
                 JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), "org.jetbrains.jet.generators.tests.GenerateTests", new File("compiler/testData/diagnostics/tests/when"), Pattern.compile("^(.+)\\.kt$"), true);
             }
             
+            @TestMetadata("AnnotatedWhenStatement.kt")
+            public void testAnnotatedWhenStatement() throws Exception {
+                doTest("compiler/testData/diagnostics/tests/when/AnnotatedWhenStatement.kt");
+            }
+            
             @TestMetadata("NoElseExpectedUnit.kt")
             public void testNoElseExpectedUnit() throws Exception {
                 doTest("compiler/testData/diagnostics/tests/when/NoElseExpectedUnit.kt");
@@ -5778,6 +5979,7 @@ public class JetDiagnosticsTestGenerated extends AbstractDiagnosticsTestWithEage
             suite.addTest(SmartCasts.innerSuite());
             suite.addTestSuite(Substitutions.class);
             suite.addTestSuite(Subtyping.class);
+            suite.addTest(Suppress.innerSuite());
             suite.addTestSuite(ThisAndSuper.class);
             suite.addTestSuite(Varargs.class);
             suite.addTestSuite(When.class);

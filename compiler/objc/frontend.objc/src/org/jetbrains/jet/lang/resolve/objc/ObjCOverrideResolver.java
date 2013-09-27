@@ -23,6 +23,7 @@ import org.jetbrains.jet.lang.descriptors.PropertyDescriptor;
 import org.jetbrains.jet.lang.descriptors.SimpleFunctionDescriptor;
 import org.jetbrains.jet.lang.resolve.BindingTraceContext;
 import org.jetbrains.jet.lang.resolve.OverrideResolver;
+import org.jetbrains.jet.lang.resolve.OverridingUtil;
 import org.jetbrains.jet.lang.types.JetType;
 
 import java.util.Collection;
@@ -57,7 +58,7 @@ public class ObjCOverrideResolver {
         OverrideResolver.generateOverridesInAClass(
                 descriptor,
                 descriptor.getDeclaredCallableMembers(),
-                new OverrideResolver.DescriptorSink() {
+                new OverridingUtil.DescriptorSink() {
                     @Override
                     public void addToScope(@NotNull CallableMemberDescriptor fakeOverride) {
                         if (fakeOverride instanceof SimpleFunctionDescriptor) {

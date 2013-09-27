@@ -19,8 +19,8 @@ package org.jetbrains.jet.objc;
 import com.google.common.collect.ImmutableMap;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.jet.lang.diagnostics.Diagnostic;
 import org.jetbrains.jet.lang.resolve.BindingContext;
+import org.jetbrains.jet.lang.resolve.Diagnostics;
 import org.jetbrains.jet.util.slicedmap.ReadOnlySlice;
 import org.jetbrains.jet.util.slicedmap.WritableSlice;
 
@@ -35,8 +35,9 @@ public class ChainedBindingContext implements BindingContext {
         this.contexts = Arrays.asList(contexts);
     }
 
+    @NotNull
     @Override
-    public Collection<Diagnostic> getDiagnostics() {
+    public Diagnostics getDiagnostics() {
         throw new IllegalStateException();
     }
 

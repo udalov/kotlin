@@ -18,6 +18,7 @@ package org.jetbrains.jet.plugin.framework.ui;
 
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.DialogWrapper;
+import com.intellij.ui.SeparatorWithText;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.plugin.JetPluginUtil;
@@ -25,20 +26,20 @@ import org.jetbrains.jet.plugin.framework.JSLibraryCreateOptions;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 
 public abstract class CreateJavaScriptLibraryDialogBase extends DialogWrapper implements JSLibraryCreateOptions {
     protected final CopyIntoPanel copyJsFilesPanel;
-    protected final CopyIntoPanel copyJarPanel;
+    protected final CopyIntoPanel copyLibraryFilePanel;
 
     protected JPanel contentPane;
-    protected JCheckBox copyJarCheckbox;
-    protected JCheckBox copyJsFilesCheckbox;
-    protected JPanel copyJsFilesPanelPlace;
-    protected JPanel copyJarFilePanelPlace;
+
     protected JLabel compilerTextLabel;
-    protected JPanel chooseModulesPanelPlace;
+    protected JPanel chooseModulesPlace;
+
+    private SeparatorWithText modulesSeparator;
+
+    protected JPanel copyJsFilesPlace;
+    protected JPanel copyLibraryPlace;
 
     public CreateJavaScriptLibraryDialogBase(
             @Nullable Project project,
@@ -55,6 +56,8 @@ public abstract class CreateJavaScriptLibraryDialogBase extends DialogWrapper im
 
         compilerTextLabel.setText(compilerTextLabel.getText() + " - " + JetPluginUtil.getPluginVersion());
 
+        modulesSeparator.setCaption("Kotlin JavaScript Library");
+
         ValidityListener validityListener = new ValidityListener() {
             @Override
             public void validityChanged(boolean isValid) {
@@ -62,53 +65,44 @@ public abstract class CreateJavaScriptLibraryDialogBase extends DialogWrapper im
             }
         };
 
-        copyJsFilesPanel = new CopyIntoPanel(project, defaultPathToJsFile, "Script directory:");
+        copyJsFilesPanel = new CopyIntoPanel(project, defaultPathToJsFile, "Copy &runtime files to:");
         copyJsFilesPanel.addValidityListener(validityListener);
-        copyJsFilesPanelPlace.add(copyJsFilesPanel.getContentPane(), BorderLayout.CENTER);
+        copyJsFilesPanel.setLabelWidth(110);
+        copyJsFilesPlace.add(copyJsFilesPanel.getContentPane(), BorderLayout.CENTER);
 
-        copyJarPanel = new CopyIntoPanel(project, defaultPathToJar, "&Lib directory:");
-        copyJarPanel.addValidityListener(validityListener);
-        copyJarFilePanelPlace.add(copyJarPanel.getContentPane(), BorderLayout.CENTER);
+        copyLibraryFilePanel = new CopyIntoPanel(project, defaultPathToJar, "Copy &headers to:");
+        copyLibraryFilePanel.addValidityListener(validityListener);
+        copyLibraryFilePanel.setLabelWidth(110);
+        copyLibraryPlace.add(copyLibraryFilePanel.getContentPane(), BorderLayout.CENTER);
 
         if (!showPathToJarPanel) {
-            copyJarFilePanelPlace.setVisible(false);
-            copyJarCheckbox.setVisible(false);
+            copyLibraryPlace.setVisible(false);
         }
 
         if (!showPathToJsFilePanel) {
-            copyJsFilesPanelPlace.setVisible(false);
-            copyJsFilesCheckbox.setVisible(false);
+            copyJsFilesPlace.setVisible(false);
         }
 
-        ActionListener updateComponentsListener = new ActionListener() {
-            @Override
-            public void actionPerformed(@NotNull ActionEvent e) {
-                updateComponents();
-            }
-        };
-
-        copyJarCheckbox.addActionListener(updateComponentsListener);
-        copyJsFilesCheckbox.addActionListener(updateComponentsListener);
+        if (!showPathToJarPanel && !showPathToJsFilePanel) {
+            modulesSeparator.setVisible(false);
+        }
     }
 
     @Override
     @Nullable
     public String getCopyJsIntoPath() {
-        if (!copyJsFilesCheckbox.isSelected()) return null;
+        if (!copyJsFilesPlace.isVisible()) return null;
         return copyJsFilesPanel.getPath();
     }
 
     @Override
     @Nullable
     public String getCopyLibraryIntoPath() {
-        return copyJarCheckbox.isSelected() ? copyJarPanel.getPath() : null;
+        return copyLibraryFilePanel.getPath();
     }
 
     protected void updateComponents() {
-        copyJarPanel.setEnabled(copyJarCheckbox.isSelected());
-        copyJsFilesPanel.setEnabled(copyJsFilesCheckbox.isSelected());
-
-        setOKActionEnabled(!copyJsFilesPanel.hasErrors() && !copyJarPanel.hasErrors());
+        setOKActionEnabled(!copyJsFilesPanel.hasErrors() && !copyLibraryFilePanel.hasErrors());
     }
 
     @Nullable

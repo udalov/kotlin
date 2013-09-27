@@ -47,9 +47,8 @@ public class ObjCClassDescriptor extends MutableClassDescriptorLite {
             @NotNull Name name,
             @NotNull Collection<JetType> supertypes
     ) {
-        super(containingDeclaration, kind, false);
+        super(containingDeclaration, name, kind, false);
 
-        setName(name);
         setModality(modality);
         setVisibility(Visibilities.PUBLIC);
 

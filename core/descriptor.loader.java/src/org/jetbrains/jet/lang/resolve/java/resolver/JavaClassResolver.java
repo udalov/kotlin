@@ -23,7 +23,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.descriptors.serialization.ClassId;
 import org.jetbrains.jet.lang.descriptors.*;
-import org.jetbrains.jet.lang.resolve.DescriptorResolver;
+import org.jetbrains.jet.lang.resolve.DescriptorFactory;
 import org.jetbrains.jet.lang.resolve.DescriptorUtils;
 import org.jetbrains.jet.lang.resolve.java.DescriptorSearchRule;
 import org.jetbrains.jet.lang.resolve.java.JavaClassFinder;
@@ -271,11 +271,10 @@ public final class JavaClassResolver {
             @NotNull ClassOrNamespaceDescriptor containingDeclaration
     ) {
         ClassDescriptorFromJvmBytecode classDescriptor =
-                new ClassDescriptorFromJvmBytecode(containingDeclaration, determineClassKind(javaClass), isInnerClass(javaClass));
+                new ClassDescriptorFromJvmBytecode(containingDeclaration, javaClass.getName(), determineClassKind(javaClass), isInnerClass(javaClass));
 
         cache(javaClassToKotlinFqName(fqName), classDescriptor);
 
-        classDescriptor.setName(javaClass.getName());
 
         JavaTypeParameterResolver.Initializer typeParameterInitializer = typeParameterResolver.resolveTypeParameters(classDescriptor, javaClass);
         classDescriptor.setTypeParameterDescriptors(typeParameterInitializer.getDescriptors());
@@ -448,12 +447,12 @@ public final class JavaClassResolver {
 
         JetType valuesReturnType = KotlinBuiltIns.getInstance().getArrayType(containing.getDefaultType());
         SimpleFunctionDescriptor valuesMethod =
-                DescriptorResolver.createEnumClassObjectValuesMethod(classObjectDescriptor, valuesReturnType);
+                DescriptorFactory.createEnumClassObjectValuesMethod(classObjectDescriptor, valuesReturnType);
         classObjectDescriptor.getBuilder().addFunctionDescriptor(valuesMethod);
 
         JetType valueOfReturnType = containing.getDefaultType();
         SimpleFunctionDescriptor valueOfMethod =
-                DescriptorResolver.createEnumClassObjectValueOfMethod(classObjectDescriptor, valueOfReturnType);
+                DescriptorFactory.createEnumClassObjectValueOfMethod(classObjectDescriptor, valueOfReturnType);
         classObjectDescriptor.getBuilder().addFunctionDescriptor(valueOfMethod);
 
         return classObjectDescriptor;
@@ -462,9 +461,8 @@ public final class JavaClassResolver {
     @NotNull
     private ClassDescriptorFromJvmBytecode createSyntheticClassObject(@NotNull ClassDescriptor containing, @NotNull JavaClass javaClass) {
         ClassDescriptorFromJvmBytecode classObjectDescriptor =
-                new ClassDescriptorFromJvmBytecode(containing, ClassKind.CLASS_OBJECT, false);
+                new ClassDescriptorFromJvmBytecode(containing, getClassObjectName(containing.getName()), ClassKind.CLASS_OBJECT, false);
 
-        classObjectDescriptor.setName(getClassObjectName(containing.getName()));
         classObjectDescriptor.setModality(Modality.FINAL);
         classObjectDescriptor.setVisibility(containing.getVisibility());
         classObjectDescriptor.setTypeParameterDescriptors(Collections.<TypeParameterDescriptor>emptyList());

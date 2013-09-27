@@ -17,6 +17,7 @@
 package org.jetbrains.jet.plugin.configuration;
 
 import com.intellij.codeInsight.CodeInsightUtilCore;
+import com.intellij.ide.actions.OpenFileAction;
 import com.intellij.ide.highlighter.JavaFileType;
 import com.intellij.openapi.application.Result;
 import com.intellij.openapi.command.WriteCommandAction;
@@ -42,6 +43,7 @@ import org.jetbrains.idea.maven.dom.MavenDomUtil;
 import org.jetbrains.idea.maven.dom.model.*;
 import org.jetbrains.idea.maven.project.MavenProjectsManager;
 import org.jetbrains.jet.plugin.JetPluginUtil;
+import org.jetbrains.jet.plugin.framework.KotlinFrameworkDetector;
 import org.jetbrains.jet.plugin.framework.ui.ConfigureDialogWithModulesAndVersion;
 
 import java.util.List;
@@ -63,6 +65,10 @@ public class KotlinMavenConfigurator implements KotlinProjectConfigurator {
 
     @Override
     public boolean isConfigured(@NotNull Module module) {
+        if (KotlinFrameworkDetector.isJavaKotlinModule(module)) {
+            return true;
+        }
+
         PsiFile pomFile = findModulePomFile(module);
         if (pomFile == null) return false;
         String text = pomFile.getText();
@@ -71,7 +77,7 @@ public class KotlinMavenConfigurator implements KotlinProjectConfigurator {
     }
 
     @Override
-    public void configure(Project project) {
+    public void configure(@NotNull Project project) {
         List<Module> nonConfiguredModules = ConfigureKotlinInProjectUtils.getNonConfiguredModules(project, this);
 
         ConfigureDialogWithModulesAndVersion dialog =
@@ -84,6 +90,7 @@ public class KotlinMavenConfigurator implements KotlinProjectConfigurator {
             PsiFile file = findModulePomFile(module);
             if (file != null && canConfigureFile(file)) {
                 changePomFile(module, file, dialog.getKotlinVersion());
+                OpenFileAction.openFile(file.getVirtualFile(), project);
             }
             else {
                 showErrorMessage(project, "Cannot find pom.xml for module " + module.getName());
@@ -254,7 +261,7 @@ public class KotlinMavenConfigurator implements KotlinProjectConfigurator {
     @NotNull
     @Override
     public String getPresentableText() {
-        return "As Maven project";
+        return "Maven";
     }
 
     @NotNull
