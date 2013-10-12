@@ -33,6 +33,7 @@
       <module fileurl="file://$PROJECT_DIR$/compiler/objc/objc.as.java.codegen/objc.as.java.codegen.iml" filepath="$PROJECT_DIR$/compiler/objc/objc.as.java.codegen/objc.as.java.codegen.iml" group="compiler/objc" />
       <module fileurl="file://$PROJECT_DIR$/compiler/preloader/preloader.iml" filepath="$PROJECT_DIR$/compiler/preloader/preloader.iml" group="compiler/cli" />
       <module fileurl="file://$PROJECT_DIR$/runtime/runtime.iml" filepath="$PROJECT_DIR$/runtime/runtime.iml" />
+      <module fileurl="file://$PROJECT_DIR$/compiler/objc/runtime.objc/runtime.objc.iml" filepath="$PROJECT_DIR$/compiler/objc/runtime.objc/runtime.objc.iml" group="compiler/objc" />
       <module fileurl="file://$PROJECT_DIR$/compiler/frontend/serialization/serialization.iml" filepath="$PROJECT_DIR$/compiler/frontend/serialization/serialization.iml" group="compiler" />
       <module fileurl="file://$PROJECT_DIR$/core/serialization.java/serialization.java.iml" filepath="$PROJECT_DIR$/core/serialization.java/serialization.java.iml" group="core" />
       <module fileurl="file://$PROJECT_DIR$/compiler/util/util.iml" filepath="$PROJECT_DIR$/compiler/util/util.iml" />

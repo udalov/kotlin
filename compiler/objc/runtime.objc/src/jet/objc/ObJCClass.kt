@@ -14,20 +14,10 @@
  * limitations under the License.
  */
 
-package jet.objc;
+package jet.objc
 
-import java.util.HashSet;
-import java.util.Set;
-
-@SuppressWarnings("UnusedDeclaration")
-public class NativeHelpers {
-    private NativeHelpers() {}
-
-    private static final Set<String> LOADED_LIBRARIES = new HashSet<String>();
-
-    public static void loadLibrary(String fileName) {
-        if (LOADED_LIBRARIES.add(fileName)) {
-            Native.dlopen(fileName);
-        }
+public trait ObjCClass {
+    class object {
+        public val NIL: Nil = Nil.INSTANCE
     }
 }

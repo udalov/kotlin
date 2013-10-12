@@ -30,14 +30,23 @@ import org.jetbrains.jet.lang.descriptors.NamespaceDescriptor;
 import org.jetbrains.jet.lang.resolve.objc.ObjCModuleConfiguration;
 import org.jetbrains.jet.utils.ExceptionUtils;
 
+import java.io.File;
 import java.io.InputStreamReader;
 
 public class ObjCTestUtil {
     private ObjCTestUtil() {}
 
     @NotNull
-    public static JetCoreEnvironment createEnvironment(@NotNull Disposable disposable, @NotNull ConfigurationKind kind) {
-        return new JetCoreEnvironment(disposable, JetTestUtils.compilerConfigurationForTests(kind, TestJdkKind.MOCK_JDK));
+    public static JetCoreEnvironment createEnvironment(@NotNull Disposable disposable) {
+        return new JetCoreEnvironment(disposable, JetTestUtils
+                .compilerConfigurationForTests(ConfigurationKind.ALL, TestJdkKind.MOCK_JDK, getKotlinObjCRuntimeJarFile()));
+    }
+
+    @NotNull
+    public static File getKotlinObjCRuntimeJarFile() {
+        File kotlinObjCRuntime = new File("dist/kotlinc/lib/kotlin-objc-runtime.jar");
+        assert kotlinObjCRuntime.exists() : "kotlin-objc-runtime.jar should exist before this test, run dist";
+        return kotlinObjCRuntime;
     }
 
     @NotNull

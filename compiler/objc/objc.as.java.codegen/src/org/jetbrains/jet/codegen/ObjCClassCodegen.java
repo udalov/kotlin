@@ -17,8 +17,8 @@
 package org.jetbrains.jet.codegen;
 
 import jet.objc.Native;
-import jet.objc.NativeHelpers;
 import jet.objc.ObjCObject;
+import jet.objc.helpers.HelpersPackage;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.asm4.ClassWriter;
 import org.jetbrains.asm4.MethodVisitor;
@@ -46,7 +46,7 @@ import static org.jetbrains.jet.codegen.AsmUtil.genInitSingletonField;
 
 public class ObjCClassCodegen {
     public static final String NATIVE = Type.getType(Native.class).getInternalName();
-    public static final String NATIVE_HELPERS = Type.getType(NativeHelpers.class).getInternalName();
+    public static final String NATIVE_HELPERS = Type.getType(HelpersPackage.class).getInternalName();
 
     public static final Type JL_OBJECT_TYPE = Type.getType(Object.class);
     public static final Type JL_STRING_TYPE = Type.getType(String.class);

@@ -22,7 +22,6 @@ import com.intellij.openapi.util.io.FileUtil;
 import com.intellij.psi.PsiFile;
 import com.intellij.testFramework.UsefulTestCase;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.jet.ConfigurationKind;
 import org.jetbrains.jet.JetTestUtils;
 import org.jetbrains.jet.analyzer.AnalyzeExhaust;
 import org.jetbrains.jet.cli.jvm.compiler.CompileEnvironmentUtil;
@@ -65,7 +64,7 @@ public abstract class AbstractObjCWithJavaTest extends UsefulTestCase {
         super.setUp();
 
         tmpDir = JetTestUtils.tmpDirForTest(this);
-        JetCoreEnvironment environment = createEnvironment(getTestRootDisposable(), ConfigurationKind.ALL);
+        JetCoreEnvironment environment = createEnvironment(getTestRootDisposable());
         project = environment.getProject();
     }
 
@@ -145,7 +144,7 @@ public abstract class AbstractObjCWithJavaTest extends UsefulTestCase {
 
     @NotNull
     private String runCompiledKotlinClass() {
-        String classpath = ".:" + tmpDir + ":" + getKotlinRuntimeJarFile();
+        String classpath = ".:" + tmpDir + ":" + getKotlinRuntimeJarFile() + ":" + getKotlinObjCRuntimeJarFile();
         String libraryPath = ".:" + tmpDir + ":" + getKotlinNativeDylibFile().getParent();
 
         String command = "java"

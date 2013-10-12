@@ -7,6 +7,7 @@ public trait <metaclass-for-NSObject> {
 }
 
 public open class A : objc.NSObject {
+    invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: jet.Long
     public open fun pa(): jet.objc.Pointer<objc.A>
     public open fun pc(): jet.objc.Pointer<jet.Char>
     public open fun pd(): jet.objc.Pointer<jet.Double>
@@ -23,11 +24,14 @@ public open class A : objc.NSObject {
     public open fun pv4(): jet.objc.Pointer<out jet.Any?>
     
     public class object <class-object-for-A> : jet.objc.ObjCClass, objc.<metaclass-for-A>, objc.NSObject {
+        invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: jet.Long
     }
 }
 
 public open class NSObject : jet.objc.ObjCObject {
+    invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: jet.Long
     
     public class object <class-object-for-NSObject> : jet.objc.ObjCClass, objc.<metaclass-for-NSObject>, objc.NSObject {
+        invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: jet.Long
     }
 }

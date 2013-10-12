@@ -19,7 +19,6 @@ package org.jetbrains.jet.objc;
 import com.google.common.base.Predicates;
 import com.intellij.psi.PsiFile;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.jet.ConfigurationKind;
 import org.jetbrains.jet.analyzer.AnalyzeExhaust;
 import org.jetbrains.jet.cli.jvm.compiler.JetCoreEnvironment;
 import org.jetbrains.jet.lang.descriptors.NamespaceDescriptor;
@@ -43,7 +42,7 @@ public abstract class AbstractObjCDescriptorResolverTest extends TestCaseWithTmp
         assert header.endsWith(".h") : header;
         File expected = new File(header.substring(0, header.length() - ".h".length()) + ".txt");
 
-        JetCoreEnvironment environment = createEnvironment(getTestRootDisposable(), ConfigurationKind.ALL);
+        JetCoreEnvironment environment = createEnvironment(getTestRootDisposable());
         ObjCInteropParameters.setArgs(environment.getProject(), header);
 
         AnalyzeExhaust analyzeExhaust = AnalyzerFacadeForObjC.INSTANCE.analyzeFiles(
@@ -56,6 +55,8 @@ public abstract class AbstractObjCDescriptorResolverTest extends TestCaseWithTmp
         AnalyzingUtils.throwExceptionOnErrors(analyzeExhaust.getBindingContext());
 
         NamespaceDescriptor descriptor = extractObjCNamespaceFromAnalyzeExhaust(analyzeExhaust);
+
+        // TODO: add a configuration not to show INVISIBLE_FAKE members
 
         validateAndCompareNamespaceWithFile(descriptor, DONT_INCLUDE_METHODS_OF_OBJECT, expected);
     }

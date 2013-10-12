@@ -14,12 +14,10 @@
  * limitations under the License.
  */
 
-package jet.objc;
+package jet.objc
 
-/* package */ final class Nil extends ObjCObject implements ObjCClass {
-    public static final Nil INSTANCE = new Nil();
-
-    private Nil() {
-        super(0);
+class Nil : ObjCObject(0), ObjCClass {
+    class object {
+        val INSTANCE = Nil()
     }
 }

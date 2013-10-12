@@ -512,6 +512,11 @@
         <javac2 destdir="${output}/classes/runtime" debug="true" debuglevel="lines,vars,source" includeAntRuntime="false" target="${java.target}">
             <src path="${basedir}/runtime/src"/>
         </javac2>
+        <cleandir dir="${output}/classes/runtime.objc"/>
+        <javac2 destdir="${output}/classes/runtime.objc" debug="true" debuglevel="lines,vars,source" includeAntRuntime="false" target="${java.target}">
+            <withKotlin/>
+            <src path="${basedir}/compiler/objc/runtime.objc/src"/>
+        </javac2>
 
         <cleandir dir="${output}/classes/stdlib"/>
         <java classname="org.jetbrains.jet.cli.jvm.K2JVMCompiler" failonerror="true" fork="true">
@@ -538,6 +543,19 @@
 
                 <attribute name="Implementation-Vendor" value="${manifest.impl.vendor}"/>
                 <attribute name="Implementation-Title" value="${manifest.impl.title.kotlin.jvm.runtime.and.stdlib}"/>
+                <attribute name="Implementation-Version" value="${build.number}"/>
+            </manifest>
+        </jar>
+
+        <jar destfile="${kotlin-home}/lib/kotlin-objc-runtime.jar">
+            <fileset dir="${output}/classes/runtime.objc"/>
+            <zipfileset file="${kotlin-home}/build.txt" prefix="META-INF"/>
+
+            <manifest>
+                <attribute name="Built-By" value="${manifest.impl.vendor}"/>
+
+                <attribute name="Implementation-Vendor" value="${manifest.impl.vendor}"/>
+                <attribute name="Implementation-Title" value="Kotlin Obj-C JVM Runtime"/>
                 <attribute name="Implementation-Version" value="${build.number}"/>
             </manifest>
         </jar>

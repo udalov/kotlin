@@ -14,9 +14,15 @@
  * limitations under the License.
  */
 
-package jet.objc;
+package jet.objc.helpers
 
-@SuppressWarnings("UnusedDeclaration")
-public interface ObjCClass {
-    ObjCClass NIL = Nil.INSTANCE;
+import java.util.HashSet
+import jet.objc.Native
+
+private val loadedLibraries = HashSet<String>()
+
+public fun loadLibrary(fileName: String) {
+    if (loadedLibraries.add(fileName)) {
+        Native.dlopen(fileName)
+    }
 }
