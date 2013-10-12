@@ -145,18 +145,12 @@ public abstract class AbstractObjCWithJavaTest extends UsefulTestCase {
     @NotNull
     private String runCompiledKotlinClass() {
         String classpath = ".:" + tmpDir + ":" + getKotlinRuntimeJarFile() + ":" + getKotlinObjCRuntimeJarFile();
-        String libraryPath = ".:" + tmpDir + ":" + getKotlinNativeDylibFile().getParent();
-
-        String command = "java"
-                + " -cp " + classpath
-                + " -Djava.library.path=" + libraryPath
-                + " " + PackageClassUtils.getPackageClassFqName(new FqName("test"));
+        String command = "java -cp " + classpath + " " + PackageClassUtils.getPackageClassFqName(new FqName("test"));
         return runProcess(command);
     }
 
     private static void compileObjectiveC(@NotNull String filename, @NotNull File out) {
-        String command = String.format("clang -ObjC -dynamiclib -framework Foundation %s -o %s", filename, out);
-        runProcess(command);
+        runProcess(String.format("clang -ObjC -dynamiclib -framework Foundation %s -o %s", filename, out));
     }
 
     @NotNull
@@ -164,13 +158,6 @@ public abstract class AbstractObjCWithJavaTest extends UsefulTestCase {
         File kotlinRuntime = new File("dist/kotlinc/lib/kotlin-runtime.jar");
         assert kotlinRuntime.exists() : "kotlin-runtime.jar should exist before this test, run dist";
         return kotlinRuntime;
-    }
-
-    @NotNull
-    private static File getKotlinNativeDylibFile() {
-        File kotlinNative = new File("runtime/native/libKotlinNative.dylib");
-        assert kotlinNative.exists() : "libKotlinNative.dylib should exist before this test";
-        return kotlinNative;
     }
 
     @NotNull
