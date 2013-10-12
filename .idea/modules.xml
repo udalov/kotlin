@@ -15,7 +15,7 @@
       <module fileurl="file://$PROJECT_DIR$/core/descriptors/descriptors.iml" filepath="$PROJECT_DIR$/core/descriptors/descriptors.iml" group="core" />
       <module fileurl="file://$PROJECT_DIR$/compiler/frontend/frontend.iml" filepath="$PROJECT_DIR$/compiler/frontend/frontend.iml" group="compiler" />
       <module fileurl="file://$PROJECT_DIR$/compiler/frontend.java/frontend.java.iml" filepath="$PROJECT_DIR$/compiler/frontend.java/frontend.java.iml" group="compiler/java" />
-      <module fileurl="file://$PROJECT_DIR$/compiler/objc/frontend.objc/frontend.objc.iml" filepath="$PROJECT_DIR$/compiler/objc/frontend.objc/frontend.objc.iml" group="compiler/objc" />
+      <module fileurl="file://$PROJECT_DIR$/objc/frontend.objc/frontend.objc.iml" filepath="$PROJECT_DIR$/objc/frontend.objc/frontend.objc.iml" group="compiler/objc" />
       <module fileurl="file://$PROJECT_DIR$/generators/generators.iml" filepath="$PROJECT_DIR$/generators/generators.iml" group="infrastructure" />
       <module fileurl="file://$PROJECT_DIR$/grammar/grammar.iml" filepath="$PROJECT_DIR$/grammar/grammar.iml" group="compiler" />
       <module fileurl="file://$PROJECT_DIR$/ide-compiler-runner/ide-compiler-runner.iml" filepath="$PROJECT_DIR$/ide-compiler-runner/ide-compiler-runner.iml" group="ide" />
@@ -30,10 +30,10 @@
       <module fileurl="file://$PROJECT_DIR$/js/js.tests/js.tests.iml" filepath="$PROJECT_DIR$/js/js.tests/js.tests.iml" group="compiler/js" />
       <module fileurl="file://$PROJECT_DIR$/js/js.translator/js.translator.iml" filepath="$PROJECT_DIR$/js/js.translator/js.translator.iml" group="compiler/js" />
       <module fileurl="file://$PROJECT_DIR$/jps-plugin/kannotator-jps-plugin-test/kannotator-jps-plugin-test.iml" filepath="$PROJECT_DIR$/jps-plugin/kannotator-jps-plugin-test/kannotator-jps-plugin-test.iml" group="ide/jps" />
-      <module fileurl="file://$PROJECT_DIR$/compiler/objc/objc.as.java.codegen/objc.as.java.codegen.iml" filepath="$PROJECT_DIR$/compiler/objc/objc.as.java.codegen/objc.as.java.codegen.iml" group="compiler/objc" />
+      <module fileurl="file://$PROJECT_DIR$/objc/objc.as.java.codegen/objc.as.java.codegen.iml" filepath="$PROJECT_DIR$/objc/objc.as.java.codegen/objc.as.java.codegen.iml" group="compiler/objc" />
       <module fileurl="file://$PROJECT_DIR$/compiler/preloader/preloader.iml" filepath="$PROJECT_DIR$/compiler/preloader/preloader.iml" group="compiler/cli" />
       <module fileurl="file://$PROJECT_DIR$/runtime/runtime.iml" filepath="$PROJECT_DIR$/runtime/runtime.iml" />
-      <module fileurl="file://$PROJECT_DIR$/compiler/objc/runtime.objc/runtime.objc.iml" filepath="$PROJECT_DIR$/compiler/objc/runtime.objc/runtime.objc.iml" group="compiler/objc" />
+      <module fileurl="file://$PROJECT_DIR$/objc/runtime.objc/runtime.objc.iml" filepath="$PROJECT_DIR$/objc/runtime.objc/runtime.objc.iml" group="compiler/objc" />
       <module fileurl="file://$PROJECT_DIR$/compiler/frontend/serialization/serialization.iml" filepath="$PROJECT_DIR$/compiler/frontend/serialization/serialization.iml" group="compiler" />
       <module fileurl="file://$PROJECT_DIR$/core/serialization.java/serialization.java.iml" filepath="$PROJECT_DIR$/core/serialization.java/serialization.java.iml" group="core" />
       <module fileurl="file://$PROJECT_DIR$/compiler/util/util.iml" filepath="$PROJECT_DIR$/compiler/util/util.iml" />

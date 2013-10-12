@@ -515,7 +515,7 @@
         <cleandir dir="${output}/classes/runtime.objc"/>
         <javac2 destdir="${output}/classes/runtime.objc" debug="true" debuglevel="lines,vars,source" includeAntRuntime="false" target="${java.target}">
             <withKotlin/>
-            <src path="${basedir}/compiler/objc/runtime.objc/src"/>
+            <src path="${basedir}/objc/runtime.objc/src"/>
         </javac2>
 
         <cleandir dir="${output}/classes/stdlib"/>

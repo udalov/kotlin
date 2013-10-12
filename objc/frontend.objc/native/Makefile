@@ -64,7 +64,7 @@ dylib: $(OBJ_FILES)
 	$(CPP) $(LD_FLAGS) -dynamiclib -o $(DYLIB) $^
 
 javah:
-	@javah -classpath ../../../../out/production/frontend.objc -o Indexer.h org.jetbrains.jet.lang.resolve.objc.ObjCResolveFacade
+	@javah -classpath ../../../out/production/frontend.objc -o Indexer.h org.jetbrains.jet.lang.resolve.objc.ObjCResolveFacade
 
 $(OUT)/%.o: %.cc
 	$(CPP) $(CC_FLAGS) -c $^ -o $@

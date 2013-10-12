@@ -52,8 +52,8 @@ import java.util.List;
 import static org.jetbrains.jet.objc.ObjCTestUtil.*;
 
 public abstract class AbstractObjCWithJavaTest extends UsefulTestCase {
-    public static final String KOTLIN_FOUNDATION_HEADER_PATH = "compiler/objc/foundation/foundation.h";
-    public static final String KOTLIN_FOUNDATION_SOURCE_PATH = "compiler/objc/foundation/foundation.kt";
+    public static final String KOTLIN_FOUNDATION_HEADER_PATH = "objc/foundation/foundation.h";
+    public static final String KOTLIN_FOUNDATION_SOURCE_PATH = "objc/foundation/foundation.kt";
     public static final String FOUNDATION_DYLIB_PATH = "/System/Library/Frameworks/Foundation.framework/Versions/Current/Foundation";
 
     private File tmpDir;
