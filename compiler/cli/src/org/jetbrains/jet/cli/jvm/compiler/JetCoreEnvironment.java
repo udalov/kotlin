@@ -51,7 +51,7 @@ import org.jetbrains.jet.lang.parsing.JetParserDefinition;
 import org.jetbrains.jet.lang.parsing.JetScriptDefinitionProvider;
 import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.resolve.java.JetFilesProvider;
-import org.jetbrains.jet.lang.resolve.java.vfilefinder.VirtualFileFinder;
+import org.jetbrains.jet.lang.resolve.kotlin.VirtualFileFinder;
 import org.jetbrains.jet.plugin.JetFileType;
 import org.jetbrains.jet.utils.PathUtil;
 
@@ -86,7 +86,6 @@ public class JetCoreEnvironment {
         applicationEnvironment.registerFileType(JetFileType.INSTANCE, "kts");
         applicationEnvironment.registerFileType(JetFileType.INSTANCE, "ktm");
         applicationEnvironment.registerFileType(JetFileType.INSTANCE, JetParserDefinition.KTSCRIPT_FILE_SUFFIX); // should be renamed to kts
-        applicationEnvironment.registerFileType(JetFileType.INSTANCE, "jet");
         applicationEnvironment.registerParserDefinition(new JavaParserDefinition());
         applicationEnvironment.registerParserDefinition(new JetParserDefinition());
 

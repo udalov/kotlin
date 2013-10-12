@@ -16,36 +16,10 @@
 
 package org.jetbrains.jet.codegen;
 
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.jet.lang.resolve.java.JvmClassName;
+public enum OwnerKind {
+    NAMESPACE,
 
-public class OwnerKind {
-    private final String name;
+    IMPLEMENTATION,
 
-    protected OwnerKind(@NotNull String name) {
-        this.name = name;
-    }
-
-    public static final OwnerKind NAMESPACE = new OwnerKind("namespace");
-    public static final OwnerKind IMPLEMENTATION = new OwnerKind("implementation");
-    public static final OwnerKind TRAIT_IMPL = new OwnerKind("trait implementation");
-
-    public static class StaticDelegateKind extends OwnerKind {
-        private final JvmClassName ownerClass;
-
-        public StaticDelegateKind(@NotNull JvmClassName ownerClass) {
-            super("staticDelegateKind");
-            this.ownerClass = ownerClass;
-        }
-
-        @NotNull
-        public JvmClassName getOwnerClass() {
-            return ownerClass;
-        }
-    }
-
-    @Override
-    public String toString() {
-        return "OwnerKind(" + name + ")";
-    }
+    TRAIT_IMPL;
 }

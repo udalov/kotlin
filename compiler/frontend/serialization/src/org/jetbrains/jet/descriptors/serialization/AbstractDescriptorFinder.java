@@ -16,17 +16,14 @@
 
 package org.jetbrains.jet.descriptors.serialization;
 
-import com.intellij.util.Function;
+import jet.Function1;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.descriptors.serialization.descriptors.AnnotationDeserializer;
 import org.jetbrains.jet.descriptors.serialization.descriptors.DeserializedClassDescriptor;
 import org.jetbrains.jet.lang.descriptors.ClassDescriptor;
-import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor;
-import org.jetbrains.jet.lang.resolve.lazy.storage.MemoizedFunctionToNullable;
-import org.jetbrains.jet.lang.resolve.lazy.storage.StorageManager;
-
-import static org.jetbrains.jet.lang.resolve.lazy.storage.StorageManager.ReferenceKind.STRONG;
+import org.jetbrains.jet.storage.MemoizedFunctionToNullable;
+import org.jetbrains.jet.storage.StorageManager;
 
 public abstract class AbstractDescriptorFinder implements DescriptorFinder {
 
@@ -39,34 +36,27 @@ public abstract class AbstractDescriptorFinder implements DescriptorFinder {
     ) {
         this.annotationDeserializer = annotationDeserializer;
 
-        this.findClass = storageManager.createMemoizedFunctionWithNullableValues(new Function<ClassId, ClassDescriptor>() {
+        this.findClass = storageManager.createMemoizedFunctionWithNullableValues(new Function1<ClassId, ClassDescriptor>() {
             @Override
-            public ClassDescriptor fun(ClassId classId) {
+            public ClassDescriptor invoke(ClassId classId) {
                 ClassData classData = getClassData(classId);
                 if (classData == null) {
                     return null;
                 }
 
-                ProtoBuf.Class classProto = classData.getClassProto();
-
-                DeclarationDescriptor owner =
-                        classId.isTopLevelClass() ? findPackage(classId.getPackageFqName()) : findClass(classId.getOuterClassId());
-                assert owner != null : "No owner found for " + classId;
-
                 AbstractDescriptorFinder _this = AbstractDescriptorFinder.this;
-                ClassDescriptor classDescriptor = new DeserializedClassDescriptor(
-                        classId, storageManager, owner, classData.getNameResolver(),
-                        _this.annotationDeserializer, _this, classProto, null);
+                ClassDescriptor classDescriptor =
+                        new DeserializedClassDescriptor(storageManager, _this.annotationDeserializer, _this, classData);
                 classDescriptorCreated(classDescriptor);
                 return classDescriptor;
             }
-        }, STRONG);
+        });
     }
 
     @Nullable
     @Override
     public ClassDescriptor findClass(@NotNull ClassId classId) {
-        return findClass.fun(classId);
+        return findClass.invoke(classId);
     }
 
     @Nullable

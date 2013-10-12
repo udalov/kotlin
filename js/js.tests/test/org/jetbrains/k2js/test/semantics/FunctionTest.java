@@ -30,6 +30,10 @@ public class FunctionTest extends AbstractExpressionTest {
         fooBoxTest();
     }
 
+    public void testWhenFunction() throws Exception {
+        checkFooBoxIsOk();
+    }
+
     public void testFunctionLiteral() throws Exception {
         fooBoxTest();
     }
@@ -51,7 +55,7 @@ public class FunctionTest extends AbstractExpressionTest {
     }
 
     public void testClosureWithParameterAndBoxing() throws Exception {
-        checkFooBoxIsOk("closureWithParameterAndBoxing.jet");
+        checkFooBoxIsOk("closureWithParameterAndBoxing.kt");
     }
 
     public void testEnclosingThis() throws Exception {

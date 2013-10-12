@@ -19,6 +19,7 @@ package org.jetbrains.jet.codegen.intrinsics;
 import com.google.common.collect.ImmutableList;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.jet.codegen.RangeCodegenUtil;
 import org.jetbrains.jet.lang.descriptors.CallableMemberDescriptor;
 import org.jetbrains.jet.lang.descriptors.ClassifierDescriptor;
 import org.jetbrains.jet.lang.descriptors.SimpleFunctionDescriptor;
@@ -58,8 +59,9 @@ public class IntrinsicMethods {
     private static final ArrayGet ARRAY_GET = new ArrayGet();
     private static final StringPlus STRING_PLUS = new StringPlus();
     public static final String KOTLIN_JAVA_CLASS_FUNCTION = "kotlin.javaClass.function";
-    public static final String KOTLIN_ARRAYS_ARRAY = "kotlin.arrays.array";
     private static final String KOTLIN_JAVA_CLASS_PROPERTY = "kotlin.javaClass.property";
+    public static final String KOTLIN_ARRAYS_ARRAY = "kotlin.arrays.array";
+    public static final String KOTLIN_COPY_TO_ARRAY = "kotlin.collections.copyToArray";
     private static final String KOTLIN_TO_STRING = "kotlin.toString";
     private static final String KOTLIN_HASH_CODE = "kotlin.hashCode";
     private static final EnumValues ENUM_VALUES = new EnumValues();
@@ -76,6 +78,7 @@ public class IntrinsicMethods {
         namedMethods.put(KOTLIN_JAVA_CLASS_FUNCTION, new JavaClassFunction());
         namedMethods.put(KOTLIN_JAVA_CLASS_PROPERTY, new JavaClassProperty());
         namedMethods.put(KOTLIN_ARRAYS_ARRAY, new JavaClassArray());
+        namedMethods.put(KOTLIN_COPY_TO_ARRAY, new CopyToArray());
         namedMethods.put(KOTLIN_HASH_CODE, HASH_CODE);
         namedMethods.put(KOTLIN_TO_STRING, TO_STRING);
 
@@ -150,16 +153,17 @@ public class IntrinsicMethods {
         registerStaticField(getFQName(KotlinBuiltIns.getInstance().getUnit()).toSafe(), Name.identifier("VALUE"));
 
         for (PrimitiveType type : PrimitiveType.NUMBER_TYPES) {
-            registerStaticField(type.getRangeClassName(), Name.identifier("EMPTY"));
-        }
+            FqName rangeClassFqName = RangeCodegenUtil.getRangeClassFqName(type);
+            FqName progressionClassFqName = RangeCodegenUtil.getProgressionClassFqName(type);
 
-        for (PrimitiveType type : PrimitiveType.NUMBER_TYPES) {
-            registerRangeOrProgressionProperty(type.getRangeClassName(), Name.identifier("start"));
-            registerRangeOrProgressionProperty(type.getRangeClassName(), Name.identifier("end"));
+            registerStaticField(rangeClassFqName, Name.identifier("EMPTY"));
 
-            registerRangeOrProgressionProperty(type.getProgressionClassName(), Name.identifier("start"));
-            registerRangeOrProgressionProperty(type.getProgressionClassName(), Name.identifier("end"));
-            registerRangeOrProgressionProperty(type.getProgressionClassName(), Name.identifier("increment"));
+            registerRangeOrProgressionProperty(rangeClassFqName, Name.identifier("start"));
+            registerRangeOrProgressionProperty(rangeClassFqName, Name.identifier("end"));
+
+            registerRangeOrProgressionProperty(progressionClassFqName, Name.identifier("start"));
+            registerRangeOrProgressionProperty(progressionClassFqName, Name.identifier("end"));
+            registerRangeOrProgressionProperty(progressionClassFqName, Name.identifier("increment"));
         }
 
         declareArrayMethods();

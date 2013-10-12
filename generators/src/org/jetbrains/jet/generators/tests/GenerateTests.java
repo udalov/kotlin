@@ -53,7 +53,7 @@ import org.jetbrains.jet.plugin.codeInsight.unwrap.AbstractUnwrapRemoveTest;
 import org.jetbrains.jet.plugin.configuration.AbstractConfigureProjectByChangingFileTest;
 import org.jetbrains.jet.plugin.folding.AbstractKotlinFoldingTest;
 import org.jetbrains.jet.plugin.hierarchy.AbstractHierarchyTest;
-import org.jetbrains.jet.plugin.highlighter.AbstractDeprecatedHighlightingTest;
+import org.jetbrains.jet.plugin.highlighter.AbstractHighlightingTest;
 import org.jetbrains.jet.plugin.intentions.AbstractCodeTransformationTest;
 import org.jetbrains.jet.plugin.navigation.JetAbstractGotoSuperTest;
 import org.jetbrains.jet.plugin.quickfix.AbstractQuickFixMultiFileTest;
@@ -62,6 +62,7 @@ import org.jetbrains.jet.plugin.refactoring.inline.AbstractInlineTest;
 import org.jetbrains.jet.psi.AbstractJetPsiMatcherTest;
 import org.jetbrains.jet.resolve.AbstractResolveBaseTest;
 import org.jetbrains.jet.resolve.AbstractResolveTest;
+import org.jetbrains.jet.resolve.AbstractResolveWithLibTest;
 import org.jetbrains.jet.safeDelete.AbstractJetSafeDeleteTest;
 
 import java.io.File;
@@ -226,13 +227,6 @@ public class GenerateTests {
 
         generateTest(
                 "compiler/tests/",
-                "CompileKotlinAgainstCustomBinariesGenerated",
-                AbstractCompileKotlinAgainstCustomBinariesTest.class,
-                testModel("compiler/testData/compileKotlinAgainstCustomBinaries")
-        );
-
-        generateTest(
-                "compiler/tests/",
                 "LazyResolveDescriptorRendererTestGenerated",
                 AbstractLazyResolveDescriptorRendererTest.class,
                 testModel("compiler/testData/renderer")
@@ -271,6 +265,13 @@ public class GenerateTests {
                 testModel("compiler/testData/loadKotlin/prop"),
                 testModel("compiler/testData/loadKotlin/type"),
                 testModel("compiler/testData/loadKotlin/visibility")
+        );
+
+        generateTest(
+                "compiler/tests/",
+                "WriteSignatureTestGenerated",
+                AbstractWriteSignatureTest.class,
+                testModel("compiler/testData/writeSignature", true, "kt", "doTest")
         );
 
         generateTest(
@@ -332,7 +333,7 @@ public class GenerateTests {
                 "idea/tests",
                 "JetJavaLibCompletionTestGenerated",
                 AbstractJavaWithLibCompletionTest.class,
-                testModel("idea/testData/completion/basic/custom", false, "doTestWithJar"));
+                testModel("idea/testData/completion/basic/custom", false, "doTest"));
 
         generateTest(
                 "idea/tests",
@@ -350,9 +351,9 @@ public class GenerateTests {
 
         generateTest(
                 "idea/tests/",
-                "DeprecatedHighlightingTestGenerated",
-                AbstractDeprecatedHighlightingTest.class,
-                testModel("idea/testData/highlighter/deprecated")
+                "HighlightingTestGenerated",
+                AbstractHighlightingTest.class,
+                testModel("idea/testData/highlighter")
         );
 
         generateTest(
@@ -480,6 +481,13 @@ public class GenerateTests {
                 "ReferenceResolveTestGenerated",
                 AbstractResolveBaseTest.class,
                 testModel("idea/testData/resolve/references", true, "doTest")
+        );
+
+        generateTest(
+                "idea/tests/",
+                "ReferenceResolveWithLibTestGenerated",
+                AbstractResolveWithLibTest.class,
+                testModel("idea/testData/resolve/referenceWithLib", false, "doTest")
         );
 
         generateTest(

@@ -39,13 +39,9 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
-import static org.jetbrains.jet.cli.common.messages.CompilerMessageSeverity.EXCEPTION;
-import static org.jetbrains.jet.cli.common.messages.CompilerMessageSeverity.INFO;
-import static org.jetbrains.jet.cli.common.messages.CompilerMessageSeverity.WARNING;
+import static org.jetbrains.jet.cli.common.messages.CompilerMessageSeverity.*;
 
 public class KotlinBuilder extends ModuleLevelBuilder {
 
@@ -77,6 +73,7 @@ public class KotlinBuilder extends ModuleLevelBuilder {
             OutputConsumer outputConsumer
     ) throws ProjectBuildException, IOException {
         MessageCollector messageCollector = new MessageCollectorAdapter(context);
+        // Workaround for Android Studio
         if (!isJavaPluginEnabled(context)) {
             messageCollector.report(INFO, "Kotlin JPS plugin is disabled", CompilerMessageLocation.NO_LOCATION);
             return ExitCode.NOTHING_DONE;
@@ -98,7 +95,7 @@ public class KotlinBuilder extends ModuleLevelBuilder {
         ModuleBuildTarget representativeTarget = chunk.representativeTarget();
 
         // For non-incremental build: take all sources
-        if (!KotlinSourceFileCollector.hasDirtyFiles(dirtyFilesHolder)) {
+        if (!dirtyFilesHolder.hasDirtyFiles()) {
             return ExitCode.NOTHING_DONE;
         }
         List<File> sourceFiles = KotlinSourceFileCollector.getAllKotlinSourceFiles(representativeTarget);
@@ -107,8 +104,6 @@ public class KotlinBuilder extends ModuleLevelBuilder {
         if (sourceFiles.isEmpty()) {
             return ExitCode.NOTHING_DONE;
         }
-
-        File moduleFile = KotlinBuilderModuleScriptGenerator.generateModuleDescription(context, representativeTarget, sourceFiles);
 
         File outputDir = representativeTarget.getOutputDir();
 
@@ -122,12 +117,27 @@ public class KotlinBuilder extends ModuleLevelBuilder {
 
         OutputItemsCollectorImpl outputItemCollector = new OutputItemsCollectorImpl(outputDir);
 
-        KotlinCompilerRunner.runCompiler(
-                messageCollector,
-                environment,
-                moduleFile,
-                outputItemCollector,
-                /*runOutOfProcess = */false);
+        if (JpsUtils.isJsKotlinModule(representativeTarget)) {
+            File outputFile = new File(outputDir, representativeTarget.getModule().getName() + ".js");
+
+            KotlinCompilerRunner.runK2JsCompiler(
+                    messageCollector,
+                    environment,
+                    outputItemCollector,
+                    sourceFiles,
+                    JpsJsModuleUtils.getLibraryFilesAndDependencies(representativeTarget),
+                    outputFile);
+        }
+        else {
+            File moduleFile = KotlinBuilderModuleScriptGenerator.generateModuleDescription(context, representativeTarget, sourceFiles);
+
+            KotlinCompilerRunner.runK2JvmCompiler(
+                    messageCollector,
+                    environment,
+                    moduleFile,
+                    outputItemCollector,
+                    /*runOutOfProcess = */false);
+        }
 
         for (SimpleOutputItem outputItem : outputItemCollector.getOutputs()) {
             outputConsumer.registerOutputFile(
@@ -141,6 +151,7 @@ public class KotlinBuilder extends ModuleLevelBuilder {
 
     private static boolean isJavaPluginEnabled(@NotNull CompileContext context) {
         try {
+            // Using reflection for backward compatibility with IDEA 12
             Field javaPluginIsEnabledField = JavaBuilder.class.getDeclaredField("IS_ENABLED");
             return Modifier.isPublic(javaPluginIsEnabledField.getModifiers()) ? JavaBuilder.IS_ENABLED.get(context, Boolean.TRUE) : true;
         }

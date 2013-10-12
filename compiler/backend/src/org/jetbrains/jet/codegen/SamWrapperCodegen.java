@@ -17,6 +17,7 @@
 package org.jetbrains.jet.codegen;
 
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.jetbrains.asm4.MethodVisitor;
 import org.jetbrains.asm4.Type;
 import org.jetbrains.asm4.commons.InstructionAdapter;
@@ -40,22 +41,25 @@ import org.jetbrains.jet.lang.types.JetType;
 
 import static org.jetbrains.asm4.Opcodes.*;
 import static org.jetbrains.jet.codegen.AsmUtil.NO_FLAG_PACKAGE_PRIVATE;
-import static org.jetbrains.jet.codegen.AsmUtil.genStubCode;
 import static org.jetbrains.jet.lang.resolve.java.AsmTypeConstants.OBJECT_TYPE;
 
-public class SamWrapperCodegen extends GenerationStateAware {
+public class SamWrapperCodegen extends ParentCodegenAwareImpl {
     private static final String FUNCTION_FIELD_NAME = "function";
 
     @NotNull private final ClassDescriptorFromJvmBytecode samInterface;
 
-    public SamWrapperCodegen(@NotNull GenerationState state, @NotNull ClassDescriptorFromJvmBytecode samInterface) {
-        super(state);
+    public SamWrapperCodegen(
+            @NotNull GenerationState state,
+            @NotNull ClassDescriptorFromJvmBytecode samInterface,
+            @Nullable MemberCodegen parentCodegen
+    ) {
+        super(state, parentCodegen);
         this.samInterface = samInterface;
     }
 
-    public JvmClassName genWrapper(@NotNull JetFile file) {
+    public Type genWrapper(@NotNull JetFile file) {
         // Name for generated class, in form of whatever$1
-        JvmClassName name = JvmClassName.byInternalName(getWrapperName(file));
+        Type asmType = Type.getObjectType(getWrapperName(file));
 
         // e.g. (T, T) -> Int
         JetType functionType = samInterface.getFunctionTypeForSamInterface();
@@ -63,14 +67,14 @@ public class SamWrapperCodegen extends GenerationStateAware {
         // e.g. compare(T, T)
         SimpleFunctionDescriptor interfaceFunction = SingleAbstractMethodUtils.getAbstractMethodOfSamInterface(samInterface);
 
-        ClassBuilder cv = state.getFactory().newVisitor(name, file);
+        ClassBuilder cv = state.getFactory().newVisitor(asmType, file);
         cv.defineClass(file,
                        V1_6,
                        ACC_FINAL,
-                       name.getInternalName(),
+                       asmType.getInternalName(),
                        null,
                        OBJECT_TYPE.getInternalName(),
-                       new String[]{JvmClassName.byClassDescriptor(samInterface).getInternalName()}
+                       new String[]{ typeMapper.mapType(samInterface).getInternalName() }
         );
         cv.visitSource(file.getName(), null);
 
@@ -84,21 +88,18 @@ public class SamWrapperCodegen extends GenerationStateAware {
                     null,
                     null);
 
-        generateConstructor(name.getAsmType(), functionAsmType, cv);
-        generateMethod(name.getAsmType(), functionAsmType, cv, interfaceFunction, functionType);
+        generateConstructor(asmType, functionAsmType, cv);
+        generateMethod(asmType, functionAsmType, cv, interfaceFunction, functionType);
 
         cv.done();
 
-        return name;
+        return asmType;
     }
 
     private void generateConstructor(Type ownerType, Type functionType, ClassBuilder cv) {
         MethodVisitor mv = cv.newMethod(null, NO_FLAG_PACKAGE_PRIVATE, "<init>", Type.getMethodDescriptor(Type.VOID_TYPE, functionType), null, null);
 
-        if (state.getClassBuilderMode() == ClassBuilderMode.STUBS) {
-            genStubCode(mv);
-        }
-        else if (state.getClassBuilderMode() == ClassBuilderMode.FULL) {
+        if (state.getClassBuilderMode() == ClassBuilderMode.FULL) {
             mv.visitCode();
             InstructionAdapter iv = new InstructionAdapter(mv);
 
@@ -125,11 +126,11 @@ public class SamWrapperCodegen extends GenerationStateAware {
     ) {
 
         // using static context to avoid creating ClassDescriptor and everything else
-        FunctionCodegen codegen = new FunctionCodegen(CodegenContext.STATIC, cv, state);
+        FunctionCodegen codegen = new FunctionCodegen(CodegenContext.STATIC, cv, state, getParentCodegen());
 
         FunctionDescriptor invokeFunction = functionJetType.getMemberScope()
                 .getFunctions(Name.identifier("invoke")).iterator().next().getOriginal();
-        StackValue functionField = StackValue.field(functionType, JvmClassName.byType(ownerType), FUNCTION_FIELD_NAME, false);
+        StackValue functionField = StackValue.field(functionType, ownerType, FUNCTION_FIELD_NAME, false);
         codegen.genDelegate(interfaceFunction, invokeFunction, functionField);
     }
 

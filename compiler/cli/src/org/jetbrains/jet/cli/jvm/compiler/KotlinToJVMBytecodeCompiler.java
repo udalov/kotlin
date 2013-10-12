@@ -16,7 +16,6 @@
 
 package org.jetbrains.jet.cli.jvm.compiler;
 
-import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.project.Project;
@@ -54,9 +53,6 @@ import org.jetbrains.jet.utils.KotlinPaths;
 import org.jetbrains.jet.utils.PathUtil;
 
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -71,30 +67,30 @@ public class KotlinToJVMBytecodeCompiler {
     }
 
     @Nullable
-    public static ClassFileFactory compileModule(CompilerConfiguration configuration, Module moduleBuilder, File directory) {
-        if (moduleBuilder.getSourceFiles().isEmpty()) {
-            throw new CompileEnvironmentException("No source files where defined in module " + moduleBuilder.getModuleName());
+    public static ClassFileFactory compileModule(CompilerConfiguration configuration, Module module, File directory) {
+        if (module.getSourceFiles().isEmpty()) {
+            throw new CompileEnvironmentException("No source files where defined in module " + module.getModuleName());
         }
 
         CompilerConfiguration compilerConfiguration = configuration.copy();
-        for (String sourceFile : moduleBuilder.getSourceFiles()) {
+        for (String sourceFile : module.getSourceFiles()) {
             File source = new File(sourceFile);
             if (!source.isAbsolute()) {
                 source = new File(directory, sourceFile);
             }
 
             if (!source.exists()) {
-                throw new CompileEnvironmentException("'" + source + "' does not exist in module " + moduleBuilder.getModuleName());
+                throw new CompileEnvironmentException("'" + source + "' does not exist in module " + module.getModuleName());
             }
 
             compilerConfiguration.add(CommonConfigurationKeys.SOURCE_ROOTS_KEY, source.getPath());
         }
 
-        for (String classpathRoot : moduleBuilder.getClasspathRoots()) {
+        for (String classpathRoot : module.getClasspathRoots()) {
             compilerConfiguration.add(JVMConfigurationKeys.CLASSPATH_KEY, new File(classpathRoot));
         }
 
-        for (String annotationsRoot : moduleBuilder.getAnnotationsRoots()) {
+        for (String annotationsRoot : module.getAnnotationsRoots()) {
             compilerConfiguration.add(JVMConfigurationKeys.ANNOTATIONS_PATH_KEY, new File(annotationsRoot));
         }
 
@@ -116,40 +112,45 @@ public class KotlinToJVMBytecodeCompiler {
         }
     }
 
+    private static void writeOutput(
+            CompilerConfiguration configuration,
+            ClassFileFactory moduleFactory,
+            CompileEnvironmentUtil.OutputDirector outputDir,
+            File jarPath,
+            boolean jarRuntime,
+            FqName mainClass
+    ) {
+        MessageCollector messageCollector = configuration.get(CLIConfigurationKeys.MESSAGE_COLLECTOR_KEY, MessageCollector.NONE);
+        CompileEnvironmentUtil.writeOutputToDirOrJar(jarPath, outputDir, jarRuntime, mainClass, moduleFactory, messageCollector);
+    }
+
     public static boolean compileModules(
             CompilerConfiguration configuration,
-            @NotNull List<Module> modules,
+            @NotNull final ModuleChunk modules,
             @NotNull File directory,
             @Nullable File jarPath,
-            @Nullable File outputDir,
-            boolean jarRuntime) {
-
-        for (Module moduleBuilder : modules) {
-            ClassFileFactory moduleFactory = compileModule(configuration, moduleBuilder, directory);
+            boolean jarRuntime
+    ) {
+        for (Module module : modules.getModules()) {
+            ClassFileFactory moduleFactory = compileModule(configuration, module, directory);
             if (moduleFactory == null) {
                 return false;
             }
-            if (outputDir != null) {
-                CompileEnvironmentUtil.writeToOutputDirectory(moduleFactory, outputDir);
-            }
-            else {
-                File path = jarPath != null ? jarPath : new File(directory, moduleBuilder.getModuleName() + ".jar");
-                FileOutputStream outputStream = null;
-                try {
-                    outputStream = new FileOutputStream(path);
-                    CompileEnvironmentUtil.writeToJar(moduleFactory, outputStream, null, jarRuntime);
-                    outputStream.close();
+            CompileEnvironmentUtil.OutputDirector outputDir = new CompileEnvironmentUtil.OutputDirector() {
+                @NotNull
+                @Override
+                public File getOutputDirectory(@NotNull Collection<File> sourceFiles) {
+                    for (File sourceFile : sourceFiles) {
+                        Module module = modules.findModuleBySourceFile(sourceFile);
+                        if (module != null) {
+                            return new File(module.getOutputDirectory());
+                        }
+                    }
+                    throw new IllegalStateException("No module found for source files: " + sourceFiles);
                 }
-                catch (FileNotFoundException e) {
-                    throw new CompileEnvironmentException("Invalid jar path " + path, e);
-                }
-                catch (IOException e) {
-                    throw ExceptionUtils.rethrow(e);
-                }
-                finally {
-                    ExceptionUtils.closeQuietly(outputStream);
-                }
-            }
+            };
+
+            writeOutput(configuration, moduleFactory, outputDir, jarPath, jarRuntime, null);
         }
         return true;
     }
@@ -185,30 +186,8 @@ public class KotlinToJVMBytecodeCompiler {
         }
 
         try {
-            ClassFileFactory factory = generationState.getFactory();
-            if (jar != null) {
-                FileOutputStream os = null;
-                try {
-                    os = new FileOutputStream(jar);
-                    CompileEnvironmentUtil.writeToJar(factory, new FileOutputStream(jar), mainClass, includeRuntime);
-                    os.close();
-                }
-                catch (FileNotFoundException e) {
-                    throw new CompileEnvironmentException("Invalid jar path " + jar, e);
-                }
-                catch (IOException e) {
-                    throw ExceptionUtils.rethrow(e);
-                }
-                finally {
-                    ExceptionUtils.closeQuietly(os);
-                }
-            }
-            else if (outputDir != null) {
-                CompileEnvironmentUtil.writeToOutputDirectory(factory, outputDir);
-            }
-            else {
-                throw new CompileEnvironmentException("Output directory or jar file is not specified - no files will be saved to the disk");
-            }
+            CompileEnvironmentUtil.OutputDirector outputDirector = CompileEnvironmentUtil.singleDirectory(outputDir);
+            writeOutput(environment.getConfiguration(), generationState.getFactory(), outputDirector, jar, includeRuntime, mainClass);
             return true;
         }
         finally {
@@ -269,27 +248,10 @@ public class KotlinToJVMBytecodeCompiler {
     }
 
     @Nullable
-    public static GenerationState analyzeAndGenerate(JetCoreEnvironment environment) {
-        return analyzeAndGenerate(environment, environment.getConfiguration().get(JVMConfigurationKeys.STUBS, false),
-                                  environment.getConfiguration().getList(JVMConfigurationKeys.SCRIPT_PARAMETERS));
-    }
-
-    @Nullable
     public static GenerationState analyzeAndGenerate(
-            JetCoreEnvironment environment,
-            boolean stubs
+            JetCoreEnvironment environment
     ) {
-        return analyzeAndGenerate(environment, stubs,
-                                  environment.getConfiguration().getList(JVMConfigurationKeys.SCRIPT_PARAMETERS));
-    }
-
-    @Nullable
-    public static GenerationState analyzeAndGenerate(
-            JetCoreEnvironment environment,
-            boolean stubs,
-            List<AnalyzerScriptParameter> scriptParameters
-    ) {
-        AnalyzeExhaust exhaust = analyze(environment, scriptParameters, stubs);
+        AnalyzeExhaust exhaust = analyze(environment);
 
         if (exhaust == null) {
             return null;
@@ -297,18 +259,13 @@ public class KotlinToJVMBytecodeCompiler {
 
         exhaust.throwIfError();
 
-        return generate(environment, exhaust, stubs);
+        return generate(environment, exhaust);
     }
 
     @Nullable
-    private static AnalyzeExhaust analyze(
-            final JetCoreEnvironment environment,
-            final List<AnalyzerScriptParameter> scriptParameters,
-            boolean stubs) {
+    private static AnalyzeExhaust analyze(final JetCoreEnvironment environment) {
         AnalyzerWithCompilerReport analyzerWithCompilerReport = new AnalyzerWithCompilerReport(
                 environment.getConfiguration().get(CLIConfigurationKeys.MESSAGE_COLLECTOR_KEY));
-        final Predicate<PsiFile> filesToAnalyzeCompletely =
-                stubs ? Predicates.<PsiFile>alwaysFalse() : Predicates.<PsiFile>alwaysTrue();
         analyzerWithCompilerReport.analyzeAndReport(
                 new Function0<AnalyzeExhaust>() {
                     @NotNull
@@ -319,8 +276,8 @@ public class KotlinToJVMBytecodeCompiler {
                                 environment.getProject(),
                                 environment.getSourceFiles(),
                                 sharedTrace,
-                                scriptParameters,
-                                filesToAnalyzeCompletely,
+                                environment.getConfiguration().getList(JVMConfigurationKeys.SCRIPT_PARAMETERS),
+                                Predicates.<PsiFile>alwaysTrue(),
                                 false
                         );
                     }
@@ -333,27 +290,12 @@ public class KotlinToJVMBytecodeCompiler {
     @NotNull
     private static GenerationState generate(
             JetCoreEnvironment environment,
-            AnalyzeExhaust exhaust,
-            boolean stubs) {
+            AnalyzeExhaust exhaust
+    ) {
         Project project = environment.getProject();
-        final CompilerConfiguration configuration = environment.getConfiguration();
-        Progress backendProgress = new Progress() {
-            @Override
-            public void reportOutput(@NotNull Collection<File> sourceFiles, @Nullable File outputFile) {
-                if (outputFile == null) return;
-
-                MessageCollector messageCollector = configuration.get(CLIConfigurationKeys.MESSAGE_COLLECTOR_KEY);
-                if (messageCollector == null) return;
-
-                messageCollector.report(
-                        CompilerMessageSeverity.OUTPUT,
-                        OutputMessageUtil.formatOutputMessage(sourceFiles, outputFile),
-                        CompilerMessageLocation.NO_LOCATION);
-            }
-        };
+        CompilerConfiguration configuration = environment.getConfiguration();
         GenerationState generationState = new GenerationState(
-                project, ClassBuilderFactories.binaries(stubs), backendProgress, exhaust.getBindingContext(), environment.getSourceFiles(),
-                configuration.get(JVMConfigurationKeys.BUILTIN_TO_JAVA_TYPES_MAPPING_KEY, BuiltinToJavaTypesMapping.ENABLED),
+                project, ClassBuilderFactories.BINARIES, Progress.DEAF, exhaust.getBindingContext(), environment.getSourceFiles(),
                 configuration.get(JVMConfigurationKeys.GENERATE_NOT_NULL_ASSERTIONS, false),
                 configuration.get(JVMConfigurationKeys.GENERATE_NOT_NULL_PARAMETER_ASSERTIONS, false),
                 /*generateDeclaredClasses = */true

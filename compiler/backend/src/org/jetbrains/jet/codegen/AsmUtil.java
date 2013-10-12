@@ -32,11 +32,9 @@ import org.jetbrains.jet.codegen.state.JetTypeMapper;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.resolve.DescriptorUtils;
 import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCall;
-import org.jetbrains.jet.lang.resolve.java.AsmTypeConstants;
-import org.jetbrains.jet.lang.resolve.java.JavaVisibilities;
-import org.jetbrains.jet.lang.resolve.java.JvmAbi;
-import org.jetbrains.jet.lang.resolve.java.JvmPrimitiveType;
+import org.jetbrains.jet.lang.resolve.java.*;
 import org.jetbrains.jet.lang.resolve.java.descriptor.JavaCallableMemberDescriptor;
+import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 import org.jetbrains.jet.lexer.JetTokens;
@@ -49,6 +47,7 @@ import static org.jetbrains.asm4.Opcodes.*;
 import static org.jetbrains.jet.codegen.CodegenUtil.*;
 import static org.jetbrains.jet.lang.resolve.DescriptorUtils.*;
 import static org.jetbrains.jet.lang.resolve.java.AsmTypeConstants.JAVA_STRING_TYPE;
+import static org.jetbrains.jet.lang.resolve.java.mapping.PrimitiveTypesUtil.asmTypeForPrimitive;
 
 public class AsmUtil {
     private static final Set<ClassDescriptor> PRIMITIVE_NUMBER_CLASSES = Sets.newHashSet(
@@ -79,20 +78,37 @@ public class AsmUtil {
     public static final String CAPTURED_RECEIVER_FIELD = "receiver$0";
     public static final String CAPTURED_THIS_FIELD = "this$0";
 
-    private static final String STUB_EXCEPTION = "java/lang/RuntimeException";
-    private static final String STUB_EXCEPTION_MESSAGE = "Stubs are for compiler only, do not add them to runtime classpath";
+    private static final ImmutableMap<Integer, JvmPrimitiveType> primitiveTypeByAsmSort;
+    private static final ImmutableMap<Type, Type> primitiveTypeByBoxedType;
+
+    static {
+        ImmutableMap.Builder<Integer, JvmPrimitiveType> typeBySortBuilder = ImmutableMap.builder();
+        ImmutableMap.Builder<Type, Type> typeByWrapperBuilder = ImmutableMap.builder();
+        for (JvmPrimitiveType primitiveType : JvmPrimitiveType.values()) {
+            Type asmType = asmTypeForPrimitive(primitiveType);
+            typeBySortBuilder.put(asmType.getSort(), primitiveType);
+            typeByWrapperBuilder.put(asmTypeByFqNameWithoutInnerClasses(primitiveType.getWrapperFqName()), asmType);
+        }
+        primitiveTypeByAsmSort = typeBySortBuilder.build();
+        primitiveTypeByBoxedType = typeByWrapperBuilder.build();
+    }
 
     private AsmUtil() {
     }
 
-    public static Type boxType(Type asmType) {
-        JvmPrimitiveType jvmPrimitiveType = JvmPrimitiveType.getByAsmType(asmType);
-        if (jvmPrimitiveType != null) {
-            return jvmPrimitiveType.getWrapper().getAsmType();
+    @NotNull
+    public static Type boxType(@NotNull Type type) {
+        JvmPrimitiveType jvmPrimitiveType = primitiveTypeByAsmSort.get(type.getSort());
+        return jvmPrimitiveType != null ? asmTypeByFqNameWithoutInnerClasses(jvmPrimitiveType.getWrapperFqName()) : type;
+    }
+
+    @NotNull
+    public static Type unboxType(@NotNull Type boxedType) {
+        Type primitiveType = primitiveTypeByBoxedType.get(boxedType);
+        if (primitiveType == null) {
+            throw new UnsupportedOperationException("Unboxing: " + boxedType);
         }
-        else {
-            return asmType;
-        }
+        return primitiveType;
     }
 
     public static boolean isIntPrimitive(Type type) {
@@ -120,16 +136,6 @@ public class AsmUtil {
         return Type.getType(internalName.substring(1));
     }
 
-    public static Type unboxType(Type type) {
-        JvmPrimitiveType jvmPrimitiveType = JvmPrimitiveType.getByWrapperAsmType(type);
-        if (jvmPrimitiveType != null) {
-            return jvmPrimitiveType.getAsmType();
-        }
-        else {
-            throw new UnsupportedOperationException("Unboxing: " + type);
-        }
-    }
-
     public static boolean isAbstractMethod(FunctionDescriptor functionDescriptor, OwnerKind kind) {
         return (functionDescriptor.getModality() == Modality.ABSTRACT
                 || isInterface(functionDescriptor.getContainingDeclaration()))
@@ -141,7 +147,7 @@ public class AsmUtil {
     }
 
     public static boolean isStatic(OwnerKind kind) {
-        return kind == OwnerKind.NAMESPACE || kind instanceof OwnerKind.StaticDelegateKind || kind == OwnerKind.TRAIT_IMPL;
+        return kind == OwnerKind.NAMESPACE || kind == OwnerKind.TRAIT_IMPL;
     }
 
     public static int getMethodAsmFlags(FunctionDescriptor functionDescriptor, OwnerKind kind) {
@@ -460,10 +466,6 @@ public class AsmUtil {
         return expectedType;
     }
 
-    public static void genStubCode(MethodVisitor mv) {
-        genMethodThrow(mv, STUB_EXCEPTION, STUB_EXCEPTION_MESSAGE);
-    }
-
     public static void swap(InstructionAdapter v, Type stackTop, Type afterTop) {
         if (stackTop.getSize() == 1) {
             if (afterTop.getSize() == 1) {
@@ -656,4 +658,20 @@ public class AsmUtil {
         }
     }
 
+    @NotNull
+    public static String asmDescByFqNameWithoutInnerClasses(@NotNull FqName fqName) {
+        return asmTypeByFqNameWithoutInnerClasses(fqName).getDescriptor();
+    }
+
+    @NotNull
+    public static String shortNameByAsmType(@NotNull Type type) {
+        String internalName = type.getInternalName();
+        int lastSlash = internalName.lastIndexOf('/');
+        return lastSlash < 0 ? internalName : internalName.substring(lastSlash + 1);
+    }
+
+    @NotNull
+    public static Type asmTypeByFqNameWithoutInnerClasses(@NotNull FqName fqName) {
+        return Type.getObjectType(JvmClassName.byFqNameWithoutInnerClasses(fqName).getInternalName());
+    }
 }

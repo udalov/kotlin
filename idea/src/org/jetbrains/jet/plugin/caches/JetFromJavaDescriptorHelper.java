@@ -29,7 +29,9 @@ import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.descriptors.serialization.*;
 import org.jetbrains.jet.lang.descriptors.ClassKind;
 import org.jetbrains.jet.lang.resolve.java.JavaResolverPsiUtils;
-import org.jetbrains.jet.lang.resolve.java.resolver.KotlinClassFileHeader;
+import org.jetbrains.jet.lang.resolve.kotlin.VirtualFileKotlinClass;
+import org.jetbrains.jet.lang.resolve.kotlin.header.KotlinClassHeader;
+import org.jetbrains.jet.lang.resolve.kotlin.header.SerializedDataHeader;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.util.QualifiedNamesUtil;
@@ -101,16 +103,26 @@ public class JetFromJavaDescriptorHelper {
 
     @Nullable
     private static ClassData getClassData(@NotNull PsiClass psiClass) {
-        VirtualFile virtualFile = getVirtualFileForPsiClass(psiClass);
-        if (virtualFile == null) return null;
-        return KotlinClassFileHeader.readKotlinHeaderFromClassFile(virtualFile).readClassData();
+        String[] data = getAnnotationDataForKotlinClass(psiClass);
+        return data == null ? null : JavaProtoBufUtil.readClassDataFrom(data);
     }
 
     @Nullable
     private static PackageData getPackageData(@NotNull PsiClass psiClass) {
+        String[] data = getAnnotationDataForKotlinClass(psiClass);
+        return data == null ? null : JavaProtoBufUtil.readPackageDataFrom(data);
+    }
+
+    @Nullable
+    private static String[] getAnnotationDataForKotlinClass(@NotNull PsiClass psiClass) {
         VirtualFile virtualFile = getVirtualFileForPsiClass(psiClass);
-        if (virtualFile == null) return null;
-        return KotlinClassFileHeader.readKotlinHeaderFromClassFile(virtualFile).readPackageData();
+        if (virtualFile != null) {
+            KotlinClassHeader header = KotlinClassHeader.read(new VirtualFileKotlinClass(virtualFile));
+            if (header instanceof SerializedDataHeader) {
+                return ((SerializedDataHeader) header).getAnnotationData();
+            }
+        }
+        return null;
     }
 
     //TODO: common utility
@@ -118,14 +130,7 @@ public class JetFromJavaDescriptorHelper {
     @Nullable
     private static VirtualFile getVirtualFileForPsiClass(@NotNull PsiClass psiClass) {
         PsiFile psiFile = psiClass.getContainingFile();
-        if (psiFile == null) {
-            return null;
-        }
-        VirtualFile virtualFile = psiFile.getVirtualFile();
-        if (virtualFile == null) {
-            return null;
-        }
-        return virtualFile;
+        return psiFile == null ? null : psiFile.getVirtualFile();
     }
 
     @Nullable

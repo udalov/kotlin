@@ -19,15 +19,15 @@ package org.jetbrains.jet.lang.types;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.lang.descriptors.annotations.AnnotationDescriptor;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
-import org.jetbrains.jet.utils.RecursionIntolerantLazyValue;
-import org.jetbrains.jet.utils.ReenteringLazyValueComputationException;
+import org.jetbrains.jet.storage.NotNullLazyValue;
+import org.jetbrains.jet.util.ReenteringLazyValueComputationException;
 
 import java.util.List;
 
 public abstract class DeferredTypeBase implements JetType {
-    protected final RecursionIntolerantLazyValue<JetType> lazyValue;
+    protected final NotNullLazyValue<JetType> lazyValue;
 
-    protected DeferredTypeBase(@NotNull RecursionIntolerantLazyValue<JetType> lazyValue) {
+    protected DeferredTypeBase(@NotNull NotNullLazyValue<JetType> lazyValue) {
         this.lazyValue = lazyValue;
     }
 
@@ -37,7 +37,7 @@ public abstract class DeferredTypeBase implements JetType {
 
     @NotNull
     public JetType getActualType() {
-        return lazyValue.get();
+        return lazyValue.invoke();
     }
 
     @Override

@@ -266,6 +266,7 @@ String.prototype.contains = function (s) {
             },
             add: function (element) {
                 this.array[this.$size++] = element;
+                return true;
             },
             addAt: function (index, element) {
                 this.array.splice(index, 0, element);
@@ -492,6 +493,16 @@ String.prototype.contains = function (s) {
         }
     };
 
+    Kotlin.copyToArray = function (collection) {
+        var array = [];
+        var it = collection.iterator();
+        while (it.hasNext()) {
+            array.push(it.next());
+        }
+
+        return array;
+    };
+
 
     Kotlin.StringBuilder = Kotlin.createClass(null,
         function () {
@@ -499,6 +510,7 @@ String.prototype.contains = function (s) {
         }, {
         append:function (obj) {
             this.string = this.string + obj.toString();
+            return this;
         },
         toString:function () {
             return this.string;

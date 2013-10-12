@@ -29,6 +29,7 @@ import com.intellij.psi.impl.PsiFileFactoryImpl;
 import com.intellij.testFramework.LightVirtualFile;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.asm4.Type;
 import org.jetbrains.jet.analyzer.AnalyzeExhaust;
 import org.jetbrains.jet.cli.common.messages.AnalyzerWithCompilerReport;
 import org.jetbrains.jet.cli.common.messages.MessageCollector;
@@ -37,6 +38,7 @@ import org.jetbrains.jet.cli.jvm.JVMConfigurationKeys;
 import org.jetbrains.jet.cli.jvm.compiler.JetCoreEnvironment;
 import org.jetbrains.jet.codegen.ClassBuilderFactories;
 import org.jetbrains.jet.codegen.CompilationErrorHandler;
+import org.jetbrains.jet.codegen.KotlinCodegenFacade;
 import org.jetbrains.jet.codegen.state.GenerationState;
 import org.jetbrains.jet.config.CompilerConfiguration;
 import org.jetbrains.jet.di.InjectorForTopDownAnalyzerForJvm;
@@ -45,6 +47,8 @@ import org.jetbrains.jet.lang.descriptors.ScriptDescriptor;
 import org.jetbrains.jet.lang.descriptors.impl.NamespaceDescriptorImpl;
 import org.jetbrains.jet.lang.descriptors.impl.NamespaceLikeBuilderDummy;
 import org.jetbrains.jet.lang.psi.JetFile;
+import org.jetbrains.jet.lang.psi.JetPsiUtil;
+import org.jetbrains.jet.lang.psi.JetScript;
 import org.jetbrains.jet.lang.resolve.*;
 import org.jetbrains.jet.lang.resolve.java.AnalyzerFacadeForJVM;
 import org.jetbrains.jet.lang.resolve.java.JvmClassName;
@@ -65,6 +69,10 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.Collections;
 import java.util.List;
+
+
+import static org.jetbrains.jet.codegen.AsmUtil.asmTypeByFqNameWithoutInnerClasses;
+import static org.jetbrains.jet.codegen.binding.CodegenBinding.registerClassNameForScript;
 
 public class ReplInterpreter {
 
@@ -181,7 +189,8 @@ public class ReplInterpreter {
     public LineResult eval(@NotNull String line) {
         ++lineNumber;
 
-        JvmClassName scriptClassName = JvmClassName.byInternalName("Line" + lineNumber);
+        FqName scriptFqName = new FqName("Line" + lineNumber);
+        Type scriptClassType = asmTypeByFqNameWithoutInnerClasses(scriptFqName);
 
         StringBuilder fullText = new StringBuilder();
         for (String prevLine : previousIncompleteLines) {
@@ -219,24 +228,25 @@ public class ReplInterpreter {
             return LineResult.error(errorCollector.getString());
         }
 
-        List<Pair<ScriptDescriptor, JvmClassName>> earierScripts = Lists.newArrayList();
+        List<Pair<ScriptDescriptor, Type>> earlierScripts = Lists.newArrayList();
 
         for (EarlierLine earlierLine : earlierLines) {
-            earierScripts.add(Pair.create(earlierLine.getScriptDescriptor(), earlierLine.getClassName()));
+            earlierScripts.add(Pair.create(earlierLine.getScriptDescriptor(), earlierLine.getClassType()));
         }
 
         BindingContext bindingContext = AnalyzeExhaust.success(trace.getBindingContext(), module).getBindingContext();
-        GenerationState generationState = new GenerationState(psiFile.getProject(), ClassBuilderFactories.binaries(false),
+        GenerationState generationState = new GenerationState(psiFile.getProject(), ClassBuilderFactories.BINARIES,
                                                               bindingContext, Collections.singletonList(psiFile));
-        generationState.getScriptCodegen().compileScript(psiFile.getScript(), scriptClassName, earierScripts,
-                                                         CompilationErrorHandler.THROW_EXCEPTION);
+
+        compileScript(psiFile.getScript(), scriptClassType, earlierScripts, generationState,
+                      CompilationErrorHandler.THROW_EXCEPTION);
 
         for (String file : generationState.getFactory().files()) {
             classLoader.addClass(JvmClassName.byInternalName(file.replaceFirst("\\.class$", "")), generationState.getFactory().asBytes(file));
         }
 
         try {
-            Class<?> scriptClass = classLoader.loadClass(scriptClassName.getFqName().asString());
+            Class<?> scriptClass = classLoader.loadClass(scriptFqName.asString());
 
             Class<?>[] constructorParams = new Class<?>[earlierLines.size()];
             Object[] constructorArgs = new Object[earlierLines.size()];
@@ -257,7 +267,7 @@ public class ReplInterpreter {
             rvField.setAccessible(true);
             Object rv = rvField.get(scriptInstance);
 
-            earlierLines.add(new EarlierLine(line, scriptDescriptor, scriptClass, scriptInstance, scriptClassName));
+            earlierLines.add(new EarlierLine(line, scriptDescriptor, scriptClass, scriptInstance, scriptClassType));
 
             return LineResult.successful(rv, scriptDescriptor.getReturnType().equals(KotlinBuiltIns.getInstance().getUnitType()));
         } catch (Throwable e) {
@@ -313,4 +323,41 @@ public class ReplInterpreter {
     public void dumpClasses(@NotNull PrintWriter out) {
         classLoader.dumpClasses(out);
     }
+
+    private static void registerEarlierScripts(
+            @NotNull GenerationState state,
+            @NotNull List<Pair<ScriptDescriptor, Type>> earlierScripts
+    ) {
+        for (Pair<ScriptDescriptor, Type> t : earlierScripts) {
+            ScriptDescriptor earlierDescriptor = t.first;
+            Type earlierClassType = t.second;
+            registerClassNameForScript(state.getBindingTrace(), earlierDescriptor, earlierClassType);
+        }
+
+        List<ScriptDescriptor> earlierScriptDescriptors = Lists.newArrayList();
+        for (Pair<ScriptDescriptor, Type> t : earlierScripts) {
+            ScriptDescriptor earlierDescriptor = t.first;
+            earlierScriptDescriptors.add(earlierDescriptor);
+        }
+        state.setEarlierScriptsForReplInterpreter(earlierScriptDescriptors);
+    }
+
+    public static void compileScript(
+            @NotNull JetScript script,
+            @NotNull Type classType,
+            @NotNull List<Pair<ScriptDescriptor, Type>> earlierScripts,
+            @NotNull GenerationState state,
+            @NotNull CompilationErrorHandler errorHandler
+    ) {
+        registerEarlierScripts(state, earlierScripts);
+        registerClassNameForScript(state.getBindingTrace(), script, classType);
+
+        state.beforeCompile();
+        KotlinCodegenFacade.generateNamespace(
+                state,
+                JetPsiUtil.getFQName((JetFile) script.getContainingFile()),
+                Collections.singleton((JetFile) script.getContainingFile()),
+                errorHandler);
+    }
+
 }

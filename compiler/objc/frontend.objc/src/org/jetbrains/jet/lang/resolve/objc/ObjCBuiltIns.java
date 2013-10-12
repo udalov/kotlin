@@ -16,12 +16,13 @@
 
 package org.jetbrains.jet.lang.resolve.objc;
 
+import jet.Function0;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.lang.descriptors.ClassDescriptor;
 import org.jetbrains.jet.lang.descriptors.annotations.AnnotationDescriptor;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.types.*;
-import org.jetbrains.jet.utils.RecursionIntolerantLazyValue;
+import org.jetbrains.jet.storage.LockBasedStorageManager;
 
 import java.util.Collections;
 import java.util.List;
@@ -63,9 +64,9 @@ public class ObjCBuiltIns {
 
     private static class BuiltInType extends DeferredTypeBase {
         protected BuiltInType(@NotNull final ClassDescriptor descriptor, @NotNull final List<TypeProjection> projections) {
-            super(new RecursionIntolerantLazyValue<JetType>() {
+            super(LockBasedStorageManager.NO_LOCKS.createLazyValue(new Function0<JetType>() {
                 @Override
-                protected JetType compute() {
+                public JetType invoke() {
                     return new JetTypeImpl(
                             Collections.<AnnotationDescriptor>emptyList(),
                             descriptor.getTypeConstructor(),
@@ -74,7 +75,7 @@ public class ObjCBuiltIns {
                             descriptor.getMemberScope(projections)
                     );
                 }
-            });
+            }));
         }
     }
 

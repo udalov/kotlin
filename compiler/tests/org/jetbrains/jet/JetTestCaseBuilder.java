@@ -30,9 +30,11 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import static com.intellij.openapi.util.io.FileUtil.toSystemIndependentName;
+
 public abstract class JetTestCaseBuilder {
 
-    public static final FilenameFilter KOTLIN_FILTER = filterByExtension("kt", "jet", JetParserDefinition.KTSCRIPT_FILE_SUFFIX);
+    public static final FilenameFilter KOTLIN_FILTER = filterByExtension("kt", JetParserDefinition.KTSCRIPT_FILE_SUFFIX);
 
     @NotNull
     public static FilenameFilter filterByExtension(@NotNull final String... extensions) {
@@ -55,7 +57,7 @@ public abstract class JetTestCaseBuilder {
         String resourceRoot = PathManager.getResourceRoot(JetTestCaseBuilder.class, "/org/jetbrains/jet/JetTestCaseBuilder.class");
         assert resourceRoot != null : "Failed to get root for class: " + JetTestCaseBuilder.class;
 
-        return new File(resourceRoot).getParentFile().getParentFile().getParent();
+        return toSystemIndependentName(new File(resourceRoot).getParentFile().getParentFile().getParent());
     }
     public interface NamedTestFactory {
         @NotNull Test createTest(@NotNull String dataPath, @NotNull String name, @NotNull File file);

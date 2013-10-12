@@ -22,7 +22,7 @@ import org.jetbrains.jet.lang.resolve.BodyResolver;
 import org.jetbrains.jet.lang.resolve.ControlFlowAnalyzer;
 import org.jetbrains.jet.lang.resolve.DeclarationsChecker;
 import org.jetbrains.jet.lang.resolve.DescriptorResolver;
-import org.jetbrains.jet.lang.resolve.calls.NeedSyntheticCallResolverExtension;
+import org.jetbrains.jet.lang.resolve.calls.CompositeExtension;
 import com.intellij.openapi.project.Project;
 import org.jetbrains.jet.lang.resolve.TopDownAnalysisParameters;
 import org.jetbrains.jet.lang.resolve.BindingTrace;
@@ -36,10 +36,10 @@ import org.jetbrains.jet.lang.resolve.java.resolver.TraceBasedJavaResolverCache;
 import org.jetbrains.jet.lang.resolve.java.resolver.TraceBasedErrorReporter;
 import org.jetbrains.jet.lang.resolve.java.resolver.PsiBasedMethodSignatureChecker;
 import org.jetbrains.jet.lang.resolve.java.resolver.PsiBasedExternalAnnotationResolver;
+import org.jetbrains.jet.lang.resolve.kotlin.VirtualFileKotlinClassFinder;
 import org.jetbrains.jet.lang.resolve.java.JavaDescriptorResolver;
-import org.jetbrains.jet.lang.resolve.java.PsiClassFinderImpl;
 import org.jetbrains.jet.lang.resolve.NamespaceFactoryImpl;
-import org.jetbrains.jet.lang.resolve.java.vfilefinder.VirtualFileFinder;
+import org.jetbrains.jet.lang.resolve.kotlin.VirtualFileFinder;
 import org.jetbrains.jet.lang.resolve.DeclarationResolver;
 import org.jetbrains.jet.lang.resolve.AnnotationResolver;
 import org.jetbrains.jet.lang.resolve.calls.CallResolver;
@@ -60,8 +60,8 @@ import org.jetbrains.jet.lang.resolve.objc.ObjCResolveFacade;
 import org.jetbrains.jet.lang.resolve.java.resolver.JavaAnnotationResolver;
 import org.jetbrains.jet.lang.resolve.java.resolver.JavaAnnotationArgumentResolver;
 import org.jetbrains.jet.lang.resolve.java.resolver.JavaClassResolver;
-import org.jetbrains.jet.lang.resolve.java.resolver.DeserializedDescriptorResolver;
-import org.jetbrains.jet.lang.resolve.java.resolver.AnnotationDescriptorDeserializer;
+import org.jetbrains.jet.lang.resolve.kotlin.DeserializedDescriptorResolver;
+import org.jetbrains.jet.lang.resolve.kotlin.AnnotationDescriptorDeserializer;
 import org.jetbrains.jet.lang.resolve.java.resolver.JavaNamespaceResolver;
 import org.jetbrains.jet.lang.resolve.java.resolver.JavaMemberResolver;
 import org.jetbrains.jet.lang.resolve.java.resolver.JavaConstructorResolver;
@@ -83,7 +83,7 @@ public class InjectorForTopDownAnalyzerForObjC implements InjectorForTopDownAnal
     private final ControlFlowAnalyzer controlFlowAnalyzer;
     private final DeclarationsChecker declarationsChecker;
     private final DescriptorResolver descriptorResolver;
-    private final NeedSyntheticCallResolverExtension needSyntheticCallResolverExtension;
+    private final CompositeExtension compositeExtension;
     private final Project project;
     private final TopDownAnalysisParameters topDownAnalysisParameters;
     private final BindingTrace bindingTrace;
@@ -97,8 +97,8 @@ public class InjectorForTopDownAnalyzerForObjC implements InjectorForTopDownAnal
     private final TraceBasedErrorReporter traceBasedErrorReporter;
     private final PsiBasedMethodSignatureChecker psiBasedMethodSignatureChecker;
     private final PsiBasedExternalAnnotationResolver psiBasedExternalAnnotationResolver;
+    private final VirtualFileKotlinClassFinder virtualFileKotlinClassFinder;
     private final JavaDescriptorResolver javaDescriptorResolver;
-    private final PsiClassFinderImpl psiClassFinder;
     private final NamespaceFactoryImpl namespaceFactory;
     private final VirtualFileFinder virtualFileFinder;
     private final DeclarationResolver declarationResolver;
@@ -145,7 +145,7 @@ public class InjectorForTopDownAnalyzerForObjC implements InjectorForTopDownAnal
         this.controlFlowAnalyzer = new ControlFlowAnalyzer();
         this.declarationsChecker = new DeclarationsChecker();
         this.descriptorResolver = new DescriptorResolver();
-        this.needSyntheticCallResolverExtension = new NeedSyntheticCallResolverExtension();
+        this.compositeExtension = new CompositeExtension();
         this.project = project;
         this.topDownAnalysisParameters = topDownAnalysisParameters;
         this.bindingTrace = bindingTrace;
@@ -159,8 +159,8 @@ public class InjectorForTopDownAnalyzerForObjC implements InjectorForTopDownAnal
         this.traceBasedErrorReporter = new TraceBasedErrorReporter();
         this.psiBasedMethodSignatureChecker = new PsiBasedMethodSignatureChecker();
         this.psiBasedExternalAnnotationResolver = new PsiBasedExternalAnnotationResolver();
+        this.virtualFileKotlinClassFinder = new VirtualFileKotlinClassFinder();
         this.javaDescriptorResolver = new JavaDescriptorResolver();
-        this.psiClassFinder = new PsiClassFinderImpl();
         this.namespaceFactory = new NamespaceFactoryImpl();
         this.virtualFileFinder = com.intellij.openapi.components.ServiceManager.getService(project, VirtualFileFinder.class);
         this.declarationResolver = new DeclarationResolver();
@@ -233,7 +233,7 @@ public class InjectorForTopDownAnalyzerForObjC implements InjectorForTopDownAnal
 
         javaBridgeConfiguration.setJavaDescriptorResolver(javaDescriptorResolver);
 
-        javaClassFinder.setPsiClassFinder(psiClassFinder);
+        javaClassFinder.setProject(project);
 
         traceBasedExternalSignatureResolver.setAnnotationResolver(javaAnnotationResolver);
         traceBasedExternalSignatureResolver.setTrace(bindingTrace);
@@ -245,13 +245,13 @@ public class InjectorForTopDownAnalyzerForObjC implements InjectorForTopDownAnal
         psiBasedMethodSignatureChecker.setAnnotationResolver(javaAnnotationResolver);
         psiBasedMethodSignatureChecker.setExternalSignatureResolver(traceBasedExternalSignatureResolver);
 
+        virtualFileKotlinClassFinder.setVirtualFileFinder(virtualFileFinder);
+
         this.javaDescriptorResolver.setClassResolver(javaClassResolver);
         this.javaDescriptorResolver.setNamespaceResolver(javaNamespaceResolver);
 
-        psiClassFinder.setProject(project);
-
-        this.namespaceFactory.setModuleDescriptor(moduleDescriptor);
-        this.namespaceFactory.setTrace(bindingTrace);
+        namespaceFactory.setModuleDescriptor(moduleDescriptor);
+        namespaceFactory.setTrace(bindingTrace);
 
         declarationResolver.setAnnotationResolver(annotationResolver);
         declarationResolver.setContext(topDownAnalysisContext);
@@ -266,7 +266,7 @@ public class InjectorForTopDownAnalyzerForObjC implements InjectorForTopDownAnal
         callResolver.setArgumentTypeResolver(argumentTypeResolver);
         callResolver.setCandidateResolver(candidateResolver);
         callResolver.setExpressionTypingServices(expressionTypingServices);
-        callResolver.setExtension(needSyntheticCallResolverExtension);
+        callResolver.setExtension(compositeExtension);
         callResolver.setTypeResolver(typeResolver);
 
         argumentTypeResolver.setExpressionTypingServices(expressionTypingServices);
@@ -335,25 +335,26 @@ public class InjectorForTopDownAnalyzerForObjC implements InjectorForTopDownAnal
         javaClassResolver.setDeserializedDescriptorResolver(deserializedDescriptorResolver);
         javaClassResolver.setFunctionResolver(javaFunctionResolver);
         javaClassResolver.setJavaClassFinder(javaClassFinder);
+        javaClassResolver.setKotlinClassFinder(virtualFileKotlinClassFinder);
         javaClassResolver.setMemberResolver(javaMemberResolver);
         javaClassResolver.setNamespaceResolver(javaNamespaceResolver);
         javaClassResolver.setSupertypesResolver(javaSupertypeResolver);
         javaClassResolver.setTypeParameterResolver(javaTypeParameterResolver);
-        javaClassResolver.setVirtualFileFinder(virtualFileFinder);
 
         deserializedDescriptorResolver.setAnnotationDeserializer(annotationDescriptorDeserializer);
         deserializedDescriptorResolver.setErrorReporter(traceBasedErrorReporter);
         deserializedDescriptorResolver.setJavaClassResolver(javaClassResolver);
         deserializedDescriptorResolver.setJavaNamespaceResolver(javaNamespaceResolver);
 
+        annotationDescriptorDeserializer.setErrorReporter(traceBasedErrorReporter);
         annotationDescriptorDeserializer.setJavaClassResolver(javaClassResolver);
-        annotationDescriptorDeserializer.setVirtualFileFinder(virtualFileFinder);
+        annotationDescriptorDeserializer.setKotlinClassFinder(virtualFileKotlinClassFinder);
 
         javaNamespaceResolver.setCache(traceBasedJavaResolverCache);
         javaNamespaceResolver.setDeserializedDescriptorResolver(deserializedDescriptorResolver);
         javaNamespaceResolver.setJavaClassFinder(javaClassFinder);
+        javaNamespaceResolver.setKotlinClassFinder(virtualFileKotlinClassFinder);
         javaNamespaceResolver.setMemberResolver(javaMemberResolver);
-        javaNamespaceResolver.setVirtualFileFinder(virtualFileFinder);
 
         javaMemberResolver.setClassResolver(javaClassResolver);
         javaMemberResolver.setConstructorResolver(javaConstructorResolver);
@@ -391,7 +392,7 @@ public class InjectorForTopDownAnalyzerForObjC implements InjectorForTopDownAnal
         javaSupertypeResolver.setClassResolver(javaClassResolver);
         javaSupertypeResolver.setTypeTransformer(javaTypeTransformer);
 
-        psiClassFinder.initialize();
+        javaClassFinder.initialize();
 
     }
     
@@ -445,10 +446,6 @@ public class InjectorForTopDownAnalyzerForObjC implements InjectorForTopDownAnal
     
     public JavaDescriptorResolver getJavaDescriptorResolver() {
         return this.javaDescriptorResolver;
-    }
-    
-    public NamespaceFactoryImpl getNamespaceFactory() {
-        return this.namespaceFactory;
     }
     
 }

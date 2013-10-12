@@ -28,7 +28,6 @@ import org.jetbrains.jet.lang.descriptors.NamespaceDescriptor;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.BindingTraceContext;
 import org.jetbrains.jet.lang.resolve.java.JvmAbi;
-import org.jetbrains.jet.lang.resolve.java.JvmClassName;
 import org.jetbrains.jet.lang.resolve.objc.ObjCMetaclassDescriptor;
 import org.jetbrains.jet.utils.ExceptionUtils;
 
@@ -43,7 +42,7 @@ public class ObjCDescriptorCodegen {
     private final JetTypeMapper typeMapper;
 
     public ObjCDescriptorCodegen() {
-        this.typeMapper = new JetTypeMapper(new BindingTraceContext(), true, ClassBuilderMode.FULL);
+        this.typeMapper = new JetTypeMapper(new BindingTraceContext(), ClassBuilderMode.FULL);
     }
 
     @NotNull
@@ -59,8 +58,8 @@ public class ObjCDescriptorCodegen {
     // This is needed to make JetTypeMapper correctly map class objects
     private void recordFQNForClassObject(@NotNull ClassDescriptor classDescriptor, @NotNull ClassDescriptor classObject) {
         String internalName = asmType(classDescriptor).getInternalName();
-        JvmClassName classObjectName = JvmClassName.byInternalName(internalName + JvmAbi.CLASS_OBJECT_SUFFIX);
-        typeMapper.getBindingTrace().record(CodegenBinding.FQN, classObject, classObjectName);
+        Type classObjectType = Type.getObjectType(internalName + JvmAbi.CLASS_OBJECT_SUFFIX);
+        typeMapper.getBindingTrace().record(CodegenBinding.ASM_TYPE, classObject, classObjectType);
     }
 
     private void writeClassFile(@NotNull ClassDescriptor descriptor, @NotNull File outputDir, @NotNull byte[] bytes) {
@@ -104,8 +103,8 @@ public class ObjCDescriptorCodegen {
         for (ClassDescriptor descriptor : classes) {
             if (descriptor instanceof ObjCMetaclassDescriptor) {
                 String internalName = asmType(((ObjCMetaclassDescriptor) descriptor).getClassDescriptor()).getInternalName();
-                JvmClassName metaclassName = JvmClassName.byInternalName(internalName + METACLASS_SUFFIX);
-                typeMapper.getBindingTrace().record(CodegenBinding.FQN, descriptor, metaclassName);
+                Type metaclassType = Type.getObjectType(internalName + METACLASS_SUFFIX);
+                typeMapper.getBindingTrace().record(CodegenBinding.ASM_TYPE, descriptor, metaclassType);
             }
         }
 

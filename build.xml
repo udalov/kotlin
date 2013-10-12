@@ -1,9 +1,16 @@
 <project name="Kotlin" default="dist">
 
+    <property file="resources/manifest.properties" />
+
     <!-- Set to false to disable proguard run on kotlin-compiler.jar. Speeds up the build -->
     <property name="shrink" value="true"/>
+    <!-- Set to false to disable compiler's @NotNull assertions. Speeds up the build -->
+    <property name="generate.assertions" value="true"/>
     <!-- Set to false to disable compiler's javadoc generation. Speeds up the build -->
     <property name="generate.javadoc" value="true"/>
+
+    <property name="boostrap.home" value="dependencies/bootstrap-compiler"/>
+    <property name="boostrap.compiler.home" value="${boostrap.home}/Kotlin/kotlinc"/>
 
     <property name="output.relative" value="dist"/>
     <property name="output" value="${basedir}/${output.relative}"/>
@@ -15,6 +22,7 @@
     <property name="java.target" value="1.6"/>
 
     <path id="classpath">
+        <fileset dir="${boostrap.compiler.home}" includes="lib/kotlin-runtime.jar"/>
         <fileset dir="${idea.sdk}" includes="core/*.jar"/>
         <fileset dir="${idea.sdk}" includes="lib/protobuf-2.5.0.jar"/>
 
@@ -25,6 +33,25 @@
         <fileset dir="${basedir}/dependencies" includes="cli-parser-1.1.1.jar"/>
         <fileset dir="${basedir}/js/js.translator/lib" includes="*.jar"/>
     </path>
+
+    <typedef resource="org/jetbrains/jet/buildtools/ant/antlib.xml" classpath="${boostrap.compiler.home}/lib/kotlin-ant.jar"/>
+    <taskdef resource="net/sf/antcontrib/antcontrib.properties" classpath="${basedir}/dependencies/ant-contrib.jar"/>
+
+    <taskdef name="javac2" classname="org.apache.tools.ant.taskdefs.Javac"/>
+    <if>
+      <istrue value="${generate.assertions}"/>
+      <then>
+        <path id="javac2.classpath">
+          <pathelement location="${idea.sdk}/lib/javac2.jar"/>
+          <pathelement location="${idea.sdk}/lib/jetbrains-asm-debug-all-4.0.jar"/>
+        </path>
+        <taskdef name="javac2" classname="com.intellij.ant.Javac2" classpathref="javac2.classpath"/>
+        <echo message="Use javac2 from Idea lib"/>
+      </then>
+      <else>
+        <echo message="Use default javac compiler"/>
+      </else>
+    </if>
 
     <dirset id="compilerSources.dirset" dir="${basedir}/">
         <include name="compiler/frontend/src"/>
@@ -129,15 +156,15 @@
             <zipfileset file="${kotlin-home}/build.txt" prefix="META-INF"/>
 
             <manifest>
-                <attribute name="Built-By" value="JetBrains"/>
+                <attribute name="Built-By" value="${manifest.impl.vendor}"/>
 
-                <attribute name="Implementation-Vendor" value="JetBrains"/>
-                <attribute name="Implementation-Title" value="Kotlin Compiler Sources"/>
+                <attribute name="Implementation-Vendor" value="${manifest.impl.vendor}"/>
+                <attribute name="Implementation-Title" value="${manifest.impl.title.kotlin.compiler.sources}"/>
                 <attribute name="Implementation-Version" value="${build.number}"/>
             </manifest>
         </jar>
 
-        <if>
+      <if>
             <istrue value="${generate.javadoc}"/>
 
             <then>
@@ -146,16 +173,16 @@
                          sourcepathref="compilerSources.path"
                          classpathref="classpath"
                          linksource="yes"
-                         windowtitle="Kotlin Compiler"/>
+                         windowtitle="${manifest.impl.title.kotlin.compiler}"/>
                 <jar jarfile="${output}/kotlin-compiler-javadoc.jar">
                     <fileset dir="${output}/kotlin-compiler-javadoc"/>
                     <zipfileset file="${kotlin-home}/build.txt" prefix="META-INF"/>
 
                     <manifest>
-                        <attribute name="Built-By" value="JetBrains"/>
+                        <attribute name="Built-By" value="${manifest.impl.vendor}"/>
 
-                        <attribute name="Implementation-Vendor" value="JetBrains"/>
-                        <attribute name="Implementation-Title" value="Kotlin Compiler Javadoc"/>
+                        <attribute name="Implementation-Vendor" value="${manifest.impl.vendor}"/>
+                        <attribute name="Implementation-Title" value="${manifest.impl.title.kotlin.compiler.javadoc}"/>
                         <attribute name="Implementation-Version" value="${build.number}"/>
                     </manifest>
                 </jar>
@@ -164,10 +191,10 @@
             <else>
                 <jar jarfile="${output}/kotlin-compiler-javadoc.jar">
                     <manifest>
-                        <attribute name="Built-By" value="JetBrains"/>
+                        <attribute name="Built-By" value="${manifest.impl.vendor}"/>
 
-                        <attribute name="Implementation-Vendor" value="JetBrains"/>
-                        <attribute name="Implementation-Title" value="Kotlin Compiler Javadoc"/>
+                        <attribute name="Implementation-Vendor" value="${manifest.impl.vendor}"/>
+                        <attribute name="Implementation-Title" value="${manifest.impl.title.kotlin.compiler.javadoc}"/>
                         <attribute name="Implementation-Version" value="${build.number}"/>
                     </manifest>
                 </jar>
@@ -187,10 +214,10 @@
             <zipfileset file="${kotlin-home}/build.txt" prefix="META-INF"/>
 
             <manifest>
-                <attribute name="Built-By" value="JetBrains"/>
+                <attribute name="Built-By" value="${manifest.impl.vendor}"/>
 
-                <attribute name="Implementation-Vendor" value="JetBrains"/>
-                <attribute name="Implementation-Title" value="Kotlin JavaScript StdLib"/>
+                <attribute name="Implementation-Vendor" value="${manifest.impl.vendor}"/>
+                <attribute name="Implementation-Title" value="${manifest.impl.title.kotlin.javascript.stdlib}"/>
                 <attribute name="Implementation-Version" value="${build.number}"/>
             </manifest>
         </jar>
@@ -217,35 +244,35 @@
 
     <target name="preloader">
       <cleandir dir="${output}/classes/preloader"/>
-      <javac destdir="${output}/classes/preloader" debug="true" debuglevel="lines,vars,source" includeAntRuntime="false" target="${java.target}">
+      <javac2 destdir="${output}/classes/preloader" debug="true" debuglevel="lines,vars,source" includeAntRuntime="false" target="${java.target}">
           <src refid="preloaderSources.path"/>
-      </javac>
-  
+      </javac2>
+
       <jar jarfile="${kotlin-home}/lib/kotlin-preloader.jar">
           <fileset dir="${output}/classes/preloader"/>
-  
+
           <manifest>
-              <attribute name="Built-By" value="JetBrains"/>
-  
-              <attribute name="Implementation-Vendor" value="JetBrains"/>
-              <attribute name="Implementation-Title" value="Kotlin Preloader"/>
+              <attribute name="Built-By" value="${manifest.impl.vendor}"/>
+
+              <attribute name="Implementation-Vendor" value="${manifest.impl.vendor}"/>
+              <attribute name="Implementation-Title" value="${manifest.impl.title.kotlin.preloader}"/>
               <attribute name="Implementation-Version" value="${build.number}"/>
-  
+
               <attribute name="Main-Class" value="org.jetbrains.jet.preloading.Preloader"/>
           </manifest>
       </jar>
     </target>
-  
+
     <macrodef name="pack_compiler">
         <attribute name="jarfile"/>
         <attribute name="compress" default="true"/>
-  
+
         <sequential>
           <jar jarfile="@{jarfile}" compress="@{compress}">
               <fileset dir="${output}/classes/compiler"/>
               <fileset dir="${basedir}/compiler/frontend/builtins" includes="jet/**"/>
               <fileset dir="${basedir}/compiler/frontend.java/src" includes="META-INF/services/**"/>
-  
+
               <zipgroupfileset dir="${basedir}/lib" includes="*.jar"/>
               <zipgroupfileset dir="${basedir}/ideaSDK/core" includes="*.jar" excludes="util.jar"/>
               <zipgroupfileset dir="${basedir}/ideaSDK/lib" includes="jna-utils.jar"/>
@@ -256,12 +283,12 @@
               <zipgroupfileset dir="${basedir}/dependencies" includes="cli-parser-1.1.1.jar"/>
 
               <manifest>
-                  <attribute name="Built-By" value="JetBrains"/>
-  
-                  <attribute name="Implementation-Vendor" value="JetBrains"/>
-                  <attribute name="Implementation-Title" value="Kotlin Compiler"/>
+                  <attribute name="Built-By" value="${manifest.impl.vendor}"/>
+
+                  <attribute name="Implementation-Vendor" value="${manifest.impl.vendor}"/>
+                  <attribute name="Implementation-Title" value="${manifest.impl.title.kotlin.compiler}"/>
                   <attribute name="Implementation-Version" value="${build.number}"/>
-  
+
                   <attribute name="Main-Class" value="org.jetbrains.jet.cli.jvm.K2JVMCompiler"/>
               </manifest>
           </jar>
@@ -283,13 +310,14 @@
 
     <target name="compiler">
         <taskdef resource="proguard/ant/task.properties" classpath="${basedir}/dependencies/proguard.jar"/>
-        <taskdef resource="net/sf/antcontrib/antcontrib.properties" classpath="${basedir}/dependencies/ant-contrib.jar"/>
 
         <cleandir dir="${output}/classes/compiler"/>
-        <javac destdir="${output}/classes/compiler" debug="true" debuglevel="lines,vars,source" includeAntRuntime="false"  target="${java.target}">
+
+        <javac2 destdir="${output}/classes/compiler" debug="true" debuglevel="lines,vars,source" includeAntRuntime="false"  target="${java.target}">
+            <withKotlin/>
             <src refid="compilerSources.path"/>
             <classpath refid="classpath"/>
-        </javac>
+        </javac2>
 
         <pack_compiler jarfile="${output}/kotlin-compiler-before-shrink.jar"/>
 
@@ -394,7 +422,7 @@
 
     <target name="antTools">
         <cleandir dir="${output}/classes/buildTools"/>
-        <javac destdir="${output}/classes/buildTools" debug="true" debuglevel="lines,vars,source" includeAntRuntime="false" target="${java.target}">
+        <javac2 destdir="${output}/classes/buildTools" debug="true" debuglevel="lines,vars,source" includeAntRuntime="false" target="${java.target}">
             <src>
                 <dirset dir="${basedir}/build-tools">
                     <include name="core/src"/>
@@ -406,7 +434,7 @@
                 <fileset dir="${kotlin-home}/lib" includes="kotlin-compiler.jar"/>
                 <fileset dir="${basedir}/dependencies" includes="ant.jar"/>
             </classpath>
-        </javac>
+        </javac2>
 
         <jar destfile="${kotlin-home}/lib/kotlin-ant.jar">
             <fileset dir="${output}/classes/buildTools"/>
@@ -414,10 +442,10 @@
             <zipfileset file="${kotlin-home}/build.txt" prefix="META-INF"/>
 
             <manifest>
-                <attribute name="Built-By" value="JetBrains"/>
+                <attribute name="Built-By" value="${manifest.impl.vendor}"/>
 
-                <attribute name="Implementation-Vendor" value="JetBrains"/>
-                <attribute name="Implementation-Title" value="Kotlin Compiler Ant Tasks"/>
+                <attribute name="Implementation-Vendor" value="${manifest.impl.vendor}"/>
+                <attribute name="Implementation-Title" value="${manifest.impl.title.kotlin.compiler.ant.task}"/>
                 <attribute name="Implementation-Version" value="${build.number}"/>
 
                 <attribute name="Class-Path" value="kotlin-compiler.jar"/>
@@ -428,13 +456,13 @@
     <target name="jdkAnnotations">
         <pack_annotations jarfile="kotlin-jdk-annotations.jar"
                           annotationsdir="${basedir}/jdk-annotations"
-                          title="Kotlin Compiler JDK Annotations"/>
+                          title="${manifest.impl.title.kotlin.compiler.annotations.jdk}"/>
     </target>
 
     <target name="androidSdkAnnotations">
         <pack_annotations jarfile="kotlin-android-sdk-annotations.jar"
                           annotationsdir="${basedir}/android-sdk-annotations"
-                          title="Kotlin Compiler Android SDK Annotations"/>
+                          title="${manifest.impl.title.kotlin.compiler.annotations.android.sdk}"/>
     </target>
 
     <macrodef name="pack_annotations">
@@ -448,9 +476,9 @@
                 <zipfileset file="${kotlin-home}/build.txt" prefix="META-INF"/>
 
                 <manifest>
-                  <attribute name="Built-By" value="JetBrains"/>
+                  <attribute name="Built-By" value="${manifest.impl.vendor}"/>
 
-                  <attribute name="Implementation-Vendor" value="JetBrains"/>
+                  <attribute name="Implementation-Vendor" value="${manifest.impl.vendor}"/>
                   <attribute name="Implementation-Title" value="@{title}"/>
                   <attribute name="Implementation-Version" value="${build.number}"/>
                 </manifest>
@@ -461,19 +489,19 @@
     <target name="annotationsExt">
         <cleandir dir="${output}/classes/annotations-ext"/>
 
-        <javac destdir="${output}/classes/annotations-ext" debug="true" debuglevel="lines,vars,source" includeAntRuntime="false" target="${java.target}">
+        <javac2 destdir="${output}/classes/annotations-ext" debug="true" debuglevel="lines,vars,source" includeAntRuntime="false" target="${java.target}">
             <src path="${basedir}/compiler/annotations-ext/src"/>
-        </javac>
+        </javac2>
 
         <jar destfile="${kotlin-home}/lib/kotlin-annotations-ext.jar">
             <fileset dir="${output}/classes/annotations-ext"/>
             <zipfileset file="${kotlin-home}/build.txt" prefix="META-INF"/>
 
             <manifest>
-                <attribute name="Built-By" value="JetBrains"/>
+                <attribute name="Built-By" value="${manifest.impl.vendor}"/>
 
-                <attribute name="Implementation-Vendor" value="JetBrains"/>
-                <attribute name="Implementation-Title" value="Kotlin Extended Annotations"/>
+                <attribute name="Implementation-Vendor" value="${manifest.impl.vendor}"/>
+                <attribute name="Implementation-Title" value="${manifest.impl.title.kotlin.compiler.annotations.extended}"/>
                 <attribute name="Implementation-Version" value="${build.number}"/>
             </manifest>
         </jar>
@@ -481,9 +509,9 @@
 
     <target name="runtime">
         <cleandir dir="${output}/classes/runtime"/>
-        <javac destdir="${output}/classes/runtime" debug="true" debuglevel="lines,vars,source" includeAntRuntime="false" target="${java.target}">
+        <javac2 destdir="${output}/classes/runtime" debug="true" debuglevel="lines,vars,source" includeAntRuntime="false" target="${java.target}">
             <src path="${basedir}/runtime/src"/>
-        </javac>
+        </javac2>
 
         <cleandir dir="${output}/classes/stdlib"/>
         <java classname="org.jetbrains.jet.cli.jvm.K2JVMCompiler" failonerror="true" fork="true">
@@ -506,10 +534,10 @@
             <zipfileset file="${kotlin-home}/build.txt" prefix="META-INF"/>
 
             <manifest>
-                <attribute name="Built-By" value="JetBrains"/>
+                <attribute name="Built-By" value="${manifest.impl.vendor}"/>
 
-                <attribute name="Implementation-Vendor" value="JetBrains"/>
-                <attribute name="Implementation-Title" value="Kotlin Compiler Runtime + StdLib"/>
+                <attribute name="Implementation-Vendor" value="${manifest.impl.vendor}"/>
+                <attribute name="Implementation-Title" value="${manifest.impl.title.kotlin.jvm.runtime.and.stdlib}"/>
                 <attribute name="Implementation-Version" value="${build.number}"/>
             </manifest>
         </jar>
@@ -522,10 +550,10 @@
             <zipfileset file="${kotlin-home}/build.txt" prefix="META-INF"/>
 
             <manifest>
-                <attribute name="Built-By" value="JetBrains"/>
+                <attribute name="Built-By" value="${manifest.impl.vendor}"/>
 
-                <attribute name="Implementation-Vendor" value="JetBrains"/>
-                <attribute name="Implementation-Title" value="Kotlin Compiler Runtime + StdLib Sources"/>
+                <attribute name="Implementation-Vendor" value="${manifest.impl.vendor}"/>
+                <attribute name="Implementation-Title" value="${manifest.impl.title.kotlin.runtime.and.stdlib.sources}"/>
                 <attribute name="Implementation-Version" value="${build.number}"/>
             </manifest>
         </jar>
@@ -536,19 +564,19 @@
 
         <cleandir dir="${output}/classes/j2k"/>
 
-        <javac destdir="${output}/classes/j2k" debug="true" debuglevel="lines,vars,source" includeAntRuntime="false" target="${java.target}">
+        <javac2 destdir="${output}/classes/j2k" debug="true" debuglevel="lines,vars,source" includeAntRuntime="false" target="${java.target}">
             <src path="${basedir}/j2k/src"/>
             <classpath path="${kotlin-home}/lib/kotlin-compiler.jar"/>
-        </javac>
+        </javac2>
 
         <jar jarfile="${kotlin-home}/lib/tools/j2k.jar">
             <fileset dir="${output}/classes/j2k" includes="org/jetbrains/jet/j2k/**"/>
 
             <manifest>
-                <attribute name="Built-By" value="JetBrains"/>
+                <attribute name="Built-By" value="${manifest.impl.vendor}"/>
 
-                <attribute name="Implementation-Vendor" value="JetBrains"/>
-                <attribute name="Implementation-Title" value="Java to Kotlin Converter"/>
+                <attribute name="Implementation-Vendor" value="${manifest.impl.vendor}"/>
+                <attribute name="Implementation-Title" value="${manifest.impl.title.java2kotlin.converter}"/>
                 <attribute name="Implementation-Version" value="${build.number}"/>
 
                 <attribute name="Main-Class" value="org.jetbrains.jet.j2k.JavaToKotlinTranslator"/>

@@ -33,6 +33,7 @@ import com.intellij.psi.codeStyle.CodeStyleManager;
 import com.intellij.psi.util.PsiTreeUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.jet.plugin.framework.KotlinFrameworkDetector;
 import org.jetbrains.jet.plugin.framework.ui.ConfigureDialogWithModulesAndVersion;
 import org.jetbrains.plugins.gradle.util.GradleConstants;
 import org.jetbrains.plugins.groovy.lang.psi.GroovyFile;
@@ -50,7 +51,7 @@ import java.util.List;
 import static org.jetbrains.jet.plugin.configuration.ConfigureKotlinInProjectUtils.showInfoNotification;
 
 public abstract class KotlinWithGradleConfigurator implements KotlinProjectConfigurator {
-    private static final String[] KOTLIN_VERSIONS = {"0.6.+", "0.1-SNAPSHOT"};
+    private static final String[] KOTLIN_VERSIONS = {"0.6.+"};
 
     protected static final String VERSION_TEMPLATE = "$VERSION$";
 
@@ -63,6 +64,10 @@ public abstract class KotlinWithGradleConfigurator implements KotlinProjectConfi
 
     @Override
     public boolean isConfigured(@NotNull Module module) {
+        if (KotlinFrameworkDetector.isJavaKotlinModule(module)) {
+            return true;
+        }
+
         GroovyFile moduleGradleFile = getBuildGradleFile(module.getProject(), getDefaultPathToBuildGradleFile(module));
         if (moduleGradleFile != null && isFileConfigured(moduleGradleFile)) {
             return true;

@@ -253,7 +253,7 @@ public inline fun String.reverse(): String = StringBuilder(this).reverse().toStr
  *
  * @includeFunctionBody ../../test/StringTest.kt forEach
  */
-public inline fun String.forEach(operation: (Char) -> Unit): Unit = for(c in this) operation(c)
+public inline fun String.forEach(operation: (Char) -> Unit) { for(c in this) operation(c) }
 
 /**
  * Returns *true* if all characters match the given *predicate*
@@ -524,3 +524,29 @@ public inline fun String.trimTrailing(): String {
     }
     return if (count < this.length) substring(0, count) else this
 }
+
+/** 
+  * Replaces every *regexp* occurence in the text with the value retruned by the given function *body* that can handle 
+  * particular occurance using [[MatchResult]] provided.
+  */
+public fun String.replaceAll(regexp: String, body: (java.util.regex.MatchResult) -> String) : String {
+    val sb = StringBuilder(this.length())
+    val p = regexp.toRegex()
+    val m = p.matcher(this)
+
+    var lastIdx = 0
+    while (m.find()) {
+        sb.append(this, lastIdx, m.start())
+        sb.append(body(m.toMatchResult()))
+        lastIdx = m.end()
+    }	
+
+    if (lastIdx == 0) {
+        return this;
+    }
+
+    sb.append(this, lastIdx, this.length())
+
+    return sb.toString()
+}
+

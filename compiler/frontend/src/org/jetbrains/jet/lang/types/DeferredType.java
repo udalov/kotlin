@@ -16,22 +16,29 @@
 
 package org.jetbrains.jet.lang.types;
 
+import jet.Function0;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.lang.resolve.BindingTrace;
+import org.jetbrains.jet.storage.LockBasedStorageManager;
+import org.jetbrains.jet.storage.NotNullLazyValue;
 import org.jetbrains.jet.util.Box;
-import org.jetbrains.jet.utils.RecursionIntolerantLazyValue;
 
 import static org.jetbrains.jet.lang.resolve.BindingContext.DEFERRED_TYPE;
 
 public class DeferredType extends DeferredTypeBase {
     @NotNull
-    public static DeferredType create(@NotNull BindingTrace trace, @NotNull RecursionIntolerantLazyValue<JetType> lazyValue) {
+    public static DeferredType create(@NotNull BindingTrace trace, @NotNull NotNullLazyValue<JetType> lazyValue) {
         DeferredType deferredType = new DeferredType(lazyValue);
         trace.record(DEFERRED_TYPE, new Box<DeferredType>(deferredType));
         return deferredType;
     }
 
-    private DeferredType(@NotNull RecursionIntolerantLazyValue<JetType> lazyValue) {
+    @NotNull
+    public static DeferredType create(@NotNull BindingTrace trace, @NotNull Function0<JetType> compute) {
+        return create(trace, LockBasedStorageManager.NO_LOCKS.createLazyValue(compute));
+    }
+
+    private DeferredType(@NotNull NotNullLazyValue<JetType> lazyValue) {
         super(lazyValue);
     }
 }

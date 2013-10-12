@@ -20,18 +20,13 @@ import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.util.text.StringUtil;
-import jet.modules.Module;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.cli.common.CLICompiler;
 import org.jetbrains.jet.cli.common.CLIConfigurationKeys;
 import org.jetbrains.jet.cli.common.ExitCode;
 import org.jetbrains.jet.cli.common.messages.*;
-import org.jetbrains.jet.cli.jvm.compiler.CommandLineScriptUtils;
-import org.jetbrains.jet.cli.jvm.compiler.CompileEnvironmentUtil;
-import org.jetbrains.jet.cli.jvm.compiler.JetCoreEnvironment;
-import org.jetbrains.jet.cli.jvm.compiler.KotlinToJVMBytecodeCompiler;
+import org.jetbrains.jet.cli.jvm.compiler.*;
 import org.jetbrains.jet.cli.jvm.repl.ReplFromTerminal;
-import org.jetbrains.jet.codegen.BuiltinToJavaTypesMapping;
 import org.jetbrains.jet.codegen.CompilationException;
 import org.jetbrains.jet.config.CommonConfigurationKeys;
 import org.jetbrains.jet.config.CompilerConfiguration;
@@ -112,14 +107,9 @@ public class K2JVMCompiler extends CLICompiler<K2JVMCompilerArguments> {
             }
         }
 
-        boolean builtins = arguments.builtins;
-
         configuration.put(JVMConfigurationKeys.SCRIPT_PARAMETERS, arguments.script
                                                                           ? CommandLineScriptUtils.scriptParameters()
                                                                           : Collections.<AnalyzerScriptParameter>emptyList());
-        configuration.put(JVMConfigurationKeys.STUBS, builtins);
-        configuration.put(JVMConfigurationKeys.BUILTIN_TO_JAVA_TYPES_MAPPING_KEY,
-                                  builtins ? BuiltinToJavaTypesMapping.DISABLED : BuiltinToJavaTypesMapping.ENABLED);
 
         configuration.put(JVMConfigurationKeys.GENERATE_NOT_NULL_ASSERTIONS, arguments.notNullAssertions);
         configuration.put(JVMConfigurationKeys.GENERATE_NOT_NULL_PARAMETER_ASSERTIONS, arguments.notNullParamAssertions);
@@ -136,11 +126,16 @@ public class K2JVMCompiler extends CLICompiler<K2JVMCompilerArguments> {
 
             if (arguments.module != null) {
                 MessageCollector sanitizedCollector = new FilteringMessageCollector(messageCollector, in(CompilerMessageSeverity.VERBOSE));
-                List<Module> modules = CompileEnvironmentUtil.loadModuleDescriptions(paths, arguments.module, sanitizedCollector);
+                ModuleChunk modules = CompileEnvironmentUtil.loadModuleDescriptions(paths, arguments.module, sanitizedCollector);
+
+                if (outputDir != null) {
+                    messageCollector.report(CompilerMessageSeverity.WARNING, "The '-output' option is ignored because '-module' is specified",
+                                            CompilerMessageLocation.NO_LOCATION);
+                }
 
                 File directory = new File(arguments.module).getAbsoluteFile().getParentFile();
                 KotlinToJVMBytecodeCompiler.compileModules(configuration, modules,
-                                                                      directory, jar, outputDir,
+                                                                      directory, jar,
                                                                       arguments.includeRuntime);
             }
             else if (arguments.script) {

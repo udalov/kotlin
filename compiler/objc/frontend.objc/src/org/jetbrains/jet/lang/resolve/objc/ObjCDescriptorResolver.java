@@ -16,6 +16,7 @@
 
 package org.jetbrains.jet.lang.resolve.objc;
 
+import jet.Function0;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.descriptors.annotations.AnnotationDescriptor;
@@ -31,7 +32,7 @@ import org.jetbrains.jet.lang.resolve.scopes.WritableScope;
 import org.jetbrains.jet.lang.resolve.scopes.WritableScopeImpl;
 import org.jetbrains.jet.lang.types.DeferredTypeBase;
 import org.jetbrains.jet.lang.types.JetType;
-import org.jetbrains.jet.utils.RecursionIntolerantLazyValue;
+import org.jetbrains.jet.storage.LockBasedStorageManager;
 
 import java.util.*;
 
@@ -228,9 +229,9 @@ public class ObjCDescriptorResolver {
 
     private static class DeferredHierarchyRootType extends DeferredTypeBase {
         public DeferredHierarchyRootType(@NotNull final ObjCClassDescriptor descriptor) {
-            super(new RecursionIntolerantLazyValue<JetType>() {
+            super(LockBasedStorageManager.NO_LOCKS.createLazyValue(new Function0<JetType>() {
                 @Override
-                protected JetType compute() {
+                public JetType invoke() {
                     return getHierarchyRoot(descriptor).getDefaultType();
                 }
 
@@ -260,7 +261,7 @@ public class ObjCDescriptorResolver {
 
                     return getHierarchyRoot(superclass);
                 }
-            });
+            }));
         }
     }
 

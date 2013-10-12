@@ -194,6 +194,11 @@ public class JetDiagnosticsTestGenerated extends AbstractDiagnosticsTestWithEage
             doTest("compiler/testData/diagnostics/tests/DelegationToJavaIface.kt");
         }
         
+        @TestMetadata("Delegation_ClashingFunctions.kt")
+        public void testDelegation_ClashingFunctions() throws Exception {
+            doTest("compiler/testData/diagnostics/tests/Delegation_ClashingFunctions.kt");
+        }
+        
         @TestMetadata("Delegation_Hierarchy.kt")
         public void testDelegation_Hierarchy() throws Exception {
             doTest("compiler/testData/diagnostics/tests/Delegation_Hierarchy.kt");
@@ -1552,6 +1557,11 @@ public class JetDiagnosticsTestGenerated extends AbstractDiagnosticsTestWithEage
                 doTest("compiler/testData/diagnostics/tests/controlStructures/ForWithoutBraces.kt");
             }
             
+            @TestMetadata("ForbidStatementAsDirectFunctionBody.kt")
+            public void testForbidStatementAsDirectFunctionBody() throws Exception {
+                doTest("compiler/testData/diagnostics/tests/controlStructures/ForbidStatementAsDirectFunctionBody.kt");
+            }
+            
             @TestMetadata("kt1075.kt")
             public void testKt1075() throws Exception {
                 doTest("compiler/testData/diagnostics/tests/controlStructures/kt1075.kt");
@@ -2792,6 +2802,7 @@ public class JetDiagnosticsTestGenerated extends AbstractDiagnosticsTestWithEage
         }
         
         @TestMetadata("compiler/testData/diagnostics/tests/generics")
+        @InnerTestClasses({Generics.TpAsReified.class})
         public static class Generics extends AbstractDiagnosticsTestWithEagerResolve {
             public void testAllFilesPresentInGenerics() throws Exception {
                 JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), "org.jetbrains.jet.generators.tests.GenerateTests", new File("compiler/testData/diagnostics/tests/generics"), Pattern.compile("^(.+)\\.kt$"), true);
@@ -2842,6 +2853,45 @@ public class JetDiagnosticsTestGenerated extends AbstractDiagnosticsTestWithEage
                 doTest("compiler/testData/diagnostics/tests/generics/RecursiveUpperBoundWithTwoArguments.kt");
             }
             
+            @TestMetadata("compiler/testData/diagnostics/tests/generics/tpAsReified")
+            public static class TpAsReified extends AbstractDiagnosticsTestWithEagerResolve {
+                public void testAllFilesPresentInTpAsReified() throws Exception {
+                    JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), "org.jetbrains.jet.generators.tests.GenerateTests", new File("compiler/testData/diagnostics/tests/generics/tpAsReified"), Pattern.compile("^(.+)\\.kt$"), true);
+                }
+                
+                @TestMetadata("Conventions.kt")
+                public void testConventions() throws Exception {
+                    doTest("compiler/testData/diagnostics/tests/generics/tpAsReified/Conventions.kt");
+                }
+                
+                @TestMetadata("InConstructor.kt")
+                public void testInConstructor() throws Exception {
+                    doTest("compiler/testData/diagnostics/tests/generics/tpAsReified/InConstructor.kt");
+                }
+                
+                @TestMetadata("InFunction.kt")
+                public void testInFunction() throws Exception {
+                    doTest("compiler/testData/diagnostics/tests/generics/tpAsReified/InFunction.kt");
+                }
+                
+                @TestMetadata("InProperty.kt")
+                public void testInProperty() throws Exception {
+                    doTest("compiler/testData/diagnostics/tests/generics/tpAsReified/InProperty.kt");
+                }
+                
+                @TestMetadata("InType.kt")
+                public void testInType() throws Exception {
+                    doTest("compiler/testData/diagnostics/tests/generics/tpAsReified/InType.kt");
+                }
+                
+            }
+            
+            public static Test innerSuite() {
+                TestSuite suite = new TestSuite("Generics");
+                suite.addTestSuite(Generics.class);
+                suite.addTestSuite(TpAsReified.class);
+                return suite;
+            }
         }
         
         @TestMetadata("compiler/testData/diagnostics/tests/incompleteCode")
@@ -4343,6 +4393,11 @@ public class JetDiagnosticsTestGenerated extends AbstractDiagnosticsTestWithEage
             @TestMetadata("DefaultParameterValues-NoErrorsWhenInheritingFromOneTypeTwice.kt")
             public void testDefaultParameterValues_NoErrorsWhenInheritingFromOneTypeTwice() throws Exception {
                 doTest("compiler/testData/diagnostics/tests/override/DefaultParameterValues-NoErrorsWhenInheritingFromOneTypeTwice.kt");
+            }
+            
+            @TestMetadata("Delegation.kt")
+            public void testDelegation() throws Exception {
+                doTest("compiler/testData/diagnostics/tests/override/Delegation.kt");
             }
             
             @TestMetadata("DelegationFun.kt")
@@ -5954,7 +6009,7 @@ public class JetDiagnosticsTestGenerated extends AbstractDiagnosticsTestWithEage
             suite.addTest(Enum.innerSuite());
             suite.addTestSuite(Extensions.class);
             suite.addTest(FunctionLiterals.innerSuite());
-            suite.addTestSuite(Generics.class);
+            suite.addTest(Generics.innerSuite());
             suite.addTest(IncompleteCode.innerSuite());
             suite.addTest(Inference.innerSuite());
             suite.addTestSuite(Infos.class);

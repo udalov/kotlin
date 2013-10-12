@@ -36,11 +36,10 @@ import com.intellij.util.PathUtil;
 import com.intellij.util.SmartList;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.jet.codegen.binding.PsiCodegenPredictor;
 import org.jetbrains.jet.lang.psi.*;
-import org.jetbrains.jet.lang.resolve.java.jetAsJava.JetClsMethod;
 import org.jetbrains.jet.lang.resolve.java.JvmAbi;
-import org.jetbrains.jet.lang.resolve.java.JvmClassName;
+import org.jetbrains.jet.lang.resolve.java.PackageClassUtils;
+import org.jetbrains.jet.lang.resolve.java.jetAsJava.JetClsMethod;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 import org.jetbrains.jet.utils.ExceptionUtils;
@@ -87,7 +86,7 @@ public class LightClassUtil {
 
     @NotNull
     public static URL getBuiltInsDirUrl() {
-        String builtInFilePath = "/" + KotlinBuiltIns.BUILT_INS_PACKAGE_NAME_STRING + "/Library.jet";
+        String builtInFilePath = "/" + KotlinBuiltIns.BUILT_INS_PACKAGE_NAME_STRING + "/Library.kt";
 
         URL url = KotlinBuiltIns.class.getResource(builtInFilePath);
 
@@ -227,7 +226,7 @@ public class LightClassUtil {
         //noinspection unchecked
         if (PsiTreeUtil.getParentOfType(declaration, JetFunction.class, JetProperty.class) != null) {
             // Can't get wrappers for internal declarations. Their classes are not generated during calcStub
-            // with ClassBuilderMode.SIGNATURES mode, and this produces "Class not found exception" in getDelegate()
+            // with ClassBuilderMode.LIGHT_CLASSES mode, and this produces "Class not found exception" in getDelegate()
             return null;
         }
 
@@ -235,12 +234,11 @@ public class LightClassUtil {
 
         if (parent instanceof JetFile) {
             // top-level declaration
-            JvmClassName jvmName = PsiCodegenPredictor.getPredefinedJvmClassName((JetFile) parent, true);
-            if (jvmName != null) {
+            FqName fqName = getPackageClassNameForFile((JetFile) parent);
+            if (fqName != null) {
                 Project project = declaration.getProject();
 
-                String fqName = jvmName.getFqName().asString();
-                return JavaElementFinder.getInstance(project).findClass(fqName, GlobalSearchScope.allScope(project));
+                return JavaElementFinder.getInstance(project).findClass(fqName.asString(), GlobalSearchScope.allScope(project));
             }
         }
         else if (parent instanceof JetClassBody) {
@@ -249,6 +247,12 @@ public class LightClassUtil {
         }
 
         return null;
+    }
+
+    @Nullable
+    private static FqName getPackageClassNameForFile(@NotNull JetFile jetFile) {
+        String packageName = jetFile.getPackageName();
+        return packageName == null ? null : PackageClassUtils.getPackageClassFqName(new FqName(packageName));
     }
 
     private static PropertyAccessorsPsiMethods extractPropertyAccessors(

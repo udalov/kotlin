@@ -17,6 +17,7 @@
 package org.jetbrains.jet.lang.resolve.objc;
 
 import com.intellij.util.containers.ContainerUtil;
+import jet.Function0;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.lang.descriptors.annotations.AnnotationDescriptor;
 import org.jetbrains.jet.lang.descriptors.impl.NamespaceDescriptorImpl;
@@ -24,7 +25,7 @@ import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.types.DeferredTypeBase;
 import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
-import org.jetbrains.jet.utils.RecursionIntolerantLazyValue;
+import org.jetbrains.jet.storage.LockBasedStorageManager;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -70,9 +71,9 @@ public class ObjCTypeResolver {
                                                     " parameters are not supported");
         }
 
-        return new DeferredFunctionType(new RecursionIntolerantLazyValue<JetType>() {
+        return new DeferredFunctionType(new Function0<JetType>() {
             @Override
-            protected JetType compute() {
+            public JetType invoke() {
                 return KotlinBuiltIns.getInstance().getFunctionType(
                         Collections.<AnnotationDescriptor>emptyList(),
                         /* receiverType */ null,
@@ -84,8 +85,8 @@ public class ObjCTypeResolver {
     }
 
     private static class DeferredFunctionType extends DeferredTypeBase {
-        public DeferredFunctionType(@NotNull RecursionIntolerantLazyValue<JetType> lazyValue) {
-            super(lazyValue);
+        public DeferredFunctionType(@NotNull Function0<JetType> lazyValue) {
+            super(LockBasedStorageManager.NO_LOCKS.createLazyValue(lazyValue));
         }
     }
 

@@ -31,6 +31,8 @@ import org.jetbrains.asm4.commons.Method;
 import org.jetbrains.jet.codegen.binding.CodegenBinding;
 import org.jetbrains.jet.codegen.context.CodegenContext;
 import org.jetbrains.jet.codegen.context.MethodContext;
+import org.jetbrains.jet.codegen.context.NamespaceContext;
+import org.jetbrains.jet.codegen.context.NamespaceFacadeContext;
 import org.jetbrains.jet.codegen.signature.JvmMethodParameterKind;
 import org.jetbrains.jet.codegen.signature.JvmMethodParameterSignature;
 import org.jetbrains.jet.codegen.signature.JvmMethodSignature;
@@ -42,8 +44,6 @@ import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.psi.JetNamedFunction;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.java.JvmAbi;
-import org.jetbrains.jet.lang.resolve.java.JvmClassName;
-import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.Name;
 
 import java.util.*;
@@ -51,19 +51,21 @@ import java.util.*;
 import static org.jetbrains.asm4.Opcodes.*;
 import static org.jetbrains.jet.codegen.AsmUtil.*;
 import static org.jetbrains.jet.codegen.CodegenUtil.*;
-import static org.jetbrains.jet.codegen.binding.CodegenBinding.classNameForAnonymousClass;
+import static org.jetbrains.jet.codegen.binding.CodegenBinding.asmTypeForAnonymousClass;
 import static org.jetbrains.jet.codegen.binding.CodegenBinding.isLocalNamedFun;
 import static org.jetbrains.jet.lang.resolve.BindingContextUtils.callableDescriptorToDeclaration;
 import static org.jetbrains.jet.lang.resolve.BindingContextUtils.descriptorToDeclaration;
 import static org.jetbrains.jet.lang.resolve.DescriptorUtils.isFunctionLiteral;
 import static org.jetbrains.jet.lang.resolve.java.AsmTypeConstants.OBJECT_TYPE;
+import static org.jetbrains.jet.lang.resolve.java.resolver.DescriptorResolverUtils.fqNameByClass;
 
-public class FunctionCodegen extends GenerationStateAware {
+public class FunctionCodegen extends ParentCodegenAwareImpl {
     private final CodegenContext owner;
+
     private final ClassBuilder v;
 
-    public FunctionCodegen(CodegenContext owner, ClassBuilder v, GenerationState state) {
-        super(state);
+    public FunctionCodegen(@NotNull CodegenContext owner, @NotNull ClassBuilder v, @NotNull GenerationState state, MemberCodegen parentCodegen) {
+        super(state, parentCodegen);
         this.owner = owner;
         this.v = v;
     }
@@ -81,7 +83,7 @@ public class FunctionCodegen extends GenerationStateAware {
                            new FunctionGenerationStrategy.FunctionDefault(state, functionDescriptor, function));
         }
 
-        generateDefaultIfNeeded(owner.intoFunction(functionDescriptor), state, v, method, functionDescriptor, kind,
+        generateDefaultIfNeeded(owner.intoFunction(functionDescriptor), method, functionDescriptor, kind,
                                 DefaultParameterValueLoader.DEFAULT);
     }
 
@@ -110,28 +112,22 @@ public class FunctionCodegen extends GenerationStateAware {
                                        jvmSignature.getGenericsSignature(),
                                        null);
 
-        OwnerKind contextKind = owner.getContextKind();
-        if (contextKind instanceof OwnerKind.StaticDelegateKind) {
-            FqName fqName = ((OwnerKind.StaticDelegateKind) contextKind).getOwnerClass().getFqName();
-            v.getMemberMap().recordSrcClassNameForCallable(functionDescriptor, fqName.shortName());
+        if (owner instanceof NamespaceFacadeContext) {
+            Type ownerType = ((NamespaceFacadeContext) owner).getDelegateToClassType();
+            v.getMemberMap().recordSrcClassNameForCallable(functionDescriptor, shortNameByAsmType(ownerType));
         }
         else {
             v.getMemberMap().recordMethodOfDescriptor(functionDescriptor, asmMethod);
         }
 
         AnnotationCodegen.forMethod(mv, typeMapper).genAnnotations(functionDescriptor);
-        if (state.getClassBuilderMode() == ClassBuilderMode.SIGNATURES) return;
+        if (state.getClassBuilderMode() == ClassBuilderMode.LIGHT_CLASSES) return;
 
-        generateParameterAnnotations(functionDescriptor, mv);
+        generateParameterAnnotations(functionDescriptor, mv, jvmSignature);
 
         generateJetValueParameterAnnotations(mv, functionDescriptor, jvmSignature);
 
         if (isAbstractMethod(functionDescriptor, methodContext.getContextKind())) return;
-
-        if (state.getClassBuilderMode() == ClassBuilderMode.STUBS) {
-            genStubCode(mv);
-            return;
-        }
 
         generateMethodBody(mv, functionDescriptor, methodContext, jvmSignature, strategy);
 
@@ -142,9 +138,25 @@ public class FunctionCodegen extends GenerationStateAware {
         methodContext.recordSyntheticAccessorIfNeeded(functionDescriptor, typeMapper);
     }
 
-    private void generateParameterAnnotations(@NotNull FunctionDescriptor functionDescriptor, @NotNull MethodVisitor mv) {
-        for (ValueParameterDescriptor parameter : functionDescriptor.getValueParameters()) {
-            AnnotationCodegen.forParameter(parameter.getIndex(), mv, typeMapper).genAnnotations(parameter);
+    private void generateParameterAnnotations(
+            @NotNull FunctionDescriptor functionDescriptor,
+            @NotNull MethodVisitor mv,
+            @NotNull JvmMethodSignature jvmSignature
+    ) {
+        Iterator<ValueParameterDescriptor> iterator = functionDescriptor.getValueParameters().iterator();
+        List<JvmMethodParameterSignature> kotlinParameterTypes = jvmSignature.getKotlinParameterTypes();
+
+        for (int i = 0; i < kotlinParameterTypes.size(); i++) {
+            JvmMethodParameterKind kind = kotlinParameterTypes.get(i).getKind();
+            if (kind == JvmMethodParameterKind.ENUM_NAME || kind == JvmMethodParameterKind.ENUM_ORDINAL) {
+                markEnumConstructorParameterAsSynthetic(mv, i);
+                continue;
+            }
+
+            if (kind == JvmMethodParameterKind.VALUE) {
+                ValueParameterDescriptor parameter = iterator.next();
+                AnnotationCodegen.forParameter(i, mv, typeMapper).genAnnotations(parameter);
+            }
         }
     }
 
@@ -160,8 +172,7 @@ public class FunctionCodegen extends GenerationStateAware {
         for (int i = 0; i < kotlinParameterTypes.size(); i++) {
             JvmMethodParameterKind kind = kotlinParameterTypes.get(i).getKind();
             if (kind == JvmMethodParameterKind.ENUM_NAME || kind == JvmMethodParameterKind.ENUM_ORDINAL) {
-                // We shouldn't generate annotations for invisible in runtime parameters otherwise we get bad
-                // RuntimeInvisibleParameterAnnotations error in javac
+                markEnumConstructorParameterAsSynthetic(mv, i);
                 continue;
             }
 
@@ -190,13 +201,22 @@ public class FunctionCodegen extends GenerationStateAware {
                 }
             }
 
-            AnnotationVisitor av = mv.visitParameterAnnotation(i, JvmClassName.byClass(JetValueParameter.class).getDescriptor(), true);
+            AnnotationVisitor av =
+                    mv.visitParameterAnnotation(i, asmDescByFqNameWithoutInnerClasses(fqNameByClass(JetValueParameter.class)), true);
             av.visit("name", name);
             if (nullableType) {
                 av.visit("type", "?");
             }
             av.visitEnd();
         }
+    }
+
+    private static void markEnumConstructorParameterAsSynthetic(MethodVisitor mv, int i) {
+        // This is needed to avoid RuntimeInvisibleParameterAnnotations error in javac:
+        // see MethodWriter.visitParameterAnnotation()
+
+        AnnotationVisitor av = mv.visitParameterAnnotation(i, "Ljava/lang/Synthetic;", true);
+        av.visitEnd();
     }
 
     @Nullable
@@ -232,9 +252,8 @@ public class FunctionCodegen extends GenerationStateAware {
         Label methodBegin = new Label();
         mv.visitLabel(methodBegin);
 
-        OwnerKind kind = context.getContextKind();
-        if (kind instanceof OwnerKind.StaticDelegateKind) {
-            generateStaticDelegateMethodBody(mv, signature.getAsmMethod(), (OwnerKind.StaticDelegateKind) kind);
+        if (context.getParentContext() instanceof NamespaceFacadeContext) {
+            generateStaticDelegateMethodBody(mv, signature.getAsmMethod(), (NamespaceFacadeContext) context.getParentContext());
         }
         else {
             FrameMap frameMap = strategy.getFrameMap(typeMapper, context);
@@ -249,7 +268,7 @@ public class FunctionCodegen extends GenerationStateAware {
                 genNotNullAssertionsForParameters(new InstructionAdapter(mv), state, functionDescriptor, frameMap);
             }
 
-            strategy.generateBody(mv, signature, context);
+            strategy.generateBody(mv, signature, context, getParentCodegen());
 
             localVariableNames.addAll(strategy.getLocalVariableNames());
         }
@@ -259,7 +278,7 @@ public class FunctionCodegen extends GenerationStateAware {
 
 
         Type thisType = getThisTypeForFunction(functionDescriptor, context);
-        generateLocalVariableTable(mv, signature, functionDescriptor, thisType, methodBegin, methodEnd, localVariableNames, labelsForSharedVars, kind);
+        generateLocalVariableTable(mv, signature, functionDescriptor, thisType, methodBegin, methodEnd, localVariableNames, labelsForSharedVars, context.getContextKind());
     }
 
     @NotNull
@@ -367,7 +386,7 @@ public class FunctionCodegen extends GenerationStateAware {
     private static void generateStaticDelegateMethodBody(
             @NotNull MethodVisitor mv,
             @NotNull Method asmMethod,
-            @NotNull OwnerKind.StaticDelegateKind dk
+            @NotNull NamespaceFacadeContext context
     ) {
         InstructionAdapter iv = new InstructionAdapter(mv);
         Type[] argTypes = asmMethod.getArgumentTypes();
@@ -383,7 +402,7 @@ public class FunctionCodegen extends GenerationStateAware {
             iv.load(k, argType);
             k += argType.getSize();
         }
-        iv.invokestatic(dk.getOwnerClass().getInternalName(), asmMethod.getName(), asmMethod.getDescriptor());
+        iv.invokestatic(context.getDelegateToClassType().getInternalName(), asmMethod.getName(), asmMethod.getDescriptor());
         iv.areturn(asmMethod.getReturnType());
     }
 
@@ -475,19 +494,16 @@ public class FunctionCodegen extends GenerationStateAware {
         int flags = getVisibilityAccessFlag(constructorDescriptor);
         MethodVisitor mv = classBuilder.newMethod(null, flags, "<init>", "()V", null, null);
 
-        if (state.getClassBuilderMode() == ClassBuilderMode.SIGNATURES) {
+        if (state.getClassBuilderMode() == ClassBuilderMode.LIGHT_CLASSES) {
             return;
-        }
-        else if (state.getClassBuilderMode() == ClassBuilderMode.STUBS) {
-            genStubCode(mv);
         }
         else if (state.getClassBuilderMode() == ClassBuilderMode.FULL) {
             InstructionAdapter v = new InstructionAdapter(mv);
             mv.visitCode();
 
-            JvmClassName ownerInternalName = method.getOwner();
+            Type methodOwner = method.getOwner();
             Method jvmSignature = method.getSignature().getAsmMethod();
-            v.load(0, ownerInternalName.getAsmType()); // Load this on stack
+            v.load(0, methodOwner); // Load this on stack
 
             int mask = 0;
             for (ValueParameterDescriptor parameterDescriptor : constructorDescriptor.getValueParameters()) {
@@ -497,16 +513,14 @@ public class FunctionCodegen extends GenerationStateAware {
             }
             v.iconst(mask);
             String desc = jvmSignature.getDescriptor().replace(")", "I)");
-            v.invokespecial(ownerInternalName.getInternalName(), "<init>", desc);
+            v.invokespecial(methodOwner.getInternalName(), "<init>", desc);
             v.areturn(Type.VOID_TYPE);
-            endVisit(mv, "default constructor for " + ownerInternalName.getInternalName(), null);
+            endVisit(mv, "default constructor for " + methodOwner.getInternalName(), null);
         }
     }
 
-    static void generateDefaultIfNeeded(
+    void generateDefaultIfNeeded(
             @NotNull MethodContext owner,
-            @NotNull GenerationState state,
-            @NotNull ClassBuilder v,
             @NotNull JvmMethodSignature signature,
             @NotNull FunctionDescriptor functionDescriptor,
             @NotNull OwnerKind kind,
@@ -530,17 +544,15 @@ public class FunctionCodegen extends GenerationStateAware {
 
         int flags = ACC_PUBLIC | ACC_SYNTHETIC; // TODO.
 
-        JvmClassName ownerInternalName;
+        Type ownerType;
         if (contextClass instanceof NamespaceDescriptor) {
-            ownerInternalName = state.getTypeMapper().getOwner(functionDescriptor, kind, true);
+            ownerType = state.getTypeMapper().getOwner(functionDescriptor, kind, true);
         }
         else if (contextClass instanceof ClassDescriptor) {
-            ownerInternalName = JvmClassName.byType(state.getTypeMapper()
-                                                            .mapType(((ClassDescriptor) contextClass).getDefaultType(),
-                                                                     JetTypeMapperMode.IMPL));
+            ownerType = state.getTypeMapper().mapType(((ClassDescriptor) contextClass).getDefaultType(), JetTypeMapperMode.IMPL);
         }
         else if (isLocalNamedFun(functionDescriptor)) {
-            ownerInternalName = classNameForAnonymousClass(state.getBindingContext(), functionDescriptor);
+            ownerType = asmTypeForAnonymousClass(state.getBindingContext(), functionDescriptor);
         }
         else {
             throw new IllegalStateException("Couldn't obtain owner name for " + functionDescriptor);
@@ -549,23 +561,20 @@ public class FunctionCodegen extends GenerationStateAware {
         String descriptor = jvmSignature.getDescriptor().replace(")", "I)");
         boolean isConstructor = "<init>".equals(jvmSignature.getName());
         if (!isStatic && !isConstructor) {
-            descriptor = descriptor.replace("(", "(" + ownerInternalName.getDescriptor());
+            descriptor = descriptor.replace("(", "(" + ownerType.getDescriptor());
         }
         MethodVisitor mv = v.newMethod(null, flags | (isConstructor ? 0 : ACC_STATIC),
-                                             isConstructor ? "<init>" : jvmSignature.getName() + JvmAbi.DEFAULT_PARAMS_IMPL_SUFFIX,
-                                             descriptor, null, null);
+                                       isConstructor ? "<init>" : jvmSignature.getName() + JvmAbi.DEFAULT_PARAMS_IMPL_SUFFIX,
+                                       descriptor, null, null);
 
-        if (state.getClassBuilderMode() == ClassBuilderMode.STUBS) {
-            genStubCode(mv);
-        }
-        else if (state.getClassBuilderMode() == ClassBuilderMode.FULL) {
-            generateDefaultImpl(owner, state, signature, functionDescriptor, isStatic, mv, loadStrategy);
+        if (state.getClassBuilderMode() == ClassBuilderMode.FULL) {
+            generateDefaultImpl(owner, signature, functionDescriptor, isStatic, mv, loadStrategy);
+
         }
     }
 
-    private static void generateDefaultImpl(
+    private void generateDefaultImpl(
             @NotNull MethodContext methodContext,
-            @NotNull GenerationState state,
             @NotNull JvmMethodSignature signature,
             @NotNull FunctionDescriptor functionDescriptor,
             boolean aStatic,
@@ -581,7 +590,7 @@ public class FunctionCodegen extends GenerationStateAware {
         }
 
         Method jvmSignature = signature.getAsmMethod();
-        ExpressionCodegen codegen = new ExpressionCodegen(mv, frameMap, jvmSignature.getReturnType(), methodContext, state);
+        ExpressionCodegen codegen = new ExpressionCodegen(mv, frameMap, jvmSignature.getReturnType(), methodContext, state, getParentCodegen());
 
         Type[] argTypes = jvmSignature.getArgumentTypes();
         List<ValueParameterDescriptor> paramDescrs = functionDescriptor.getValueParameters();
@@ -728,10 +737,7 @@ public class FunctionCodegen extends GenerationStateAware {
         int flags = ACC_PUBLIC | ACC_BRIDGE | ACC_SYNTHETIC; // TODO.
 
         MethodVisitor mv = v.newMethod(null, flags, jvmSignature.getName(), overridden.getDescriptor(), null, null);
-        if (state.getClassBuilderMode() == ClassBuilderMode.STUBS) {
-            genStubCode(mv);
-        }
-        else if (state.getClassBuilderMode() == ClassBuilderMode.FULL) {
+        if (state.getClassBuilderMode() == ClassBuilderMode.FULL) {
             mv.visitCode();
 
             Type[] argTypes = overridden.getArgumentTypes();
@@ -774,10 +780,7 @@ public class FunctionCodegen extends GenerationStateAware {
         int flags = ACC_PUBLIC | ACC_SYNTHETIC; // TODO.
 
         MethodVisitor mv = v.newMethod(null, flags, delegateMethod.getName(), delegateMethod.getDescriptor(), null, null);
-        if (state.getClassBuilderMode() == ClassBuilderMode.STUBS) {
-            genStubCode(mv);
-        }
-        else if (state.getClassBuilderMode() == ClassBuilderMode.FULL) {
+        if (state.getClassBuilderMode() == ClassBuilderMode.FULL) {
             mv.visitCode();
 
             Type[] argTypes = delegateMethod.getArgumentTypes();
