@@ -27,10 +27,7 @@ import org.jetbrains.jet.codegen.AbstractTopLevelMembersInvocationTest;
 import org.jetbrains.jet.codegen.defaultConstructor.AbstractDefaultConstructorCodegenTest;
 import org.jetbrains.jet.codegen.flags.AbstractWriteFlagsTest;
 import org.jetbrains.jet.codegen.generated.AbstractBlackBoxCodegenTest;
-import org.jetbrains.jet.completion.AbstractJavaCompletionTest;
-import org.jetbrains.jet.completion.AbstractJavaWithLibCompletionTest;
-import org.jetbrains.jet.completion.AbstractJetJSCompletionTest;
-import org.jetbrains.jet.completion.AbstractKeywordCompletionTest;
+import org.jetbrains.jet.completion.*;
 import org.jetbrains.jet.completion.weighers.AbstractCompletionWeigherTest;
 import org.jetbrains.jet.descriptors.serialization.AbstractDescriptorSerializationTest;
 import org.jetbrains.jet.editor.quickDoc.AbstractJetQuickDocProviderTest;
@@ -47,12 +44,14 @@ import org.jetbrains.jet.modules.xml.AbstractModuleXmlParserTest;
 import org.jetbrains.jet.objc.AbstractObjCDescriptorResolverTest;
 import org.jetbrains.jet.objc.AbstractObjCWithJavaTest;
 import org.jetbrains.jet.parsing.AbstractJetParsingTest;
+import org.jetbrains.jet.plugin.codeInsight.AbstractOutOfBlockModificationTest;
 import org.jetbrains.jet.plugin.codeInsight.moveUpDown.AbstractCodeMoverTest;
 import org.jetbrains.jet.plugin.codeInsight.surroundWith.AbstractSurroundWithTest;
 import org.jetbrains.jet.plugin.codeInsight.unwrap.AbstractUnwrapRemoveTest;
 import org.jetbrains.jet.plugin.configuration.AbstractConfigureProjectByChangingFileTest;
 import org.jetbrains.jet.plugin.folding.AbstractKotlinFoldingTest;
 import org.jetbrains.jet.plugin.hierarchy.AbstractHierarchyTest;
+import org.jetbrains.jet.plugin.highlighter.AbstractDiagnosticMessageTest;
 import org.jetbrains.jet.plugin.highlighter.AbstractHighlightingTest;
 import org.jetbrains.jet.plugin.intentions.AbstractCodeTransformationTest;
 import org.jetbrains.jet.plugin.navigation.JetAbstractGotoSuperTest;
@@ -309,7 +308,7 @@ public class GenerateTests {
         generateTest(
                 "idea/tests/",
                 "JetBasicJSCompletionTestGenerated",
-                AbstractJetJSCompletionTest.class,
+                AbstractJSBasicCompletionTest.class,
                 testModel("idea/testData/completion/basic/common"),
                 testModel("idea/testData/completion/basic/js")
         );
@@ -317,9 +316,16 @@ public class GenerateTests {
         generateTest(
                 "idea/tests/",
                 "JetBasicJavaCompletionTestGenerated",
-                AbstractJavaCompletionTest.class,
+                AbstractJvmBasicCompletionTest.class,
                 testModel("idea/testData/completion/basic/common"),
                 testModel("idea/testData/completion/basic/java")
+        );
+
+        generateTest(
+                "idea/tests/",
+                "JetSmartCompletionTestGenerated",
+                AbstractJvmSmartCompletionTest.class,
+                testModel("idea/testData/completion/smart")
         );
 
         generateTest(
@@ -332,7 +338,7 @@ public class GenerateTests {
         generateTest(
                 "idea/tests",
                 "JetJavaLibCompletionTestGenerated",
-                AbstractJavaWithLibCompletionTest.class,
+                AbstractJvmWithLibBasicCompletionTest.class,
                 testModel("idea/testData/completion/basic/custom", false, "doTest"));
 
         generateTest(
@@ -455,7 +461,7 @@ public class GenerateTests {
                 "idea/tests/",
                 "JetQuickDocProviderTestGenerated",
                 AbstractJetQuickDocProviderTest.class,
-                testModel("idea/testData/editor/quickDoc", "doTest")
+                testModelWithPattern("idea/testData/editor/quickDoc", "^([^_]+)\\.[^\\.]*$", "doTest")
         );
 
         generateTest(
@@ -492,9 +498,10 @@ public class GenerateTests {
 
         generateTest(
                 "idea/tests/",
-                "JetFindUsagesTest",
+                "JetFindUsagesTestGenerated",
                 AbstractJetFindUsagesTest.class,
-                testModelWithPattern("idea/testData/findUsages", "^(.+)\\.0\\.kt$", "doTest")
+                testModelWithPattern("idea/testData/findUsages/kotlin", "^(.+)\\.0\\.kt$", "doTest"),
+                testModelWithPattern("idea/testData/findUsages/java", "^(.+)\\.0\\.java$", "doTest")
         );
 
         generateTest(
@@ -518,6 +525,27 @@ public class GenerateTests {
                 "JetFormatterTestGenerated",
                 AbstractJetFormatterTest.class,
                 testModelWithPattern("idea/testData/formatter", "^([^\\.]+)\\.kt$", "doTest")
+        );
+
+        generateTest(
+                "idea/tests/",
+                "DiagnosticMessageTestGenerated",
+                AbstractDiagnosticMessageTest.class,
+                testModel("idea/testData/diagnosticMessage")
+        );
+
+        generateTest(
+                "idea/tests/",
+                "OutOfBlockModificationTestGenerated",
+                AbstractOutOfBlockModificationTest.class,
+                testModel("idea/testData/codeInsight/outOfBlock")
+        );
+
+        generateTest(
+                "idea/tests/",
+                "DataFlowValueRenderingTestGenerated",
+                AbstractDataFlowValueRenderingTest.class,
+                testModel("idea/testData/dataFlowValueRendering")
         );
     }
 

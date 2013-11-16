@@ -97,9 +97,9 @@ public class JetParsingTestGenerated extends AbstractJetParsingTest {
         doParsingTest("compiler/testData/psi/BlockCommentAtBeginningOfFile4.kt");
     }
     
-    @TestMetadata("ByCaluses.kt")
-    public void testByCaluses() throws Exception {
-        doParsingTest("compiler/testData/psi/ByCaluses.kt");
+    @TestMetadata("ByClauses.kt")
+    public void testByClauses() throws Exception {
+        doParsingTest("compiler/testData/psi/ByClauses.kt");
     }
     
     @TestMetadata("CallWithManyClosures.kt")
@@ -886,6 +886,11 @@ public class JetParsingTestGenerated extends AbstractJetParsingTest {
         @TestMetadata("PackageRecovery.kt")
         public void testPackageRecovery() throws Exception {
             doParsingTest("compiler/testData/psi/recovery/PackageRecovery.kt");
+        }
+        
+        @TestMetadata("SameLineStatementRecovery.kt")
+        public void testSameLineStatementRecovery() throws Exception {
+            doParsingTest("compiler/testData/psi/recovery/SameLineStatementRecovery.kt");
         }
         
         @TestMetadata("ValueParameterNoTypeRecovery.kt")

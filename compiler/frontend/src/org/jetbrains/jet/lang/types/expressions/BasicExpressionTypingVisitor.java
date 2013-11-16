@@ -114,8 +114,7 @@ public class BasicExpressionTypingVisitor extends ExpressionTypingVisitor {
         if (innerExpression == null) {
             return JetTypeInfo.create(null, context.dataFlowInfo);
         }
-        JetTypeInfo typeInfo = facade.getTypeInfo(innerExpression, context.replaceScope(context.scope), isStatement);
-        return DataFlowUtils.checkType(typeInfo, expression, context);
+        return facade.getTypeInfo(innerExpression, context.replaceScope(context.scope), isStatement);
     }
 
     private static JetTypeInfo createNumberValueTypeInfo(
@@ -140,13 +139,13 @@ public class BasicExpressionTypingVisitor extends ExpressionTypingVisitor {
             if (elementType == JetNodeTypes.INTEGER_CONSTANT) {
                 Long longValue = CompileTimeConstantResolver.parseLongValue(text);
                 if (longValue != null) {
-                    return createNumberValueTypeInfo(IntegerValueTypeConstructor.create(longValue), longValue, context.dataFlowInfo);
+                    return createNumberValueTypeInfo(new IntegerValueTypeConstructor((long) longValue), longValue, context.dataFlowInfo);
                 }
             }
             else if (elementType == JetNodeTypes.FLOAT_CONSTANT) {
                 Double doubleValue = CompileTimeConstantResolver.parseDoubleValue(text);
                 if (doubleValue != null) {
-                    return createNumberValueTypeInfo(DoubleValueTypeConstructor.create(doubleValue), doubleValue, context.dataFlowInfo);
+                    return createNumberValueTypeInfo(new DoubleValueTypeConstructor(doubleValue), doubleValue, context.dataFlowInfo);
                 }
             }
         }
@@ -605,7 +604,11 @@ public class BasicExpressionTypingVisitor extends ExpressionTypingVisitor {
         return visitUnaryExpression(expression, context, false);
     }
 
-    public JetTypeInfo visitUnaryExpression(JetUnaryExpression expression, ExpressionTypingContext context, boolean isStatement) {
+    public JetTypeInfo visitUnaryExpression(JetUnaryExpression expression, ExpressionTypingContext contextWithExpectedType, boolean isStatement) {
+        ExpressionTypingContext context = isUnaryExpressionDependentOnExpectedType(expression)
+                ? contextWithExpectedType
+                : contextWithExpectedType.replaceContextDependency(INDEPENDENT).replaceExpectedType(NO_EXPECTED_TYPE);
+
         JetExpression baseExpression = expression.getBaseExpression();
         if (baseExpression == null) return JetTypeInfo.create(null, context.dataFlowInfo);
 
@@ -623,8 +626,7 @@ public class BasicExpressionTypingVisitor extends ExpressionTypingVisitor {
         }
 
         // Type check the base expression
-        JetTypeInfo typeInfo = facade.getTypeInfo(
-                baseExpression, context.replaceExpectedType(NO_EXPECTED_TYPE).replaceContextDependency(INDEPENDENT));
+        JetTypeInfo typeInfo = facade.getTypeInfo(baseExpression, context);
         JetType type = typeInfo.getType();
         if (type == null) {
             return typeInfo;
@@ -643,7 +645,7 @@ public class BasicExpressionTypingVisitor extends ExpressionTypingVisitor {
             JetExpression stubExpression = ExpressionTypingUtils.createFakeExpressionOfType(baseExpression.getProject(), context.trace, "$e", type);
             resolveArrayAccessSetMethod((JetArrayAccessExpression) baseExpression,
                                         stubExpression,
-                                        context.replaceExpectedType(NO_EXPECTED_TYPE).replaceBindingTrace(
+                                        context.replaceBindingTrace(
                                                 TemporaryBindingTrace.create(context.trace, "trace to resolve array access set method for unary expression", expression)),
                                         context.trace);
         }
@@ -686,7 +688,7 @@ public class BasicExpressionTypingVisitor extends ExpressionTypingVisitor {
         else {
             result = returnType;
         }
-        return DataFlowUtils.checkType(result, expression, context, dataFlowInfo);
+        return DataFlowUtils.checkType(result, expression, contextWithExpectedType, dataFlowInfo);
     }
 
     private JetTypeInfo visitExclExclExpression(@NotNull JetUnaryExpression expression, @NotNull ExpressionTypingContext context) {
@@ -727,7 +729,7 @@ public class BasicExpressionTypingVisitor extends ExpressionTypingVisitor {
         // TODO : Some processing for the label?
         JetTypeInfo typeInfo = facade.getTypeInfo(baseExpression, context, isStatement);
         context.labelResolver.exitLabeledElement(baseExpression);
-        return DataFlowUtils.checkType(typeInfo, expression, context);
+        return typeInfo;
     }
 
     private static boolean isKnownToBeNotNull(JetExpression expression, ExpressionTypingContext context) {

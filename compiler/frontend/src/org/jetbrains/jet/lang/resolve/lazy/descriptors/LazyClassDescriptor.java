@@ -53,8 +53,8 @@ import org.jetbrains.jet.storage.StorageManager;
 
 import java.util.*;
 
-import static org.jetbrains.jet.lang.resolve.DescriptorUtils.getClassObjectName;
 import static org.jetbrains.jet.lang.resolve.ModifiersChecker.*;
+import static org.jetbrains.jet.lang.resolve.name.SpecialNames.getClassObjectName;
 
 public class LazyClassDescriptor extends ClassDescriptorBase implements LazyDescriptor, ClassDescriptor {
 
@@ -461,7 +461,7 @@ public class LazyClassDescriptor extends ClassDescriptorBase implements LazyDesc
         }
 
         @Override
-        public boolean isSealed() {
+        public boolean isFinal() {
             return !getModality().isOverridable();
         }
 

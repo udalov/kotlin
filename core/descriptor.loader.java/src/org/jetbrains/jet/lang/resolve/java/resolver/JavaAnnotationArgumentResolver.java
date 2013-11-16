@@ -30,12 +30,11 @@ import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.lang.types.JetTypeImpl;
-import org.jetbrains.jet.lang.types.TypeProjection;
+import org.jetbrains.jet.lang.types.TypeProjectionImpl;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 
 import javax.inject.Inject;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
@@ -110,7 +109,7 @@ public final class JavaAnnotationArgumentResolver {
     private CompileTimeConstant<?> resolveFromArray(
             @NotNull FqName annotationFqName,
             @NotNull Name argumentName,
-            @NotNull Collection<JavaAnnotationArgument> elements,
+            @NotNull List<JavaAnnotationArgument> elements,
             @NotNull PostponedTasks taskList
     ) {
         ClassDescriptor annotationClass = classResolver.resolveClass(annotationFqName, INCLUDE_KOTLIN_SOURCES, taskList);
@@ -158,7 +157,7 @@ public final class JavaAnnotationArgumentResolver {
         ClassDescriptor jlClass = classResolver.resolveClass(JL_CLASS_FQ_NAME, IGNORE_KOTLIN_SOURCES);
         if (jlClass == null) return null;
 
-        List<TypeProjection> arguments = Collections.singletonList(new TypeProjection(type));
+        List<TypeProjectionImpl> arguments = Collections.singletonList(new TypeProjectionImpl(type));
         JetTypeImpl javaClassType = new JetTypeImpl(
                 jlClass.getAnnotations(),
                 jlClass.getTypeConstructor(),

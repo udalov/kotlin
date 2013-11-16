@@ -294,6 +294,11 @@ public class DescriptorSerializationTestGenerated extends AbstractDescriptorSeri
             doTest("compiler/testData/loadKotlin/classObject/ClassObjectPropertyInClass.kt");
         }
         
+        @TestMetadata("Delegation.kt")
+        public void testDelegation() throws Exception {
+            doTest("compiler/testData/loadKotlin/classObject/Delegation.kt");
+        }
+        
         @TestMetadata("InnerClassInClassObject.kt")
         public void testInnerClassInClassObject() throws Exception {
             doTest("compiler/testData/loadKotlin/classObject/InnerClassInClassObject.kt");
@@ -814,6 +819,11 @@ public class DescriptorSerializationTestGenerated extends AbstractDescriptorSeri
         @TestMetadata("VarDelegationToTraitImpl.kt")
         public void testVarDelegationToTraitImpl() throws Exception {
             doTest("compiler/testData/loadKotlin/prop/VarDelegationToTraitImpl.kt");
+        }
+        
+        @TestMetadata("VarWithDelegated.kt")
+        public void testVarWithDelegated() throws Exception {
+            doTest("compiler/testData/loadKotlin/prop/VarWithDelegated.kt");
         }
         
         @TestMetadata("compiler/testData/loadKotlin/prop/defaultAccessors")

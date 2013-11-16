@@ -16,6 +16,7 @@
 
 package org.jetbrains.jet.codegen;
 
+import com.intellij.openapi.util.Pair;
 import com.intellij.openapi.util.text.StringUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -24,9 +25,9 @@ import org.jetbrains.asm4.MethodVisitor;
 import org.jetbrains.asm4.Opcodes;
 import org.jetbrains.asm4.Type;
 import org.jetbrains.asm4.commons.InstructionAdapter;
+import org.jetbrains.asm4.commons.Method;
 import org.jetbrains.jet.codegen.context.CodegenContext;
 import org.jetbrains.jet.codegen.context.FieldOwnerContext;
-import org.jetbrains.jet.codegen.context.NamespaceContext;
 import org.jetbrains.jet.codegen.context.NamespaceFacadeContext;
 import org.jetbrains.jet.codegen.signature.JvmMethodSignature;
 import org.jetbrains.jet.codegen.state.GenerationState;
@@ -48,6 +49,8 @@ import static org.jetbrains.asm4.Opcodes.*;
 import static org.jetbrains.jet.codegen.AsmUtil.*;
 import static org.jetbrains.jet.codegen.CodegenUtil.getParentBodyCodegen;
 import static org.jetbrains.jet.codegen.CodegenUtil.isInterface;
+import static org.jetbrains.jet.codegen.JvmSerializationBindings.*;
+import static org.jetbrains.jet.lang.resolve.DescriptorUtils.isTrait;
 import static org.jetbrains.jet.lang.resolve.java.AsmTypeConstants.OBJECT_TYPE;
 
 public class PropertyCodegen extends GenerationStateAware {
@@ -91,10 +94,10 @@ public class PropertyCodegen extends GenerationStateAware {
 
         if (context instanceof NamespaceFacadeContext) {
             Type ownerType = ((NamespaceFacadeContext) context).getDelegateToClassType();
-            v.getMemberMap().recordSrcClassNameForCallable(propertyDescriptor, shortNameByAsmType(ownerType));
+            v.getSerializationBindings().put(IMPL_CLASS_NAME_FOR_CALLABLE, propertyDescriptor, shortNameByAsmType(ownerType));
         }
-        else if (kind != OwnerKind.TRAIT_IMPL) {
-            generateBackingField(p, propertyDescriptor);
+        else if (!generateBackingField(p, propertyDescriptor)) {
+            generateSyntheticMethodIfNeeded(propertyDescriptor);
         }
 
         generateGetter(p, propertyDescriptor, p.getGetter());
@@ -125,36 +128,54 @@ public class PropertyCodegen extends GenerationStateAware {
         }
     }
 
-    private void generateBackingField(JetNamedDeclaration p, PropertyDescriptor propertyDescriptor) {
-        boolean hasBackingField = Boolean.TRUE.equals(bindingContext.get(BindingContext.BACKING_FIELD_REQUIRED, propertyDescriptor));
-        boolean isDelegated = p instanceof JetProperty && ((JetProperty) p).getDelegateExpression() != null;
-        if (hasBackingField || isDelegated) {
-            DeclarationDescriptor containingDeclaration = propertyDescriptor.getContainingDeclaration();
-            if (isInterface(containingDeclaration)) {
-                return;
-            }
-
-            FieldVisitor fieldVisitor = hasBackingField
-                           ? generateBackingFieldAccess(p, propertyDescriptor)
-                           : generatePropertyDelegateAccess((JetProperty) p, propertyDescriptor);
-
-            AnnotationCodegen.forField(fieldVisitor, typeMapper).genAnnotations(propertyDescriptor);
+    private boolean generateBackingField(@NotNull JetNamedDeclaration p, @NotNull PropertyDescriptor descriptor) {
+        if (isInterface(descriptor.getContainingDeclaration()) || kind == OwnerKind.TRAIT_IMPL) {
+            return false;
         }
-        else if (!propertyDescriptor.getAnnotations().isEmpty()) {
-            // Annotations on properties without backing fields are stored in bytecode on an empty synthetic method. This way they're still
-            // accessible via reflection, and 'deprecated' and 'private' flags prevent this method from being called accidentally
-            String methodName = JvmAbi.getSyntheticMethodNameForAnnotatedProperty(propertyDescriptor.getName());
+
+        FieldVisitor fv;
+        if (Boolean.TRUE.equals(bindingContext.get(BindingContext.BACKING_FIELD_REQUIRED, descriptor))) {
+            fv = generateBackingFieldAccess(p, descriptor);
+        }
+        else if (p instanceof JetProperty && ((JetProperty) p).getDelegateExpression() != null) {
+            fv = generatePropertyDelegateAccess((JetProperty) p, descriptor);
+        }
+        else {
+            return false;
+        }
+
+        AnnotationCodegen.forField(fv, typeMapper).genAnnotations(descriptor);
+        return true;
+    }
+
+    // Annotations on properties without backing fields are stored in bytecode on an empty synthetic method. This way they're still
+    // accessible via reflection, and 'deprecated' and 'private' flags prevent this method from being called accidentally
+    private void generateSyntheticMethodIfNeeded(@NotNull PropertyDescriptor descriptor) {
+        if (descriptor.getAnnotations().isEmpty()) return;
+
+        ReceiverParameterDescriptor receiver = descriptor.getReceiverParameter();
+        Type receiverAsmType = receiver == null ? null : typeMapper.mapType(receiver.getType());
+        Method method = JvmAbi.getSyntheticMethodSignatureForAnnotatedProperty(descriptor.getName(), receiverAsmType);
+
+        if (!isTrait(context.getContextDescriptor()) || kind == OwnerKind.TRAIT_IMPL) {
             MethodVisitor mv = v.newMethod(null,
                                            ACC_DEPRECATED | ACC_FINAL | ACC_PRIVATE | ACC_STATIC | ACC_SYNTHETIC,
-                                           methodName,
-                                           JvmAbi.ANNOTATED_PROPERTY_METHOD_SIGNATURE,
+                                           method.getName(),
+                                           method.getDescriptor(),
                                            null,
                                            null);
-            v.getMemberMap().recordSyntheticMethodNameOfProperty(propertyDescriptor, methodName);
-            AnnotationCodegen.forMethod(mv, typeMapper).genAnnotations(propertyDescriptor);
+            AnnotationCodegen.forMethod(mv, typeMapper).genAnnotations(descriptor);
             mv.visitCode();
             mv.visitInsn(Opcodes.RETURN);
             mv.visitEnd();
+        }
+        else {
+            Type tImplType = typeMapper.mapTraitImpl((ClassDescriptor) context.getContextDescriptor());
+            v.getSerializationBindings().put(IMPL_CLASS_NAME_FOR_CALLABLE, descriptor, shortNameByAsmType(tImplType));
+        }
+
+        if (kind != OwnerKind.TRAIT_IMPL) {
+            v.getSerializationBindings().put(SYNTHETIC_METHOD_FOR_PROPERTY, descriptor, method);
         }
     }
 
@@ -183,7 +204,7 @@ public class PropertyCodegen extends GenerationStateAware {
             ImplementationBodyCodegen codegen = getParentBodyCodegen(classBodyCodegen);
             builder = codegen.v;
             backingFieldContext = codegen.context;
-            v.getMemberMap().recordStaticFieldInOuterClass(propertyDescriptor);
+            v.getSerializationBindings().put(STATIC_FIELD_IN_OUTER_CLASS, propertyDescriptor);
         } else {
             if (kind != OwnerKind.NAMESPACE || isDelegate) {
                 modifiers |= ACC_PRIVATE;
@@ -197,7 +218,7 @@ public class PropertyCodegen extends GenerationStateAware {
 
         String name = backingFieldContext.getFieldName(propertyDescriptor, isDelegate);
 
-        v.getMemberMap().recordFieldOfProperty(propertyDescriptor, type, name);
+        v.getSerializationBindings().put(FIELD_FOR_PROPERTY, propertyDescriptor, Pair.create(type, name));
 
         return builder.newField(element, modifiers, name, type.getDescriptor(),
                                 typeMapper.mapFieldSignature(jetType), defaultValue);

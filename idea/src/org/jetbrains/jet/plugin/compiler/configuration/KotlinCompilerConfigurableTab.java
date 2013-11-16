@@ -16,24 +16,62 @@
 
 package org.jetbrains.jet.plugin.compiler.configuration;
 
+import com.intellij.compiler.options.ComparingUtils;
+import com.intellij.openapi.fileChooser.FileChooserDescriptor;
 import com.intellij.openapi.options.Configurable;
 import com.intellij.openapi.options.ConfigurableEP;
 import com.intellij.openapi.options.ConfigurationException;
-import com.intellij.openapi.options.ex.ConfigurableWrapper;
+import com.intellij.openapi.options.SearchableConfigurable;
+import com.intellij.openapi.ui.TextComponentAccessor;
+import com.intellij.openapi.ui.TextFieldWithBrowseButton;
+import com.intellij.openapi.util.text.StringUtil;
+import com.intellij.ui.RawCommandLineEditor;
 import org.jetbrains.annotations.Nls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.jet.cli.common.arguments.CommonCompilerArguments;
+import org.jetbrains.jet.cli.common.arguments.K2JSCompilerArguments;
+import org.jetbrains.jet.compiler.CompilerSettings;
+import org.jetbrains.jet.plugin.JetBundle;
 
 import javax.swing.*;
 
-public class KotlinCompilerConfigurableTab extends ConfigurableWrapper implements Configurable.NoScroll  {
-    private JComboBox javaScriptEcmaCombobox;
+import static org.jetbrains.jet.cli.common.arguments.CommonArgumentConstants.SUPPRESS_WARNINGS;
+
+public class KotlinCompilerConfigurableTab implements SearchableConfigurable, Configurable.NoScroll{
+    private final CommonCompilerArguments commonCompilerArguments;
+    private final K2JSCompilerArguments k2jsCompilerArguments;
+    private final CompilerSettings compilerSettings;
+    private final ConfigurableEP extPoint;
     private JPanel contentPane;
+    private JCheckBox generateNoWarningsCheckBox;
+    private RawCommandLineEditor additionalArgsOptionsField;
+    private JLabel additionalArgsLabel;
+    private JCheckBox generateSourceMapsCheckBox;
+    private TextFieldWithBrowseButton outputPrefixFile;
+    private TextFieldWithBrowseButton outputPostfixFile;
+    private JLabel labelForOutputPrefixFile;
+    private JLabel labelForOutputPostfixFile;
 
     public KotlinCompilerConfigurableTab(ConfigurableEP ep) {
-        super(ep);
+        this.extPoint = ep;
+        this.commonCompilerArguments = KotlinCommonCompilerArgumentsHolder.getInstance(ep.getProject()).getSettings();
+        this.k2jsCompilerArguments = Kotlin2JsCompilerArgumentsHolder.getInstance(ep.getProject()).getSettings();
+        this.compilerSettings = KotlinCompilerSettings.getInstance(ep.getProject()).getSettings();
 
-        javaScriptEcmaCombobox.setModel(new DefaultComboBoxModel(new Object[] {"Ecma3", "Ecma5"}));
+        additionalArgsOptionsField.attachLabel(additionalArgsLabel);
+        additionalArgsOptionsField.setDialogCaption(JetBundle.message("kotlin.compiler.option.additional.command.line.parameters.dialog.title"));
+        
+        setupFileChooser(labelForOutputPrefixFile, outputPrefixFile,
+                         JetBundle.message("kotlin.compiler.js.option.output.prefix.browse.title"));
+        setupFileChooser(labelForOutputPostfixFile, outputPostfixFile,
+                         JetBundle.message("kotlin.compiler.js.option.output.postfix.browse.title"));
+    }
+
+    @NotNull
+    @Override
+    public String getId() {
+        return extPoint.id;
     }
 
     @Nullable
@@ -50,16 +88,68 @@ public class KotlinCompilerConfigurableTab extends ConfigurableWrapper implement
 
     @Override
     public boolean isModified() {
-        return false;
+        return ComparingUtils.isModified(generateNoWarningsCheckBox, isGenerateNoWarnings()) ||
+               ComparingUtils.isModified(additionalArgsOptionsField, compilerSettings.getAdditionalArguments()) ||
+               ComparingUtils.isModified(generateSourceMapsCheckBox, k2jsCompilerArguments.sourcemap) ||
+               isModified(outputPrefixFile, k2jsCompilerArguments.outputPrefix) ||
+               isModified(outputPostfixFile, k2jsCompilerArguments.outputPostfix);
     }
 
     @Override
     public void apply() throws ConfigurationException {
-        // TODO: Do something
+        setGenerateNoWarnings(generateNoWarningsCheckBox.isSelected());
+        compilerSettings.setAdditionalArguments(additionalArgsOptionsField.getText());
+        k2jsCompilerArguments.sourcemap = generateSourceMapsCheckBox.isSelected();
+        k2jsCompilerArguments.outputPrefix = StringUtil.nullize(outputPrefixFile.getText(), true);
+        k2jsCompilerArguments.outputPostfix = StringUtil.nullize(outputPostfixFile.getText(), true);
     }
 
     @Override
     public void reset() {
-        // TODO: Do something
+        generateNoWarningsCheckBox.setSelected(isGenerateNoWarnings());
+        additionalArgsOptionsField.setText(compilerSettings.getAdditionalArguments());
+        generateSourceMapsCheckBox.setSelected(k2jsCompilerArguments.sourcemap);
+        outputPrefixFile.setText(k2jsCompilerArguments.outputPrefix);
+        outputPostfixFile.setText(k2jsCompilerArguments.outputPostfix);
+    }
+
+    @Override
+    public void disposeUIResources() {
+    }
+
+    @Nls
+    @Override
+    public String getDisplayName() {
+        return extPoint.displayName;
+    }
+
+    @Nullable
+    @Override
+    public String getHelpTopic() {
+        return null;
+    }
+
+    private boolean isGenerateNoWarnings() {
+        return commonCompilerArguments.suppressAllWarnings();
+    }
+
+    private void setGenerateNoWarnings(boolean selected) {
+        commonCompilerArguments.suppress = selected ? SUPPRESS_WARNINGS : null;
+    }
+
+    private static void setupFileChooser(
+            @NotNull JLabel label,
+            @NotNull TextFieldWithBrowseButton fileChooser,
+            @NotNull String title
+    ) {
+        label.setLabelFor(fileChooser);
+
+        fileChooser.addBrowseFolderListener(title, null, null,
+                                            new FileChooserDescriptor(true, false, false, false, false, false),
+                                            TextComponentAccessor.TEXT_FIELD_WHOLE_TEXT, false);
+    }
+
+    private static boolean isModified(@NotNull TextFieldWithBrowseButton chooser, @Nullable String currentValue) {
+        return !StringUtil.equals(StringUtil.nullize(chooser.getText(), true), currentValue);
     }
 }

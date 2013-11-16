@@ -48,7 +48,7 @@ public class DataFlowValueFactory {
         }
         if (TypeUtils.equalTypes(type, KotlinBuiltIns.getInstance().getNullableNothingType())) return DataFlowValue.NULL; // 'null' is the only inhabitant of 'Nothing?'
         IdentifierInfo result = getIdForStableIdentifier(expression, bindingContext);
-        return new DataFlowValue(result.id == null ? expression : result.id, type, result.isStable, getImmanentNullability(type));
+        return new DataFlowValue(result == NO_IDENTIFIER_INFO ? expression : result.id, type, result.isStable, getImmanentNullability(type));
     }
 
     @NotNull
@@ -131,13 +131,13 @@ public class DataFlowValueFactory {
             @Nullable JetExpression expression,
             @NotNull BindingContext bindingContext
     ) {
-        if (expression instanceof JetParenthesizedExpression) {
-            JetParenthesizedExpression parenthesizedExpression = (JetParenthesizedExpression) expression;
-            JetExpression innerExpression = parenthesizedExpression.getExpression();
-
-            return getIdForStableIdentifier(innerExpression, bindingContext);
+        if (expression != null) {
+            JetExpression deparenthesized = JetPsiUtil.deparenthesize(expression);
+            if (expression != deparenthesized) {
+                return getIdForStableIdentifier(deparenthesized, bindingContext);
+            }
         }
-        else if (expression instanceof JetQualifiedExpression) {
+        if (expression instanceof JetQualifiedExpression) {
             JetQualifiedExpression qualifiedExpression = (JetQualifiedExpression) expression;
             JetExpression receiverExpression = qualifiedExpression.getReceiverExpression();
             JetExpression selectorExpression = qualifiedExpression.getSelectorExpression();
@@ -170,6 +170,7 @@ public class DataFlowValueFactory {
         if (declarationDescriptor instanceof VariableDescriptor) {
             ResolvedCall<?> resolvedCall = bindingContext.get(RESOLVED_CALL, simpleNameExpression);
             // todo uncomment assert
+            // KT-4113
             // for now it fails for resolving 'invoke' convention, return it after 'invoke' algorithm changes
             // assert resolvedCall != null : "Cannot create right identifier info if the resolved call is not known yet for " + declarationDescriptor;
 

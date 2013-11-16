@@ -59,7 +59,7 @@ public abstract class BasicTest extends KotlinTestWithEnvironment {
 
     @Override
     protected JetCoreEnvironment createEnvironment() {
-        return new JetCoreEnvironment(getTestRootDisposable(), new CompilerConfiguration());
+        return JetCoreEnvironment.createForTests(getTestRootDisposable(), new CompilerConfiguration());
     }
 
     @NotNull
@@ -137,7 +137,7 @@ public abstract class BasicTest extends KotlinTestWithEnvironment {
             @NotNull EcmaVersion version,
             @NotNull TestConfigFactory configFactory
     ) throws Exception {
-        TranslationUtils.translateFiles(project, files, outputFile, mainCallParameters, version, configFactory);
+        TranslationUtils.translateFiles(project, mainCallParameters, files, outputFile, version, configFactory);
     }
 
     @NotNull

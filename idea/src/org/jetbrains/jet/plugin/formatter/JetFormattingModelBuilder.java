@@ -52,7 +52,7 @@ public class JetFormattingModelBuilder implements FormattingModelBuilder {
                 .after(NAMESPACE_HEADER).blankLines(1)
 
                 .between(IMPORT_DIRECTIVE, IMPORT_DIRECTIVE).lineBreakInCode()
-                .after(IMPORT_DIRECTIVE).blankLines(1)
+                .after(IMPORT_LIST).blankLines(1)
 
                 .before(DOC_COMMENT).lineBreakInCode()
                 .before(FUN).lineBreakInCode()
@@ -73,8 +73,10 @@ public class JetFormattingModelBuilder implements FormattingModelBuilder {
                 .around(TokenSet.create(EQEQ, EXCLEQ, EQEQEQ, EXCLEQEQEQ)).spaceIf(jetCommonSettings.SPACE_AROUND_EQUALITY_OPERATORS)
                 .aroundInside(TokenSet.create(LT, GT, LTEQ, GTEQ), BINARY_EXPRESSION).spaceIf(jetCommonSettings.SPACE_AROUND_RELATIONAL_OPERATORS)
                 .aroundInside(TokenSet.create(PLUS, MINUS), BINARY_EXPRESSION).spaceIf(jetCommonSettings.SPACE_AROUND_ADDITIVE_OPERATORS)
-                .aroundInside(TokenSet.create(MUL, DIV, PERC), BINARY_EXPRESSION).spaceIf(jetCommonSettings.SPACE_AROUND_MULTIPLICATIVE_OPERATORS)
-                .around(TokenSet.create(PLUSPLUS, MINUSMINUS, EXCLEXCL, MINUS, PLUS, EXCL)).spaceIf(jetCommonSettings.SPACE_AROUND_UNARY_OPERATOR)
+                .aroundInside(TokenSet.create(MUL, DIV, PERC), BINARY_EXPRESSION).spaceIf(
+                        jetCommonSettings.SPACE_AROUND_MULTIPLICATIVE_OPERATORS)
+                .around(TokenSet.create(PLUSPLUS, MINUSMINUS, EXCLEXCL, MINUS, PLUS, EXCL)).spaceIf(
+                        jetCommonSettings.SPACE_AROUND_UNARY_OPERATOR)
                 .around(RANGE).spaceIf(jetSettings.SPACE_AROUND_RANGE)
 
                 .beforeInside(BLOCK, FUN).spaceIf(jetCommonSettings.SPACE_BEFORE_METHOD_LBRACE)
@@ -87,6 +89,14 @@ public class JetFormattingModelBuilder implements FormattingModelBuilder {
                 .beforeInside(RPAR, VALUE_ARGUMENT_LIST).spaces(0)
                 .afterInside(LT, TYPE_ARGUMENT_LIST).spaces(0)
                 .beforeInside(GT, TYPE_ARGUMENT_LIST).spaces(0)
+
+                .betweenInside(FOR_KEYWORD, LPAR, FOR).spacing(1, 1, 0, false, 0)
+                .betweenInside(IF_KEYWORD, LPAR, IF).spacing(1, 1, 0, false, 0)
+                .betweenInside(WHILE_KEYWORD, LPAR, WHILE).spacing(1, 1, 0, false, 0)
+                .betweenInside(WHILE_KEYWORD, LPAR, DO_WHILE).spacing(1, 1, 0, false, 0)
+
+                .aroundInside(WHILE_KEYWORD, DO_WHILE).spaces(1)
+                .afterInside(DO_KEYWORD, DO_WHILE).spaces(1)
 
                 // TODO: Ask for better API
                 // Type of the declaration colon
@@ -115,6 +125,11 @@ public class JetFormattingModelBuilder implements FormattingModelBuilder {
                 .aroundInside(ARROW, FUNCTION_TYPE).spaceIf(jetSettings.SPACE_AROUND_FUNCTION_TYPE_ARROW)
 
                 .betweenInside(REFERENCE_EXPRESSION, FUNCTION_LITERAL_EXPRESSION, CALL_EXPRESSION).spaces(1)
+
+                .aroundInside(ELSE_KEYWORD, IF).spaces(1)
+                .betweenInside(RPAR, THEN, IF).spaces(1)
+
+                .between(RPAR, BODY).spaces(1)
                 ;
     }
 

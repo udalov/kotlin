@@ -21,6 +21,7 @@ import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.ClassDescriptor;
 import org.jetbrains.jet.lang.descriptors.ValueParameterDescriptor;
 import org.jetbrains.jet.lang.descriptors.annotations.AnnotationDescriptor;
+import org.jetbrains.jet.lang.descriptors.annotations.AnnotationDescriptorImpl;
 import org.jetbrains.jet.lang.resolve.constants.CompileTimeConstant;
 import org.jetbrains.jet.lang.resolve.java.JvmAnnotationNames;
 import org.jetbrains.jet.lang.resolve.java.mapping.JavaToKotlinClassMap;
@@ -41,6 +42,7 @@ import static org.jetbrains.jet.lang.resolve.java.resolver.DescriptorResolverUti
 public final class JavaAnnotationResolver {
     public static final Name DEFAULT_ANNOTATION_MEMBER_NAME = Name.identifier("value");
     public static final FqName JETBRAINS_NOT_NULL_ANNOTATION = fqNameByClass(NotNull.class);
+    public static final FqName JETBRAINS_NULLABLE_ANNOTATION = fqNameByClass(Nullable.class);
     public static final FqName JETBRAINS_MUTABLE_ANNOTATION = new FqName("org.jetbrains.annotations.Mutable");
     public static final FqName JETBRAINS_READONLY_ANNOTATION = new FqName("org.jetbrains.annotations.ReadOnly");
 
@@ -97,18 +99,14 @@ public final class JavaAnnotationResolver {
 
     @Nullable
     public AnnotationDescriptor resolveAnnotation(@NotNull JavaAnnotation javaAnnotation, @NotNull PostponedTasks postponedTasks) {
-        final AnnotationDescriptor annotation = new AnnotationDescriptor();
+        final AnnotationDescriptorImpl annotation = new AnnotationDescriptorImpl();
         FqName fqName = javaAnnotation.getFqName();
         if (fqName == null) {
             return null;
         }
 
         // Don't process internal jet annotations and jetbrains NotNull annotations
-        if (fqName.asString().startsWith("jet.runtime.typeinfo.")
-            || fqName.equals(JETBRAINS_NOT_NULL_ANNOTATION)
-            || fqName.equals(JvmAnnotationNames.KOTLIN_CLASS)
-            || fqName.equals(JvmAnnotationNames.KOTLIN_PACKAGE)
-        ) {
+        if (isSpecialAnnotation(fqName)) {
             return null;
         }
 
@@ -143,6 +141,13 @@ public final class JavaAnnotationResolver {
         }
 
         return annotation;
+    }
+
+    public static boolean isSpecialAnnotation(@NotNull FqName fqName) {
+        return fqName.asString().startsWith("jet.runtime.typeinfo.")
+            || fqName.equals(JETBRAINS_NOT_NULL_ANNOTATION)
+            || fqName.equals(JvmAnnotationNames.KOTLIN_CLASS)
+            || fqName.equals(JvmAnnotationNames.KOTLIN_PACKAGE);
     }
 
     @Nullable

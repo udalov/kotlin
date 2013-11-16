@@ -17,6 +17,7 @@
 package org.jetbrains.jet.lang.types.expressions;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Pair;
 import com.intellij.psi.PsiElement;
@@ -301,11 +302,13 @@ public class ExpressionTypingUtils {
         Set<Name> typeNamesInReceiver = collectUsedTypeNames(receiverParameter.getType());
 
         ConstraintSystem constraintSystem = new ConstraintSystemImpl();
+        Map<TypeParameterDescriptor, Variance> typeVariables = Maps.newLinkedHashMap();
         for (TypeParameterDescriptor typeParameterDescriptor : callableDescriptor.getTypeParameters()) {
             if (typeNamesInReceiver.contains(typeParameterDescriptor.getName())) {
-                constraintSystem.registerTypeVariable(typeParameterDescriptor, Variance.INVARIANT);
+                typeVariables.put(typeParameterDescriptor, Variance.INVARIANT);
             }
         }
+        constraintSystem.registerTypeVariables(typeVariables);
 
         constraintSystem.addSubtypeConstraint(receiverType, receiverParameter.getType(), ConstraintPosition.RECEIVER_POSITION);
         return constraintSystem.getStatus().isSuccessful() && ConstraintsUtil.checkBoundsAreSatisfied(constraintSystem, true);
@@ -489,5 +492,10 @@ public class ExpressionTypingUtils {
         IElementType operationType = expression.getOperationReference().getReferencedNameElementType();
         return (operationType == JetTokens.IDENTIFIER || OperatorConventions.BINARY_OPERATION_NAMES.containsKey(operationType)
                 || operationType == JetTokens.ELVIS);
+    }
+
+    public static boolean  isUnaryExpressionDependentOnExpectedType(@NotNull JetUnaryExpression expression) {
+        IElementType operationType = expression.getOperationReference().getReferencedNameElementType();
+        return JetTokens.LABELS.contains(operationType) || operationType == JetTokens.EXCLEXCL;
     }
 }

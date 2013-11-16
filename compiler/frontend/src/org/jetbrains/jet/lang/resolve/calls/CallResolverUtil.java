@@ -28,6 +28,7 @@ import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.TraceUtil;
 import org.jetbrains.jet.lang.resolve.calls.context.BasicCallResolutionContext;
 import org.jetbrains.jet.lang.resolve.calls.context.CallResolutionContext;
+import org.jetbrains.jet.lang.resolve.calls.inference.ConstraintPosition;
 import org.jetbrains.jet.lang.resolve.calls.inference.ConstraintSystem;
 import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCallImpl;
 import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCallWithTrace;
@@ -46,7 +47,7 @@ import static org.jetbrains.jet.lang.types.TypeUtils.DONT_CARE;
 public class CallResolverUtil {
     public static enum ResolveArgumentsMode {
         RESOLVE_FUNCTION_ARGUMENTS,
-        SKIP_FUNCTION_ARGUMENTS
+        SHAPE_FUNCTION_ARGUMENTS
     }
 
     private CallResolverUtil() {}
@@ -99,20 +100,19 @@ public class CallResolverUtil {
         List<TypeProjection> arguments = type.getArguments();
         List<TypeProjection> newArguments = Lists.newArrayList();
         newArguments.addAll(arguments.subList(0, arguments.size() - 1));
-        newArguments.add(new TypeProjection(Variance.INVARIANT, DONT_CARE));
+        newArguments.add(new TypeProjectionImpl(Variance.INVARIANT, DONT_CARE));
         return new JetTypeImpl(type.getAnnotations(), type.getConstructor(), type.isNullable(), newArguments, type.getMemberScope());
     }
 
-    private static boolean hasReturnTypeDependentOnNotInferredParams(@NotNull ResolvedCallImpl<?> callToComplete) {
-        ConstraintSystem constraintSystem = callToComplete.getConstraintSystem();
-        if (constraintSystem == null) return false;
-
-        CallableDescriptor candidateDescriptor = callToComplete.getCandidateDescriptor();
+    private static boolean hasReturnTypeDependentOnNotInferredParams(
+            @NotNull CallableDescriptor candidateDescriptor,
+            @NotNull ConstraintSystem constraintSystem
+    ) {
         JetType returnType = candidateDescriptor.getReturnType();
         if (returnType == null) return false;
 
         for (TypeParameterDescriptor typeVariable : constraintSystem.getTypeVariables()) {
-            JetType inferredValueForTypeVariable = constraintSystem.getTypeConstraints(typeVariable).getValue();
+            JetType inferredValueForTypeVariable = constraintSystem.getTypeBounds(typeVariable).getValue();
             if (inferredValueForTypeVariable == null) {
                 if (TypeUtils.dependsOnTypeParameters(returnType, Collections.singleton(typeVariable))) {
                     return true;
@@ -122,13 +122,14 @@ public class CallResolverUtil {
         return false;
     }
 
-    public static boolean hasInferredReturnType(ResolvedCallWithTrace<?> call) {
-        ResolvedCallImpl<?> callToComplete = call.getCallToCompleteTypeArgumentInference();
-        if (hasReturnTypeDependentOnNotInferredParams(callToComplete)) return false;
+    public static boolean hasInferredReturnType(
+            @NotNull CallableDescriptor candidateDescriptor,
+            @NotNull ConstraintSystem constraintSystem
+    ) {
+        if (hasReturnTypeDependentOnNotInferredParams(candidateDescriptor, constraintSystem)) return false;
 
         // Expected type mismatch was reported before as 'TYPE_INFERENCE_EXPECTED_TYPE_MISMATCH'
-        ConstraintSystem constraintSystem = callToComplete.getConstraintSystem();
-        if (constraintSystem != null && constraintSystem.getStatus().hasOnlyExpectedTypeMismatch()) return false;
+        if (constraintSystem.getStatus().hasOnlyErrorsFromPosition(ConstraintPosition.EXPECTED_TYPE_POSITION)) return false;
         return true;
     }
 
@@ -155,7 +156,7 @@ public class CallResolverUtil {
         }
         List<TypeProjection> fakeTypeArguments = Lists.newArrayList();
         for (TypeProjection typeProjection : receiverType.getArguments()) {
-            fakeTypeArguments.add(new TypeProjection(typeProjection.getProjectionKind(), DONT_CARE));
+            fakeTypeArguments.add(new TypeProjectionImpl(typeProjection.getProjectionKind(), DONT_CARE));
         }
         return new JetTypeImpl(
                 receiverType.getAnnotations(), receiverType.getConstructor(), receiverType.isNullable(),

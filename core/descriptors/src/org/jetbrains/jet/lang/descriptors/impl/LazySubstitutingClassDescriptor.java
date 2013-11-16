@@ -75,7 +75,7 @@ public class LazySubstitutingClassDescriptor implements ClassDescriptor {
             typeConstructor = new TypeConstructorImpl(
                     this,
                     originalTypeConstructor.getAnnotations(),
-                    originalTypeConstructor.isSealed(),
+                    originalTypeConstructor.isFinal(),
                     originalTypeConstructor.toString(),
                     typeParameters,
                     supertypes
@@ -87,7 +87,7 @@ public class LazySubstitutingClassDescriptor implements ClassDescriptor {
 
     @NotNull
     @Override
-    public JetScope getMemberScope(List<TypeProjection> typeArguments) {
+    public JetScope getMemberScope(List<? extends TypeProjection> typeArguments) {
         JetScope memberScope = original.getMemberScope(typeArguments);
         if (originalSubstitutor.isEmpty()) {
             return memberScope;

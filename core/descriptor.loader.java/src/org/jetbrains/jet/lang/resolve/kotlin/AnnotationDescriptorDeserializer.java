@@ -25,18 +25,15 @@ import org.jetbrains.jet.descriptors.serialization.ProtoBuf;
 import org.jetbrains.jet.descriptors.serialization.descriptors.AnnotationDeserializer;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.descriptors.annotations.AnnotationDescriptor;
+import org.jetbrains.jet.lang.descriptors.annotations.AnnotationDescriptorImpl;
 import org.jetbrains.jet.lang.resolve.DescriptorUtils;
 import org.jetbrains.jet.lang.resolve.constants.CompileTimeConstant;
 import org.jetbrains.jet.lang.resolve.constants.EnumValue;
 import org.jetbrains.jet.lang.resolve.constants.ErrorValue;
-import org.jetbrains.jet.lang.resolve.java.JvmAbi;
 import org.jetbrains.jet.lang.resolve.java.JvmAnnotationNames;
 import org.jetbrains.jet.lang.resolve.java.JvmClassName;
 import org.jetbrains.jet.lang.resolve.java.PackageClassUtils;
-import org.jetbrains.jet.lang.resolve.java.resolver.DescriptorResolverUtils;
-import org.jetbrains.jet.lang.resolve.java.resolver.ErrorReporter;
-import org.jetbrains.jet.lang.resolve.java.resolver.JavaAnnotationArgumentResolver;
-import org.jetbrains.jet.lang.resolve.java.resolver.JavaClassResolver;
+import org.jetbrains.jet.lang.resolve.java.resolver.*;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.types.ErrorUtils;
@@ -47,6 +44,8 @@ import javax.inject.Inject;
 import java.io.IOException;
 import java.util.*;
 
+import static org.jetbrains.jet.lang.resolve.DescriptorUtils.isClassObject;
+import static org.jetbrains.jet.lang.resolve.DescriptorUtils.isTrait;
 import static org.jetbrains.jet.lang.resolve.java.DescriptorSearchRule.IGNORE_KOTLIN_SOURCES;
 import static org.jetbrains.jet.lang.resolve.kotlin.DeserializedResolverUtils.kotlinFqNameToJavaFqName;
 import static org.jetbrains.jet.lang.resolve.kotlin.DeserializedResolverUtils.naiveKotlinFqName;
@@ -143,9 +142,10 @@ public class AnnotationDescriptorDeserializer implements AnnotationDeserializer 
     }
 
     private static boolean ignoreAnnotation(@NotNull JvmClassName className) {
-        // TODO: JETBRAINS_NOT_NULL_ANNOTATION ?
         return className.equals(JvmClassName.byFqNameWithoutInnerClasses(JvmAnnotationNames.KOTLIN_CLASS))
                || className.equals(JvmClassName.byFqNameWithoutInnerClasses(JvmAnnotationNames.KOTLIN_PACKAGE))
+               || className.equals(JvmClassName.byFqNameWithoutInnerClasses(JavaAnnotationResolver.JETBRAINS_NOT_NULL_ANNOTATION))
+               || className.equals(JvmClassName.byFqNameWithoutInnerClasses(JavaAnnotationResolver.JETBRAINS_NULLABLE_ANNOTATION))
                || className.getInternalName().startsWith("jet/runtime/typeinfo/");
     }
 
@@ -157,7 +157,7 @@ public class AnnotationDescriptorDeserializer implements AnnotationDeserializer 
         if (ignoreAnnotation(className)) return null;
 
         final ClassDescriptor annotationClass = resolveClass(className);
-        final AnnotationDescriptor annotation = new AnnotationDescriptor();
+        final AnnotationDescriptorImpl annotation = new AnnotationDescriptorImpl();
         annotation.setAnnotationType(annotationClass.getDefaultType());
 
         return new KotlinJvmBinaryClass.AnnotationArgumentVisitor() {
@@ -231,7 +231,18 @@ public class AnnotationDescriptorDeserializer implements AnnotationDeserializer 
         MemberSignature signature = getCallableSignature(proto, nameResolver, kind);
         if (signature == null) return Collections.emptyList();
 
-        KotlinJvmBinaryClass kotlinClass = findClassWithMemberAnnotations(container, proto, nameResolver);
+        return findClassAndLoadMemberAnnotations(container, proto, nameResolver, kind, signature);
+    }
+
+    @NotNull
+    private List<AnnotationDescriptor> findClassAndLoadMemberAnnotations(
+            @NotNull ClassOrNamespaceDescriptor container,
+            @NotNull ProtoBuf.Callable proto,
+            @NotNull NameResolver nameResolver,
+            @NotNull AnnotatedCallableKind kind,
+            @NotNull MemberSignature signature
+    ) {
+        KotlinJvmBinaryClass kotlinClass = findClassWithMemberAnnotations(container, proto, nameResolver, kind);
         if (kotlinClass == null) {
             errorReporter.reportAnnotationLoadingError("Kotlin class for loading member annotations is not found: " + container, null);
             return Collections.emptyList();
@@ -245,33 +256,42 @@ public class AnnotationDescriptorDeserializer implements AnnotationDeserializer 
     private KotlinJvmBinaryClass findClassWithMemberAnnotations(
             @NotNull ClassOrNamespaceDescriptor container,
             @NotNull ProtoBuf.Callable proto,
-            @NotNull NameResolver nameResolver
+            @NotNull NameResolver nameResolver,
+            @NotNull AnnotatedCallableKind kind
     ) {
         if (container instanceof NamespaceDescriptor) {
-            Name name = loadSrcClassName(proto, nameResolver);
-            if (name != null) {
-                return kotlinClassFinder.find(getSrcClassFqName((NamespaceDescriptor) container, name));
+            return loadPackageFragmentClassFqName((NamespaceDescriptor) container, proto, nameResolver);
+        }
+        else if (isClassObject(container) && isStaticFieldInOuter(proto)) {
+            // Backing fields of properties of a class object are generated in the outer class
+            return findKotlinClassByDescriptor((ClassOrNamespaceDescriptor) container.getContainingDeclaration());
+        }
+        else if (isTrait(container) && kind == AnnotatedCallableKind.PROPERTY) {
+            NamespaceDescriptor containingPackage = DescriptorUtils.getParentOfType(container, NamespaceDescriptor.class);
+            assert containingPackage != null : "Trait must have a namespace among his parents: " + container;
+
+            if (proto.hasExtension(JavaProtoBuf.implClassName)) {
+                Name tImplName = nameResolver.getName(proto.getExtension(JavaProtoBuf.implClassName));
+                return kotlinClassFinder.find(containingPackage.getFqName().child(tImplName));
             }
             return null;
-        }
-        else if (container instanceof ClassDescriptor && ((ClassDescriptor) container).getKind() == ClassKind.CLASS_OBJECT) {
-            // Backing fields of properties of a class object are generated in the outer class
-            if (isStaticFieldInOuter(proto)) {
-                return findKotlinClassByDescriptor((ClassOrNamespaceDescriptor) container.getContainingDeclaration());
-            }
         }
 
         return findKotlinClassByDescriptor(container);
     }
 
-    @NotNull
-    private static FqName getSrcClassFqName(@NotNull NamespaceDescriptor container, @NotNull Name name) {
-        return PackageClassUtils.getPackageClassFqName(DescriptorUtils.getFQName(container).toSafe()).parent().child(name);
-    }
-
     @Nullable
-    private static Name loadSrcClassName(@NotNull ProtoBuf.Callable proto, @NotNull NameResolver nameResolver) {
-        return proto.hasExtension(JavaProtoBuf.srcClassName) ? nameResolver.getName(proto.getExtension(JavaProtoBuf.srcClassName)) : null;
+    private KotlinJvmBinaryClass loadPackageFragmentClassFqName(
+            @NotNull NamespaceDescriptor container,
+            @NotNull ProtoBuf.Callable proto,
+            @NotNull NameResolver nameResolver
+    ) {
+        if (proto.hasExtension(JavaProtoBuf.implClassName)) {
+            Name name = nameResolver.getName(proto.getExtension(JavaProtoBuf.implClassName));
+            FqName fqName = PackageClassUtils.getPackageClassFqName(container.getFqName()).parent().child(name);
+            return kotlinClassFinder.find(fqName);
+        }
+        return null;
     }
 
     private static boolean isStaticFieldInOuter(@NotNull ProtoBuf.Callable proto) {
@@ -286,23 +306,21 @@ public class AnnotationDescriptorDeserializer implements AnnotationDeserializer 
             @NotNull NameResolver nameResolver,
             @NotNull AnnotatedCallableKind kind
     ) {
+        SignatureDeserializer deserializer = new SignatureDeserializer(nameResolver);
         switch (kind) {
             case FUNCTION:
                 if (proto.hasExtension(JavaProtoBuf.methodSignature)) {
-                    JavaProtoBuf.JavaMethodSignature signature = proto.getExtension(JavaProtoBuf.methodSignature);
-                    return new SignatureDeserializer(nameResolver).methodSignature(signature);
+                    return deserializer.methodSignature(proto.getExtension(JavaProtoBuf.methodSignature));
                 }
                 break;
             case PROPERTY_GETTER:
                 if (proto.hasExtension(JavaProtoBuf.propertySignature)) {
-                    JavaProtoBuf.JavaPropertySignature propertySignature = proto.getExtension(JavaProtoBuf.propertySignature);
-                    return new SignatureDeserializer(nameResolver).methodSignature(propertySignature.getGetter());
+                    return deserializer.methodSignature(proto.getExtension(JavaProtoBuf.propertySignature).getGetter());
                 }
                 break;
             case PROPERTY_SETTER:
                 if (proto.hasExtension(JavaProtoBuf.propertySignature)) {
-                    JavaProtoBuf.JavaPropertySignature propertySignature = proto.getExtension(JavaProtoBuf.propertySignature);
-                    return new SignatureDeserializer(nameResolver).methodSignature(propertySignature.getSetter());
+                    return deserializer.methodSignature(proto.getExtension(JavaProtoBuf.propertySignature).getSetter());
                 }
                 break;
             case PROPERTY:
@@ -311,13 +329,12 @@ public class AnnotationDescriptorDeserializer implements AnnotationDeserializer 
 
                     if (propertySignature.hasField()) {
                         JavaProtoBuf.JavaFieldSignature field = propertySignature.getField();
-                        String type = new SignatureDeserializer(nameResolver).typeDescriptor(field.getType());
+                        String type = deserializer.typeDescriptor(field.getType());
                         Name name = nameResolver.getName(field.getName());
                         return MemberSignature.fromFieldNameAndDesc(name, type);
                     }
-                    else if (propertySignature.hasSyntheticMethodName()) {
-                        Name name = nameResolver.getName(propertySignature.getSyntheticMethodName());
-                        return MemberSignature.fromMethodNameAndDesc(name, JvmAbi.ANNOTATED_PROPERTY_METHOD_SIGNATURE);
+                    else if (propertySignature.hasSyntheticMethod()) {
+                        return deserializer.methodSignature(propertySignature.getSyntheticMethod());
                     }
                 }
                 break;
@@ -334,34 +351,54 @@ public class AnnotationDescriptorDeserializer implements AnnotationDeserializer 
         kotlinClass.loadMemberAnnotations(new KotlinJvmBinaryClass.MemberVisitor() {
             @Nullable
             @Override
-            public KotlinJvmBinaryClass.AnnotationVisitor visitMethod(@NotNull Name name, @NotNull String desc) {
-                return annotationVisitor(MemberSignature.fromMethodNameAndDesc(name, desc));
+            public KotlinJvmBinaryClass.MethodAnnotationVisitor visitMethod(@NotNull Name name, @NotNull String desc) {
+                return new AnnotationVisitorForMethod(MemberSignature.fromMethodNameAndDesc(name, desc));
             }
 
             @Nullable
             @Override
             public KotlinJvmBinaryClass.AnnotationVisitor visitField(@NotNull Name name, @NotNull String desc) {
-                return annotationVisitor(MemberSignature.fromFieldNameAndDesc(name, desc));
+                return new MemberAnnotationVisitor(MemberSignature.fromFieldNameAndDesc(name, desc));
             }
 
-            @NotNull
-            private KotlinJvmBinaryClass.AnnotationVisitor annotationVisitor(@NotNull final MemberSignature signature) {
-                return new KotlinJvmBinaryClass.AnnotationVisitor() {
-                    private final List<AnnotationDescriptor> result = new ArrayList<AnnotationDescriptor>();
+            class AnnotationVisitorForMethod extends MemberAnnotationVisitor implements KotlinJvmBinaryClass.MethodAnnotationVisitor {
+                public AnnotationVisitorForMethod(@NotNull MemberSignature signature) {
+                    super(signature);
+                }
 
-                    @Nullable
-                    @Override
-                    public KotlinJvmBinaryClass.AnnotationArgumentVisitor visitAnnotation(@NotNull JvmClassName className) {
-                        return resolveAnnotation(className, result);
+                @Nullable
+                @Override
+                public KotlinJvmBinaryClass.AnnotationArgumentVisitor visitParameterAnnotation(int index, @NotNull JvmClassName className) {
+                    MemberSignature paramSignature = MemberSignature.fromMethodSignatureAndParameterIndex(signature, index);
+                    List<AnnotationDescriptor> result = memberAnnotations.get(paramSignature);
+                    if (result == null) {
+                        result = new ArrayList<AnnotationDescriptor>();
+                        memberAnnotations.put(paramSignature, result);
                     }
+                    return resolveAnnotation(className, result);
+                }
+            }
 
-                    @Override
-                    public void visitEnd() {
-                        if (!result.isEmpty()) {
-                            memberAnnotations.put(signature, result);
-                        }
+            class MemberAnnotationVisitor implements KotlinJvmBinaryClass.AnnotationVisitor {
+                private final List<AnnotationDescriptor> result = new ArrayList<AnnotationDescriptor>();
+                protected final MemberSignature signature;
+
+                public MemberAnnotationVisitor(@NotNull MemberSignature signature) {
+                    this.signature = signature;
+                }
+
+                @Nullable
+                @Override
+                public KotlinJvmBinaryClass.AnnotationArgumentVisitor visitAnnotation(@NotNull JvmClassName className) {
+                    return resolveAnnotation(className, result);
+                }
+
+                @Override
+                public void visitEnd() {
+                    if (!result.isEmpty()) {
+                        memberAnnotations.put(signature, result);
                     }
-                };
+                }
             }
         });
 
@@ -385,6 +422,11 @@ public class AnnotationDescriptorDeserializer implements AnnotationDeserializer 
         @NotNull
         public static MemberSignature fromFieldNameAndDesc(@NotNull Name name, @NotNull String desc) {
             return new MemberSignature(name.asString() + "#" + desc);
+        }
+
+        @NotNull
+        public static MemberSignature fromMethodSignatureAndParameterIndex(@NotNull MemberSignature signature, int index) {
+            return new MemberSignature(signature.signature + "@" + index);
         }
 
         @Override
@@ -459,7 +501,22 @@ public class AnnotationDescriptorDeserializer implements AnnotationDeserializer 
 
     @NotNull
     @Override
-    public List<AnnotationDescriptor> loadValueParameterAnnotations(@NotNull ProtoBuf.Callable.ValueParameter parameterProto) {
-        throw new UnsupportedOperationException(); // TODO
+    public List<AnnotationDescriptor> loadValueParameterAnnotations(
+            @NotNull ClassOrNamespaceDescriptor container,
+            @NotNull ProtoBuf.Callable callable,
+            @NotNull NameResolver nameResolver,
+            @NotNull AnnotatedCallableKind kind,
+            @NotNull ProtoBuf.Callable.ValueParameter proto
+    ) {
+        MemberSignature methodSignature = getCallableSignature(callable, nameResolver, kind);
+        if (methodSignature != null) {
+            if (proto.hasExtension(JavaProtoBuf.index)) {
+                MemberSignature paramSignature =
+                        MemberSignature.fromMethodSignatureAndParameterIndex(methodSignature, proto.getExtension(JavaProtoBuf.index));
+                return findClassAndLoadMemberAnnotations(container, callable, nameResolver, kind, paramSignature);
+            }
+        }
+
+        return Collections.emptyList();
     }
 }

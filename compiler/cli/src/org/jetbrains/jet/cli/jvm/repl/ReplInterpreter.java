@@ -30,6 +30,7 @@ import com.intellij.testFramework.LightVirtualFile;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.asm4.Type;
+import org.jetbrains.jet.OutputFile;
 import org.jetbrains.jet.analyzer.AnalyzeExhaust;
 import org.jetbrains.jet.cli.common.messages.AnalyzerWithCompilerReport;
 import org.jetbrains.jet.cli.common.messages.MessageCollector;
@@ -70,7 +71,6 @@ import java.net.URLClassLoader;
 import java.util.Collections;
 import java.util.List;
 
-
 import static org.jetbrains.jet.codegen.AsmUtil.asmTypeByFqNameWithoutInnerClasses;
 import static org.jetbrains.jet.codegen.binding.CodegenBinding.registerClassNameForScript;
 
@@ -93,7 +93,7 @@ public class ReplInterpreter {
     private final ModuleDescriptorImpl module;
 
     public ReplInterpreter(@NotNull Disposable disposable, @NotNull CompilerConfiguration configuration) {
-        jetCoreEnvironment = new JetCoreEnvironment(disposable, configuration);
+        jetCoreEnvironment = JetCoreEnvironment.createForProduction(disposable, configuration);
         Project project = jetCoreEnvironment.getProject();
         trace = new BindingTraceContext();
         module = AnalyzerFacadeForJVM.createJavaModule("<repl>");
@@ -241,8 +241,8 @@ public class ReplInterpreter {
         compileScript(psiFile.getScript(), scriptClassType, earlierScripts, generationState,
                       CompilationErrorHandler.THROW_EXCEPTION);
 
-        for (String file : generationState.getFactory().files()) {
-            classLoader.addClass(JvmClassName.byInternalName(file.replaceFirst("\\.class$", "")), generationState.getFactory().asBytes(file));
+        for (OutputFile outputFile : generationState.getFactory().asList()) {
+            classLoader.addClass(JvmClassName.byInternalName(outputFile.getRelativePath().replaceFirst("\\.class$", "")), outputFile.asByteArray());
         }
 
         try {

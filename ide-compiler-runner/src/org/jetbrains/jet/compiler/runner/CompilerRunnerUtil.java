@@ -18,7 +18,7 @@ package org.jetbrains.jet.compiler.runner;
 
 import com.intellij.util.Function;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.jet.cli.common.messages.*;
+import org.jetbrains.jet.cli.common.messages.MessageCollector;
 import org.jetbrains.jet.preloading.ClassPreloadingUtils;
 import org.jetbrains.jet.utils.KotlinPaths;
 
@@ -29,10 +29,12 @@ import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 import static org.jetbrains.jet.cli.common.messages.CompilerMessageLocation.NO_LOCATION;
-import static org.jetbrains.jet.cli.common.messages.CompilerMessageSeverity.*;
+import static org.jetbrains.jet.cli.common.messages.CompilerMessageSeverity.ERROR;
 
 public class CompilerRunnerUtil {
 
@@ -48,6 +50,7 @@ public class CompilerRunnerUtil {
 
         ArrayList<File> answer = new ArrayList<File>();
         answer.add(new File(libs, "kotlin-compiler.jar"));
+        answer.add(new File(libs, "kotlin-runtime.jar"));
         return answer;
     }
 
@@ -105,14 +108,16 @@ public class CompilerRunnerUtil {
     }
 
     public static Object invokeExecMethod(
-            String className, String[] arguments, CompilerEnvironment environment,
+            String compilerClassName, String[] arguments, CompilerEnvironment environment,
             MessageCollector messageCollector, PrintStream out, boolean usePreloader
     ) throws Exception {
         ClassLoader loader = usePreloader
                              ? getOrCreatePreloader(environment.getKotlinPaths(), messageCollector)
                              : getOrCreateClassLoader(environment.getKotlinPaths(), messageCollector);
-        Class<?> kompiler = Class.forName(className, true, loader);
-        Method exec = kompiler.getMethod("exec", PrintStream.class, String[].class);
+
+        Class<?> kompiler = Class.forName(compilerClassName, true, loader);
+        Method exec = kompiler.getMethod("exec", PrintStream.class,  String[].class);
+
         return exec.invoke(kompiler.newInstance(), out, arguments);
     }
 

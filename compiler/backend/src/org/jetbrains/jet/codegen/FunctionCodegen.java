@@ -31,15 +31,12 @@ import org.jetbrains.asm4.commons.Method;
 import org.jetbrains.jet.codegen.binding.CodegenBinding;
 import org.jetbrains.jet.codegen.context.CodegenContext;
 import org.jetbrains.jet.codegen.context.MethodContext;
-import org.jetbrains.jet.codegen.context.NamespaceContext;
 import org.jetbrains.jet.codegen.context.NamespaceFacadeContext;
 import org.jetbrains.jet.codegen.signature.JvmMethodParameterKind;
 import org.jetbrains.jet.codegen.signature.JvmMethodParameterSignature;
 import org.jetbrains.jet.codegen.signature.JvmMethodSignature;
 import org.jetbrains.jet.codegen.state.GenerationState;
-import org.jetbrains.jet.codegen.state.GenerationStateAware;
 import org.jetbrains.jet.codegen.state.JetTypeMapper;
-import org.jetbrains.jet.codegen.state.JetTypeMapperMode;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.psi.JetNamedFunction;
 import org.jetbrains.jet.lang.resolve.BindingContext;
@@ -51,6 +48,7 @@ import java.util.*;
 import static org.jetbrains.asm4.Opcodes.*;
 import static org.jetbrains.jet.codegen.AsmUtil.*;
 import static org.jetbrains.jet.codegen.CodegenUtil.*;
+import static org.jetbrains.jet.codegen.JvmSerializationBindings.*;
 import static org.jetbrains.jet.codegen.binding.CodegenBinding.asmTypeForAnonymousClass;
 import static org.jetbrains.jet.codegen.binding.CodegenBinding.isLocalNamedFun;
 import static org.jetbrains.jet.lang.resolve.BindingContextUtils.callableDescriptorToDeclaration;
@@ -114,20 +112,33 @@ public class FunctionCodegen extends ParentCodegenAwareImpl {
 
         if (owner instanceof NamespaceFacadeContext) {
             Type ownerType = ((NamespaceFacadeContext) owner).getDelegateToClassType();
-            v.getMemberMap().recordSrcClassNameForCallable(functionDescriptor, shortNameByAsmType(ownerType));
+            v.getSerializationBindings().put(IMPL_CLASS_NAME_FOR_CALLABLE, functionDescriptor, shortNameByAsmType(ownerType));
         }
         else {
-            v.getMemberMap().recordMethodOfDescriptor(functionDescriptor, asmMethod);
+            v.getSerializationBindings().put(METHOD_FOR_FUNCTION, functionDescriptor, asmMethod);
         }
 
         AnnotationCodegen.forMethod(mv, typeMapper).genAnnotations(functionDescriptor);
-        if (state.getClassBuilderMode() == ClassBuilderMode.LIGHT_CLASSES) return;
 
         generateParameterAnnotations(functionDescriptor, mv, jvmSignature);
 
         generateJetValueParameterAnnotations(mv, functionDescriptor, jvmSignature);
 
-        if (isAbstractMethod(functionDescriptor, methodContext.getContextKind())) return;
+        if (state.getClassBuilderMode() == ClassBuilderMode.LIGHT_CLASSES ||
+            isAbstractMethod(functionDescriptor, methodContext.getContextKind())) {
+            generateLocalVariableTable(
+                    mv,
+                    jvmSignature,
+                    functionDescriptor,
+                    getThisTypeForFunction(functionDescriptor, methodContext),
+                    new Label(),
+                    new Label(),
+                    new HashSet<String>(getParameterNamesAsStrings(functionDescriptor)),
+                    Collections.<Name, Label>emptyMap(),
+                    methodContext.getContextKind()
+            );
+            return;
+        }
 
         generateMethodBody(mv, functionDescriptor, methodContext, jvmSignature, strategy);
 
@@ -155,6 +166,7 @@ public class FunctionCodegen extends ParentCodegenAwareImpl {
 
             if (kind == JvmMethodParameterKind.VALUE) {
                 ValueParameterDescriptor parameter = iterator.next();
+                v.getSerializationBindings().put(INDEX_FOR_VALUE_PARAMETER, parameter, i);
                 AnnotationCodegen.forParameter(i, mv, typeMapper).genAnnotations(parameter);
             }
         }
@@ -203,20 +215,27 @@ public class FunctionCodegen extends ParentCodegenAwareImpl {
 
             AnnotationVisitor av =
                     mv.visitParameterAnnotation(i, asmDescByFqNameWithoutInnerClasses(fqNameByClass(JetValueParameter.class)), true);
-            av.visit("name", name);
-            if (nullableType) {
-                av.visit("type", "?");
+            if (av != null) {
+                av.visit("name", name);
+                if (nullableType) {
+                    av.visit("type", "?");
+                }
+                av.visitEnd();
             }
-            av.visitEnd();
         }
     }
 
-    private static void markEnumConstructorParameterAsSynthetic(MethodVisitor mv, int i) {
+    private void markEnumConstructorParameterAsSynthetic(MethodVisitor mv, int i) {
+        // IDEA's ClsPsi builder fails to annotate synthetic parameters
+        if (state.getClassBuilderMode() == ClassBuilderMode.LIGHT_CLASSES) return;
+
         // This is needed to avoid RuntimeInvisibleParameterAnnotations error in javac:
         // see MethodWriter.visitParameterAnnotation()
 
         AnnotationVisitor av = mv.visitParameterAnnotation(i, "Ljava/lang/Synthetic;", true);
-        av.visitEnd();
+        if (av != null) {
+            av.visitEnd();
+        }
     }
 
     @Nullable
@@ -549,7 +568,7 @@ public class FunctionCodegen extends ParentCodegenAwareImpl {
             ownerType = state.getTypeMapper().getOwner(functionDescriptor, kind, true);
         }
         else if (contextClass instanceof ClassDescriptor) {
-            ownerType = state.getTypeMapper().mapType(((ClassDescriptor) contextClass).getDefaultType(), JetTypeMapperMode.IMPL);
+            ownerType = state.getTypeMapper().mapClass((ClassDescriptor) contextClass);
         }
         else if (isLocalNamedFun(functionDescriptor)) {
             ownerType = asmTypeForAnonymousClass(state.getBindingContext(), functionDescriptor);

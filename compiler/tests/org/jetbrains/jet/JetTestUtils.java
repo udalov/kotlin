@@ -23,12 +23,14 @@ import com.google.common.collect.Sets;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.util.Comparing;
 import com.intellij.openapi.util.ShutDownTracker;
 import com.intellij.openapi.util.io.FileUtil;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.openapi.vfs.CharsetToolkit;
 import com.intellij.psi.PsiFileFactory;
 import com.intellij.psi.impl.PsiFileFactoryImpl;
+import com.intellij.rt.execution.junit.FileComparisonFailure;
 import com.intellij.testFramework.LightVirtualFile;
 import junit.framework.TestCase;
 import org.jetbrains.annotations.NonNls;
@@ -52,11 +54,11 @@ import org.jetbrains.jet.lang.diagnostics.Severity;
 import org.jetbrains.jet.lang.diagnostics.rendering.DefaultErrorMessages;
 import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.psi.JetPsiFactory;
-import org.jetbrains.jet.lang.psi.JetPsiUtil;
 import org.jetbrains.jet.lang.resolve.*;
 import org.jetbrains.jet.lang.resolve.java.AnalyzerFacadeForJVM;
 import org.jetbrains.jet.lang.resolve.lazy.LazyResolveTestUtil;
 import org.jetbrains.jet.lang.resolve.name.Name;
+import org.jetbrains.jet.lang.resolve.name.SpecialNames;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
 import org.jetbrains.jet.lang.resolve.scopes.RedeclarationHandler;
 import org.jetbrains.jet.lang.resolve.scopes.WritableScopeImpl;
@@ -66,8 +68,6 @@ import org.jetbrains.jet.test.TestMetadata;
 import org.jetbrains.jet.util.slicedmap.ReadOnlySlice;
 import org.jetbrains.jet.util.slicedmap.SlicedMap;
 import org.jetbrains.jet.util.slicedmap.WritableSlice;
-import org.jetbrains.jet.utils.KotlinPaths;
-import org.jetbrains.jet.utils.KotlinPathsFromHomeDir;
 import org.jetbrains.jet.utils.PathUtil;
 import org.junit.Assert;
 
@@ -232,6 +232,7 @@ public class JetTestUtils {
         return createEnvironmentWithMockJdkAndIdeaAnnotations(disposable, ConfigurationKind.ALL);
     }
 
+    @NotNull
     public static JetCoreEnvironment createEnvironmentWithMockJdkAndIdeaAnnotations(Disposable disposable, @NotNull ConfigurationKind configurationKind) {
         return createEnvironmentWithJdkAndNullabilityAnnotationsFromIdea(disposable, configurationKind, TestJdkKind.MOCK_JDK);
     }
@@ -241,7 +242,7 @@ public class JetTestUtils {
             @NotNull ConfigurationKind configurationKind,
             @NotNull TestJdkKind jdkKind
     ) {
-        return new JetCoreEnvironment(disposable, compilerConfigurationForTests(
+        return JetCoreEnvironment.createForTests(disposable, compilerConfigurationForTests(
                 configurationKind, jdkKind, getAnnotationsJar(), getAnnotationsExtJar()));
     }
 
@@ -383,12 +384,15 @@ public class JetTestUtils {
                 FileUtil.writeToFile(expectedFile, actual);
                 Assert.fail("Expected data file did not exist. Generating: " + expectedFile);
             }
-            String expected = FileUtil.loadFile(expectedFile, true);
+            String expected = FileUtil.loadFile(expectedFile, CharsetToolkit.UTF8, true);
 
             // compare with hard copy: make sure nothing is lost in output
-            Assert.assertEquals("Expected and actual namespaces differ from " + expectedFile.getName(),
-                                StringUtil.convertLineSeparators(expected),
-                                StringUtil.convertLineSeparators(actual));
+            String expectedText = StringUtil.convertLineSeparators(expected.trim());
+            String actualText = StringUtil.convertLineSeparators(actual.trim());
+            if (!Comparing.equal(expectedText, actualText)) {
+                throw new FileComparisonFailure("Expected and actual namespaces differ from " + expectedFile.getName(),
+                                                expected, actual, expectedFile.getAbsolutePath());
+            }
         }
         catch (IOException e) {
             throw new RuntimeException(e);
@@ -439,7 +443,7 @@ public class JetTestUtils {
         return testFiles;
     }
 
-    private static Map<String, String> parseDirectives(String expectedText) {
+    public static Map<String, String> parseDirectives(String expectedText) {
         Map<String, String> directives = Maps.newHashMap();
         Matcher directiveMatcher = DIRECTIVE_PATTERN.matcher(expectedText);
         int start = 0;
@@ -627,10 +631,6 @@ public class JetTestUtils {
         return generatorClassFqName.substring(generatorClassFqName.lastIndexOf(".") + 1);
     }
 
-    public static KotlinPaths getPathsForTests() {
-        return new KotlinPathsFromHomeDir(new File("dist/kotlinc"));
-    }
-
     public static JetFile loadJetFile(@NotNull Project project, @NotNull File ioFile) throws IOException {
         String text = FileUtil.loadFile(ioFile);
         return JetPsiFactory.createPhysicalFile(project, ioFile.getName(), text);
@@ -664,7 +664,7 @@ public class JetTestUtils {
     public static NamespaceDescriptorImpl createTestNamespace(@NotNull Name testPackageName) {
         ModuleDescriptorImpl module = AnalyzerFacadeForJVM.createJavaModule("<test module>");
         NamespaceDescriptorImpl rootNamespace =
-                new NamespaceDescriptorImpl(module, Collections.<AnnotationDescriptor>emptyList(), DescriptorUtils.ROOT_NAMESPACE_NAME);
+                new NamespaceDescriptorImpl(module, Collections.<AnnotationDescriptor>emptyList(), SpecialNames.ROOT_NAMESPACE);
         module.setRootNamespace(rootNamespace);
         NamespaceDescriptorImpl test = new NamespaceDescriptorImpl(rootNamespace, Collections.<AnnotationDescriptor>emptyList(), testPackageName);
         test.initialize(new WritableScopeImpl(JetScope.EMPTY, test, RedeclarationHandler.DO_NOTHING, "members of test namespace"));

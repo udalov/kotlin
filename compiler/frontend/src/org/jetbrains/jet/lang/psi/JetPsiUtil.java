@@ -36,6 +36,7 @@ import org.jetbrains.jet.lang.parsing.JetExpressionParsing;
 import org.jetbrains.jet.lang.resolve.ImportPath;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.Name;
+import org.jetbrains.jet.lang.resolve.name.SpecialNames;
 import org.jetbrains.jet.lang.types.expressions.OperatorConventions;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 import org.jetbrains.jet.lexer.JetToken;
@@ -47,10 +48,11 @@ import java.util.List;
 import java.util.Set;
 
 public class JetPsiUtil {
-
-    public static final Name NO_NAME_PROVIDED = Name.special("<no name provided>");
-
     private JetPsiUtil() {
+    }
+
+    public interface JetExpressionWrapper {
+        JetExpression getBaseExpression();
     }
 
     public static <D> void visitChildren(@NotNull JetElement element, @NotNull JetTreeVisitor<D> visitor, D data) {
@@ -63,14 +65,20 @@ public class JetPsiUtil {
         }
     }
 
+    @NotNull
+    public static JetExpression safeDeparenthesize(@NotNull JetExpression expression, boolean deparenthesizeBinaryExpressionWithTypeRHS) {
+        JetExpression deparenthesized = deparenthesize(expression, deparenthesizeBinaryExpressionWithTypeRHS);
+        return deparenthesized != null ? deparenthesized : expression;
+    }
+
     @Nullable
-    public static JetExpression deparenthesize(@NotNull JetExpression expression) {
+    public static JetExpression deparenthesize(@Nullable JetExpression expression) {
         return deparenthesize(expression, true);
     }
 
     @Nullable
     public static JetExpression deparenthesize(
-            @NotNull JetExpression expression,
+            @Nullable JetExpression expression,
             boolean deparenthesizeBinaryExpressionWithTypeRHS
     ) {
         return deparenthesizeWithResolutionStrategy(expression, deparenthesizeBinaryExpressionWithTypeRHS, null);
@@ -100,6 +108,9 @@ public class JetPsiUtil {
                 expression = baseExpression;
             }
         }
+        else if (expression instanceof JetExpressionWrapper) {
+            expression = ((JetExpressionWrapper) expression).getBaseExpression();
+        }
         if (expression instanceof JetParenthesizedExpression) {
             JetExpression innerExpression = ((JetParenthesizedExpression) expression).getExpression();
             return innerExpression != null ? deparenthesizeWithResolutionStrategy(
@@ -118,7 +129,7 @@ public class JetPsiUtil {
 
     @NotNull
     public static Name safeName(@Nullable String name) {
-        return name == null ? NO_NAME_PROVIDED : Name.identifier(name);
+        return name == null ? SpecialNames.NO_NAME_PROVIDED : Name.identifier(name);
     }
 
     @NotNull
@@ -564,21 +575,6 @@ public class JetPsiUtil {
         return statements.isEmpty() ? null : statements.get(statements.size() - 1);
     }
 
-    @NotNull
-    public static JetExpression unwrapFromBlock(@NotNull JetExpression expression) {
-        //used for 'if' branches that are wrapped in a block
-        if (expression instanceof JetBlockExpression) {
-            List<JetElement> statements = ((JetBlockExpression) expression).getStatements();
-            if (statements.size() == 1) {
-                JetElement lastStatement = getLastStatementInABlock((JetBlockExpression) expression);
-                if (lastStatement instanceof JetExpression) {
-                    return (JetExpression) lastStatement;
-                }
-            }
-        }
-        return expression;
-    }
-
     public static boolean isLocalClass(@NotNull JetClassOrObject classOrObject) {
         return getOutermostClassOrObject(classOrObject) == null;
     }
@@ -750,27 +746,6 @@ public class JetPsiUtil {
 
         JetElement lastElement = block.getStatements().get(n - 1);
         return checkElement.apply(lastElement) ? lastElement : null;
-    }
-
-    @Nullable
-    public static PsiElement getParentByTypeAndPredicate(
-            @Nullable PsiElement element, @NotNull Class<? extends PsiElement> aClass, @NotNull Predicate<PsiElement> predicate, boolean strict) {
-        if (element == null) return null;
-        if (strict) {
-            element = element.getParent();
-        }
-
-        while (element != null) {
-            //noinspection unchecked
-            if (aClass.isInstance(element) && predicate.apply(element)) {
-                //noinspection unchecked
-                return element;
-            }
-            if (element instanceof PsiFile) return null;
-            element = element.getParent();
-        }
-
-        return null;
     }
 
     public static boolean checkVariableDeclarationInBlock(@NotNull JetBlockExpression block, @NotNull String varName) {
@@ -1030,16 +1005,18 @@ public class JetPsiUtil {
         return header != null ? header.getQualifiedName() : null;
     }
 
-    public static JetElement getEnclosingBlockForLocalDeclaration(@NotNull JetNamedDeclaration declaration) {
-        //noinspection unchecked
-        JetDeclaration container =
-                PsiTreeUtil.getParentOfType(declaration, JetNamedFunction.class, JetPropertyAccessor.class, JetClassInitializer.class);
+    @Nullable
+    public static JetElement getEnclosingBlockForLocalDeclaration(@Nullable JetNamedDeclaration declaration) {
+        if (declaration instanceof JetTypeParameter || declaration instanceof JetParameter) {
+            declaration = PsiTreeUtil.getParentOfType(declaration, JetNamedDeclaration.class);
+        }
 
+        //noinspection unchecked
+        JetElement container =
+                PsiTreeUtil.getParentOfType(declaration, JetBlockExpression.class, JetClassInitializer.class);
         if (container == null) return null;
 
-        return (container instanceof JetClassInitializer)
-               ? ((JetClassInitializer) container).getBody()
-               : ((JetDeclarationWithBody) container).getBodyExpression();
+        return (container instanceof JetClassInitializer) ? ((JetClassInitializer) container).getBody() : container;
     }
 
     public static boolean isLocal(@NotNull JetNamedDeclaration declaration) {

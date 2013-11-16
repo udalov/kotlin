@@ -33,16 +33,11 @@ import org.jetbrains.jet.checkers.AbstractDiagnosticsTestWithEagerResolve;
 @InnerTestClasses({JetDiagnosticsTestGenerated.Tests.class, JetDiagnosticsTestGenerated.Script.class})
 public class JetDiagnosticsTestGenerated extends AbstractDiagnosticsTestWithEagerResolve {
     @TestMetadata("compiler/testData/diagnostics/tests")
-    @InnerTestClasses({Tests.Annotations.class, Tests.BackingField.class, Tests.CallableReference.class, Tests.Cast.class, Tests.CheckArguments.class, Tests.ControlFlowAnalysis.class, Tests.ControlStructures.class, Tests.DataClasses.class, Tests.DataFlow.class, Tests.DataFlowInfoTraversal.class, Tests.DeclarationChecks.class, Tests.DelegatedProperty.class, Tests.Deparenthesize.class, Tests.Enum.class, Tests.Extensions.class, Tests.FunctionLiterals.class, Tests.Generics.class, Tests.IncompleteCode.class, Tests.Inference.class, Tests.Infos.class, Tests.Inner.class, Tests.J_k.class, Tests.Jdk_annotations.class, Tests.Library.class, Tests.NullabilityAndAutoCasts.class, Tests.NullableTypes.class, Tests.Numbers.class, Tests.Objects.class, Tests.OperatorsOverloading.class, Tests.Overload.class, Tests.Override.class, Tests.Recovery.class, Tests.Redeclarations.class, Tests.Regressions.class, Tests.Resolve.class, Tests.Scopes.class, Tests.SenselessComparison.class, Tests.Shadowing.class, Tests.SmartCasts.class, Tests.Substitutions.class, Tests.Subtyping.class, Tests.Suppress.class, Tests.ThisAndSuper.class, Tests.Varargs.class, Tests.When.class})
+    @InnerTestClasses({Tests.Annotations.class, Tests.BackingField.class, Tests.CallableReference.class, Tests.Cast.class, Tests.CheckArguments.class, Tests.ClassObjects.class, Tests.ControlFlowAnalysis.class, Tests.ControlStructures.class, Tests.DataClasses.class, Tests.DataFlow.class, Tests.DataFlowInfoTraversal.class, Tests.DeclarationChecks.class, Tests.DelegatedProperty.class, Tests.Deparenthesize.class, Tests.Enum.class, Tests.Extensions.class, Tests.FunctionLiterals.class, Tests.Generics.class, Tests.IncompleteCode.class, Tests.Inference.class, Tests.Infos.class, Tests.Inner.class, Tests.J_k.class, Tests.Jdk_annotations.class, Tests.Library.class, Tests.NullabilityAndAutoCasts.class, Tests.NullableTypes.class, Tests.Numbers.class, Tests.Objects.class, Tests.OperatorsOverloading.class, Tests.Overload.class, Tests.Override.class, Tests.Recovery.class, Tests.Redeclarations.class, Tests.Regressions.class, Tests.Resolve.class, Tests.Scopes.class, Tests.SenselessComparison.class, Tests.Shadowing.class, Tests.SmartCasts.class, Tests.Substitutions.class, Tests.Subtyping.class, Tests.Suppress.class, Tests.ThisAndSuper.class, Tests.Varargs.class, Tests.When.class})
     public static class Tests extends AbstractDiagnosticsTestWithEagerResolve {
         @TestMetadata("Abstract.kt")
         public void testAbstract() throws Exception {
             doTest("compiler/testData/diagnostics/tests/Abstract.kt");
-        }
-        
-        @TestMetadata("AbstractEnum.kt")
-        public void testAbstractEnum() throws Exception {
-            doTest("compiler/testData/diagnostics/tests/AbstractEnum.kt");
         }
         
         @TestMetadata("AbstractInAbstractClass.kt")
@@ -53,11 +48,6 @@ public class JetDiagnosticsTestGenerated extends AbstractDiagnosticsTestWithEage
         @TestMetadata("AbstractInClass.kt")
         public void testAbstractInClass() throws Exception {
             doTest("compiler/testData/diagnostics/tests/AbstractInClass.kt");
-        }
-        
-        @TestMetadata("AbstractInEnum.kt")
-        public void testAbstractInEnum() throws Exception {
-            doTest("compiler/testData/diagnostics/tests/AbstractInEnum.kt");
         }
         
         @TestMetadata("AbstractInTrait.kt")
@@ -127,21 +117,6 @@ public class JetDiagnosticsTestGenerated extends AbstractDiagnosticsTestWithEage
         @TestMetadata("CharacterLiterals.kt")
         public void testCharacterLiterals() throws Exception {
             doTest("compiler/testData/diagnostics/tests/CharacterLiterals.kt");
-        }
-        
-        @TestMetadata("ClassObjectCannotAccessClassFields.kt")
-        public void testClassObjectCannotAccessClassFields() throws Exception {
-            doTest("compiler/testData/diagnostics/tests/ClassObjectCannotAccessClassFields.kt");
-        }
-        
-        @TestMetadata("ClassObjectVisibility.kt")
-        public void testClassObjectVisibility() throws Exception {
-            doTest("compiler/testData/diagnostics/tests/ClassObjectVisibility.kt");
-        }
-        
-        @TestMetadata("ClassObjects.kt")
-        public void testClassObjects() throws Exception {
-            doTest("compiler/testData/diagnostics/tests/ClassObjects.kt");
         }
         
         @TestMetadata("CompareToWithErrorType.kt")
@@ -282,11 +257,6 @@ public class JetDiagnosticsTestGenerated extends AbstractDiagnosticsTestWithEage
         @TestMetadata("InferNullabilityInThenBlock.kt")
         public void testInferNullabilityInThenBlock() throws Exception {
             doTest("compiler/testData/diagnostics/tests/InferNullabilityInThenBlock.kt");
-        }
-        
-        @TestMetadata("InnerClassClassObject.kt")
-        public void testInnerClassClassObject() throws Exception {
-            doTest("compiler/testData/diagnostics/tests/InnerClassClassObject.kt");
         }
         
         @TestMetadata("IsExpressions.kt")
@@ -1368,6 +1338,44 @@ public class JetDiagnosticsTestGenerated extends AbstractDiagnosticsTestWithEage
             
         }
         
+        @TestMetadata("compiler/testData/diagnostics/tests/classObjects")
+        public static class ClassObjects extends AbstractDiagnosticsTestWithEagerResolve {
+            public void testAllFilesPresentInClassObjects() throws Exception {
+                JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), "org.jetbrains.jet.generators.tests.GenerateTests", new File("compiler/testData/diagnostics/tests/classObjects"), Pattern.compile("^(.+)\\.kt$"), true);
+            }
+            
+            @TestMetadata("ClassObjectCannotAccessClassFields.kt")
+            public void testClassObjectCannotAccessClassFields() throws Exception {
+                doTest("compiler/testData/diagnostics/tests/classObjects/ClassObjectCannotAccessClassFields.kt");
+            }
+            
+            @TestMetadata("ClassObjectVisibility.kt")
+            public void testClassObjectVisibility() throws Exception {
+                doTest("compiler/testData/diagnostics/tests/classObjects/ClassObjectVisibility.kt");
+            }
+            
+            @TestMetadata("ClassObjects.kt")
+            public void testClassObjects() throws Exception {
+                doTest("compiler/testData/diagnostics/tests/classObjects/ClassObjects.kt");
+            }
+            
+            @TestMetadata("InnerClassClassObject.kt")
+            public void testInnerClassClassObject() throws Exception {
+                doTest("compiler/testData/diagnostics/tests/classObjects/InnerClassClassObject.kt");
+            }
+            
+            @TestMetadata("invisibleClassObjects.kt")
+            public void testInvisibleClassObjects() throws Exception {
+                doTest("compiler/testData/diagnostics/tests/classObjects/invisibleClassObjects.kt");
+            }
+            
+            @TestMetadata("nestedClassInPrivateClassObject.kt")
+            public void testNestedClassInPrivateClassObject() throws Exception {
+                doTest("compiler/testData/diagnostics/tests/classObjects/nestedClassInPrivateClassObject.kt");
+            }
+            
+        }
+        
         @TestMetadata("compiler/testData/diagnostics/tests/controlFlowAnalysis")
         public static class ControlFlowAnalysis extends AbstractDiagnosticsTestWithEagerResolve {
             public void testAllFilesPresentInControlFlowAnalysis() throws Exception {
@@ -2444,6 +2452,16 @@ public class JetDiagnosticsTestGenerated extends AbstractDiagnosticsTestWithEage
                     doTest("compiler/testData/diagnostics/tests/delegatedProperty/inference/noErrorsForImplicitConstraints.kt");
                 }
                 
+                @TestMetadata("noExpectedTypeForSupertypeConstraint.kt")
+                public void testNoExpectedTypeForSupertypeConstraint() throws Exception {
+                    doTest("compiler/testData/diagnostics/tests/delegatedProperty/inference/noExpectedTypeForSupertypeConstraint.kt");
+                }
+                
+                @TestMetadata("useCompleterWithoutExpectedType.kt")
+                public void testUseCompleterWithoutExpectedType() throws Exception {
+                    doTest("compiler/testData/diagnostics/tests/delegatedProperty/inference/useCompleterWithoutExpectedType.kt");
+                }
+                
                 @TestMetadata("useExpectedType.kt")
                 public void testUseExpectedType() throws Exception {
                     doTest("compiler/testData/diagnostics/tests/delegatedProperty/inference/useExpectedType.kt");
@@ -2475,13 +2493,33 @@ public class JetDiagnosticsTestGenerated extends AbstractDiagnosticsTestWithEage
                 doTest("compiler/testData/diagnostics/tests/deparenthesize/ArrayAccessAssignment.kt");
             }
             
+            @TestMetadata("checkDeparenthesizedType.kt")
+            public void testCheckDeparenthesizedType() throws Exception {
+                doTest("compiler/testData/diagnostics/tests/deparenthesize/checkDeparenthesizedType.kt");
+            }
+            
         }
         
         @TestMetadata("compiler/testData/diagnostics/tests/enum")
         @InnerTestClasses({Enum.Inner.class})
         public static class Enum extends AbstractDiagnosticsTestWithEagerResolve {
+            @TestMetadata("AbstractEnum.kt")
+            public void testAbstractEnum() throws Exception {
+                doTest("compiler/testData/diagnostics/tests/enum/AbstractEnum.kt");
+            }
+            
+            @TestMetadata("AbstractInEnum.kt")
+            public void testAbstractInEnum() throws Exception {
+                doTest("compiler/testData/diagnostics/tests/enum/AbstractInEnum.kt");
+            }
+            
             public void testAllFilesPresentInEnum() throws Exception {
                 JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), "org.jetbrains.jet.generators.tests.GenerateTests", new File("compiler/testData/diagnostics/tests/enum"), Pattern.compile("^(.+)\\.kt$"), true);
+            }
+            
+            @TestMetadata("entryShouldBeOfEnumType.kt")
+            public void testEntryShouldBeOfEnumType() throws Exception {
+                doTest("compiler/testData/diagnostics/tests/enum/entryShouldBeOfEnumType.kt");
             }
             
             @TestMetadata("enumInheritance.kt")
@@ -2661,6 +2699,11 @@ public class JetDiagnosticsTestGenerated extends AbstractDiagnosticsTestWithEage
                 doTest("compiler/testData/diagnostics/tests/extensions/kt819ExtensionProperties.kt");
             }
             
+            @TestMetadata("object.kt")
+            public void testObject() throws Exception {
+                doTest("compiler/testData/diagnostics/tests/extensions/object.kt");
+            }
+            
             @TestMetadata("throwOutCandidatesByReceiver.kt")
             public void testThrowOutCandidatesByReceiver() throws Exception {
                 doTest("compiler/testData/diagnostics/tests/extensions/throwOutCandidatesByReceiver.kt");
@@ -2693,6 +2736,16 @@ public class JetDiagnosticsTestGenerated extends AbstractDiagnosticsTestWithEage
             @TestMetadata("ExpectedParametersTypesMismatch.kt")
             public void testExpectedParametersTypesMismatch() throws Exception {
                 doTest("compiler/testData/diagnostics/tests/functionLiterals/ExpectedParametersTypesMismatch.kt");
+            }
+            
+            @TestMetadata("functionLIteralInBlockInIf.kt")
+            public void testFunctionLIteralInBlockInIf() throws Exception {
+                doTest("compiler/testData/diagnostics/tests/functionLiterals/functionLIteralInBlockInIf.kt");
+            }
+            
+            @TestMetadata("functionLiteralWithoutArgumentList.kt")
+            public void testFunctionLiteralWithoutArgumentList() throws Exception {
+                doTest("compiler/testData/diagnostics/tests/functionLiterals/functionLiteralWithoutArgumentList.kt");
             }
             
             @TestMetadata("kt2906.kt")
@@ -2806,6 +2859,11 @@ public class JetDiagnosticsTestGenerated extends AbstractDiagnosticsTestWithEage
         public static class Generics extends AbstractDiagnosticsTestWithEagerResolve {
             public void testAllFilesPresentInGenerics() throws Exception {
                 JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), "org.jetbrains.jet.generators.tests.GenerateTests", new File("compiler/testData/diagnostics/tests/generics"), Pattern.compile("^(.+)\\.kt$"), true);
+            }
+            
+            @TestMetadata("ClassObjectBoundsAreNotSupported.kt")
+            public void testClassObjectBoundsAreNotSupported() throws Exception {
+                doTest("compiler/testData/diagnostics/tests/generics/ClassObjectBoundsAreNotSupported.kt");
             }
             
             @TestMetadata("kt1575-Class.kt")
@@ -3033,7 +3091,7 @@ public class JetDiagnosticsTestGenerated extends AbstractDiagnosticsTestWithEage
         }
         
         @TestMetadata("compiler/testData/diagnostics/tests/inference")
-        @InnerTestClasses({Inference.NestedCalls.class, Inference.Regressions.class, Inference.ReportingImprovements.class, Inference.UpperBounds.class, Inference.Varargs.class})
+        @InnerTestClasses({Inference.Constraints.class, Inference.NestedCalls.class, Inference.Regressions.class, Inference.ReportingImprovements.class, Inference.UpperBounds.class, Inference.Varargs.class})
         public static class Inference extends AbstractDiagnosticsTestWithEagerResolve {
             public void testAllFilesPresentInInference() throws Exception {
                 JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), "org.jetbrains.jet.generators.tests.GenerateTests", new File("compiler/testData/diagnostics/tests/inference"), Pattern.compile("^(.+)\\.kt$"), true);
@@ -3149,6 +3207,11 @@ public class JetDiagnosticsTestGenerated extends AbstractDiagnosticsTestWithEage
                 doTest("compiler/testData/diagnostics/tests/inference/noInformationForParameter.kt");
             }
             
+            @TestMetadata("nullableUpperBound.kt")
+            public void testNullableUpperBound() throws Exception {
+                doTest("compiler/testData/diagnostics/tests/inference/nullableUpperBound.kt");
+            }
+            
             @TestMetadata("opposite.kt")
             public void testOpposite() throws Exception {
                 doTest("compiler/testData/diagnostics/tests/inference/opposite.kt");
@@ -3172,6 +3235,34 @@ public class JetDiagnosticsTestGenerated extends AbstractDiagnosticsTestWithEage
             @TestMetadata("useFunctionLiteralsToInferType.kt")
             public void testUseFunctionLiteralsToInferType() throws Exception {
                 doTest("compiler/testData/diagnostics/tests/inference/useFunctionLiteralsToInferType.kt");
+            }
+            
+            @TestMetadata("compiler/testData/diagnostics/tests/inference/constraints")
+            public static class Constraints extends AbstractDiagnosticsTestWithEagerResolve {
+                public void testAllFilesPresentInConstraints() throws Exception {
+                    JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), "org.jetbrains.jet.generators.tests.GenerateTests", new File("compiler/testData/diagnostics/tests/inference/constraints"), Pattern.compile("^(.+)\\.kt$"), true);
+                }
+                
+                @TestMetadata("equalityConstraintOnNullableType.kt")
+                public void testEqualityConstraintOnNullableType() throws Exception {
+                    doTest("compiler/testData/diagnostics/tests/inference/constraints/equalityConstraintOnNullableType.kt");
+                }
+                
+                @TestMetadata("notNullConstraintOnNullableType.kt")
+                public void testNotNullConstraintOnNullableType() throws Exception {
+                    doTest("compiler/testData/diagnostics/tests/inference/constraints/notNullConstraintOnNullableType.kt");
+                }
+                
+                @TestMetadata("subtypeConstraintOnNullableType.kt")
+                public void testSubtypeConstraintOnNullableType() throws Exception {
+                    doTest("compiler/testData/diagnostics/tests/inference/constraints/subtypeConstraintOnNullableType.kt");
+                }
+                
+                @TestMetadata("supertypeConstraintOnNullableType.kt")
+                public void testSupertypeConstraintOnNullableType() throws Exception {
+                    doTest("compiler/testData/diagnostics/tests/inference/constraints/supertypeConstraintOnNullableType.kt");
+                }
+                
             }
             
             @TestMetadata("compiler/testData/diagnostics/tests/inference/nestedCalls")
@@ -3499,9 +3590,24 @@ public class JetDiagnosticsTestGenerated extends AbstractDiagnosticsTestWithEage
                     JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), "org.jetbrains.jet.generators.tests.GenerateTests", new File("compiler/testData/diagnostics/tests/inference/upperBounds"), Pattern.compile("^(.+)\\.kt$"), true);
                 }
                 
+                @TestMetadata("doNotInferFromBoundsOnly.kt")
+                public void testDoNotInferFromBoundsOnly() throws Exception {
+                    doTest("compiler/testData/diagnostics/tests/inference/upperBounds/doNotInferFromBoundsOnly.kt");
+                }
+                
+                @TestMetadata("intersectUpperBounds.kt")
+                public void testIntersectUpperBounds() throws Exception {
+                    doTest("compiler/testData/diagnostics/tests/inference/upperBounds/intersectUpperBounds.kt");
+                }
+                
                 @TestMetadata("kt2856.kt")
                 public void testKt2856() throws Exception {
                     doTest("compiler/testData/diagnostics/tests/inference/upperBounds/kt2856.kt");
+                }
+                
+                @TestMetadata("nonNullUpperBound.kt")
+                public void testNonNullUpperBound() throws Exception {
+                    doTest("compiler/testData/diagnostics/tests/inference/upperBounds/nonNullUpperBound.kt");
                 }
                 
                 @TestMetadata("useBoundsIfUnknownParameters.kt")
@@ -3532,6 +3638,7 @@ public class JetDiagnosticsTestGenerated extends AbstractDiagnosticsTestWithEage
             public static Test innerSuite() {
                 TestSuite suite = new TestSuite("Inference");
                 suite.addTestSuite(Inference.class);
+                suite.addTestSuite(Constraints.class);
                 suite.addTestSuite(NestedCalls.class);
                 suite.addTestSuite(Regressions.class);
                 suite.addTestSuite(ReportingImprovements.class);
@@ -4206,6 +4313,11 @@ public class JetDiagnosticsTestGenerated extends AbstractDiagnosticsTestWithEage
                 doTest("compiler/testData/diagnostics/tests/objects/ObjectsNested.kt");
             }
             
+            @TestMetadata("upperBoundViolated.kt")
+            public void testUpperBoundViolated() throws Exception {
+                doTest("compiler/testData/diagnostics/tests/objects/upperBoundViolated.kt");
+            }
+            
         }
         
         @TestMetadata("compiler/testData/diagnostics/tests/operatorsOverloading")
@@ -4571,6 +4683,11 @@ public class JetDiagnosticsTestGenerated extends AbstractDiagnosticsTestWithEage
                 doTest("compiler/testData/diagnostics/tests/redeclarations/PropertyAndInnerClass.kt");
             }
             
+            @TestMetadata("RedeclarationInMultiFile.kt")
+            public void testRedeclarationInMultiFile() throws Exception {
+                doTest("compiler/testData/diagnostics/tests/redeclarations/RedeclarationInMultiFile.kt");
+            }
+            
             @TestMetadata("Redeclarations.kt")
             public void testRedeclarations() throws Exception {
                 doTest("compiler/testData/diagnostics/tests/redeclarations/Redeclarations.kt");
@@ -4777,6 +4894,11 @@ public class JetDiagnosticsTestGenerated extends AbstractDiagnosticsTestWithEage
             @TestMetadata("kt287.kt")
             public void testKt287() throws Exception {
                 doTest("compiler/testData/diagnostics/tests/regressions/kt287.kt");
+            }
+            
+            @TestMetadata("kt2956.kt")
+            public void testKt2956() throws Exception {
+                doTest("compiler/testData/diagnostics/tests/regressions/kt2956.kt");
             }
             
             @TestMetadata("kt302.kt")
@@ -5111,6 +5233,11 @@ public class JetDiagnosticsTestGenerated extends AbstractDiagnosticsTestWithEage
             @TestMetadata("resolveWithGenerics.kt")
             public void testResolveWithGenerics() throws Exception {
                 doTest("compiler/testData/diagnostics/tests/resolve/resolveWithGenerics.kt");
+            }
+            
+            @TestMetadata("resolveWithRedeclarationError.kt")
+            public void testResolveWithRedeclarationError() throws Exception {
+                doTest("compiler/testData/diagnostics/tests/resolve/resolveWithRedeclarationError.kt");
             }
             
             @TestMetadata("resolveWithSpecifiedFunctionLiteralWithId.kt")
@@ -5569,6 +5696,11 @@ public class JetDiagnosticsTestGenerated extends AbstractDiagnosticsTestWithEage
                     doTest("compiler/testData/diagnostics/tests/smartCasts/inference/kt2851.kt");
                 }
                 
+                @TestMetadata("kt4009.kt")
+                public void testKt4009() throws Exception {
+                    doTest("compiler/testData/diagnostics/tests/smartCasts/inference/kt4009.kt");
+                }
+                
             }
             
             public static Test innerSuite() {
@@ -5998,6 +6130,7 @@ public class JetDiagnosticsTestGenerated extends AbstractDiagnosticsTestWithEage
             suite.addTestSuite(CallableReference.class);
             suite.addTest(Cast.innerSuite());
             suite.addTestSuite(CheckArguments.class);
+            suite.addTestSuite(ClassObjects.class);
             suite.addTestSuite(ControlFlowAnalysis.class);
             suite.addTestSuite(ControlStructures.class);
             suite.addTestSuite(DataClasses.class);

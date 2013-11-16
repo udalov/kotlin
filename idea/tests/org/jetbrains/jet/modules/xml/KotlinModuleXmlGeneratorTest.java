@@ -16,12 +16,11 @@
 
 package org.jetbrains.jet.modules.xml;
 
-import com.intellij.openapi.util.io.FileUtil;
-import com.intellij.testFramework.UsefulTestCase;
 import junit.framework.TestCase;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.jet.compiler.runner.KotlinModuleDescriptionGenerator;
-import org.jetbrains.jet.compiler.runner.KotlinModuleXmlGenerator;
+import org.jetbrains.jet.JetTestUtils;
+import org.jetbrains.jet.compiler.runner.KotlinModuleDescriptionBuilder;
+import org.jetbrains.jet.compiler.runner.KotlinModuleXmlBuilderFactory;
 
 import java.io.File;
 import java.util.Arrays;
@@ -29,38 +28,68 @@ import java.util.Collections;
 
 public class KotlinModuleXmlGeneratorTest extends TestCase {
     public void testBasic() throws Exception {
-        String actual = KotlinModuleXmlGenerator.INSTANCE.generateModuleScript(
+        String actual = KotlinModuleXmlBuilderFactory.INSTANCE.create().addModule(
                 "name",
                 "output",
-                new KotlinModuleDescriptionGenerator.DependencyProvider() {
+                new KotlinModuleDescriptionBuilder.DependencyProvider() {
                     @Override
-                    public void processClassPath(@NotNull KotlinModuleDescriptionGenerator.DependencyProcessor processor) {
+                    public void processClassPath(@NotNull KotlinModuleDescriptionBuilder.DependencyProcessor processor) {
                         processor.processAnnotationRoots(Arrays.asList(new File("a1/f1"), new File("a2")));
                         processor.processClassPathSection("s1", Arrays.asList(new File("cp1"), new File("cp2")));
                     }
                 },
                 Arrays.asList(new File("s1"), new File("s2")),
                 false,
-                Collections.<File>emptySet()).toString();
-        String expected = FileUtil.loadFile(new File("idea/testData/modules.xml/basic.xml"));
-        UsefulTestCase.assertSameLines(expected, actual);
+                Collections.<File>emptySet()).asText().toString();
+        JetTestUtils.assertEqualsToFile(new File("idea/testData/modules.xml/basic.xml"), actual);
     }
 
     public void testFiltered() throws Exception {
-        String actual = KotlinModuleXmlGenerator.INSTANCE.generateModuleScript(
+        String actual = KotlinModuleXmlBuilderFactory.INSTANCE.create().addModule(
                 "name",
                 "output",
-                new KotlinModuleDescriptionGenerator.DependencyProvider() {
+                new KotlinModuleDescriptionBuilder.DependencyProvider() {
                     @Override
-                    public void processClassPath(@NotNull KotlinModuleDescriptionGenerator.DependencyProcessor processor) {
+                    public void processClassPath(@NotNull KotlinModuleDescriptionBuilder.DependencyProcessor processor) {
                         processor.processAnnotationRoots(Arrays.asList(new File("a1/f1"), new File("a2")));
                         processor.processClassPathSection("s1", Arrays.asList(new File("cp1"), new File("cp2")));
                     }
                 },
                 Arrays.asList(new File("s1"), new File("s2")),
                 false,
-                Collections.singleton(new File("cp1"))).toString();
-        String expected = FileUtil.loadFile(new File("idea/testData/modules.xml/filtered.xml"));
-        UsefulTestCase.assertSameLines(expected, actual);
+                Collections.singleton(new File("cp1"))).asText().toString();
+        JetTestUtils.assertEqualsToFile(new File("idea/testData/modules.xml/filtered.xml"), actual);
+    }
+
+    public void testMultiple() throws Exception {
+        KotlinModuleDescriptionBuilder builder = KotlinModuleXmlBuilderFactory.INSTANCE.create();
+        builder.addModule(
+                "name",
+                "output",
+                new KotlinModuleDescriptionBuilder.DependencyProvider() {
+                    @Override
+                    public void processClassPath(@NotNull KotlinModuleDescriptionBuilder.DependencyProcessor processor) {
+                        processor.processAnnotationRoots(Arrays.asList(new File("a1/f1"), new File("a2")));
+                        processor.processClassPathSection("s1", Arrays.asList(new File("cp1"), new File("cp2")));
+                    }
+                },
+                Arrays.asList(new File("s1"), new File("s2")),
+                false,
+                Collections.singleton(new File("cp1")));
+        builder.addModule(
+                "name2",
+                "output2",
+                new KotlinModuleDescriptionBuilder.DependencyProvider() {
+                    @Override
+                    public void processClassPath(@NotNull KotlinModuleDescriptionBuilder.DependencyProcessor processor) {
+                        processor.processAnnotationRoots(Arrays.asList(new File("a12/f12"), new File("a22")));
+                        processor.processClassPathSection("s12", Arrays.asList(new File("cp12"), new File("cp22")));
+                    }
+                },
+                Arrays.asList(new File("s12"), new File("s22")),
+                true,
+                Collections.singleton(new File("cp12")));
+        String actual = builder.asText().toString();
+        JetTestUtils.assertEqualsToFile(new File("idea/testData/modules.xml/multiple.xml"), actual);
     }
 }

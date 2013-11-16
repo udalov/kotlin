@@ -16,25 +16,31 @@
 
 package org.jetbrains.jet.cli.js;
 
-import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Predicates;
-import com.google.common.collect.Iterables;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.io.FileUtil;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiFile;
+import com.intellij.util.Function;
+import com.intellij.util.containers.ContainerUtil;
 import jet.Function0;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.jet.OutputFileCollection;
 import org.jetbrains.jet.analyzer.AnalyzeExhaust;
 import org.jetbrains.jet.cli.common.CLICompiler;
 import org.jetbrains.jet.cli.common.ExitCode;
+import org.jetbrains.jet.cli.common.arguments.K2JSCompilerArguments;
+import org.jetbrains.jet.cli.common.arguments.K2JsArgumentConstants;
 import org.jetbrains.jet.cli.common.messages.AnalyzerWithCompilerReport;
 import org.jetbrains.jet.cli.common.messages.CompilerMessageLocation;
 import org.jetbrains.jet.cli.common.messages.CompilerMessageSeverity;
 import org.jetbrains.jet.cli.common.messages.MessageCollector;
+import org.jetbrains.jet.cli.common.output.OutputDirector;
+import org.jetbrains.jet.cli.common.output.SingleDirectoryDirector;
+import org.jetbrains.jet.cli.common.output.outputUtils.OutputUtilsPackage;
 import org.jetbrains.jet.cli.jvm.compiler.JetCoreEnvironment;
 import org.jetbrains.jet.config.CommonConfigurationKeys;
 import org.jetbrains.jet.config.CompilerConfiguration;
@@ -67,7 +73,11 @@ public class K2JSCompiler extends CLICompiler<K2JSCompilerArguments> {
 
     @NotNull
     @Override
-    protected ExitCode doExecute(K2JSCompilerArguments arguments, MessageCollector messageCollector, Disposable rootDisposable) {
+    protected ExitCode doExecute(
+            @NotNull K2JSCompilerArguments arguments,
+            @NotNull MessageCollector messageCollector,
+            @NotNull Disposable rootDisposable
+    ) {
         if (arguments.sourceFiles == null) {
             messageCollector.report(CompilerMessageSeverity.ERROR, "Specify sources location via -sourceFiles", NO_LOCATION);
             return ExitCode.INTERNAL_ERROR;
@@ -75,39 +85,67 @@ public class K2JSCompiler extends CLICompiler<K2JSCompilerArguments> {
 
         CompilerConfiguration configuration = new CompilerConfiguration();
         configuration.addAll(CommonConfigurationKeys.SOURCE_ROOTS_KEY, Arrays.asList(arguments.sourceFiles));
-        JetCoreEnvironment environmentForJS = new JetCoreEnvironment(rootDisposable, configuration);
+        JetCoreEnvironment environmentForJS = JetCoreEnvironment.createForProduction(rootDisposable, configuration);
 
         Project project = environmentForJS.getProject();
+        List<JetFile> sourcesFiles = environmentForJS.getSourceFiles();
 
         ClassPathLibrarySourcesLoader sourceLoader = new ClassPathLibrarySourcesLoader(project);
-        List<JetFile> sourceFiles = sourceLoader.findSourceFiles();
-        environmentForJS.getSourceFiles().addAll(sourceFiles);
+        List<JetFile> additionalSourceFiles = sourceLoader.findSourceFiles();
+        sourcesFiles.addAll(additionalSourceFiles);
 
-        if (arguments.isVerbose()) {
-            reportCompiledSourcesList(messageCollector, environmentForJS);
+        if (arguments.verbose) {
+            reportCompiledSourcesList(messageCollector, sourcesFiles);
         }
 
-        Config config = getConfig(arguments, project);
-        if (analyzeAndReportErrors(messageCollector, environmentForJS.getSourceFiles(), config)) {
-            return COMPILATION_ERROR;
-        }
-
-        String outputFile = arguments.outputFile;
-        if (outputFile == null) {
+        if (arguments.outputFile == null) {
             messageCollector.report(CompilerMessageSeverity.ERROR, "Specify output file via -output", CompilerMessageLocation.NO_LOCATION);
             return ExitCode.INTERNAL_ERROR;
         }
 
-        MainCallParameters mainCallParameters = arguments.createMainCallParameters();
-        return translateAndGenerateOutputFile(mainCallParameters, environmentForJS, config, outputFile);
+        File outputFile = new File(arguments.outputFile);
+
+        Config config = getConfig(arguments, project);
+        if (analyzeAndReportErrors(messageCollector, sourcesFiles, config)) {
+            return COMPILATION_ERROR;
+        }
+
+        File outputPrefixFile = null;
+        if (arguments.outputPrefix != null) {
+            outputPrefixFile = new File(arguments.outputPrefix);
+            if (!outputPrefixFile.exists()) {
+                messageCollector.report(CompilerMessageSeverity.ERROR,
+                                        "Output prefix file '" + arguments.outputPrefix + "' not found",
+                                        CompilerMessageLocation.NO_LOCATION);
+                return ExitCode.COMPILATION_ERROR;
+            }
+        }
+
+        File outputPostfixFile = null;
+        if (arguments.outputPostfix != null) {
+            outputPostfixFile = new File(arguments.outputPostfix);
+            if (!outputPostfixFile.exists()) {
+                messageCollector.report(CompilerMessageSeverity.ERROR,
+                                        "Output postfix file '" + arguments.outputPostfix + "' not found",
+                                        CompilerMessageLocation.NO_LOCATION);
+                return ExitCode.COMPILATION_ERROR;
+            }
+        }
+
+        MainCallParameters mainCallParameters = createMainCallParameters(arguments.main);
+
+        OutputFileCollection outputFiles = translate(mainCallParameters, config, sourcesFiles, outputFile, outputPrefixFile, outputPostfixFile);
+
+        OutputDirector outputDirector = new SingleDirectoryDirector(outputFile.getParentFile());
+        OutputUtilsPackage.writeAll(outputFiles, outputDirector, messageCollector);
+
+        return OK;
     }
 
-    private static void reportCompiledSourcesList(@NotNull MessageCollector messageCollector,
-            @NotNull JetCoreEnvironment environmentForJS) {
-        List<JetFile> files = environmentForJS.getSourceFiles();
-        Iterable<String> fileNames = Iterables.transform(files, new Function<JetFile, String>() {
+    private static void reportCompiledSourcesList(@NotNull MessageCollector messageCollector, @NotNull List<JetFile> sourceFiles) {
+        Iterable<String> fileNames = ContainerUtil.map(sourceFiles, new Function<JetFile, String>() {
             @Override
-            public String apply(@Nullable JetFile file) {
+            public String fun(@Nullable JetFile file) {
                 assert file != null;
                 VirtualFile virtualFile = file.getVirtualFile();
                 if (virtualFile != null) {
@@ -120,20 +158,20 @@ public class K2JSCompiler extends CLICompiler<K2JSCompilerArguments> {
                                 CompilerMessageLocation.NO_LOCATION);
     }
 
-    @NotNull
-    private static ExitCode translateAndGenerateOutputFile(
+    private static OutputFileCollection translate(
             @NotNull MainCallParameters mainCall,
-            @NotNull JetCoreEnvironment environmentForJS,
             @NotNull Config config,
-            @NotNull String outputFile
+            @NotNull List<JetFile> sourceFiles,
+            @NotNull File outputFile,
+            @Nullable File outputPrefix,
+            @Nullable File outputPostfix
     ) {
         try {
-            K2JSTranslator.translateWithMainCallParametersAndSaveToFile(mainCall, environmentForJS.getSourceFiles(), outputFile, config);
+            return K2JSTranslator.translateWithMainCallParameters(mainCall, sourceFiles, outputFile, outputPrefix, outputPostfix, config);
         }
         catch (Exception e) {
             throw new RuntimeException(e);
         }
-        return OK;
     }
 
     private static boolean analyzeAndReportErrors(@NotNull MessageCollector messageCollector,
@@ -161,6 +199,15 @@ public class K2JSCompiler extends CLICompiler<K2JSCompilerArguments> {
         else {
             // lets discover the JS library definitions on the classpath
             return new ClassPathLibraryDefintionsConfig(project, moduleId, ecmaVersion, arguments.sourcemap);
+        }
+    }
+
+    public static MainCallParameters createMainCallParameters(String main) {
+        if (K2JsArgumentConstants.NO_CALL.equals(main)) {
+            return MainCallParameters.noCall();
+        }
+        else {
+            return MainCallParameters.mainWithoutArguments();
         }
     }
 }

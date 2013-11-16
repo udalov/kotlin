@@ -28,7 +28,7 @@ import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.BindingTrace;
 import org.jetbrains.jet.lang.resolve.java.JvmAbi;
-import org.jetbrains.jet.lang.resolve.java.descriptor.ClassDescriptorFromJvmBytecode;
+import org.jetbrains.jet.lang.resolve.java.descriptor.JavaClassDescriptor;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
@@ -58,7 +58,7 @@ public class CodegenBinding {
 
     public static final WritableSlice<ClassDescriptor, Collection<ClassDescriptor>> INNER_CLASSES = Slices.createSimpleSlice();
 
-    public static final WritableSlice<JetExpression, ClassDescriptorFromJvmBytecode> SAM_VALUE = Slices.createSimpleSlice();
+    public static final WritableSlice<JetExpression, JavaClassDescriptor> SAM_VALUE = Slices.createSimpleSlice();
 
     static {
         BasicWritableSlice.initSliceDebugNames(CodegenBinding.class);
@@ -160,7 +160,7 @@ public class CodegenBinding {
                 null,
                 false);
 
-        recordClosure(bindingTrace, null, classDescriptor, null, asmType, false);
+        recordClosure(bindingTrace, null, classDescriptor, null, asmType);
 
         bindingTrace.record(CLASS_FOR_SCRIPT, scriptDescriptor, classDescriptor);
     }
@@ -204,8 +204,7 @@ public class CodegenBinding {
             @Nullable JetElement element,
             ClassDescriptor classDescriptor,
             @Nullable ClassDescriptor enclosing,
-            Type asmType,
-            boolean functionLiteral
+            Type asmType
     ) {
         JetDelegatorToSuperCall superCall = findSuperCall(bindingTrace.getBindingContext(), element);
 
@@ -227,8 +226,7 @@ public class CodegenBinding {
         bindingTrace.record(ASM_TYPE, classDescriptor, asmType);
         bindingTrace.record(CLOSURE, classDescriptor, closure);
 
-        // TODO: this is temporary before we have proper inner classes
-        if (canHaveOuter(bindingTrace.getBindingContext(), classDescriptor) && !functionLiteral) {
+        if (classDescriptor.isInner()) {
             closure.setCaptureThis();
         }
 
