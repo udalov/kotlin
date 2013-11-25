@@ -532,7 +532,7 @@
 
     <target name="objcRuntime">
       <cleandir dir="${output}/classes/runtime.objc"/>
-      <javac2 destdir="${output}/classes/runtime.objc" debug="true" debuglevel="lines,vars,source" includeAntRuntime="false" target="${java.target}">
+      <javac2 destdir="${output}/classes/runtime.objc" debug="true" debuglevel="lines,vars,source" includeAntRuntime="false" source="${java.target}" target="${java.target}">
           <withKotlin/>
           <src path="${basedir}/objc/runtime.objc/src"/>
           <classpath refid="classpath"/>
