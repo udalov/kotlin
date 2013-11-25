@@ -24,7 +24,7 @@ import com.intellij.testFramework.UsefulTestCase;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.JetTestUtils;
 import org.jetbrains.jet.analyzer.AnalyzeExhaust;
-import org.jetbrains.jet.cli.jvm.compiler.CompileEnvironmentUtil;
+import org.jetbrains.jet.cli.common.output.outputUtils.OutputUtilsPackage;
 import org.jetbrains.jet.cli.jvm.compiler.JetCoreEnvironment;
 import org.jetbrains.jet.codegen.ClassBuilderFactories;
 import org.jetbrains.jet.codegen.CompilationErrorHandler;
@@ -179,7 +179,7 @@ public abstract class AbstractObjCWithJavaTest extends UsefulTestCase {
         GenerationState state = new GenerationState(project, ClassBuilderFactories.TEST, context, files);
         KotlinCodegenFacade.compileCorrectFiles(state, CompilationErrorHandler.THROW_EXCEPTION);
 
-        CompileEnvironmentUtil.writeToOutputDirectory(state.getFactory(), tmpDir);
+        OutputUtilsPackage.writeAllTo(state.getFactory(), tmpDir);
     }
 
     @NotNull

@@ -38,7 +38,7 @@ public class ObjCTestUtil {
 
     @NotNull
     public static JetCoreEnvironment createEnvironment(@NotNull Disposable disposable) {
-        return new JetCoreEnvironment(disposable, JetTestUtils
+        return JetCoreEnvironment.createForTests(disposable, JetTestUtils
                 .compilerConfigurationForTests(ConfigurationKind.ALL, TestJdkKind.MOCK_JDK, getKotlinObjCRuntimeJarFile()));
     }
 

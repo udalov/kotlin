@@ -17,7 +17,9 @@
 package org.jetbrains.jet.generators.injectors;
 
 import com.intellij.openapi.project.Project;
-import org.jetbrains.jet.codegen.*;
+import org.jetbrains.jet.codegen.ClassBuilderFactory;
+import org.jetbrains.jet.codegen.ClassBuilderMode;
+import org.jetbrains.jet.codegen.ClassFileFactory;
 import org.jetbrains.jet.codegen.intrinsics.IntrinsicMethods;
 import org.jetbrains.jet.codegen.state.GenerationState;
 import org.jetbrains.jet.codegen.state.JetTypeMapper;
@@ -133,7 +135,7 @@ public class GenerateInjectors {
         generator.addField(NamespaceFactoryImpl.class);
         generator.addField(false, VirtualFileFinder.class, "virtualFileFinder",
                            new GivenExpression("com.intellij.openapi.components.ServiceManager.getService(project, VirtualFileFinder.class)"));
-        generator.configure("compiler/objc/frontend.objc/src", "org.jetbrains.jet.di", "InjectorForTopDownAnalyzerForObjC",
+        generator.configure("objc/frontend.objc/src", "org.jetbrains.jet.di", "InjectorForTopDownAnalyzerForObjC",
                            GenerateInjectors.class);
         return generator;
     }

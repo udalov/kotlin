@@ -26,7 +26,6 @@ import org.jetbrains.asm4.Type;
 import org.jetbrains.asm4.commons.InstructionAdapter;
 import org.jetbrains.jet.codegen.signature.JvmMethodSignature;
 import org.jetbrains.jet.codegen.state.JetTypeMapper;
-import org.jetbrains.jet.codegen.state.JetTypeMapperMode;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.resolve.java.JvmAbi;
 import org.jetbrains.jet.lang.resolve.objc.ObjCMethodDescriptor;
@@ -42,7 +41,6 @@ import java.util.List;
 
 import static org.jetbrains.asm4.Opcodes.*;
 import static org.jetbrains.asm4.Type.*;
-import static org.jetbrains.jet.codegen.AsmUtil.genInitSingletonField;
 
 public class ObjCClassCodegen {
     public static final String NATIVE = Type.getType(Native.class).getInternalName();
@@ -74,7 +72,7 @@ public class ObjCClassCodegen {
         this.dylib = dylib;
 
         cw = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
-        asmType = typeMapper.mapType(descriptor.getDefaultType(), JetTypeMapperMode.IMPL);
+        asmType = typeMapper.mapClass(descriptor);
 
         ClassDescriptor classObject = descriptor.getClassObjectDescriptor();
         classObjectAsmType = classObject != null ? typeMapper.mapType(classObject) : null;
@@ -146,7 +144,7 @@ public class ObjCClassCodegen {
             ClassifierDescriptor superDescriptor = supertype.getConstructor().getDeclarationDescriptor();
             assert superDescriptor instanceof ClassDescriptor : "Supertype is not a class for Obj-C descriptor: " + descriptor;
             if (((ClassDescriptor) superDescriptor).getKind() == ClassKind.CLASS) {
-                return typeMapper.mapType(supertype, JetTypeMapperMode.IMPL);
+                return typeMapper.mapType(supertype);
             }
         }
 
@@ -166,8 +164,7 @@ public class ObjCClassCodegen {
             ClassifierDescriptor superDescriptor = supertype.getConstructor().getDeclarationDescriptor();
             assert superDescriptor instanceof ClassDescriptor : "Supertype is not a class for Obj-C descriptor: " + descriptor;
             if (((ClassDescriptor) superDescriptor).getKind() == ClassKind.TRAIT) {
-                Type type = typeMapper.mapType(superDescriptor.getDefaultType(), JetTypeMapperMode.IMPL);
-                superInterfacesNames.add(type.getInternalName());
+                superInterfacesNames.add(typeMapper.mapClass(superDescriptor).getInternalName());
             }
         }
 
@@ -179,7 +176,10 @@ public class ObjCClassCodegen {
             @Override
             public void generate(@NotNull InstructionAdapter v) {
                 if (classObjectAsmType != null) {
-                    genInitSingletonField(asmType, JvmAbi.CLASS_OBJECT_FIELD, classObjectAsmType, v);
+                    v.anew(classObjectAsmType);
+                    v.dup();
+                    v.invokespecial(classObjectAsmType.getInternalName(), "<init>", "()V");
+                    v.putstatic(asmType.getInternalName(), JvmAbi.CLASS_OBJECT_FIELD, classObjectAsmType.getDescriptor());
                 }
                 v.visitLdcInsn(dylib.toString());
                 v.invokestatic(NATIVE_HELPERS, "loadLibrary", getMethodDescriptor(VOID_TYPE, JL_STRING_TYPE));

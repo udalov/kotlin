@@ -81,7 +81,8 @@ public class ObjCBuiltIns {
 
     @NotNull
     public JetType getPointerType(@NotNull JetType pointee) {
-        return new BuiltInType(pointerClass, Collections.singletonList(new TypeProjection(Variance.INVARIANT, pointee)));
+        TypeProjectionImpl projection = new TypeProjectionImpl(Variance.INVARIANT, pointee);
+        return new BuiltInType(pointerClass, Collections.<TypeProjection>singletonList(projection));
     }
 
     @NotNull

@@ -21,7 +21,6 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.asm4.Type;
 import org.jetbrains.jet.codegen.binding.CodegenBinding;
 import org.jetbrains.jet.codegen.state.JetTypeMapper;
-import org.jetbrains.jet.codegen.state.JetTypeMapperMode;
 import org.jetbrains.jet.lang.descriptors.ClassDescriptor;
 import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor;
 import org.jetbrains.jet.lang.descriptors.NamespaceDescriptor;
@@ -50,20 +49,15 @@ public class ObjCDescriptorCodegen {
         return typeMapper.getBindingContext();
     }
 
-    @NotNull
-    public Type asmType(@NotNull ClassDescriptor descriptor) {
-        return typeMapper.mapType(descriptor.getDefaultType(), JetTypeMapperMode.IMPL);
-    }
-
     // This is needed to make JetTypeMapper correctly map class objects
     private void recordFQNForClassObject(@NotNull ClassDescriptor classDescriptor, @NotNull ClassDescriptor classObject) {
-        String internalName = asmType(classDescriptor).getInternalName();
+        String internalName = typeMapper.mapClass(classDescriptor).getInternalName();
         Type classObjectType = Type.getObjectType(internalName + JvmAbi.CLASS_OBJECT_SUFFIX);
         typeMapper.getBindingTrace().record(CodegenBinding.ASM_TYPE, classObject, classObjectType);
     }
 
     private void writeClassFile(@NotNull ClassDescriptor descriptor, @NotNull File outputDir, @NotNull byte[] bytes) {
-        String internalName = asmType(descriptor).getInternalName();
+        String internalName = typeMapper.mapClass(descriptor).getInternalName();
         File file = new File(outputDir, internalName + ".class");
 
         File outerDir = file.getParentFile();
@@ -102,7 +96,7 @@ public class ObjCDescriptorCodegen {
 
         for (ClassDescriptor descriptor : classes) {
             if (descriptor instanceof ObjCMetaclassDescriptor) {
-                String internalName = asmType(((ObjCMetaclassDescriptor) descriptor).getClassDescriptor()).getInternalName();
+                String internalName = typeMapper.mapClass(((ObjCMetaclassDescriptor) descriptor).getClassDescriptor()).getInternalName();
                 Type metaclassType = Type.getObjectType(internalName + METACLASS_SUFFIX);
                 typeMapper.getBindingTrace().record(CodegenBinding.ASM_TYPE, descriptor, metaclassType);
             }

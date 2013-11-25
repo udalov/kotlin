@@ -24,8 +24,8 @@ import org.jetbrains.jet.lang.descriptors.impl.NamespaceDescriptorImpl;
 import org.jetbrains.jet.lang.descriptors.impl.NamespaceLikeBuilder;
 import org.jetbrains.jet.lang.descriptors.impl.SimpleFunctionDescriptorImpl;
 import org.jetbrains.jet.lang.descriptors.impl.ValueParameterDescriptorImpl;
-import org.jetbrains.jet.lang.resolve.DescriptorUtils;
 import org.jetbrains.jet.lang.resolve.name.Name;
+import org.jetbrains.jet.lang.resolve.name.SpecialNames;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
 import org.jetbrains.jet.lang.resolve.scopes.RedeclarationHandler;
 import org.jetbrains.jet.lang.resolve.scopes.WritableScope;
@@ -213,7 +213,7 @@ public class ObjCDescriptorResolver {
     private static void resolveClassObject(@NotNull ObjCClassDescriptor descriptor, @NotNull ObjCClassDescriptor metaclass) {
         assert descriptor.getKind() == ClassKind.CLASS : "Class objects exist only for Objective-C classes: " + descriptor;
 
-        Name name = DescriptorUtils.getClassObjectName(descriptor.getName());
+        Name name = SpecialNames.getClassObjectName(descriptor.getName());
 
         Collection<JetType> supertypes = Arrays.asList(
                 ObjCBuiltIns.getInstance().getObjCClassClass().getDefaultType(),
