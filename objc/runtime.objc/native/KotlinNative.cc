@@ -186,9 +186,9 @@ JVMDeclarationsCache *cache;
 id autoReleasePool;
 
 id createAutoreleasePool() {
-    static id autoreleasePoolClass = objc_getClass("NSAutoreleasePool");
+    static Class autoreleasePoolClass = (Class) objc_getClass("NSAutoreleasePool");
     static SEL alloc = sel_registerName("alloc");
-    id pool = objc_msgSend(autoreleasePoolClass, alloc);
+    id pool = objc_msgSend((id) autoreleasePoolClass, alloc);
     static SEL init = sel_registerName("init");
     return objc_msgSend(pool, init);
 }

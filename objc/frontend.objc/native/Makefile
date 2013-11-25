@@ -4,7 +4,7 @@
 #  Usages:
 #
 #  1. make clean
-#  	  Remove previously compiled files (out/ directory)
+#     Remove previously compiled files (out/ directory)
 #
 #  2. make proto
 #     Launch Protocol Buffers compiler to generate C++ and Java classes
@@ -29,12 +29,20 @@
 
 PROJECT_NAME=KotlinNativeIndexer
 
-JAVA_HOME=/System/Library/Frameworks/JavaVM.framework/Versions/Current
-JAVA_INCLUDE=$(JAVA_HOME)/Headers
+# TODO: figure out why this doesn't work on Mavericks with JDK 7
+# Worked on Mac OS X Lion/Mountain Lion with JDK 6
+# Also see runtime.objc/native/make_native
+# JAVA_INCLUDE=-I/System/Library/Frameworks/JavaVM.framework/Versions/Current/Headers
+
+JAVA_HOME=/Library/Java/JavaVirtualMachines/jdk1.7.0_45.jdk/Contents/Home/include
+JAVA_INCLUDE=-I$(JAVA_HOME) -I$(JAVA_HOME)/darwin
 
 CPP=c++
-CC_FLAGS=-O2 -Wall -std=c++0x -I$(JAVA_INCLUDE) -Iinclude -stdlib=libstdc++
-LD_FLAGS=-lclang -lprotobuf
+CC_FLAGS=-O2 -Wall -std=c++0x $(JAVA_INCLUDE) -Iinclude -stdlib=libstdc++
+# libclang.dylib and libprotobuf.dylib should be installed via Homebrew:
+# brew install llvm --disable-shared --universal --with-clang
+# brew install protobuf
+LD_FLAGS=-stdlib=libstdc++ -L/usr/local/opt/llvm/lib -L/usr/local/lib -lclang -lprotobuf
 
 SRC_FILES=$(wildcard *.cc)
 OBJ_FILES=$(patsubst %.cc,$(OUT)/%.o,$(SRC_FILES))
@@ -43,6 +51,7 @@ DYLIB=$(OUT)/lib$(PROJECT_NAME).dylib
 
 TEST_FILES=$(wildcard tests/*.cc)
 TEST_EXE=$(OUT)/tests
+TEST_ENV=DYLD_LIBRARY_PATH=/usr/local/opt/llvm/lib
 
 
 # ----------------------------------------------------------------------------
@@ -78,4 +87,4 @@ clean:
 
 test: mkdir dylib
 	$(CPP) $(CC_FLAGS) $(LD_FLAGS) -I. -L$(OUT) -l$(PROJECT_NAME) $(TEST_FILES) -o $(TEST_EXE)
-	$(TEST_EXE)
+	$(TEST_ENV) $(TEST_EXE)
