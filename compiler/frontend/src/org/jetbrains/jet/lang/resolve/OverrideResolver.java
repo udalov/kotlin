@@ -84,15 +84,17 @@ public class OverrideResolver {
      * Generate fake overrides and add overridden descriptors to existing descriptors.
      */
     private void generateOverridesAndDelegation() {
-        Set<MutableClassDescriptor> ourClasses = new HashSet<MutableClassDescriptor>();
-        ourClasses.addAll(context.getClasses().values());
-        ourClasses.addAll(context.getObjects().values());
-        
+        Set<MutableClassDescriptor> ourClasses = new HashSet<MutableClassDescriptor>(context.getClasses().values());
         Set<ClassifierDescriptor> processed = new HashSet<ClassifierDescriptor>();
 
         for (MutableClassDescriptorLite klass : ContainerUtil.reverse(context.getClassesTopologicalOrder())) {
             if (klass instanceof MutableClassDescriptor && ourClasses.contains(klass)) {
                 generateOverridesAndDelegationInAClass((MutableClassDescriptor) klass, processed, ourClasses);
+
+                MutableClassDescriptorLite classObject = klass.getClassObjectDescriptor();
+                if (classObject instanceof MutableClassDescriptor) {
+                    generateOverridesAndDelegationInAClass((MutableClassDescriptor) classObject, processed, ourClasses);
+                }
             }
         }
     }
@@ -116,7 +118,10 @@ public class OverrideResolver {
 
         JetClassOrObject classOrObject = (JetClassOrObject) BindingContextUtils
                 .classDescriptorToDeclaration(trace.getBindingContext(), classDescriptor);
-        DelegationResolver.generateDelegatesInAClass(classDescriptor, trace, classOrObject);
+        if (classOrObject != null) {
+            DelegationResolver.generateDelegatesInAClass(classDescriptor, trace, classOrObject);
+        }
+
         generateOverridesInAClass(classDescriptor);
     }
 
@@ -218,10 +223,7 @@ public class OverrideResolver {
     }
 
     private void checkOverrides() {
-        for (Map.Entry<JetClass, MutableClassDescriptor> entry : context.getClasses().entrySet()) {
-            checkOverridesInAClass(entry.getValue(), entry.getKey());
-        }
-        for (Map.Entry<JetObjectDeclaration, MutableClassDescriptor> entry : context.getObjects().entrySet()) {
+        for (Map.Entry<JetClassOrObject, MutableClassDescriptor> entry : context.getClasses().entrySet()) {
             checkOverridesInAClass(entry.getValue(), entry.getKey());
         }
     }
@@ -637,7 +639,7 @@ public class OverrideResolver {
         for (JetType supertype : declaringClass.getTypeConstructor().getSupertypes()) {
             Set<CallableMemberDescriptor> all = Sets.newLinkedHashSet();
             all.addAll(supertype.getMemberScope().getFunctions(declared.getName()));
-            all.addAll((Set) supertype.getMemberScope().getProperties(declared.getName()));
+            all.addAll((Collection) supertype.getMemberScope().getProperties(declared.getName()));
             for (CallableMemberDescriptor fromSuper : all) {
                 if (OverridingUtil.isOverridableBy(fromSuper, declared).getResult() == OVERRIDABLE) {
                     invisibleOverride = fromSuper;
@@ -652,17 +654,14 @@ public class OverrideResolver {
     }
 
     private void checkParameterOverridesForAllClasses() {
-        List<MutableClassDescriptor> allClasses = Lists.newArrayList(context.getClasses().values());
-        allClasses.addAll(context.getObjects().values());
-        for (MutableClassDescriptor classDescriptor : allClasses) {
-            Collection<CallableMemberDescriptor> members = classDescriptor.getAllCallableMembers();
-            for (CallableMemberDescriptor member : members) {
+        for (MutableClassDescriptor classDescriptor : context.getClasses().values()) {
+            for (CallableMemberDescriptor member : classDescriptor.getAllCallableMembers()) {
                 checkOverridesForParameters(member);
             }
         }
     }
 
-    private void checkOverridesForParameters(CallableMemberDescriptor declared) {
+    private void checkOverridesForParameters(@NotNull CallableMemberDescriptor declared) {
         boolean noDeclaration = declared.getKind() != CallableMemberDescriptor.Kind.DECLARATION;
         if (!noDeclaration) {
             // No check if the function is not marked as 'override'

@@ -36,6 +36,26 @@ public class JetSmartCompletionTestGenerated extends AbstractJvmSmartCompletionT
         JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), "org.jetbrains.jet.generators.tests.GenerateTests", new File("idea/testData/completion/smart"), Pattern.compile("^(.+)\\.kt$"), true);
     }
     
+    @TestMetadata("AutoCastedType.kt")
+    public void testAutoCastedType() throws Exception {
+        doTest("idea/testData/completion/smart/AutoCastedType.kt");
+    }
+    
+    @TestMetadata("AutoCastedTypeWithQualifier.kt")
+    public void testAutoCastedTypeWithQualifier() throws Exception {
+        doTest("idea/testData/completion/smart/AutoCastedTypeWithQualifier.kt");
+    }
+    
+    @TestMetadata("AutoNotNullType.kt")
+    public void testAutoNotNullType() throws Exception {
+        doTest("idea/testData/completion/smart/AutoNotNullType.kt");
+    }
+    
+    @TestMetadata("AutoNotNullTypeWithQualifier.kt")
+    public void testAutoNotNullTypeWithQualifier() throws Exception {
+        doTest("idea/testData/completion/smart/AutoNotNullTypeWithQualifier.kt");
+    }
+    
     @TestMetadata("ChainedCall.kt")
     public void testChainedCall() throws Exception {
         doTest("idea/testData/completion/smart/ChainedCall.kt");
@@ -91,6 +111,11 @@ public class JetSmartCompletionTestGenerated extends AbstractJvmSmartCompletionT
         doTest("idea/testData/completion/smart/NoConstructorWithQualifier.kt");
     }
     
+    @TestMetadata("NoNothing.kt")
+    public void testNoNothing() throws Exception {
+        doTest("idea/testData/completion/smart/NoNothing.kt");
+    }
+    
     @TestMetadata("NoSillyAssignment.kt")
     public void testNoSillyAssignment() throws Exception {
         doTest("idea/testData/completion/smart/NoSillyAssignment.kt");
@@ -99,6 +124,41 @@ public class JetSmartCompletionTestGenerated extends AbstractJvmSmartCompletionT
     @TestMetadata("NotSillyAssignment.kt")
     public void testNotSillyAssignment() throws Exception {
         doTest("idea/testData/completion/smart/NotSillyAssignment.kt");
+    }
+    
+    @TestMetadata("QualifiedThis.kt")
+    public void testQualifiedThis() throws Exception {
+        doTest("idea/testData/completion/smart/QualifiedThis.kt");
+    }
+    
+    @TestMetadata("QualifiedThisOfAnonymousObject.kt")
+    public void testQualifiedThisOfAnonymousObject() throws Exception {
+        doTest("idea/testData/completion/smart/QualifiedThisOfAnonymousObject.kt");
+    }
+    
+    @TestMetadata("QualifiedThisOfExtensionFunction.kt")
+    public void testQualifiedThisOfExtensionFunction() throws Exception {
+        doTest("idea/testData/completion/smart/QualifiedThisOfExtensionFunction.kt");
+    }
+    
+    @TestMetadata("QualifiedThisOfExtensionLambda1.kt")
+    public void testQualifiedThisOfExtensionLambda1() throws Exception {
+        doTest("idea/testData/completion/smart/QualifiedThisOfExtensionLambda1.kt");
+    }
+    
+    @TestMetadata("QualifiedThisOfExtensionLambda2.kt")
+    public void testQualifiedThisOfExtensionLambda2() throws Exception {
+        doTest("idea/testData/completion/smart/QualifiedThisOfExtensionLambda2.kt");
+    }
+    
+    @TestMetadata("QualifiedThisOfExtensionLambda3.kt")
+    public void testQualifiedThisOfExtensionLambda3() throws Exception {
+        doTest("idea/testData/completion/smart/QualifiedThisOfExtensionLambda3.kt");
+    }
+    
+    @TestMetadata("This.kt")
+    public void testThis() throws Exception {
+        doTest("idea/testData/completion/smart/This.kt");
     }
     
     @TestMetadata("VariableInitializer.kt")

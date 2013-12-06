@@ -176,7 +176,7 @@ public abstract class AbstractObjCWithJavaTest extends UsefulTestCase {
     private void generate(@NotNull List<JetFile> files, @NotNull AnalyzeExhaust analyzeExhaust, @NotNull BindingContext objcBinding) {
         BindingContext context = new ChainedBindingContext(analyzeExhaust.getBindingContext(), objcBinding);
 
-        GenerationState state = new GenerationState(project, ClassBuilderFactories.TEST, context, files);
+        GenerationState state = new GenerationState(project, ClassBuilderFactories.TEST, context, files, false);
         KotlinCodegenFacade.compileCorrectFiles(state, CompilationErrorHandler.THROW_EXCEPTION);
 
         OutputUtilsPackage.writeAllTo(state.getFactory(), tmpDir);

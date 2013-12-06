@@ -509,27 +509,6 @@
         </sequential>
     </macrodef>
 
-    <target name="annotationsExt">
-        <cleandir dir="${output}/classes/annotations-ext"/>
-
-        <javac2 destdir="${output}/classes/annotations-ext" debug="true" debuglevel="lines,vars,source" includeAntRuntime="false" source="${java.target}" target="${java.target}">
-            <src path="${basedir}/compiler/annotations-ext/src"/>
-        </javac2>
-
-        <jar destfile="${kotlin-home}/lib/kotlin-annotations-ext.jar">
-            <fileset dir="${output}/classes/annotations-ext"/>
-            <zipfileset file="${kotlin-home}/build.txt" prefix="META-INF"/>
-
-            <manifest>
-                <attribute name="Built-By" value="${manifest.impl.vendor}"/>
-
-                <attribute name="Implementation-Vendor" value="${manifest.impl.vendor}"/>
-                <attribute name="Implementation-Title" value="${manifest.impl.title.kotlin.compiler.annotations.extended}"/>
-                <attribute name="Implementation-Version" value="${build.number}"/>
-            </manifest>
-        </jar>
-    </target>
-
     <target name="objcRuntime">
       <cleandir dir="${output}/classes/runtime.objc"/>
       <javac2 destdir="${output}/classes/runtime.objc" debug="true" debuglevel="lines,vars,source" includeAntRuntime="false" source="${java.target}" target="${java.target}">
@@ -632,11 +611,11 @@
 
     <!-- builds redistributables from sources -->
     <target name="dist"
-            depends="clean,init,prepareDist,preloader,compiler,compilerSources,antTools,jdkAnnotations,androidSdkAnnotations,annotationsExt,runtime,runtime_sources,objcRuntime,jslib,j2kConverter"/>
+            depends="clean,init,prepareDist,preloader,compiler,compilerSources,antTools,jdkAnnotations,androidSdkAnnotations,runtime,runtime_sources,objcRuntime,jslib,j2kConverter"/>
 
     <!-- builds everything, but classes are reused from project out dir, doesn't run proguard and javadoc -->
     <target name="dist_quick"
-            depends="clean,init,prepareDist,preloader,compiler_quick,antTools,jdkAnnotations,androidSdkAnnotations,annotationsExt,runtime,runtime_sources,objcRuntime,jslib,j2kConverter"/>
+            depends="clean,init,prepareDist,preloader,compiler_quick,antTools,jdkAnnotations,androidSdkAnnotations,runtime,runtime_sources,objcRuntime,jslib,j2kConverter"/>
 
     <!-- builds compiler jar from project out dir -->
     <target name="dist_quick_compiler_only"

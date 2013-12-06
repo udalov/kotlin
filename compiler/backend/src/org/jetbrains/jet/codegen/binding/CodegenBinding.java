@@ -22,7 +22,6 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.asm4.Type;
 import org.jetbrains.jet.lang.descriptors.*;
-import org.jetbrains.jet.lang.descriptors.annotations.AnnotationDescriptor;
 import org.jetbrains.jet.lang.descriptors.impl.ClassDescriptorImpl;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.BindingContext;
@@ -146,27 +145,18 @@ public class CodegenBinding {
             @NotNull ScriptDescriptor scriptDescriptor,
             @NotNull Type asmType
     ) {
-        ClassDescriptorImpl classDescriptor = new ClassDescriptorImpl(
-                scriptDescriptor,
-                Collections.<AnnotationDescriptor>emptyList(),
-                Modality.FINAL,
-                Name.special("<script-" + asmType.getInternalName() + ">"));
-        classDescriptor.initialize(
-                false,
-                Collections.<TypeParameterDescriptor>emptyList(),
-                Collections.singletonList(KotlinBuiltIns.getInstance().getAnyType()),
-                JetScope.EMPTY,
-                Collections.<ConstructorDescriptor>emptySet(),
-                null,
-                false);
+        ClassDescriptorImpl classDescriptor =
+                new ClassDescriptorImpl(scriptDescriptor, Name.special("<script-" + asmType.getInternalName() + ">"), Modality.FINAL,
+                                        Collections.singleton(KotlinBuiltIns.getInstance().getAnyType()));
+        classDescriptor.initialize(JetScope.EMPTY, Collections.<ConstructorDescriptor>emptySet(), null);
 
         recordClosure(bindingTrace, null, classDescriptor, null, asmType);
 
         bindingTrace.record(CLASS_FOR_SCRIPT, scriptDescriptor, classDescriptor);
     }
 
-    public static boolean canHaveOuter(BindingContext bindingContext, @NotNull ClassDescriptor classDescriptor) {
-        if (isSingleton(bindingContext, classDescriptor)) {
+    public static boolean canHaveOuter(@NotNull BindingContext bindingContext, @NotNull ClassDescriptor classDescriptor) {
+        if (classDescriptor.getKind() != ClassKind.CLASS) {
             return false;
         }
 
@@ -175,28 +165,7 @@ public class CodegenBinding {
             return false;
         }
 
-        ClassKind kind = classDescriptor.getKind();
-        if (kind == ClassKind.CLASS) {
-            return classDescriptor.isInner() || !(classDescriptor.getContainingDeclaration() instanceof ClassDescriptor);
-        }
-        else if (kind == ClassKind.OBJECT) {
-            return !isSingleton(bindingContext, enclosing);
-        }
-        else {
-            return false;
-        }
-    }
-
-    public static boolean isSingleton(BindingContext bindingContext, @NotNull ClassDescriptor classDescriptor) {
-        if (isObjectDeclaration(bindingContext, classDescriptor)) {
-            return true;
-        }
-
-        if (classDescriptor.getKind() == ClassKind.ENUM_ENTRY) {
-            return true;
-        }
-
-        return false;
+        return classDescriptor.isInner() || !(classDescriptor.getContainingDeclaration() instanceof ClassDescriptor);
     }
 
     static void recordClosure(

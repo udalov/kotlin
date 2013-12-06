@@ -30,11 +30,11 @@ import org.jetbrains.jet.lang.resolve.DescriptorUtils;
 import org.jetbrains.jet.lang.resolve.java.JavaDescriptorResolver;
 import org.jetbrains.jet.lang.resolve.lazy.KotlinTestWithEnvironment;
 import org.jetbrains.jet.lang.resolve.lazy.LazyResolveTestUtil;
-import org.jetbrains.jet.storage.LockBasedStorageManager;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
 import org.jetbrains.jet.lang.resolve.scopes.WritableScope;
+import org.jetbrains.jet.storage.LockBasedStorageManager;
 import org.jetbrains.jet.test.util.NamespaceComparator;
 
 import java.io.File;
@@ -98,12 +98,7 @@ public abstract class AbstractDescriptorSerializationTest extends KotlinTestWith
             ClassId classId = getClassId(classDescriptor);
             ClassDescriptor descriptor = descriptorFinder.findClass(classId);
             assert descriptor != null : "Class not loaded: " + classId;
-            if (descriptor.getKind().isObject()) {
-                namespace.getMemberScope().addObjectDescriptor(descriptor);
-            }
-            else {
-                namespace.getMemberScope().addClassifierDescriptor(descriptor);
-            }
+            namespace.getMemberScope().addClassifierDescriptor(descriptor);
         }
 
         PackageData data = PackageData.read(serializedPackage, JavaProtoBufUtil.getExtensionRegistry());
@@ -134,9 +129,6 @@ public abstract class AbstractDescriptorSerializationTest extends KotlinTestWith
             if (descriptor instanceof ClassDescriptor) {
                 classes.add((ClassDescriptor) descriptor);
             }
-        }
-        for (ClassDescriptor descriptor : scope.getObjectDescriptors()) {
-            classes.add(descriptor);
         }
         return classes;
     }

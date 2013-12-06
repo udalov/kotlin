@@ -18,11 +18,13 @@ package org.jetbrains.jet.lang.resolve.java.scope;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.annotations.TestOnly;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.resolve.java.resolver.JavaMemberResolver;
 import org.jetbrains.jet.lang.resolve.java.resolver.ProgressChecker;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.resolve.scopes.JetScopeImpl;
+import org.jetbrains.jet.utils.Printer;
 
 import java.util.*;
 
@@ -37,8 +39,6 @@ public abstract class JavaBaseScope extends JetScopeImpl {
     private final Map<Name, Set<VariableDescriptor>> propertyDescriptors = new HashMap<Name, Set<VariableDescriptor>>();
     @Nullable
     private Collection<DeclarationDescriptor> allDescriptors = null;
-    @Nullable
-    private Set<ClassDescriptor> objectDescriptors = null;
     @NotNull
     protected final ClassOrNamespaceDescriptor descriptor;
 
@@ -123,17 +123,8 @@ public abstract class JavaBaseScope extends JetScopeImpl {
     protected Collection<DeclarationDescriptor> computeAllDescriptors() {
         Collection<DeclarationDescriptor> result = new HashSet<DeclarationDescriptor>();
         result.addAll(computeFieldAndFunctionDescriptors());
-        result.addAll(filterObjects(getInnerClasses(), false));
+        result.addAll(getInnerClasses());
         return result;
-    }
-
-    @NotNull
-    @Override
-    public Set<ClassDescriptor> getObjectDescriptors() {
-        if (objectDescriptors == null) {
-            objectDescriptors = new HashSet<ClassDescriptor>(filterObjects(getInnerClasses(), true));
-        }
-        return objectDescriptors;
     }
 
     @NotNull
@@ -160,14 +151,15 @@ public abstract class JavaBaseScope extends JetScopeImpl {
         return innerClasses;
     }
 
-    @NotNull
-    private static Collection<ClassDescriptor> filterObjects(@NotNull Collection<ClassDescriptor> classes, boolean objects) {
-        List<ClassDescriptor> result = new ArrayList<ClassDescriptor>();
-        for (ClassDescriptor descriptor : classes) {
-            if (descriptor.getKind().isObject() == objects) {
-                result.add(descriptor);
-            }
-        }
-        return result;
+    @TestOnly
+    @Override
+    public void printScopeStructure(@NotNull Printer p) {
+        p.println(getClass().getSimpleName(), " {");
+        p.pushIndent();
+
+        p.println("descriptor = ", descriptor);
+
+        p.popIndent();
+        p.println("}");
     }
 }

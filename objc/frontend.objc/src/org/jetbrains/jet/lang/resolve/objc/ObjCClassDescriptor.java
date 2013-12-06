@@ -122,11 +122,6 @@ public class ObjCClassDescriptor extends MutableClassDescriptorLite {
                 }
 
                 @Override
-                public void addObjectDescriptor(@NotNull MutableClassDescriptorLite objectDescriptor) {
-                    superBuilder.addObjectDescriptor(objectDescriptor);
-                }
-
-                @Override
                 public void addFunctionDescriptor(@NotNull SimpleFunctionDescriptor functionDescriptor) {
                     superBuilder.addFunctionDescriptor(functionDescriptor);
                     if (functionDescriptor.getKind().isReal()) {

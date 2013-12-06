@@ -69,7 +69,7 @@ public class MutableClassDescriptor extends MutableClassDescriptorLite {
 
         constructors.add(constructorDescriptor);
 
-        if (defaultType != null) {
+        if (defaultType.isComputed()) {
             ((ConstructorDescriptorImpl) constructorDescriptor).setReturnType(getDefaultType());
         }
 
@@ -184,11 +184,6 @@ public class MutableClassDescriptor extends MutableClassDescriptorLite {
                 @Override
                 public DeclarationDescriptor getOwnerForChildren() {
                     return superBuilder.getOwnerForChildren();
-                }
-
-                @Override
-                public void addObjectDescriptor(@NotNull MutableClassDescriptorLite objectDescriptor) {
-                    superBuilder.addObjectDescriptor(objectDescriptor);
                 }
 
                 @Override

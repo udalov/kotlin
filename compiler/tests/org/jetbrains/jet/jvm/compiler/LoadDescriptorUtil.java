@@ -58,18 +58,6 @@ public final class LoadDescriptorUtil {
     }
 
     @NotNull
-    public static NamespaceDescriptor compileKotlinAndLoadTestNamespaceDescriptorFromBinary(
-            @NotNull File kotlinFile,
-            @NotNull File outDir,
-            @NotNull Disposable disposable,
-            @NotNull ConfigurationKind configurationKind
-    )
-            throws IOException {
-        compileKotlinToDirAndGetAnalyzeExhaust(kotlinFile, outDir, disposable, configurationKind);
-        return loadTestNamespaceAndBindingContextFromJavaRoot(outDir, disposable, ConfigurationKind.JDK_ONLY).first;
-    }
-
-    @NotNull
     public static AnalyzeExhaust compileKotlinToDirAndGetAnalyzeExhaust(
             @NotNull File kotlinFile,
             @NotNull File outDir,
@@ -91,7 +79,8 @@ public final class LoadDescriptorUtil {
             @NotNull ConfigurationKind configurationKind
     ) {
         CompilerConfiguration configuration = JetTestUtils.compilerConfigurationForTests(
-                configurationKind, TestJdkKind.MOCK_JDK, JetTestUtils.getAnnotationsJar(),
+                configurationKind, TestJdkKind.MOCK_JDK,
+                JetTestUtils.getAnnotationsJar(),
                 javaRoot,
                 new File("compiler/tests") // for @ExpectLoadError annotation
         );
@@ -119,8 +108,7 @@ public final class LoadDescriptorUtil {
 
     private static void compileJavaWithAnnotationsJar(@NotNull Collection<File> javaFiles, @NotNull File outDir) throws IOException {
         String classPath = "out/production/runtime" +
-                           File.pathSeparator + JetTestUtils.getAnnotationsJar().getPath() +
-                           File.pathSeparator + JetTestUtils.getAnnotationsExtJar().getPath();
+                           File.pathSeparator + JetTestUtils.getAnnotationsJar().getPath();
         JetTestUtils.compileJavaFiles(javaFiles, Arrays.asList(
                 "-classpath", classPath,
                 "-sourcepath", "compiler/tests", // for @ExpectLoadError annotation

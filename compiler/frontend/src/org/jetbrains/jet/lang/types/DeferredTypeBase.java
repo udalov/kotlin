@@ -69,6 +69,7 @@ public abstract class DeferredTypeBase implements JetType {
     }
 
     @Override
+    @NotNull
     public List<AnnotationDescriptor> getAnnotations() {
         return getActualType().getAnnotations();
     }

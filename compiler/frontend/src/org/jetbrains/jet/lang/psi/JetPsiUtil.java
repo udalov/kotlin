@@ -42,10 +42,7 @@ import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 import org.jetbrains.jet.lexer.JetToken;
 import org.jetbrains.jet.lexer.JetTokens;
 
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 public class JetPsiUtil {
     private JetPsiUtil() {
@@ -121,10 +118,14 @@ public class JetPsiUtil {
 
     @Nullable
     public static JetExpression getBaseExpressionIfLabeledExpression(@NotNull JetPrefixExpression expression) {
-        if (JetTokens.LABELS.contains(expression.getOperationReference().getReferencedNameElementType())) {
+        if (isLabeledExpression(expression)) {
             return expression.getBaseExpression();
         }
         return null;
+    }
+
+    public static boolean isLabeledExpression(JetPrefixExpression expression) {
+        return JetTokens.LABELS.contains(expression.getOperationReference().getReferencedNameElementType());
     }
 
     @NotNull
@@ -138,7 +139,7 @@ public class JetPsiUtil {
         final Set<JetElement> shadowedElements = new HashSet<JetElement>();
         JetVisitorVoid shadowAllChildren = new JetVisitorVoid() {
             @Override
-            public void visitJetElement(JetElement element) {
+            public void visitJetElement(@NotNull JetElement element) {
                 if (shadowedElements.add(element)) {
                     element.acceptChildren(this);
                 }
@@ -191,19 +192,6 @@ public class JetPsiUtil {
 
     @Nullable
     public static FqName getFQName(@NotNull JetNamedDeclaration namedDeclaration) {
-        if (namedDeclaration instanceof JetObjectDeclarationName) {
-            JetNamedDeclaration objectDeclaration = PsiTreeUtil.getParentOfType(namedDeclaration, JetObjectDeclaration.class);
-            if (objectDeclaration == null) {
-                objectDeclaration = PsiTreeUtil.getParentOfType(namedDeclaration, JetEnumEntry.class);
-            }
-
-            if (objectDeclaration == null) {
-                return null;
-            }
-
-            return getFQName(objectDeclaration);
-        }
-
         Name name = namedDeclaration.getNameAsName();
         if (name == null) {
             return null;
@@ -431,6 +419,13 @@ public class JetPsiUtil {
         return selectorParent instanceof JetQualifiedExpression && (((JetQualifiedExpression) selectorParent).getSelectorExpression() == selector);
     }
 
+    public static boolean isLHSOfDot(@NotNull JetExpression expression) {
+        PsiElement parent = expression.getParent();
+        if (!(parent instanceof JetQualifiedExpression)) return false;
+        JetQualifiedExpression qualifiedParent = (JetQualifiedExpression) parent;
+        return qualifiedParent.getReceiverExpression() == expression || isLHSOfDot(qualifiedParent);
+    }
+
     public static boolean isVoidType(@Nullable JetTypeReference typeReference) {
         if (typeReference == null) {
             return false;
@@ -629,6 +624,7 @@ public class JetPsiUtil {
         }
         return null;
     }
+
 
     private static int getPriority(@NotNull JetExpression expression) {
         int maxPriority = JetExpressionParsing.Precedence.values().length + 1;
@@ -841,7 +837,7 @@ public class JetPsiUtil {
         ((JetElement) root).accept(
                 new JetVisitorVoid() {
                     @Override
-                    public void visitJetElement(JetElement element) {
+                    public void visitJetElement(@NotNull JetElement element) {
                         if (predicate.apply(element)) {
                             //noinspection unchecked
                             results.add(element);
@@ -1021,5 +1017,15 @@ public class JetPsiUtil {
 
     public static boolean isLocal(@NotNull JetNamedDeclaration declaration) {
         return getEnclosingBlockForLocalDeclaration(declaration) != null;
+    }
+
+    @Nullable
+    public static JetToken getOperationToken(@NotNull JetOperationExpression expression) {
+        JetSimpleNameExpression operationExpression = expression.getOperationReference();
+        IElementType elementType = operationExpression.getReferencedNameElementType();
+        assert elementType == null || elementType instanceof JetToken :
+                "JetOperationExpression should have operation token of type JetToken: " +
+                expression;
+        return (JetToken) elementType;
     }
 }

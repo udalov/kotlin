@@ -19,6 +19,7 @@ package org.jetbrains.jet.lang.resolve.calls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor;
+import org.jetbrains.jet.lang.descriptors.SimpleFunctionDescriptor;
 
 import java.lang.ref.WeakReference;
 import java.util.*;
@@ -31,8 +32,8 @@ public class CallResolverExtensionProvider {
     private WeakReference<Map<DeclarationDescriptor, List<CallResolverExtension>>> extensionsCache;
 
     @NotNull
-    public CallResolverExtension createExtension(@Nullable DeclarationDescriptor descriptor) {
-        if (descriptor == null) {
+    public CallResolverExtension createExtension(@Nullable DeclarationDescriptor descriptor, boolean isAnnotationContext) {
+        if (descriptor == null || isAnnotationContext) {
             return DEFAULT;
         }
         return new CompositeExtension(createExtensions(descriptor));
@@ -69,7 +70,13 @@ public class CallResolverExtensionProvider {
     }
 
     // with default one at the end
-    private void appendExtensionsFor(DeclarationDescriptor declarationDescriptor, List<CallResolverExtension> extensions) {
+    private static void appendExtensionsFor(DeclarationDescriptor declarationDescriptor, List<CallResolverExtension> extensions) {
+        if (declarationDescriptor instanceof SimpleFunctionDescriptor) {
+            SimpleFunctionDescriptor descriptor = (SimpleFunctionDescriptor) declarationDescriptor;
+            if (descriptor.isInline()) {
+                extensions.add(new InlineCallResolverExtension(descriptor));
+            }
+        }
         // add your extensions here
         extensions.add(DEFAULT);
     }

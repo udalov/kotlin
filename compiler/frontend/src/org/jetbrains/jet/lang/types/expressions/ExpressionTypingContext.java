@@ -25,7 +25,7 @@ import org.jetbrains.jet.lang.resolve.calls.CallResolverExtension;
 import org.jetbrains.jet.lang.resolve.calls.autocasts.DataFlowInfo;
 import org.jetbrains.jet.lang.resolve.calls.context.*;
 import org.jetbrains.jet.lang.resolve.calls.results.OverloadResolutionResults;
-import org.jetbrains.jet.lang.resolve.constants.CompileTimeConstantResolver;
+import org.jetbrains.jet.lang.resolve.constants.CompileTimeConstantChecker;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
 import org.jetbrains.jet.lang.types.JetType;
@@ -38,12 +38,11 @@ public class ExpressionTypingContext extends ResolutionContext<ExpressionTypingC
             @NotNull BindingTrace trace,
             @NotNull JetScope scope,
             @NotNull DataFlowInfo dataFlowInfo,
-            @NotNull JetType expectedType,
-            @NotNull ExpressionPosition expressionPosition
+            @NotNull JetType expectedType
     ) {
-        return newContext(expressionTypingServices, trace, scope, dataFlowInfo, expectedType, expressionPosition,
+        return newContext(expressionTypingServices, trace, scope, dataFlowInfo, expectedType,
                           ContextDependency.INDEPENDENT, ResolutionResultsCacheImpl.create(), LabelResolver.create(),
-                          expressionTypingServices.createExtension(scope));
+                          expressionTypingServices.createExtension(scope, false), false);
     }
 
     @NotNull
@@ -52,9 +51,9 @@ public class ExpressionTypingContext extends ResolutionContext<ExpressionTypingC
             @NotNull ResolutionContext resolutionContext
     ) {
         return newContext(expressionTypingServices, resolutionContext.trace, resolutionContext.scope, resolutionContext.dataFlowInfo,
-                          resolutionContext.expectedType, resolutionContext.expressionPosition, resolutionContext.contextDependency,
+                          resolutionContext.expectedType, resolutionContext.contextDependency,
                           resolutionContext.resolutionResultsCache, resolutionContext.labelResolver,
-                          resolutionContext.callResolverExtension);
+                          resolutionContext.callResolverExtension, resolutionContext.isAnnotationContext);
     }
 
     @NotNull
@@ -64,36 +63,37 @@ public class ExpressionTypingContext extends ResolutionContext<ExpressionTypingC
             @NotNull JetScope scope,
             @NotNull DataFlowInfo dataFlowInfo,
             @NotNull JetType expectedType,
-            @NotNull ExpressionPosition expressionPosition,
             @NotNull ContextDependency contextDependency,
             @NotNull ResolutionResultsCache resolutionResultsCache,
             @NotNull LabelResolver labelResolver,
-            @NotNull CallResolverExtension callResolverExtension
+            @NotNull CallResolverExtension callResolverExtension,
+            boolean isAnnotationContext
     ) {
-        return new ExpressionTypingContext(
-                expressionTypingServices, labelResolver, trace, scope, dataFlowInfo, expectedType, expressionPosition, contextDependency, resolutionResultsCache,
-                callResolverExtension);
+        return new ExpressionTypingContext(expressionTypingServices, labelResolver, trace, scope, scope, dataFlowInfo, expectedType,
+                                           contextDependency, resolutionResultsCache, callResolverExtension, isAnnotationContext);
     }
 
     public final ExpressionTypingServices expressionTypingServices;
-
-    private CompileTimeConstantResolver compileTimeConstantResolver;
+    public final JetScope scopeForVisibility;
+    private CompileTimeConstantChecker compileTimeConstantChecker;
 
     private ExpressionTypingContext(
             @NotNull ExpressionTypingServices expressionTypingServices,
             @NotNull LabelResolver labelResolver,
             @NotNull BindingTrace trace,
             @NotNull JetScope scope,
+            @NotNull JetScope scopeForVisibility,
             @NotNull DataFlowInfo dataFlowInfo,
             @NotNull JetType expectedType,
-            @NotNull ExpressionPosition expressionPosition,
             @NotNull ContextDependency contextDependency,
             @NotNull ResolutionResultsCache resolutionResultsCache,
-            @NotNull CallResolverExtension callResolverExtension
+            @NotNull CallResolverExtension callResolverExtension,
+            boolean isAnnotationContext
     ) {
-        super(trace, scope, expectedType, dataFlowInfo, expressionPosition, contextDependency, resolutionResultsCache, labelResolver,
-              callResolverExtension);
+        super(trace, scope, expectedType, dataFlowInfo, contextDependency, resolutionResultsCache, labelResolver, callResolverExtension,
+              isAnnotationContext);
         this.expressionTypingServices = expressionTypingServices;
+        this.scopeForVisibility = scopeForVisibility;
     }
 
     @Override
@@ -102,13 +102,13 @@ public class ExpressionTypingContext extends ResolutionContext<ExpressionTypingC
             @NotNull JetScope scope,
             @NotNull DataFlowInfo dataFlowInfo,
             @NotNull JetType expectedType,
-            @NotNull ExpressionPosition expressionPosition,
             @NotNull ContextDependency contextDependency,
             @NotNull ResolutionResultsCache resolutionResultsCache,
             @NotNull LabelResolver labelResolver
     ) {
-        return new ExpressionTypingContext(expressionTypingServices, this.labelResolver, trace, scope, dataFlowInfo, expectedType,
-                                           expressionPosition, contextDependency, resolutionResultsCache, callResolverExtension);
+        return new ExpressionTypingContext(expressionTypingServices, this.labelResolver, trace, scope, scopeForVisibility, dataFlowInfo,
+                                           expectedType, contextDependency, resolutionResultsCache, callResolverExtension,
+                                           isAnnotationContext);
     }
 
     @Override
@@ -118,11 +118,11 @@ public class ExpressionTypingContext extends ResolutionContext<ExpressionTypingC
 
 ///////////// LAZY ACCESSORS
 
-    public CompileTimeConstantResolver getCompileTimeConstantResolver() {
-        if (compileTimeConstantResolver == null) {
-            compileTimeConstantResolver = new CompileTimeConstantResolver();
+    public CompileTimeConstantChecker getCompileTimeConstantChecker() {
+        if (compileTimeConstantChecker == null) {
+            compileTimeConstantChecker = new CompileTimeConstantChecker(trace, false);
         }
-        return compileTimeConstantResolver;
+        return compileTimeConstantChecker;
     }
 
 ////////// Call resolution utilities

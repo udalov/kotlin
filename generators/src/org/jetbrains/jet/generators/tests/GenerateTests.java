@@ -18,9 +18,11 @@ package org.jetbrains.jet.generators.tests;
 
 import junit.framework.TestCase;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.jet.cfg.AbstractControlFlowTest;
 import org.jetbrains.jet.checkers.AbstractDiagnosticsTestWithEagerResolve;
 import org.jetbrains.jet.checkers.AbstractJetJsCheckerTest;
 import org.jetbrains.jet.checkers.AbstractJetPsiCheckerTest;
+import org.jetbrains.jet.cli.AbstractKotlincExecutableTest;
 import org.jetbrains.jet.codegen.AbstractBytecodeTextTest;
 import org.jetbrains.jet.codegen.AbstractCheckLocalVariablesTableTest;
 import org.jetbrains.jet.codegen.AbstractTopLevelMembersInvocationTest;
@@ -31,9 +33,11 @@ import org.jetbrains.jet.completion.*;
 import org.jetbrains.jet.completion.weighers.AbstractCompletionWeigherTest;
 import org.jetbrains.jet.descriptors.serialization.AbstractDescriptorSerializationTest;
 import org.jetbrains.jet.editor.quickDoc.AbstractJetQuickDocProviderTest;
+import org.jetbrains.jet.evaluate.AbstractEvaluateExpressionTest;
 import org.jetbrains.jet.findUsages.AbstractJetFindUsagesTest;
 import org.jetbrains.jet.formatter.AbstractJetFormatterTest;
 import org.jetbrains.jet.generators.tests.generator.SimpleTestClassModel;
+import org.jetbrains.jet.generators.tests.generator.SingleClassTestModel;
 import org.jetbrains.jet.generators.tests.generator.TestClassModel;
 import org.jetbrains.jet.generators.tests.generator.TestGenerator;
 import org.jetbrains.jet.jvm.compiler.*;
@@ -58,10 +62,12 @@ import org.jetbrains.jet.plugin.navigation.JetAbstractGotoSuperTest;
 import org.jetbrains.jet.plugin.quickfix.AbstractQuickFixMultiFileTest;
 import org.jetbrains.jet.plugin.quickfix.AbstractQuickFixTest;
 import org.jetbrains.jet.plugin.refactoring.inline.AbstractInlineTest;
+import org.jetbrains.jet.plugin.refactoring.rename.AbstractRenameTest;
 import org.jetbrains.jet.psi.AbstractJetPsiMatcherTest;
 import org.jetbrains.jet.resolve.AbstractResolveBaseTest;
 import org.jetbrains.jet.resolve.AbstractResolveTest;
 import org.jetbrains.jet.resolve.AbstractResolveWithLibTest;
+import org.jetbrains.jet.resolve.annotation.AbstractAnnotationParameterTest;
 import org.jetbrains.jet.safeDelete.AbstractJetSafeDeleteTest;
 
 import java.io.File;
@@ -93,7 +99,8 @@ public class GenerateTests {
                 "JetDiagnosticsTestGenerated",
                 AbstractDiagnosticsTestWithEagerResolve.class,
                 testModel("compiler/testData/diagnostics/tests"),
-                testModel("compiler/testData/diagnostics/tests/script", true, "ktscript", "doTest")
+                testModel("compiler/testData/diagnostics/tests/script", true, "ktscript", "doTest"),
+                testModel("compiler/testData/codegen/box/functions/tailRecursion")
         );
 
         generateTest(
@@ -274,6 +281,21 @@ public class GenerateTests {
         );
 
         generateTest(
+                "compiler/tests/",
+                "KotlincExecutableTestGenerated",
+                AbstractKotlincExecutableTest.class,
+                testModel("compiler/testData/cli/jvm", true, "args", "doJvmTest"),
+                testModel("compiler/testData/cli/js", true, "args", "doJsTest")
+        );
+
+        generateTest(
+                "compiler/tests/",
+                "ControlFlowTestGenerated",
+                AbstractControlFlowTest.class,
+                testModel("compiler/testData/cfg")
+        );
+
+        generateTest(
                 "idea/tests/",
                 "JetPsiMatcherTest",
                 AbstractJetPsiMatcherTest.class,
@@ -404,6 +426,7 @@ public class GenerateTests {
                 testModel("idea/testData/intentions/branched/ifWhen/ifToWhen", "doTestIfToWhen"),
                 testModel("idea/testData/intentions/branched/ifWhen/whenToIf", "doTestWhenToIf"),
                 testModel("idea/testData/intentions/branched/when/flatten", "doTestFlattenWhen"),
+                testModel("idea/testData/intentions/branched/when/merge", "doTestMergeWhen"),
                 testModel("idea/testData/intentions/branched/when/introduceSubject", "doTestIntroduceWhenSubject"),
                 testModel("idea/testData/intentions/branched/when/eliminateSubject", "doTestEliminateWhenSubject"),
                 testModel("idea/testData/intentions/declarations/split", "doTestSplitProperty"),
@@ -546,6 +569,28 @@ public class GenerateTests {
                 "DataFlowValueRenderingTestGenerated",
                 AbstractDataFlowValueRenderingTest.class,
                 testModel("idea/testData/dataFlowValueRendering")
+        );
+
+        generateTest(
+                "idea/tests/",
+                "RenameTestGenerated",
+                AbstractRenameTest.class,
+                new SingleClassTestModel(new File("idea/testData/refactoring/rename"), Pattern.compile("^(.+)\\.test$"), "doTest")
+        );
+
+        generateTest(
+                "compiler/tests",
+                "AnnotationParameterTestGenerated",
+                AbstractAnnotationParameterTest.class,
+                testModel("compiler/testData/resolveAnnotations/parameters")
+        );
+
+        generateTest(
+                "compiler/tests",
+                "EvaluateExpressionTestGenerated",
+                AbstractEvaluateExpressionTest.class,
+                testModel("compiler/testData/evaluate/constant", "doConstantTest"),
+                testModel("compiler/testData/evaluate/isPure", "doIsPureTest")
         );
     }
 

@@ -17,30 +17,20 @@
 package org.jetbrains.jet.lang.resolve.scopes;
 
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.TestOnly;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.resolve.name.LabelName;
 import org.jetbrains.jet.lang.resolve.name.Name;
+import org.jetbrains.jet.utils.Printer;
 
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 
 public abstract class JetScopeImpl implements JetScope {
     @Override
     public ClassifierDescriptor getClassifier(@NotNull Name name) {
         return null;
-    }
-
-    @Override
-    public ClassDescriptor getObjectDescriptor(@NotNull Name name) {
-        return null;
-    }
-
-    @NotNull
-    @Override
-    public Set<ClassDescriptor> getObjectDescriptors() {
-        return Collections.emptySet();
     }
 
     @NotNull
@@ -88,4 +78,9 @@ public abstract class JetScopeImpl implements JetScope {
     public Collection<DeclarationDescriptor> getOwnDeclaredDescriptors() {
         return Collections.emptyList();
     }
+
+    // This method should not be implemented here by default: every scope class has its unique structure pattern
+    @TestOnly
+    @Override
+    public abstract void printScopeStructure(@NotNull Printer p);
 }

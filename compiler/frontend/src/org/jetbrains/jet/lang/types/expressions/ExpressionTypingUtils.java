@@ -28,13 +28,12 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.JetNodeTypes;
 import org.jetbrains.jet.lang.descriptors.*;
-import org.jetbrains.jet.lang.diagnostics.DiagnosticFactory;
 import org.jetbrains.jet.lang.diagnostics.Diagnostic;
+import org.jetbrains.jet.lang.diagnostics.DiagnosticFactory;
 import org.jetbrains.jet.lang.diagnostics.Errors;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.*;
 import org.jetbrains.jet.lang.resolve.calls.autocasts.DataFlowInfo;
-import org.jetbrains.jet.lang.resolve.calls.context.ExpressionPosition;
 import org.jetbrains.jet.lang.resolve.calls.inference.ConstraintPosition;
 import org.jetbrains.jet.lang.resolve.calls.inference.ConstraintSystem;
 import org.jetbrains.jet.lang.resolve.calls.inference.ConstraintSystemImpl;
@@ -218,8 +217,7 @@ public class ExpressionTypingUtils {
                 new BindingTraceContext(),
                 scope,
                 DataFlowInfo.EMPTY,
-                TypeUtils.NO_EXPECTED_TYPE,
-                ExpressionPosition.FREE
+                TypeUtils.NO_EXPECTED_TYPE
         );
         return ControlStructureTypingVisitor.checkIterableConvention(expressionReceiver, context) != null;
     }
@@ -364,7 +362,17 @@ public class ExpressionTypingUtils {
             @NotNull ReceiverValue receiver,
             @NotNull Name name
     ) {
-        return makeAndResolveFakeCall(receiver, context, Collections.<JetExpression>emptyList(), name).getSecond();
+        return resolveFakeCall(receiver, context, Collections.<JetExpression>emptyList(), name);
+    }
+
+    @NotNull
+    public static OverloadResolutionResults<FunctionDescriptor> resolveFakeCall(
+            @NotNull ReceiverValue receiver,
+            @NotNull ExpressionTypingContext context,
+            @NotNull List<JetExpression> valueArguments,
+            @NotNull Name name
+    ) {
+        return makeAndResolveFakeCall(receiver, context, valueArguments, name).getSecond();
     }
 
     @NotNull
@@ -382,11 +390,11 @@ public class ExpressionTypingUtils {
         if (results.isSuccess()) {
             fakeTrace.commit(new TraceEntryFilter() {
                 @Override
-                public boolean accept(@NotNull WritableSlice<?, ?> slice, Object key) {
+                public boolean accept(@Nullable WritableSlice<?, ?> slice, Object key) {
                     // excluding all entries related to fake expression
                     return key != fake;
                 }
-            }, false);
+            }, true);
         }
         return Pair.create(call, results);
     }

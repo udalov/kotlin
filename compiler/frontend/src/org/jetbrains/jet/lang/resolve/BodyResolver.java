@@ -24,10 +24,10 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.descriptors.impl.MutableClassDescriptor;
+import org.jetbrains.jet.lang.evaluate.ConstantExpressionEvaluator;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.calls.CallResolver;
 import org.jetbrains.jet.lang.resolve.calls.context.ContextDependency;
-import org.jetbrains.jet.lang.resolve.calls.context.ExpressionPosition;
 import org.jetbrains.jet.lang.resolve.calls.context.ResolutionResultsCacheImpl;
 import org.jetbrains.jet.lang.resolve.calls.context.SimpleResolutionContext;
 import org.jetbrains.jet.lang.resolve.calls.results.OverloadResolutionResults;
@@ -41,8 +41,8 @@ import org.jetbrains.jet.lang.types.expressions.ExpressionTypingServices;
 import org.jetbrains.jet.lang.types.expressions.LabelResolver;
 import org.jetbrains.jet.lexer.JetTokens;
 import org.jetbrains.jet.util.Box;
-import org.jetbrains.jet.util.slicedmap.WritableSlice;
 import org.jetbrains.jet.util.ReenteringLazyValueComputationException;
+import org.jetbrains.jet.util.slicedmap.WritableSlice;
 
 import javax.inject.Inject;
 import java.util.*;
@@ -160,19 +160,14 @@ public class BodyResolver {
 
     private void resolveDelegationSpecifierLists() {
         // TODO : Make sure the same thing is not initialized twice
-        for (Map.Entry<JetClass, MutableClassDescriptor> entry : context.getClasses().entrySet()) {
-            resolveDelegationSpecifierList(entry.getKey(), entry.getValue());
+        for (Map.Entry<JetClassOrObject, MutableClassDescriptor> entry : context.getClasses().entrySet()) {
+            JetClassOrObject classOrObject = entry.getKey();
+            MutableClassDescriptor descriptor = entry.getValue();
+            resolveDelegationSpecifierList(classOrObject, descriptor,
+                                           descriptor.getUnsubstitutedPrimaryConstructor(),
+                                           descriptor.getScopeForSupertypeResolution(),
+                                           descriptor.getScopeForMemberResolution());
         }
-        for (Map.Entry<JetObjectDeclaration, MutableClassDescriptor> entry : context.getObjects().entrySet()) {
-            resolveDelegationSpecifierList(entry.getKey(), entry.getValue());
-        }
-    }
-
-    private void resolveDelegationSpecifierList(JetClassOrObject jetClass, MutableClassDescriptor descriptor) {
-        resolveDelegationSpecifierList(jetClass, descriptor,
-                                       descriptor.getUnsubstitutedPrimaryConstructor(),
-                                       descriptor.getScopeForSupertypeResolution(),
-                                       descriptor.getScopeForMemberResolution());
     }
 
     public void resolveDelegationSpecifierList(@NotNull JetClassOrObject jetClass, @NotNull final ClassDescriptor descriptor,
@@ -193,7 +188,7 @@ public class BodyResolver {
             }
 
             @Override
-            public void visitDelegationByExpressionSpecifier(JetDelegatorByExpressionSpecifier specifier) {
+            public void visitDelegationByExpressionSpecifier(@NotNull JetDelegatorByExpressionSpecifier specifier) {
                 if (descriptor.getKind() == ClassKind.TRAIT) {
                     trace.report(DELEGATION_IN_TRAIT.on(specifier));
                 }
@@ -216,15 +211,16 @@ public class BodyResolver {
                     JetType type = typeInferrer.getType(scope, delegateExpression, NO_EXPECTED_TYPE, context.getOuterDataFlowInfo(), trace);
                     if (type != null && supertype != null) {
                         SimpleResolutionContext simpleResolutionContext = new SimpleResolutionContext(
-                                trace, scope, supertype, context.getOuterDataFlowInfo(), ExpressionPosition.FREE, ContextDependency.INDEPENDENT,
-                                ResolutionResultsCacheImpl.create(), LabelResolver.create(), expressionTypingServices.createExtension(scope));
+                                trace, scope, supertype, context.getOuterDataFlowInfo(), ContextDependency.INDEPENDENT,
+                                ResolutionResultsCacheImpl.create(), LabelResolver.create(),
+                                expressionTypingServices.createExtension(scope, false), false);
                         DataFlowUtils.checkType(type, delegateExpression, simpleResolutionContext);
                     }
                 }
             }
 
             @Override
-            public void visitDelegationToSuperCallSpecifier(JetDelegatorToSuperCall call) {
+            public void visitDelegationToSuperCallSpecifier(@NotNull JetDelegatorToSuperCall call) {
                 JetValueArgumentList valueArgumentList = call.getValueArgumentList();
                 PsiElement elementToMark = valueArgumentList == null ? call : valueArgumentList;
                 if (descriptor.getKind() == ClassKind.TRAIT) {
@@ -239,7 +235,7 @@ public class BodyResolver {
                 }
                 OverloadResolutionResults<FunctionDescriptor> results = callResolver.resolveFunctionCall(
                         trace, scopeForConstructor,
-                        CallMaker.makeCall(ReceiverValue.NO_RECEIVER, null, call), NO_EXPECTED_TYPE, context.getOuterDataFlowInfo());
+                        CallMaker.makeCall(ReceiverValue.NO_RECEIVER, null, call), NO_EXPECTED_TYPE, context.getOuterDataFlowInfo(), false);
                 if (results.isSuccess()) {
                     JetType supertype = results.getResultingDescriptor().getReturnType();
                     recordSupertype(typeReference, supertype);
@@ -256,26 +252,29 @@ public class BodyResolver {
             }
 
             @Override
-            public void visitDelegationToSuperClassSpecifier(JetDelegatorToSuperClass specifier) {
+            public void visitDelegationToSuperClassSpecifier(@NotNull JetDelegatorToSuperClass specifier) {
                 JetTypeReference typeReference = specifier.getTypeReference();
                 JetType supertype = trace.getBindingContext().get(BindingContext.TYPE, typeReference);
                 recordSupertype(typeReference, supertype);
                 if (supertype == null) return;
-                ClassDescriptor classDescriptor = TypeUtils.getClassDescriptor(supertype);
-                if (classDescriptor == null) return;
-                if (descriptor.getKind() != ClassKind.TRAIT && !classDescriptor.getConstructors().isEmpty() &&
-                    !ErrorUtils.isError(classDescriptor) && classDescriptor.getKind() != ClassKind.TRAIT) {
+                ClassDescriptor superClass = TypeUtils.getClassDescriptor(supertype);
+                if (superClass == null) return;
+                if (superClass.getKind().isSingleton()) {
+                    // A "singleton in supertype" diagnostic will be reported later
+                    return;
+                }
+                if (descriptor.getKind() != ClassKind.TRAIT && !superClass.getConstructors().isEmpty() && !ErrorUtils.isError(superClass)) {
                     trace.report(SUPERTYPE_NOT_INITIALIZED.on(specifier));
                 }
             }
 
             @Override
-            public void visitDelegationToThisCall(JetDelegatorToThisCall thisCall) {
+            public void visitDelegationToThisCall(@NotNull JetDelegatorToThisCall thisCall) {
                 throw new IllegalStateException("This-calls should be prohibited by the parser");
             }
 
             @Override
-            public void visitJetElement(JetElement element) {
+            public void visitJetElement(@NotNull JetElement element) {
                 throw new UnsupportedOperationException(element.getText() + " : " + element);
             }
         };
@@ -284,11 +283,10 @@ public class BodyResolver {
             delegationSpecifier.accept(visitor);
         }
 
-
-        Set<TypeConstructor> parentEnum = Collections.emptySet();
-        if (jetClass instanceof JetEnumEntry) {
-            parentEnum = Collections.singleton(((ClassDescriptor) descriptor.getContainingDeclaration().getContainingDeclaration()).getTypeConstructor());
-        }
+        Set<TypeConstructor> parentEnum =
+                jetClass instanceof JetEnumEntry
+                ? Collections.singleton(((ClassDescriptor) descriptor.getContainingDeclaration()).getTypeConstructor())
+                : Collections.<TypeConstructor>emptySet();
 
         checkSupertypeList(descriptor, supertypes, parentEnum);
     }
@@ -328,33 +326,28 @@ public class BodyResolver {
                 trace.report(SUPERTYPE_APPEARS_TWICE.on(typeReference));
             }
 
-            if (constructor.isFinal() && !allowedFinalSupertypes.contains(constructor)) {
+            if (DescriptorUtils.isSingleton(classDescriptor)) {
+                trace.report(SINGLETON_IN_SUPERTYPE.on(typeReference));
+            }
+            else if (constructor.isFinal() && !allowedFinalSupertypes.contains(constructor)) {
                 trace.report(FINAL_SUPERTYPE.on(typeReference));
             }
         }
     }
 
     private void resolveClassAnnotations() {
-        for (Map.Entry<JetClass, MutableClassDescriptor> entry : context.getClasses().entrySet()) {
-            resolveAnnotationArguments(entry.getValue().getScopeForSupertypeResolution(), entry.getKey());
-        }
-        for (Map.Entry<JetObjectDeclaration, MutableClassDescriptor> entry : context.getObjects().entrySet()) {
+        for (Map.Entry<JetClassOrObject, MutableClassDescriptor> entry : context.getClasses().entrySet()) {
             resolveAnnotationArguments(entry.getValue().getScopeForSupertypeResolution(), entry.getKey());
         }
     }
 
     private void resolveAnonymousInitializers() {
-        for (Map.Entry<JetClass, MutableClassDescriptor> entry : context.getClasses().entrySet()) {
-            resolveAnonymousInitializers(entry.getKey(), entry.getValue());
+        for (Map.Entry<JetClassOrObject, MutableClassDescriptor> entry : context.getClasses().entrySet()) {
+            JetClassOrObject classOrObject = entry.getKey();
+            MutableClassDescriptor descriptor = entry.getValue();
+            resolveAnonymousInitializers(classOrObject, descriptor.getUnsubstitutedPrimaryConstructor(),
+                                         descriptor.getScopeForInitializers());
         }
-        for (Map.Entry<JetObjectDeclaration, MutableClassDescriptor> entry : context.getObjects().entrySet()) {
-            resolveAnonymousInitializers(entry.getKey(), entry.getValue());
-        }
-    }
-
-    private void resolveAnonymousInitializers(JetClassOrObject jetClassOrObject, MutableClassDescriptor classDescriptor) {
-        resolveAnonymousInitializers(jetClassOrObject, classDescriptor.getUnsubstitutedPrimaryConstructor(),
-                                     classDescriptor.getScopeForInitializers());
     }
 
     public void resolveAnonymousInitializers(JetClassOrObject jetClassOrObject,
@@ -377,8 +370,9 @@ public class BodyResolver {
     }
 
     private void resolvePrimaryConstructorParameters() {
-        for (Map.Entry<JetClass, MutableClassDescriptor> entry : context.getClasses().entrySet()) {
-            JetClass klass = entry.getKey();
+        for (Map.Entry<JetClassOrObject, MutableClassDescriptor> entry : context.getClasses().entrySet()) {
+            if (!(entry.getKey() instanceof JetClass)) continue;
+            JetClass klass = (JetClass) entry.getKey();
             MutableClassDescriptor classDescriptor = entry.getValue();
             ConstructorDescriptor unsubstitutedPrimaryConstructor = classDescriptor.getUnsubstitutedPrimaryConstructor();
 
@@ -412,8 +406,9 @@ public class BodyResolver {
 
         // Member properties
         Set<JetProperty> processed = Sets.newHashSet();
-        for (Map.Entry<JetClass, MutableClassDescriptor> entry : context.getClasses().entrySet()) {
-            JetClass jetClass = entry.getKey();
+        for (Map.Entry<JetClassOrObject, MutableClassDescriptor> entry : context.getClasses().entrySet()) {
+            if (!(entry.getKey() instanceof JetClass)) continue;
+            JetClass jetClass = (JetClass) entry.getKey();
             if (!context.completeAnalysisNeeded(jetClass)) continue;
             MutableClassDescriptor classDescriptor = entry.getValue();
 
@@ -561,8 +556,8 @@ public class BodyResolver {
                 scope, propertyDescriptor.getTypeParameters(), NO_RECEIVER_PARAMETER, trace);
         JetType expectedTypeForInitializer = property.getTypeRef() != null ? propertyDescriptor.getType() : NO_EXPECTED_TYPE;
         expressionTypingServices.getType(propertyDeclarationInnerScope, initializer, expectedTypeForInitializer, context.getOuterDataFlowInfo(), trace);
-        if (AnnotationUtils.isPropertyAcceptableAsAnnotationParameter(propertyDescriptor)) {
-            CompileTimeConstant<?> constant = annotationResolver.resolveExpressionToCompileTimeValue(initializer, expectedTypeForInitializer, trace);
+        if (AnnotationUtils.isPropertyCompileTimeConstant(propertyDescriptor)) {
+            CompileTimeConstant<?> constant = AnnotationResolver.resolveExpressionToCompileTimeValue(initializer, expectedTypeForInitializer, trace);
             if (constant != null) {
                 trace.record(BindingContext.COMPILE_TIME_INITIALIZER, propertyDescriptor, constant);
             }

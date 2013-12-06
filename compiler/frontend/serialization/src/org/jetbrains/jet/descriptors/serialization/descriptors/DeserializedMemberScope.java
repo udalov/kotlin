@@ -30,6 +30,7 @@ import org.jetbrains.jet.lang.resolve.scopes.JetScope;
 import org.jetbrains.jet.storage.MemoizedFunctionToNotNull;
 import org.jetbrains.jet.storage.NotNullLazyValue;
 import org.jetbrains.jet.storage.StorageManager;
+import org.jetbrains.jet.utils.Printer;
 
 import java.util.*;
 
@@ -45,8 +46,7 @@ public abstract class DeserializedMemberScope implements JetScope {
         @Override
         public boolean accept(ProtoBuf.Callable.CallableKind value) {
             return value == ProtoBuf.Callable.CallableKind.VAL ||
-                   value == ProtoBuf.Callable.CallableKind.VAR ||
-                   value == ProtoBuf.Callable.CallableKind.OBJECT_PROPERTY;
+                   value == ProtoBuf.Callable.CallableKind.VAR;
         }
     };
 
@@ -59,7 +59,6 @@ public abstract class DeserializedMemberScope implements JetScope {
     private final MemoizedFunctionToNotNull<Name, Collection<FunctionDescriptor>> functions;
     private final MemoizedFunctionToNotNull<Name, Collection<VariableDescriptor>> properties;
     private final NotNullLazyValue<Collection<DeclarationDescriptor>> allDescriptors;
-    private final NotNullLazyValue<Collection<ClassDescriptor>> objectDescriptors;
 
     public DeserializedMemberScope(
             @NotNull StorageManager storageManager,
@@ -87,12 +86,6 @@ public abstract class DeserializedMemberScope implements JetScope {
             @Override
             public Collection<DeclarationDescriptor> invoke() {
                 return computeAllDescriptors();
-            }
-        });
-        this.objectDescriptors = storageManager.createLazyValue(new Function0<Collection<ClassDescriptor>>() {
-            @Override
-            public Collection<ClassDescriptor> invoke() {
-                return computeAllObjectDescriptors();
             }
         });
     }
@@ -174,19 +167,6 @@ public abstract class DeserializedMemberScope implements JetScope {
 
     @Nullable
     @Override
-    public abstract ClassDescriptor getObjectDescriptor(@NotNull Name name);
-
-    @NotNull
-    protected abstract Collection<ClassDescriptor> computeAllObjectDescriptors();
-
-    @NotNull
-    @Override
-    public Collection<ClassDescriptor> getObjectDescriptors() {
-        return objectDescriptors.invoke();
-    }
-
-    @Nullable
-    @Override
     public NamespaceDescriptor getNamespace(@NotNull Name name) {
         return null;
     }
@@ -255,4 +235,14 @@ public abstract class DeserializedMemberScope implements JetScope {
         boolean accept(T value);
     }
 
+    @Override
+    public void printScopeStructure(@NotNull Printer p) {
+        p.println(getClass().getSimpleName(), " {");
+        p.pushIndent();
+
+        p.println("containingDeclaration = " + containingDeclaration);
+
+        p.popIndent();
+        p.println("}");
+    }
 }

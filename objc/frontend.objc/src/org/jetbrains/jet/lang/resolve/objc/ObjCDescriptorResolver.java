@@ -333,8 +333,7 @@ public class ObjCDescriptorResolver {
                 valueParameters,
                 returnType,
                 Modality.OPEN,
-                Visibilities.PUBLIC,
-                /* isInline */ false
+                Visibilities.PUBLIC
         );
 
         return descriptor;

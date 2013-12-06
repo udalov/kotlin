@@ -26,6 +26,7 @@ import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor;
 import org.jetbrains.jet.lang.descriptors.FunctionDescriptor;
 import org.jetbrains.jet.lang.descriptors.ScriptDescriptor;
 import org.jetbrains.jet.lang.descriptors.ValueParameterDescriptor;
+import org.jetbrains.jet.lang.evaluate.ConstantExpressionEvaluator;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.*;
 import org.jetbrains.jet.lang.resolve.calls.CallExpressionResolver;
@@ -34,7 +35,6 @@ import org.jetbrains.jet.lang.resolve.calls.CallResolverExtension;
 import org.jetbrains.jet.lang.resolve.calls.CallResolverExtensionProvider;
 import org.jetbrains.jet.lang.resolve.calls.autocasts.DataFlowInfo;
 import org.jetbrains.jet.lang.resolve.calls.context.ContextDependency;
-import org.jetbrains.jet.lang.resolve.calls.context.ExpressionPosition;
 import org.jetbrains.jet.lang.resolve.calls.context.ResolutionContext;
 import org.jetbrains.jet.lang.resolve.constants.CompileTimeConstant;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
@@ -162,9 +162,7 @@ public class ExpressionTypingServices {
 
     @NotNull
     public JetTypeInfo getTypeInfo(@NotNull JetScope scope, @NotNull JetExpression expression, @NotNull JetType expectedType, @NotNull DataFlowInfo dataFlowInfo, @NotNull BindingTrace trace) {
-        ExpressionTypingContext context = ExpressionTypingContext.newContext(
-                this, trace, scope, dataFlowInfo, expectedType, ExpressionPosition.FREE
-        );
+        ExpressionTypingContext context = ExpressionTypingContext.newContext(this, trace, scope, dataFlowInfo, expectedType);
         return expressionTypingFacade.getTypeInfo(expression, context);
     }
 
@@ -188,8 +186,7 @@ public class ExpressionTypingServices {
             }
         }
         checkFunctionReturnType(function, ExpressionTypingContext.newContext(
-                this, trace, functionInnerScope, dataFlowInfo, expectedReturnType != null ? expectedReturnType : NO_EXPECTED_TYPE,
-                ExpressionPosition.FREE
+                this, trace, functionInnerScope, dataFlowInfo, expectedReturnType != null ? expectedReturnType : NO_EXPECTED_TYPE
         ));
     }
 
@@ -255,7 +252,7 @@ public class ExpressionTypingServices {
         JetScope functionInnerScope = FunctionDescriptorUtil.getFunctionInnerScope(outerScope, functionDescriptor, trace);
 
         ExpressionTypingContext context = ExpressionTypingContext.newContext(
-                this, trace, functionInnerScope, dataFlowInfo, NO_EXPECTED_TYPE, ExpressionPosition.FREE
+                this, trace, functionInnerScope, dataFlowInfo, NO_EXPECTED_TYPE
         );
         JetTypeInfo typeInfo = expressionTypingFacade.getTypeInfo(bodyExpression, context, function.hasBlockBody());
 
@@ -351,9 +348,9 @@ public class ExpressionTypingServices {
     }
 
     private ExpressionTypingContext createContext(ExpressionTypingContext oldContext, BindingTrace trace, WritableScope scope, DataFlowInfo dataFlowInfo, JetType expectedType) {
-        return ExpressionTypingContext.newContext(this, trace, scope, dataFlowInfo, expectedType, oldContext.expressionPosition,
-                                                  oldContext.contextDependency, oldContext.resolutionResultsCache, oldContext.labelResolver,
-                                                  oldContext.callResolverExtension);
+        return ExpressionTypingContext.newContext(this, trace, scope, dataFlowInfo, expectedType, oldContext.contextDependency,
+                                                  oldContext.resolutionResultsCache, oldContext.labelResolver,
+                                                  oldContext.callResolverExtension, oldContext.isAnnotationContext);
     }
 
     @Nullable
@@ -399,18 +396,14 @@ public class ExpressionTypingServices {
             if (defaultValue != null) {
                 getType(declaringScope, defaultValue, valueParameterDescriptor.getType(), dataFlowInfo, trace);
                 if (DescriptorUtils.isAnnotationClass(DescriptorUtils.getContainingClass(declaringScope))) {
-                    CompileTimeConstant<?> constant =
-                            annotationResolver.resolveExpressionToCompileTimeValue(defaultValue, valueParameterDescriptor.getType(), trace);
-                    if (constant != null) {
-                        trace.record(BindingContext.COMPILE_TIME_VALUE, defaultValue, constant);
-                    }
+                    ConstantExpressionEvaluator.object$.evaluate(defaultValue, trace, valueParameterDescriptor.getType());
                 }
             }
         }
     }
 
     @NotNull
-    public CallResolverExtension createExtension(@NotNull JetScope scope) {
-        return extensionProvider.createExtension(scope == JetScope.EMPTY ? null : scope.getContainingDeclaration());
+    public CallResolverExtension createExtension(@NotNull JetScope scope, boolean isAnnotationContext) {
+        return extensionProvider.createExtension(scope == JetScope.EMPTY ? null : scope.getContainingDeclaration(), isAnnotationContext);
     }
 }

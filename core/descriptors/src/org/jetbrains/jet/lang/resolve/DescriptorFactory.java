@@ -22,9 +22,7 @@ import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.descriptors.annotations.AnnotationDescriptor;
 import org.jetbrains.jet.lang.descriptors.impl.*;
 import org.jetbrains.jet.lang.resolve.name.Name;
-import org.jetbrains.jet.lang.resolve.scopes.receivers.ClassReceiver;
 import org.jetbrains.jet.lang.resolve.scopes.receivers.ExtensionReceiver;
-import org.jetbrains.jet.lang.resolve.scopes.receivers.ReceiverValue;
 import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 
@@ -36,6 +34,14 @@ import static org.jetbrains.jet.lang.resolve.DescriptorUtils.getDefaultConstruct
 public class DescriptorFactory {
     public static final Name VALUE_OF_METHOD_NAME = Name.identifier("valueOf");
     public static final Name VALUES_METHOD_NAME = Name.identifier("values");
+
+    private static class DefaultConstructorDescriptor extends ConstructorDescriptorImpl {
+        public DefaultConstructorDescriptor(@NotNull ClassDescriptor containingClass) {
+            super(containingClass, Collections.<AnnotationDescriptor>emptyList(), true);
+            initialize(Collections.<TypeParameterDescriptor>emptyList(), Collections.<ValueParameterDescriptor>emptyList(),
+                       getDefaultConstructorVisibility(containingClass));
+        }
+    }
 
     private DescriptorFactory() {
     }
@@ -70,12 +76,11 @@ public class DescriptorFactory {
 
     @NotNull
     public static ConstructorDescriptorImpl createPrimaryConstructorForObject(@NotNull ClassDescriptor containingClass) {
-        ConstructorDescriptorImpl constructorDescriptor =
-                new ConstructorDescriptorImpl(containingClass, Collections.<AnnotationDescriptor>emptyList(), true);
-        constructorDescriptor.initialize(Collections.<TypeParameterDescriptor>emptyList(),
-                                         Collections.<ValueParameterDescriptor>emptyList(),
-                                         getDefaultConstructorVisibility(containingClass));
-        return constructorDescriptor;
+        return new DefaultConstructorDescriptor(containingClass);
+    }
+
+    public static boolean isDefaultPrimaryConstructor(@NotNull ConstructorDescriptor constructor) {
+        return constructor instanceof DefaultConstructorDescriptor;
     }
 
     @NotNull
@@ -89,7 +94,7 @@ public class DescriptorFactory {
         return values.initialize(null, classObject.getThisAsReceiverParameter(), Collections.<TypeParameterDescriptor>emptyList(),
                                  Collections.<ValueParameterDescriptor>emptyList(),
                                  returnType, Modality.FINAL,
-                                 Visibilities.PUBLIC, false);
+                                 Visibilities.PUBLIC);
     }
 
     @NotNull
@@ -112,7 +117,7 @@ public class DescriptorFactory {
                                  Collections.<TypeParameterDescriptor>emptyList(),
                                  Collections.singletonList(parameterDescriptor),
                                  returnType, Modality.FINAL,
-                                 Visibilities.PUBLIC, false);
+                                 Visibilities.PUBLIC);
     }
 
     @Nullable
@@ -123,39 +128,5 @@ public class DescriptorFactory {
         return receiverParameterType == null
                ? NO_RECEIVER_PARAMETER
                : new ReceiverParameterDescriptorImpl(owner, receiverParameterType, new ExtensionReceiver(owner, receiverParameterType));
-    }
-
-    @NotNull
-    public static ReceiverParameterDescriptor createLazyReceiverParameterDescriptor(@NotNull final ClassDescriptor classDescriptor) {
-        return new AbstractReceiverParameterDescriptor() {
-            private ClassReceiver value;
-
-            @NotNull
-            @Override
-            public JetType getType() {
-                // This must be lazy, thus the inner class
-                return classDescriptor.getDefaultType();
-            }
-
-            @NotNull
-            @Override
-            public ReceiverValue getValue() {
-                if (value == null) {
-                    value = new ClassReceiver(classDescriptor);
-                }
-                return value;
-            }
-
-            @NotNull
-            @Override
-            public DeclarationDescriptor getContainingDeclaration() {
-                return classDescriptor;
-            }
-
-            @Override
-            public String toString() {
-                return "class " + classDescriptor.getName() + "::this";
-            }
-        };
     }
 }

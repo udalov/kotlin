@@ -1,6 +1,6 @@
 <project name="Update Dependencies" default="update">
-    <property name="jb.buildserver.build.id" value="2196094"/>
-    <property name="public.buildserver.build.id" value="102587"/>
+    <property name="jb.buildserver.build.id" value="2233491"/>
+    <property name="public.buildserver.build.id" value="105342"/>
 
     <condition property="os.tag" value="win.zip">
       <os family="windows" />
@@ -19,13 +19,13 @@
       </and>
     </condition>
 
-    <property name="idea.build.number" value="134.SNAPSHOT"/>
+    <property name="idea.build.number" value="133.SNAPSHOT"/>
 
     <property name="idea.archive.name" value="ideaIC-${idea.build.number}.${os.tag}"/>
 
     <property name="idea.sdk.fetch.needed" value="true"/>
 
-    <property name="continuous.idea.version" value="unknown"/>
+    <property name="continuous.idea.version" value=".lastSuccessful"/>
 
     <target name="update" depends="fetch-third-party">
         <execute_update
@@ -43,8 +43,8 @@
 
     <target name="jb_update_continuous_local" depends="fetch-third-party">
         <execute_update
-            base.url="http://buildserver.labs.intellij.net/guestAuth/repository/download/IDEA_Trunk_Installers/${continuous.idea.version}"
-            build.zip="ideaIC-${continuous.idea.version}.win.zip"
+            base.url="http://buildserver.labs.intellij.net/guestAuth/repository/download/ijplatform_IjPlatform13_IdeaTrunk_Installers/${continuous.idea.version}"
+            build.zip="ideaIC-{build.number}.win.zip"
         />
     </target>
 

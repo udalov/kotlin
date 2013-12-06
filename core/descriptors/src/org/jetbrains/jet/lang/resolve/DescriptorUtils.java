@@ -231,12 +231,24 @@ public class DescriptorUtils {
         return isKindOf(descriptor, ClassKind.CLASS_OBJECT);
     }
 
-    public static boolean isAnonymousObject(@NotNull ClassifierDescriptor descriptor) {
-        return isKindOf(descriptor, ClassKind.OBJECT) && descriptor.getName().isSpecial();
+    public static boolean isAnonymousObject(@NotNull DeclarationDescriptor descriptor) {
+        return isClass(descriptor) && descriptor.getName().equals(SpecialNames.NO_NAME_PROVIDED);
+    }
+
+    public static boolean isObject(@NotNull DeclarationDescriptor descriptor) {
+        return isKindOf(descriptor, ClassKind.OBJECT);
     }
 
     public static boolean isEnumEntry(@NotNull DeclarationDescriptor descriptor) {
         return isKindOf(descriptor, ClassKind.ENUM_ENTRY);
+    }
+
+    public static boolean isSingleton(@Nullable DeclarationDescriptor classifier) {
+        if (classifier instanceof ClassDescriptor) {
+            ClassDescriptor clazz = (ClassDescriptor) classifier;
+            return clazz.getKind().isSingleton();
+        }
+        return false;
     }
 
     public static boolean isEnumClass(@NotNull DeclarationDescriptor descriptor) {
@@ -297,7 +309,7 @@ public class DescriptorUtils {
         if (containingDeclaration instanceof ClassDescriptor) {
             ClassDescriptor classDescriptor = (ClassDescriptor) containingDeclaration;
 
-            if (classDescriptor.getKind().isObject()) {
+            if (classDescriptor.getKind().isSingleton()) {
                 return inStaticContext(classDescriptor.getContainingDeclaration());
             }
 
@@ -315,16 +327,28 @@ public class DescriptorUtils {
         return false;
     }
 
+    public static boolean isSyntheticClassObject(@NotNull DeclarationDescriptor descriptor) {
+        if (isClassObject(descriptor)) {
+            DeclarationDescriptor containing = descriptor.getContainingDeclaration();
+            if (containing != null) {
+                return isEnumClass(containing) || isObject(containing) || isEnumEntry(containing);
+            }
+        }
+        return false;
+    }
+
     @NotNull
     public static Visibility getDefaultConstructorVisibility(@NotNull ClassDescriptor classDescriptor) {
         ClassKind classKind = classDescriptor.getKind();
-        if (classKind == ClassKind.ENUM_CLASS) {
-            return Visibilities.PRIVATE;
-        }
-        if (classKind.isObject()) {
+        if (classKind == ClassKind.ENUM_CLASS || classKind.isSingleton() || isAnonymousObject(classDescriptor)) {
             return Visibilities.PRIVATE;
         }
         assert classKind == ClassKind.CLASS || classKind == ClassKind.TRAIT || classKind == ClassKind.ANNOTATION_CLASS;
+        return Visibilities.PUBLIC;
+    }
+
+    @NotNull
+    public static Visibility getSyntheticClassObjectVisibility() {
         return Visibilities.PUBLIC;
     }
 
@@ -409,7 +433,7 @@ public class DescriptorUtils {
         return descriptor instanceof ClassDescriptor &&
                containing instanceof ClassDescriptor &&
                !((ClassDescriptor) descriptor).isInner() &&
-               !((ClassDescriptor) containing).getKind().isObject();
+               !((ClassDescriptor) containing).getKind().isSingleton();
     }
 
     @Nullable
@@ -462,13 +486,5 @@ public class DescriptorUtils {
         DeclarationDescriptor containing = descriptor.getContainingDeclaration();
         return isTopLevelDeclaration(descriptor) ||
                containing instanceof ClassDescriptor && isTopLevelOrInnerClass((ClassDescriptor) containing);
-    }
-
-    @NotNull
-    public static JetScope getEnumEntriesScope(@NotNull ClassDescriptor enumClass) {
-        assert enumClass.getKind() == ClassKind.ENUM_CLASS : "Only enum classes have enum entries: " + enumClass;
-        ClassDescriptor classObject = enumClass.getClassObjectDescriptor();
-        assert classObject != null : "Enum class should have a class object: " + enumClass;
-        return classObject.getDefaultType().getMemberScope();
     }
 }

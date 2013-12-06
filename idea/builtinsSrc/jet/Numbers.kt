@@ -17,7 +17,7 @@ public abstract class Number : Hashable {
 //  fun equals(other : Char) : Boolean
 }
 
-public class Double : Number, Comparable<Double>  {
+public class Double private () : Number, Comparable<Double>  {
   public override fun compareTo(other : Double)  : Int
   public fun compareTo(other : Float)  : Int
   public fun compareTo(other : Long)   : Int
@@ -90,7 +90,7 @@ public class Double : Number, Comparable<Double>  {
   public override fun equals(other : Any?) : Boolean
 }
 
-public class Float : Number, Comparable<Float>  {
+public class Float private () : Number, Comparable<Float>  {
   public fun compareTo(other : Double) : Int
   public override fun compareTo(other : Float) : Int
   public fun compareTo(other : Long)   : Int
@@ -164,7 +164,7 @@ public class Float : Number, Comparable<Float>  {
   public override fun equals(other : Any?) : Boolean
 }
 
-public class Long : Number, Comparable<Long> {
+public class Long private () : Number, Comparable<Long> {
   public fun compareTo(other : Double) : Int
   public fun compareTo(other : Float)  : Int
   public override fun compareTo(other : Long)   : Int
@@ -246,7 +246,7 @@ public class Long : Number, Comparable<Long> {
   public override fun equals(other : Any?) : Boolean
 }
 
-public class Int : Number, Comparable<Int> {
+public class Int private () : Number, Comparable<Int> {
   public fun compareTo(other : Double) : Int
   public fun compareTo(other : Float)  : Int
   public fun compareTo(other : Long)   : Int
@@ -328,75 +328,7 @@ public class Int : Number, Comparable<Int> {
   public override fun equals(other : Any?) : Boolean
 }
 
-public class Char : Number, Comparable<Char> {
-  public fun compareTo(other : Double) : Int
-  public fun compareTo(other : Float)  : Int
-  public fun compareTo(other : Long)    : Int
-  public fun compareTo(other : Int)    : Int
-  public fun compareTo(other : Short)  : Int
-  public override fun compareTo(other : Char)  : Int
-  public fun compareTo(other : Byte)   : Int
-
-  public fun plus(other : Double) : Double
-  public fun plus(other : Float)  : Float
-  public fun plus(other : Long)   : Long
-  public fun plus(other : Int)    : Int
-  public fun plus(other : Short)  : Int
-  public fun plus(other : Byte)   : Int
-//  public fun plus(other : Char)   : Int
-
-  public fun minus(other : Double) : Double
-  public fun minus(other : Float)  : Float
-  public fun minus(other : Long)   : Long
-  public fun minus(other : Int)    : Int
-  public fun minus(other : Short)  : Int
-  public fun minus(other : Byte)   : Int
-  public fun minus(other : Char)   : Int
-
-  public fun times(other : Double) : Double
-  public fun times(other : Float)  : Float
-  public fun times(other : Long)   : Long
-  public fun times(other : Int)    : Int
-  public fun times(other : Short)  : Int
-  public fun times(other : Byte)   : Int
-//  public fun times(other : Char)   : Int
-
-  public fun div(other : Double) : Double
-  public fun div(other : Float)  : Float
-  public fun div(other : Long)   : Long
-  public fun div(other : Int)    : Int
-  public fun div(other : Short)  : Int
-  public fun div(other : Byte)   : Int
-//  public fun div(other : Char)   : Int
-
-  public fun mod(other : Double) : Double
-  public fun mod(other : Float)  : Float
-  public fun mod(other : Long)   : Long
-  public fun mod(other : Int)    : Int
-  public fun mod(other : Short)  : Int
-  public fun mod(other : Byte)   : Int
-//  public fun mod(other : Char)   : Int
-
-  public fun rangeTo(other : Char)   : CharRange
-
-  public fun inc() : Char
-  public fun dec() : Char
-  public fun plus() : Int
-  public fun minus() : Int
-
-  public override fun toDouble() : Double
-  public override fun toFloat() : Float
-  public override fun toLong() : Long
-  public override fun toInt() : Int
-  public override fun toChar() : Char
-  public override fun toShort() : Short
-  public override fun toByte() : Byte
-
-  public override fun hashCode() : Int
-  public override fun equals(other : Any?) : Boolean
-}
-
-public class Short : Number, Comparable<Short> {
+public class Short private () : Number, Comparable<Short> {
   public fun compareTo(other : Double) : Int
   public fun compareTo(other : Float)  : Int
   public fun compareTo(other : Long)    : Int
@@ -470,7 +402,7 @@ public class Short : Number, Comparable<Short> {
   public override fun equals(other : Any?) : Boolean
 }
 
-public class Byte : Number, Comparable<Byte> {
+public class Byte private () : Number, Comparable<Byte> {
   public fun compareTo(other : Double) : Int
   public fun compareTo(other : Float)  : Int
   public fun compareTo(other : Long)    : Int
