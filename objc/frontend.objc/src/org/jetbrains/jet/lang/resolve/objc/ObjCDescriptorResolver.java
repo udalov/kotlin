@@ -30,9 +30,7 @@ import org.jetbrains.jet.lang.resolve.scopes.JetScope;
 import org.jetbrains.jet.lang.resolve.scopes.RedeclarationHandler;
 import org.jetbrains.jet.lang.resolve.scopes.WritableScope;
 import org.jetbrains.jet.lang.resolve.scopes.WritableScopeImpl;
-import org.jetbrains.jet.lang.types.DeferredTypeBase;
 import org.jetbrains.jet.lang.types.JetType;
-import org.jetbrains.jet.storage.LockBasedStorageManager;
 
 import java.util.*;
 
@@ -227,9 +225,9 @@ public class ObjCDescriptorResolver {
         assert result == ClassObjectStatus.OK : result;
     }
 
-    private static class DeferredHierarchyRootType extends DeferredTypeBase {
+    private static class DeferredHierarchyRootType extends ObjCDeferredType {
         public DeferredHierarchyRootType(@NotNull final ObjCClassDescriptor descriptor) {
-            super(LockBasedStorageManager.NO_LOCKS.createLazyValue(new Function0<JetType>() {
+            super(new Function0<JetType>() {
                 @Override
                 public JetType invoke() {
                     return getHierarchyRoot(descriptor).getDefaultType();
@@ -261,7 +259,7 @@ public class ObjCDescriptorResolver {
 
                     return getHierarchyRoot(superclass);
                 }
-            }));
+            });
         }
     }
 
@@ -279,8 +277,8 @@ public class ObjCDescriptorResolver {
     private List<JetType> createDeferredSupertypesForMetaclass(@NotNull ObjCClassDescriptor descriptor) {
         List<JetType> supertypes = new ArrayList<JetType>(1);
         for (JetType supertype : descriptor.getLazySupertypes()) {
-            if (supertype instanceof ObjCDeferredType) {
-                Name supertypeName = ((ObjCDeferredType) supertype).getClassName();
+            if (supertype instanceof ObjCClassType) {
+                Name supertypeName = ((ObjCClassType) supertype).getClassName();
                 Name superMetaName = ObjCMetaclassDescriptor.getMetaclassName(supertypeName);
                 supertypes.add(typeResolver.createTypeForClass(superMetaName));
             }

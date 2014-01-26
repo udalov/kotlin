@@ -18,31 +18,86 @@ package org.jetbrains.jet.lang.resolve.objc;
 
 import jet.Function0;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.jet.lang.descriptors.ClassifierDescriptor;
-import org.jetbrains.jet.lang.descriptors.NamespaceDescriptor;
-import org.jetbrains.jet.lang.resolve.name.Name;
-import org.jetbrains.jet.lang.types.DeferredTypeBase;
+import org.jetbrains.jet.lang.descriptors.annotations.AnnotationDescriptor;
+import org.jetbrains.jet.lang.resolve.scopes.JetScope;
 import org.jetbrains.jet.lang.types.JetType;
+import org.jetbrains.jet.lang.types.TypeConstructor;
+import org.jetbrains.jet.lang.types.TypeProjection;
 import org.jetbrains.jet.storage.LockBasedStorageManager;
+import org.jetbrains.jet.storage.NotNullLazyValue;
+import org.jetbrains.jet.util.ReenteringLazyValueComputationException;
 
-public class ObjCDeferredType extends DeferredTypeBase {
-    private final Name className;
+import java.util.List;
 
-    public ObjCDeferredType(@NotNull final NamespaceDescriptor namespace, @NotNull final Name className) {
-        super(LockBasedStorageManager.NO_LOCKS.createLazyValue(new Function0<JetType>() {
-            @Override
-            public JetType invoke() {
-                ClassifierDescriptor classifier = namespace.getMemberScope().getClassifier(className);
-                assert classifier != null : "Objective-C class is not yet resolved: " + className;
-                return classifier.getDefaultType();
-            }
-        }));
+/** Copied from org.jetbrains.jet.lang.types.DeferredType */
+public class ObjCDeferredType implements JetType {
+    private final NotNullLazyValue<JetType> lazyValue;
 
-        this.className = className;
+    public ObjCDeferredType(@NotNull Function0<JetType> lazyType) {
+        this.lazyValue = LockBasedStorageManager.NO_LOCKS.createLazyValue(lazyType);
     }
 
     @NotNull
-    public Name getClassName() {
-        return className;
+    private JetType getActualType() {
+        return lazyValue.invoke();
+    }
+
+    @Override
+    @NotNull
+    public JetScope getMemberScope() {
+        return getActualType().getMemberScope();
+    }
+
+    @Override
+    public boolean isError() {
+        return getActualType().isError();
+    }
+
+    @Override
+    @NotNull
+    public TypeConstructor getConstructor() {
+        return getActualType().getConstructor();
+    }
+
+    @Override
+    @NotNull
+    public List<TypeProjection> getArguments() {
+        return getActualType().getArguments();
+    }
+
+    @Override
+    public boolean isNullable() {
+        return getActualType().isNullable();
+    }
+
+    @Override
+    @NotNull
+    public List<AnnotationDescriptor> getAnnotations() {
+        return getActualType().getAnnotations();
+    }
+
+    @Override
+    public String toString() {
+        try {
+            if (lazyValue.isComputed()) {
+                return getActualType().toString();
+            }
+            else {
+                return "<Not computed yet>";
+            }
+        }
+        catch (ReenteringLazyValueComputationException e) {
+            return "<Failed to compute this type>";
+        }
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        return getActualType().equals(obj);
+    }
+
+    @Override
+    public int hashCode() {
+        return getActualType().hashCode();
     }
 }

@@ -22,7 +22,6 @@ import org.jetbrains.jet.lang.descriptors.ClassDescriptor;
 import org.jetbrains.jet.lang.descriptors.annotations.AnnotationDescriptor;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.types.*;
-import org.jetbrains.jet.storage.LockBasedStorageManager;
 
 import java.util.Collections;
 import java.util.List;
@@ -62,33 +61,31 @@ public class ObjCBuiltIns {
         return descriptor;
     }
 
-    private static class BuiltInType extends DeferredTypeBase {
-        protected BuiltInType(@NotNull final ClassDescriptor descriptor, @NotNull final List<TypeProjection> projections) {
-            super(LockBasedStorageManager.NO_LOCKS.createLazyValue(new Function0<JetType>() {
-                @Override
-                public JetType invoke() {
-                    return new JetTypeImpl(
-                            Collections.<AnnotationDescriptor>emptyList(),
-                            descriptor.getTypeConstructor(),
-                            false,
-                            projections,
-                            descriptor.getMemberScope(projections)
-                    );
-                }
-            }));
-        }
+    @NotNull
+    private ObjCDeferredType pointerTo(@NotNull TypeProjection argument) {
+        final List<TypeProjection> arguments = Collections.singletonList(argument);
+        return new ObjCDeferredType(new Function0<JetType>() {
+            @Override
+            public JetType invoke() {
+                return new JetTypeImpl(
+                        Collections.<AnnotationDescriptor>emptyList(),
+                        pointerClass.getTypeConstructor(),
+                        false,
+                        arguments,
+                        pointerClass.getMemberScope(arguments)
+                );
+            }
+        });
     }
 
     @NotNull
     public JetType getPointerType(@NotNull JetType pointee) {
-        TypeProjectionImpl projection = new TypeProjectionImpl(Variance.INVARIANT, pointee);
-        return new BuiltInType(pointerClass, Collections.<TypeProjection>singletonList(projection));
+        return pointerTo(new TypeProjectionImpl(Variance.INVARIANT, pointee));
     }
 
     @NotNull
     public JetType getOpaquePointerType() {
-        TypeProjection projection = SubstitutionUtils.makeStarProjection(pointerClass.getTypeConstructor().getParameters().get(0));
-        return new BuiltInType(pointerClass, Collections.singletonList(projection));
+        return pointerTo(SubstitutionUtils.makeStarProjection(pointerClass.getTypeConstructor().getParameters().get(0)));
     }
 
     @NotNull
