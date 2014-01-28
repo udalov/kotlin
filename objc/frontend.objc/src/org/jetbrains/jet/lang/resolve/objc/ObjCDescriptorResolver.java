@@ -19,50 +19,42 @@ package org.jetbrains.jet.lang.resolve.objc;
 import jet.Function0;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.lang.descriptors.*;
-import org.jetbrains.jet.lang.descriptors.annotations.AnnotationDescriptor;
-import org.jetbrains.jet.lang.descriptors.impl.NamespaceDescriptorImpl;
-import org.jetbrains.jet.lang.descriptors.impl.NamespaceLikeBuilder;
+import org.jetbrains.jet.lang.descriptors.annotations.Annotations;
+import org.jetbrains.jet.lang.descriptors.impl.MutablePackageFragmentDescriptor;
+import org.jetbrains.jet.lang.descriptors.impl.PackageLikeBuilder;
 import org.jetbrains.jet.lang.descriptors.impl.SimpleFunctionDescriptorImpl;
 import org.jetbrains.jet.lang.descriptors.impl.ValueParameterDescriptorImpl;
+import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.resolve.name.SpecialNames;
-import org.jetbrains.jet.lang.resolve.scopes.JetScope;
-import org.jetbrains.jet.lang.resolve.scopes.RedeclarationHandler;
 import org.jetbrains.jet.lang.resolve.scopes.WritableScope;
-import org.jetbrains.jet.lang.resolve.scopes.WritableScopeImpl;
 import org.jetbrains.jet.lang.types.JetType;
 
 import java.util.*;
 
-import static org.jetbrains.jet.lang.descriptors.impl.NamespaceLikeBuilder.ClassObjectStatus;
+import static org.jetbrains.jet.lang.descriptors.impl.PackageLikeBuilder.ClassObjectStatus;
 import static org.jetbrains.jet.lang.resolve.objc.ObjCIndex.*;
 
 public class ObjCDescriptorResolver {
-    private static final Name OBJC_NAMESPACE_NAME = Name.identifier("objc");
+    public static final FqName OBJC_PACKAGE_FQ_NAME = new FqName("objc");
 
     private static final String PROTOCOL_NAME_SUFFIX = "Protocol";
 
     private final ObjCTypeResolver typeResolver;
 
-    private final NamespaceDescriptorImpl namespace;
+    private final MutablePackageFragmentDescriptor objcPackage;
     private final Map<String, Name> protocolNames = new HashMap<String, Name>();
 
-    public ObjCDescriptorResolver(@NotNull NamespaceDescriptor rootNamespace) {
-        namespace = new NamespaceDescriptorImpl(rootNamespace, Collections.<AnnotationDescriptor>emptyList(), OBJC_NAMESPACE_NAME);
-        WritableScope scope = new WritableScopeImpl(JetScope.EMPTY, namespace, RedeclarationHandler.THROW_EXCEPTION, "objc scope");
-        scope.changeLockLevel(WritableScope.LockLevel.BOTH);
-        namespace.initialize(scope);
-
-        rootNamespace.addNamespace(namespace);
-
-        typeResolver = new ObjCTypeResolver(namespace);
+    public ObjCDescriptorResolver(@NotNull ModuleDescriptor module, @NotNull ObjCResolveFacade provider) {
+        objcPackage = new MutablePackageFragmentDescriptor(provider, module, OBJC_PACKAGE_FQ_NAME);
+        typeResolver = new ObjCTypeResolver(objcPackage);
     }
 
     @NotNull
-    public NamespaceDescriptor resolveTranslationUnit(@NotNull TranslationUnit tu) {
+    public PackageFragmentDescriptor resolveTranslationUnit(@NotNull TranslationUnit tu) {
         calculateProtocolNames(tu);
 
-        WritableScope scope = namespace.getMemberScope();
+        WritableScope scope = objcPackage.getMemberScope();
 
         List<ObjCClassDescriptor> classes = new ArrayList<ObjCClassDescriptor>(tu.getClassCount() + tu.getProtocolCount());
 
@@ -113,7 +105,7 @@ public class ObjCDescriptorResolver {
             descriptor.lockScopes();
         }
 
-        return namespace;
+        return objcPackage;
     }
 
     private void calculateProtocolNames(@NotNull TranslationUnit tu) {
@@ -168,7 +160,7 @@ public class ObjCDescriptorResolver {
             supertypes.add(supertype);
         }
 
-        ObjCClassDescriptor descriptor = new ObjCClassDescriptor(namespace, ClassKind.CLASS, Modality.OPEN, name, supertypes);
+        ObjCClassDescriptor descriptor = new ObjCClassDescriptor(objcPackage, ClassKind.CLASS, Modality.OPEN, name, supertypes);
         addMethodsToClassScope(clazz.getMethodList(), descriptor, MethodKind.INSTANCE_METHOD);
 
         return descriptor;
@@ -185,7 +177,7 @@ public class ObjCDescriptorResolver {
             supertypes.add(supertype);
         }
 
-        ObjCClassDescriptor descriptor = new ObjCClassDescriptor(namespace, ClassKind.TRAIT, Modality.ABSTRACT, name, supertypes);
+        ObjCClassDescriptor descriptor = new ObjCClassDescriptor(objcPackage, ClassKind.TRAIT, Modality.ABSTRACT, name, supertypes);
         addMethodsToClassScope(protocol.getMethodList(), descriptor, MethodKind.INSTANCE_METHOD);
 
         return descriptor;
@@ -202,7 +194,7 @@ public class ObjCDescriptorResolver {
             supertypes.add(supertype);
         }
 
-        ObjCClassDescriptor descriptor = new ObjCClassDescriptor(namespace, ClassKind.TRAIT, Modality.ABSTRACT, name, supertypes);
+        ObjCClassDescriptor descriptor = new ObjCClassDescriptor(objcPackage, ClassKind.TRAIT, Modality.ABSTRACT, name, supertypes);
         addMethodsToClassScope(category.getMethodList(), descriptor, MethodKind.INSTANCE_METHOD);
 
         return descriptor;
@@ -300,7 +292,7 @@ public class ObjCDescriptorResolver {
             @NotNull ObjCClassDescriptor descriptor,
             @NotNull MethodKind kind
     ) {
-        NamespaceLikeBuilder builder = descriptor.getBuilder();
+        PackageLikeBuilder builder = descriptor.getBuilder();
         for (ObjCMethod method : methods) {
             if (kind.isKind(method)) {
                 SimpleFunctionDescriptor functionDescriptor = resolveMethod(method, descriptor);
@@ -312,8 +304,7 @@ public class ObjCDescriptorResolver {
     @NotNull
     private SimpleFunctionDescriptor resolveMethod(@NotNull ObjCMethod method, @NotNull ObjCClassDescriptor containingClass) {
         Function function = method.getFunction();
-        SimpleFunctionDescriptorImpl descriptor = new ObjCMethodDescriptor(containingClass,
-                Collections.<AnnotationDescriptor>emptyList(), function.getName());
+        SimpleFunctionDescriptorImpl descriptor = new ObjCMethodDescriptor(containingClass, Annotations.EMPTY, function.getName());
 
         int params = function.getParameterCount();
         List<ValueParameterDescriptor> valueParameters = new ArrayList<ValueParameterDescriptor>(params);
@@ -347,11 +338,11 @@ public class ObjCDescriptorResolver {
         return new ValueParameterDescriptorImpl(
                 containingFunction,
                 index,
-                Collections.<AnnotationDescriptor>emptyList(),
+                Annotations.EMPTY,
                 name,
                 typeResolver.resolveType(parameter.getType()),
                 /* declaresDefaultValue */ false,
-                null
+                /* varargElementType */ null
         );
     }
 }

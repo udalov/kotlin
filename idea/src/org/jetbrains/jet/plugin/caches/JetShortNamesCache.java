@@ -87,7 +87,7 @@ public class JetShortNamesCache extends PsiShortNamesCache {
     public String[] getAllClassNames() {
         Collection<String> classNames = JetShortClassNameIndex.getInstance().getAllKeys(project);
 
-        // .namespace classes can not be indexed, since they have no explicit declarations
+        // package classes can not be indexed, since they have no explicit declarations
         IDELightClassGenerationSupport lightClassGenerationSupport = IDELightClassGenerationSupport.getInstanceForIDE(project);
         Set<String> packageClassShortNames =
                 lightClassGenerationSupport.getAllPossiblePackageClasses(GlobalSearchScope.allScope(project)).keySet();
@@ -107,7 +107,7 @@ public class JetShortNamesCache extends PsiShortNamesCache {
         IDELightClassGenerationSupport lightClassGenerationSupport = IDELightClassGenerationSupport.getInstanceForIDE(project);
         MultiMap<String, FqName> packageClasses = lightClassGenerationSupport.getAllPossiblePackageClasses(scope);
 
-        // .namespace classes can not be indexed, since they have no explicit declarations
+        // package classes can not be indexed, since they have no explicit declarations
         Collection<FqName> fqNames = packageClasses.get(name);
         if (!fqNames.isEmpty()) {
             for (FqName fqName : fqNames) {
@@ -197,7 +197,7 @@ public class JetShortNamesCache extends PsiShortNamesCache {
         for (JetObjectDeclaration objectDeclaration : topObjects) {
             FqName fqName = JetPsiUtil.getFQName(objectDeclaration);
             assert fqName != null : "Local object declaration in JetTopLevelShortObjectNameIndex:" + objectDeclaration.getText();
-            result.addAll(ResolveSessionUtils.getClassOrObjectDescriptorsByFqName(resolveSession, fqName, true));
+            result.addAll(ResolveSessionUtils.getClassOrObjectDescriptorsByFqName(resolveSession, fqName, ResolveSessionUtils.SINGLETON_FILTER));
         }
 
         for (PsiClass psiClass : JetFromJavaDescriptorHelper
@@ -205,7 +205,7 @@ public class JetShortNamesCache extends PsiShortNamesCache {
             String qualifiedName = psiClass.getQualifiedName();
             if (qualifiedName != null) {
                 FqName fqName = new FqName(qualifiedName);
-                result.addAll(ResolveSessionUtils.getClassOrObjectDescriptorsByFqName(resolveSession, fqName, true));
+                result.addAll(ResolveSessionUtils.getClassOrObjectDescriptorsByFqName(resolveSession, fqName, ResolveSessionUtils.SINGLETON_FILTER));
             }
         }
 
@@ -214,13 +214,13 @@ public class JetShortNamesCache extends PsiShortNamesCache {
 
     @NotNull
     public Collection<FunctionDescriptor> getTopLevelFunctionDescriptorsByName(
-            @NotNull final String name,
+            @NotNull String name,
             @NotNull JetSimpleNameExpression expression,
             @NotNull CancelableResolveSession resolveSession,
             @NotNull GlobalSearchScope scope
     ) {
         // name parameter can differ from expression.getReferenceName() when expression contains completion suffix
-        Name referenceName = expression.getIdentifier() == null ? JetPsiUtil.getConventionName(expression) : Name.identifier(name);
+        final Name referenceName = expression.getIdentifier() == null ? JetPsiUtil.getConventionName(expression) : Name.identifier(name);
         if (referenceName == null || referenceName.toString().isEmpty()) {
             return Collections.emptyList();
         }
@@ -238,13 +238,13 @@ public class JetShortNamesCache extends PsiShortNamesCache {
                 ContainerUtil.filter(getTopLevelFunctionFqNames(project, scope, false), new Condition<FqName>() {
                     @Override
                     public boolean value(FqName fqName) {
-                        return fqName.lastSegmentIs(Name.identifier(name));
+                        return fqName.lastSegmentIs(referenceName);
                     }
                 });
         for (FqName fqName : topLevelFunctionFqNames) {
             JetImportDirective importDirective = JetPsiFactory.createImportDirective(project, new ImportPath(fqName, false));
             Collection<? extends DeclarationDescriptor> declarationDescriptors = new QualifiedExpressionResolver().analyseImportReference(
-                    importDirective, jetScope, new BindingTraceContext(), resolveSession.getRootModuleDescriptor());
+                    importDirective, jetScope, new BindingTraceContext(), resolveSession.getModuleDescriptor());
             for (DeclarationDescriptor declarationDescriptor : declarationDescriptors) {
                 if (declarationDescriptor instanceof FunctionDescriptor) {
                     result.add((FunctionDescriptor) declarationDescriptor);
@@ -267,7 +267,7 @@ public class JetShortNamesCache extends PsiShortNamesCache {
         }
 
         for (FqName affectedPackage : affectedPackages) {
-            NamespaceDescriptor packageDescriptor = resolveSession.getPackageDescriptorByFqName(affectedPackage);
+            PackageViewDescriptor packageDescriptor = resolveSession.getModuleDescriptor().getPackage(affectedPackage);
             assert packageDescriptor != null : "There's a function in stub index with invalid package: " + affectedPackage;
             JetScope memberScope = packageDescriptor.getMemberScope();
             result.addAll(memberScope.getFunctions(referenceName));
@@ -292,7 +292,7 @@ public class JetShortNamesCache extends PsiShortNamesCache {
             @NotNull GlobalSearchScope searchScope
     ) {
         BindingContext context = resolveSession.resolveToElement(expression);
-        JetExpression receiverExpression = expression.getReceiverExpression();
+        JetExpression receiverExpression = getReceiverForExtensionCall(expression);
 
         if (receiverExpression == null) {
             return Collections.emptyList();
@@ -316,13 +316,25 @@ public class JetShortNamesCache extends PsiShortNamesCache {
         // Iterate through the function with attempt to resolve found functions
         for (FqName functionFQN : functionFQNs) {
             for (CallableDescriptor functionDescriptor : ExpressionTypingUtils.canFindSuitableCall(
-                    functionFQN, project, receiverExpression, expressionType, scope, resolveSession.getRootModuleDescriptor())) {
+                    functionFQN, project, receiverExpression, expressionType, scope, resolveSession.getModuleDescriptor())) {
 
                 resultDescriptors.add(functionDescriptor);
             }
         }
 
         return resultDescriptors;
+    }
+
+    @Nullable
+    private static JetExpression getReceiverForExtensionCall(@NotNull JetSimpleNameExpression expression) {
+        PsiElement parent = expression.getParent();
+        if (parent instanceof JetBinaryExpression && ((JetBinaryExpression) parent).getOperationReference() == expression) {
+            return ((JetBinaryExpression) parent).getLeft();
+        }
+        else if (parent instanceof JetUnaryExpression && ((JetUnaryExpression) parent).getOperationReference() == expression) {
+            return ((JetUnaryExpression) parent).getBaseExpression();
+        }
+        return expression.getReceiverExpression();
     }
 
     @NotNull

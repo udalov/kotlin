@@ -29,7 +29,6 @@ import com.intellij.openapi.command.CommandProcessor;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Condition;
-import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.psi.PsiClass;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.search.GlobalSearchScope;
@@ -48,6 +47,7 @@ import org.jetbrains.jet.lang.resolve.DescriptorUtils;
 import org.jetbrains.jet.lang.resolve.ImportPath;
 import org.jetbrains.jet.lang.resolve.lazy.KotlinCodeAnalyzer;
 import org.jetbrains.jet.lang.resolve.name.FqName;
+import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.plugin.JetBundle;
 import org.jetbrains.jet.plugin.actions.JetAddImportAction;
 import org.jetbrains.jet.plugin.caches.JetShortNamesCache;
@@ -81,8 +81,14 @@ public class AutoImportFix extends JetHintAction<JetSimpleNameExpression> implem
         }
 
         String referenceName = element.getReferencedName();
+        if (element.getIdentifier() == null) {
+            Name conventionName = JetPsiUtil.getConventionName(element);
+            if (conventionName != null) {
+                referenceName = conventionName.asString();
+            }
+        }
 
-        if (!StringUtil.isNotEmpty(referenceName)) {
+        if (referenceName.isEmpty()) {
             return Collections.emptyList();
         }
 
@@ -125,7 +131,7 @@ public class AutoImportFix extends JetHintAction<JetSimpleNameExpression> implem
             @Override
             public FqName apply(@Nullable DeclarationDescriptor declarationDescriptor) {
                 assert declarationDescriptor != null;
-                return DescriptorUtils.getFQName(declarationDescriptor).toSafe();
+                return DescriptorUtils.getFqNameSafe(declarationDescriptor);
             }
         }));
     }
@@ -152,7 +158,7 @@ public class AutoImportFix extends JetHintAction<JetSimpleNameExpression> implem
             @Override
             public FqName apply(@Nullable DeclarationDescriptor declarationDescriptor) {
                 assert declarationDescriptor != null;
-                return DescriptorUtils.getFQName(declarationDescriptor).toSafe();
+                return DescriptorUtils.getFqNameSafe(declarationDescriptor);
             }
         }));
     }
@@ -219,7 +225,7 @@ public class AutoImportFix extends JetHintAction<JetSimpleNameExpression> implem
         return Collections2.transform(descriptors, new Function<ClassDescriptor, FqName>() {
             @Override
             public FqName apply(ClassDescriptor descriptor) {
-                return DescriptorUtils.getFQName(descriptor).toSafe();
+                return DescriptorUtils.getFqNameSafe(descriptor);
             }
         });
     }

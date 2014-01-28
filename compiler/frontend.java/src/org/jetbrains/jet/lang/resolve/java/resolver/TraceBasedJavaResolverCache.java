@@ -23,13 +23,14 @@ import com.intellij.psi.PsiField;
 import com.intellij.psi.impl.JavaConstantExpressionEvaluator;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.jet.lang.descriptors.*;
+import org.jetbrains.jet.lang.descriptors.ClassDescriptor;
+import org.jetbrains.jet.lang.descriptors.ConstructorDescriptor;
+import org.jetbrains.jet.lang.descriptors.PropertyDescriptor;
+import org.jetbrains.jet.lang.descriptors.SimpleFunctionDescriptor;
 import org.jetbrains.jet.lang.resolve.AnnotationUtils;
 import org.jetbrains.jet.lang.resolve.BindingContextUtils;
 import org.jetbrains.jet.lang.resolve.BindingTrace;
 import org.jetbrains.jet.lang.resolve.constants.CompileTimeConstant;
-import org.jetbrains.jet.lang.resolve.java.JavaBindingContext;
-import org.jetbrains.jet.lang.resolve.java.JavaNamespaceKind;
 import org.jetbrains.jet.lang.resolve.java.structure.JavaClass;
 import org.jetbrains.jet.lang.resolve.java.structure.JavaElement;
 import org.jetbrains.jet.lang.resolve.java.structure.JavaField;
@@ -61,13 +62,7 @@ public class TraceBasedJavaResolverCache implements JavaResolverCache {
     @Nullable
     @Override
     public ClassDescriptor getClassResolvedFromSource(@NotNull FqName fqName) {
-        return trace.get(FQNAME_TO_CLASS_DESCRIPTOR, fqName);
-    }
-
-    @Nullable
-    @Override
-    public NamespaceDescriptor getPackageResolvedFromSource(@NotNull FqName fqName) {
-        return trace.get(FQNAME_TO_NAMESPACE_DESCRIPTOR, fqName);
+        return trace.get(FQNAME_TO_CLASS_DESCRIPTOR, fqName.toUnsafe());
     }
 
     @Nullable
@@ -129,20 +124,5 @@ public class TraceBasedJavaResolverCache implements JavaResolverCache {
     @Override
     public void recordClass(@NotNull JavaClass javaClass, @NotNull ClassDescriptor descriptor) {
         trace.record(CLASS, ((JavaClassImpl) javaClass).getPsi(), descriptor);
-    }
-
-    @Override
-    public void recordProperNamespace(@NotNull NamespaceDescriptor descriptor) {
-        trace.record(JavaBindingContext.JAVA_NAMESPACE_KIND, descriptor, JavaNamespaceKind.PROPER);
-    }
-
-    @Override
-    public void recordClassStaticMembersNamespace(@NotNull NamespaceDescriptor descriptor) {
-        trace.record(JavaBindingContext.JAVA_NAMESPACE_KIND, descriptor, JavaNamespaceKind.CLASS_STATICS);
-    }
-
-    @Override
-    public void recordPackage(@NotNull JavaElement element, @NotNull NamespaceDescriptor descriptor) {
-        trace.record(NAMESPACE, ((JavaElementImpl) element).getPsi(), descriptor);
     }
 }

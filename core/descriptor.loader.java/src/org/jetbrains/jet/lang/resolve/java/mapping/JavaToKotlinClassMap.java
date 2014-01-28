@@ -41,7 +41,7 @@ import java.util.*;
 import static org.jetbrains.jet.lang.resolve.java.resolver.DescriptorResolverUtils.fqNameByClass;
 
 public class JavaToKotlinClassMap extends JavaToKotlinClassMapBuilder implements PlatformToKotlinClassMap {
-    private static final FqName JAVA_LANG_DEPRECATED = new FqName("java.lang.Deprecated");
+    public static final FqName JAVA_LANG_DEPRECATED = new FqName("java.lang.Deprecated");
 
     private static JavaToKotlinClassMap instance = null;
 
@@ -172,7 +172,7 @@ public class JavaToKotlinClassMap extends JavaToKotlinClassMapBuilder implements
     @Override
     @NotNull
     public Collection<ClassDescriptor> mapPlatformClass(@NotNull ClassDescriptor classDescriptor) {
-        FqNameUnsafe className = DescriptorUtils.getFQName(classDescriptor);
+        FqNameUnsafe className = DescriptorUtils.getFqName(classDescriptor);
         if (!className.isSafe()) {
             return Collections.emptyList();
         }
@@ -182,7 +182,7 @@ public class JavaToKotlinClassMap extends JavaToKotlinClassMapBuilder implements
     @Override
     @NotNull
     public Collection<ClassDescriptor> mapPlatformClassesInside(@NotNull DeclarationDescriptor containingDeclaration) {
-        FqNameUnsafe fqName = DescriptorUtils.getFQName(containingDeclaration);
+        FqNameUnsafe fqName = DescriptorUtils.getFqName(containingDeclaration);
         if (!fqName.isSafe()) {
             return Collections.emptyList();
         }

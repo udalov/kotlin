@@ -31,7 +31,7 @@ import org.jetbrains.jet.codegen.CompilationErrorHandler;
 import org.jetbrains.jet.codegen.KotlinCodegenFacade;
 import org.jetbrains.jet.codegen.ObjCDescriptorCodegen;
 import org.jetbrains.jet.codegen.state.GenerationState;
-import org.jetbrains.jet.lang.descriptors.NamespaceDescriptor;
+import org.jetbrains.jet.lang.descriptors.PackageViewDescriptor;
 import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.resolve.AnalyzerScriptParameter;
 import org.jetbrains.jet.lang.resolve.AnalyzingUtils;
@@ -109,10 +109,10 @@ public abstract class AbstractObjCWithJavaTest extends UsefulTestCase {
         );
         AnalyzeExhaust analyzeExhaust = analyze(files);
 
-        NamespaceDescriptor descriptor = extractObjCNamespaceFromAnalyzeExhaust(analyzeExhaust);
+        PackageViewDescriptor objcPackage = extractObjCPackageFromAnalyzeExhaust(analyzeExhaust);
 
         ObjCDescriptorCodegen codegen = new ObjCDescriptorCodegen();
-        codegen.generate(descriptor, tmpDir, dylib);
+        codegen.generate(objcPackage, tmpDir, dylib);
 
         generate(files, analyzeExhaust, codegen.getBindingContext());
 

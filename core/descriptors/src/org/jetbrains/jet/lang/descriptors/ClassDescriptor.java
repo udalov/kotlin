@@ -27,10 +27,10 @@ import org.jetbrains.jet.lang.types.TypeSubstitutor;
 import java.util.Collection;
 import java.util.List;
 
-public interface ClassDescriptor extends ClassifierDescriptor, MemberDescriptor, ClassOrNamespaceDescriptor {
+public interface ClassDescriptor extends ClassifierDescriptor, MemberDescriptor, ClassOrPackageFragmentDescriptor {
 
     @NotNull
-    JetScope getMemberScope(List<? extends TypeProjection> typeArguments);
+    JetScope getMemberScope(@NotNull List<? extends TypeProjection> typeArguments);
 
     @NotNull
     JetScope getUnsubstitutedInnerClassesScope();

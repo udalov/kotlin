@@ -24,7 +24,7 @@ import org.jetbrains.asm4.ClassWriter;
 import org.jetbrains.asm4.MethodVisitor;
 import org.jetbrains.asm4.Type;
 import org.jetbrains.asm4.commons.InstructionAdapter;
-import org.jetbrains.jet.codegen.signature.JvmMethodSignature;
+import org.jetbrains.asm4.commons.Method;
 import org.jetbrains.jet.codegen.state.JetTypeMapper;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.resolve.java.JvmAbi;
@@ -230,12 +230,12 @@ public class ObjCClassCodegen {
             return;
         }
 
-        final JvmMethodSignature signature = typeMapper.mapSignature(method.getName(), method);
+        final Method asmMethod = typeMapper.mapSignature(method).getAsmMethod();
 
-        newMethod(ACC_PUBLIC, signature.getName(), signature.getAsmMethod().getDescriptor(), new MethodCodegen() {
+        newMethod(ACC_PUBLIC, asmMethod.getName(), asmMethod.getDescriptor(), new MethodCodegen() {
             @Override
             public void generate(@NotNull InstructionAdapter v) {
-                Type returnType = signature.getAsmMethod().getReturnType();
+                Type returnType = asmMethod.getReturnType();
                 v.visitLdcInsn(getTypeReflectString(returnType));
 
                 v.load(0, asmType);

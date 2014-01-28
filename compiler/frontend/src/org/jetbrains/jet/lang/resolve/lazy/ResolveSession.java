@@ -18,16 +18,17 @@ package org.jetbrains.jet.lang.resolve.lazy;
 
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
+import com.google.common.collect.Lists;
 import com.intellij.openapi.project.Project;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.util.Function;
+import com.intellij.util.containers.ContainerUtil;
 import jet.Function0;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.di.InjectorForLazyResolve;
 import org.jetbrains.jet.lang.descriptors.*;
-import org.jetbrains.jet.lang.descriptors.impl.DeclarationDescriptorVisitorEmptyBodies;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.BindingTrace;
@@ -37,13 +38,17 @@ import org.jetbrains.jet.lang.resolve.lazy.declarations.DeclarationProviderFacto
 import org.jetbrains.jet.lang.resolve.lazy.declarations.PackageMemberDeclarationProvider;
 import org.jetbrains.jet.lang.resolve.lazy.descriptors.LazyClassDescriptor;
 import org.jetbrains.jet.lang.resolve.lazy.descriptors.LazyPackageDescriptor;
-import org.jetbrains.jet.lang.resolve.lazy.storage.LazyResolveStorageManager;
+import org.jetbrains.jet.storage.LazyResolveStorageManager;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.FqNameUnsafe;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.resolve.name.SpecialNames;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
+import org.jetbrains.jet.renderer.DescriptorRenderer;
+import org.jetbrains.jet.storage.MemoizedFunctionToNullable;
 
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 import static org.jetbrains.jet.lang.resolve.lazy.ResolveSessionUtils.safeNameForLazyResolve;
@@ -60,7 +65,6 @@ public class ResolveSession implements KotlinCodeAnalyzer {
     private final LazyResolveStorageManager storageManager;
 
     private final ModuleDescriptor module;
-    private final LazyPackageDescriptor rootPackage;
 
     private final BindingTrace trace;
     private final DeclarationProviderFactory declarationProviderFactory;
@@ -71,6 +75,9 @@ public class ResolveSession implements KotlinCodeAnalyzer {
     private final InjectorForLazyResolve injector;
 
     private final Function<FqName, Name> classifierAliases;
+
+    private final MemoizedFunctionToNullable<FqName, LazyPackageDescriptor> packages;
+    private final PackageFragmentProvider packageFragmentProvider;
 
     public ResolveSession(
             @NotNull Project project,
@@ -115,12 +122,57 @@ public class ResolveSession implements KotlinCodeAnalyzer {
         this.trace = storageManager.createSafeTrace(delegationTrace);
         this.injector = new InjectorForLazyResolve(project, this, rootDescriptor);
         this.module = rootDescriptor;
-        PackageMemberDeclarationProvider provider = declarationProviderFactory.getPackageMemberDeclarationProvider(FqName.ROOT);
-        assert provider != null : "No declaration provider for root package in " + rootDescriptor;
-        this.rootPackage = new LazyPackageDescriptor(rootDescriptor, FqNameUnsafe.ROOT_NAME, this, provider);
-        rootDescriptor.setRootNamespace(rootPackage);
+
+        this.packages = storageManager.createMemoizedFunctionWithNullableValues(new MemoizedFunctionToNullable<FqName, LazyPackageDescriptor>() {
+            @Nullable
+            @Override
+            public LazyPackageDescriptor invoke(FqName fqName) {
+                return createPackage(fqName);
+            }
+        });
 
         this.declarationProviderFactory = declarationProviderFactory;
+
+        this.packageFragmentProvider = new PackageFragmentProvider() {
+            @NotNull
+            @Override
+            public List<PackageFragmentDescriptor> getPackageFragments(@NotNull FqName fqName) {
+                return ContainerUtil.<PackageFragmentDescriptor>createMaybeSingletonList(getPackageFragment(fqName));
+            }
+
+            @NotNull
+            @Override
+            public Collection<FqName> getSubPackagesOf(@NotNull FqName fqName) {
+                LazyPackageDescriptor packageDescriptor = getPackageFragment(fqName);
+                if (packageDescriptor == null) {
+                    return Collections.emptyList();
+                }
+                return packageDescriptor.getDeclarationProvider().getAllDeclaredPackages();
+            }
+        };
+        rootDescriptor.addFragmentProvider(DependencyKind.SOURCES, packageFragmentProvider);
+    }
+
+    @NotNull
+    public PackageFragmentProvider getPackageFragmentProvider() {
+        return packageFragmentProvider;
+    }
+
+    @Nullable
+    public LazyPackageDescriptor getPackageFragment(@NotNull FqName fqName) {
+        return packages.invoke(fqName);
+    }
+
+    @Nullable
+    private LazyPackageDescriptor createPackage(FqName fqName) {
+        if (!fqName.isRoot() && getPackageFragment(fqName.parent()) == null) {
+            return null;
+        }
+        PackageMemberDeclarationProvider provider = declarationProviderFactory.getPackageMemberDeclarationProvider(fqName);
+        if (provider == null) {
+            return null;
+        }
+        return new LazyPackageDescriptor(module, fqName, this, provider);
     }
 
     @NotNull
@@ -133,35 +185,13 @@ public class ResolveSession implements KotlinCodeAnalyzer {
     }
 
     @Override
-    public ModuleDescriptor getRootModuleDescriptor() {
+    public ModuleDescriptor getModuleDescriptor() {
         return module;
     }
 
     @NotNull
     public LazyResolveStorageManager getStorageManager() {
         return storageManager;
-    }
-
-    @Override
-    @Nullable
-    public NamespaceDescriptor getPackageDescriptor(@NotNull Name shortName) {
-        return rootPackage.getMemberScope().getNamespace(shortName);
-    }
-
-    @Override
-    @Nullable
-    public NamespaceDescriptor getPackageDescriptorByFqName(FqName fqName) {
-        if (fqName.isRoot()) {
-            return rootPackage;
-        }
-        List<Name> names = fqName.pathSegments();
-        NamespaceDescriptor current = getPackageDescriptor(names.get(0));
-        if (current == null) return null;
-        for (Name name : names.subList(1, names.size())) {
-            current = current.getMemberScope().getNamespace(name);
-            if (current == null) return null;
-        }
-        return current;
     }
 
     @Override
@@ -177,16 +207,23 @@ public class ResolveSession implements KotlinCodeAnalyzer {
         //     class A {} class A { fun foo(): A<completion here>}
         // and if we find the class by name only, we may b-not get the right one.
         // This call is only needed to make sure the classes are written to trace
-        resolutionScope.getClassifier(name);
-        DeclarationDescriptor declaration = getBindingContext().get(BindingContext.DECLARATION_TO_DESCRIPTOR, classOrObject);
+        ClassifierDescriptor scopeDescriptor = resolutionScope.getClassifier(name);
+        DeclarationDescriptor descriptor = getBindingContext().get(BindingContext.DECLARATION_TO_DESCRIPTOR, classOrObject);
 
-        if (declaration == null) {
-            throw new IllegalArgumentException("Could not find a classifier for " + classOrObject + " " + classOrObject.getText());
+        if (descriptor == null) {
+            throw new IllegalArgumentException(
+                   String.format("Could not find a classifier for %s.\n" +
+                                 "Found descriptor: %s (%s).\n",
+                                 JetPsiUtil.getElementTextWithContext(classOrObject),
+                                 scopeDescriptor != null ? DescriptorRenderer.DEBUG_TEXT.render(scopeDescriptor) : "null",
+                                 scopeDescriptor != null ? (scopeDescriptor.getContainingDeclaration().getClass()) : null));
         }
-        return (ClassDescriptor) declaration;
+
+        return (ClassDescriptor) descriptor;
     }
 
-    /*package*/ LazyClassDescriptor getClassObjectDescriptor(JetClassObject classObject) {
+    @NotNull
+    /*package*/ LazyClassDescriptor getClassObjectDescriptor(@NotNull JetClassObject classObject) {
         JetClass aClass = PsiTreeUtil.getParentOfType(classObject, JetClass.class);
 
         final LazyClassDescriptor parentClassDescriptor;
@@ -209,16 +246,18 @@ public class ResolveSession implements KotlinCodeAnalyzer {
             // It's possible that there are several class objects and another class object is taking part in lazy resolve. We still want to
             // build descriptors for such class objects.
             final JetClassLikeInfo classObjectInfo = parentClassDescriptor.getClassObjectInfo(classObject);
-            if (classObjectInfo != null) {
-                final Name name = SpecialNames.getClassObjectName(parentClassDescriptor.getName());
-                return storageManager.compute(new Function0<LazyClassDescriptor>() {
-                    @Override
-                    public LazyClassDescriptor invoke() {
-                        // Create under lock to avoid premature access to published 'this'
-                        return new LazyClassDescriptor(ResolveSession.this, parentClassDescriptor, name, classObjectInfo);
-                    }
-                });
-            }
+            assert classObjectInfo != null :
+                    String.format("Failed to find class object info for existent class object declaration: %s",
+                                  JetPsiUtil.getElementTextWithContext(classObject));
+
+            final Name name = SpecialNames.getClassObjectName(parentClassDescriptor.getName());
+            return storageManager.compute(new Function0<LazyClassDescriptor>() {
+                @Override
+                public LazyClassDescriptor invoke() {
+                    // Create under lock to avoid premature access to published 'this'
+                    return new LazyClassDescriptor(ResolveSession.this, parentClassDescriptor, name, classObjectInfo);
+                }
+            });
         }
 
         return (LazyClassDescriptor) declaration;
@@ -349,39 +388,29 @@ public class ResolveSession implements KotlinCodeAnalyzer {
         return actualName;
     }
 
+    @NotNull
+    private List<LazyPackageDescriptor> getAllPackages() {
+        return collectAllPackages(Lists.<LazyPackageDescriptor>newArrayList(), getPackageFragment(FqName.ROOT));
+    }
+
+    @NotNull
+    private List<LazyPackageDescriptor> collectAllPackages(
+            @NotNull List<LazyPackageDescriptor> result,
+            @NotNull LazyPackageDescriptor current
+    ) {
+        result.add(current);
+        for (FqName subPackage : packageFragmentProvider.getSubPackagesOf(current.getFqName())) {
+            LazyPackageDescriptor fragment = getPackageFragment(subPackage);
+            assert fragment != null : "Couldn't find fragment for " + subPackage;
+            collectAllPackages(result, fragment);
+        }
+        return result;
+    }
+
     @Override
     public void forceResolveAll() {
-        rootPackage.acceptVoid(new DeclarationDescriptorVisitorEmptyBodies<Void, Void>() {
-
-            @Override
-            public Void visitTypeParameterDescriptor(TypeParameterDescriptor descriptor, Void data) {
-                ForceResolveUtil.forceResolveAllContents(descriptor);
-                return null;
-            }
-
-            @Override
-            public Void visitNamespaceDescriptor(NamespaceDescriptor descriptor, Void data) {
-                ForceResolveUtil.forceResolveAllContents(descriptor);
-                return null;
-            }
-
-            @Override
-            public Void visitClassDescriptor(ClassDescriptor descriptor, Void data) {
-                ForceResolveUtil.forceResolveAllContents(descriptor);
-                return null;
-            }
-
-            @Override
-            public Void visitModuleDeclaration(ModuleDescriptor descriptor, Void data) {
-                ForceResolveUtil.forceResolveAllContents(descriptor);
-                return null;
-            }
-
-            @Override
-            public Void visitScriptDescriptor(ScriptDescriptor scriptDescriptor, Void data) {
-                ForceResolveUtil.forceResolveAllContents(scriptDescriptor);
-                return null;
-            }
-        });
+        for (LazyPackageDescriptor lazyPackage : getAllPackages()) {
+            ForceResolveUtil.forceResolveAllContents(lazyPackage);
+        }
     }
 }

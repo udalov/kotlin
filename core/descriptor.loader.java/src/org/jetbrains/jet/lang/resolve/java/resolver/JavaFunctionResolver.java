@@ -19,17 +19,13 @@ package org.jetbrains.jet.lang.resolve.java.resolver;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.*;
-import org.jetbrains.jet.lang.descriptors.impl.NamespaceDescriptorParent;
 import org.jetbrains.jet.lang.descriptors.impl.SimpleFunctionDescriptorImpl;
 import org.jetbrains.jet.lang.resolve.DescriptorUtils;
-import org.jetbrains.jet.lang.resolve.java.descriptor.JavaClassDescriptor;
-import org.jetbrains.jet.lang.resolve.java.descriptor.JavaMethodDescriptor;
-import org.jetbrains.jet.lang.resolve.java.descriptor.SamConstructorDescriptor;
+import org.jetbrains.jet.lang.resolve.java.descriptor.*;
 import org.jetbrains.jet.lang.resolve.java.scope.NamedMembers;
 import org.jetbrains.jet.lang.resolve.java.structure.JavaMethod;
 import org.jetbrains.jet.lang.resolve.java.structure.JavaType;
 import org.jetbrains.jet.lang.resolve.name.Name;
-import org.jetbrains.jet.lang.resolve.scopes.JetScope;
 import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.lang.types.TypeUtils;
 
@@ -91,14 +87,14 @@ public final class JavaFunctionResolver {
     }
 
     @Nullable
-    SimpleFunctionDescriptor resolveFunctionMutely(@NotNull JavaMethod method, @NotNull ClassOrNamespaceDescriptor owner) {
+    SimpleFunctionDescriptor resolveFunctionMutely(@NotNull JavaMethod method, @NotNull ClassOrPackageFragmentDescriptor owner) {
         return resolveMethodToFunctionDescriptor(method, owner, false);
     }
 
     @Nullable
     private SimpleFunctionDescriptor resolveMethodToFunctionDescriptor(
             @NotNull JavaMethod method,
-            @NotNull ClassOrNamespaceDescriptor ownerDescriptor,
+            @NotNull ClassOrPackageFragmentDescriptor ownerDescriptor,
             boolean record
     ) {
         if (!DescriptorResolverUtils.isCorrectOwnerForEnumMethod(ownerDescriptor, method)) {
@@ -137,7 +133,7 @@ public final class JavaFunctionResolver {
         List<FunctionDescriptor> superFunctions;
         ExternalSignatureResolver.AlternativeMethodSignature effectiveSignature;
 
-        if (ownerDescriptor instanceof NamespaceDescriptor) {
+        if (ownerDescriptor instanceof PackageFragmentDescriptor) {
             superFunctions = Collections.emptyList();
             effectiveSignature = externalSignatureResolver
                     .resolveAlternativeMethodSignature(method, false, returnType, null, valueParameters, methodTypeParameters);
@@ -159,7 +155,7 @@ public final class JavaFunctionResolver {
             signatureErrors.addAll(effectiveSignature.getErrors());
         }
         else {
-            throw new IllegalStateException("Unknown class or namespace descriptor: " + ownerDescriptor);
+            throw new IllegalStateException("Unknown class or package descriptor: " + ownerDescriptor);
         }
 
         functionDescriptorImpl.initialize(
@@ -183,7 +179,7 @@ public final class JavaFunctionResolver {
     }
 
     @NotNull
-    public Set<FunctionDescriptor> resolveFunctionGroupForClass(@NotNull NamedMembers members, @NotNull ClassOrNamespaceDescriptor owner) {
+    public Set<FunctionDescriptor> resolveFunctionGroupForClass(@NotNull NamedMembers members, @NotNull ClassOrPackageFragmentDescriptor owner) {
         Name methodName = members.getName();
 
         Set<SimpleFunctionDescriptor> functionsFromCurrent = new HashSet<SimpleFunctionDescriptor>();
@@ -198,8 +194,8 @@ public final class JavaFunctionResolver {
             }
         }
 
-        if (owner instanceof NamespaceDescriptor) {
-            SamConstructorDescriptor samConstructor = resolveSamConstructor((NamespaceDescriptor) owner, members);
+        if (owner instanceof JavaPackageFragmentDescriptor) {
+            SamConstructorDescriptor samConstructor = resolveSamConstructor((JavaPackageFragmentDescriptor) owner, members);
             if (samConstructor != null) {
                 functionsFromCurrent.add(samConstructor);
             }
@@ -229,56 +225,18 @@ public final class JavaFunctionResolver {
     }
 
     @Nullable
-    private static JavaClassDescriptor findClassInScope(@NotNull JetScope memberScope, @NotNull Name name) {
-        ClassifierDescriptor classifier = memberScope.getClassifier(name);
-        if (classifier instanceof JavaClassDescriptor) {
-            return (JavaClassDescriptor) classifier;
-        }
-        return null;
-    }
-
-    // E.g. we have foo.Bar.Baz class declared in Java. It will produce the following descriptors structure:
-    // namespace foo
-    // +-- class Bar
-    // |    +-- class Baz
-    // +-- namespace Bar
-    // We need to find class 'Baz' in namespace 'foo.Bar'.
-    @Nullable
-    private static JavaClassDescriptor findClassInNamespace(@NotNull NamespaceDescriptor namespace, @NotNull Name name) {
-        // First, try to find in namespace directly
-        JavaClassDescriptor found = findClassInScope(namespace.getMemberScope(), name);
-        if (found != null) {
-            return found;
-        }
-
-        // If unsuccessful, try to find class of the same name as current (class 'foo.Bar')
-        NamespaceDescriptorParent parent = namespace.getContainingDeclaration();
-        if (parent instanceof NamespaceDescriptor) {
-            // Calling recursively, looking for 'Bar' in 'foo'
-            ClassDescriptor classForCurrentNamespace = findClassInNamespace((NamespaceDescriptor) parent, namespace.getName());
-            if (classForCurrentNamespace == null) {
-                return null;
-            }
-
-            // Try to find nested class 'Baz' in class 'foo.Bar'
-            return findClassInScope(DescriptorUtils.getStaticNestedClassesScope(classForCurrentNamespace), name);
-        }
-        return null;
-    }
-
-    @Nullable
-    public static SamConstructorDescriptor resolveSamConstructor(@NotNull NamespaceDescriptor owner, @NotNull NamedMembers namedMembers) {
+    public static SamConstructorDescriptor resolveSamConstructor(@NotNull JavaPackageFragmentDescriptor owner, @NotNull NamedMembers namedMembers) {
         if (namedMembers.getSamInterface() != null) {
-            JavaClassDescriptor klass = findClassInNamespace(owner, namedMembers.getName());
-            if (klass != null) {
-                return createSamConstructorFunction(owner, klass);
+            ClassDescriptor klass = owner.getJavaDescriptorResolver().resolveClass(owner.getFqName().child(namedMembers.getName()));
+            if (klass instanceof JavaClassDescriptor) {
+                return createSamConstructorFunction(owner, (JavaClassDescriptor) klass);
             }
         }
         return null;
     }
 
     @Nullable
-    private static SimpleFunctionDescriptor resolveSamAdapter(@NotNull SimpleFunctionDescriptor original) {
+    public static SimpleFunctionDescriptor resolveSamAdapter(@NotNull SimpleFunctionDescriptor original) {
         return isSamAdapterNecessary(original) ? (SimpleFunctionDescriptor) createSamAdapterFunction(original) : null;
     }
 
@@ -293,7 +251,8 @@ public final class JavaFunctionResolver {
                               : TypeUsage.MEMBER_SIGNATURE_COVARIANT;
         JetType transformedType = typeTransformer.transformToType(returnType, typeUsage, typeVariableResolver);
 
-        if (annotationResolver.hasNotNullAnnotation(method)) {
+        // Annotation arguments are never null in Java
+        if (method.getContainingClass().isAnnotationType() || annotationResolver.hasNotNullAnnotation(method)) {
             return TypeUtils.makeNotNullable(transformedType);
         }
         else {
@@ -302,7 +261,7 @@ public final class JavaFunctionResolver {
     }
 
     @NotNull
-    private static Set<SimpleFunctionDescriptor> getFunctionsFromSupertypes(@NotNull Name name, @NotNull ClassDescriptor descriptor) {
+    public static Set<SimpleFunctionDescriptor> getFunctionsFromSupertypes(@NotNull Name name, @NotNull ClassDescriptor descriptor) {
         Set<SimpleFunctionDescriptor> result = new LinkedHashSet<SimpleFunctionDescriptor>();
         for (JetType supertype : descriptor.getTypeConstructor().getSupertypes()) {
             for (FunctionDescriptor function : supertype.getMemberScope().getFunctions(name)) {

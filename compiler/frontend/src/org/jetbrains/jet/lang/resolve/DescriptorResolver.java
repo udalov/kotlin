@@ -26,7 +26,7 @@ import jet.Function0;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.*;
-import org.jetbrains.jet.lang.descriptors.annotations.AnnotationDescriptor;
+import org.jetbrains.jet.lang.descriptors.annotations.Annotations;
 import org.jetbrains.jet.lang.descriptors.impl.*;
 import org.jetbrains.jet.lang.diagnostics.DiagnosticFactory1;
 import org.jetbrains.jet.lang.psi.*;
@@ -39,7 +39,6 @@ import org.jetbrains.jet.lang.resolve.scopes.WritableScopeImpl;
 import org.jetbrains.jet.lang.types.*;
 import org.jetbrains.jet.lang.types.checker.JetTypeChecker;
 import org.jetbrains.jet.lang.types.expressions.ExpressionTypingServices;
-import org.jetbrains.jet.lang.types.lang.InlineStrategy;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 import org.jetbrains.jet.lexer.JetKeywordToken;
 import org.jetbrains.jet.lexer.JetTokens;
@@ -102,7 +101,7 @@ public class DescriptorResolver {
 
             TypeParameterDescriptor typeParameterDescriptor = TypeParameterDescriptorImpl.createForFurtherModification(
                     descriptor,
-                    Collections.<AnnotationDescriptor>emptyList(),
+                    Annotations.EMPTY,
                     typeParameter.hasModifier(JetTokens.REIFIED_KEYWORD),
                     typeParameter.getVariance(),
                     JetPsiUtil.safeName(typeParameter.getName()),
@@ -275,7 +274,7 @@ public class DescriptorResolver {
             @NotNull final JetNamedFunction function,
             @NotNull final BindingTrace trace,
             @NotNull final DataFlowInfo dataFlowInfo,
-            @NotNull List<AnnotationDescriptor> annotations
+            @NotNull Annotations annotations
     ) {
         final SimpleFunctionDescriptorImpl functionDescriptor = new SimpleFunctionDescriptorImpl(
                 containingDescriptor,
@@ -367,7 +366,7 @@ public class DescriptorResolver {
 
         SimpleFunctionDescriptorImpl functionDescriptor = new SimpleFunctionDescriptorImpl(
                 classDescriptor,
-                Collections.<AnnotationDescriptor>emptyList(),
+                Annotations.EMPTY,
                 Name.identifier(functionName),
                 CallableMemberDescriptor.Kind.SYNTHESIZED
         );
@@ -397,7 +396,7 @@ public class DescriptorResolver {
 
         SimpleFunctionDescriptorImpl functionDescriptor = new SimpleFunctionDescriptorImpl(
                 classDescriptor,
-                Collections.<AnnotationDescriptor>emptyList(),
+                Annotations.EMPTY,
                 COPY_METHOD_NAME,
                 CallableMemberDescriptor.Kind.SYNTHESIZED
         );
@@ -522,7 +521,7 @@ public class DescriptorResolver {
     private static ValueParameterDescriptorImpl resolveValueParameterDescriptor(
             DeclarationDescriptor declarationDescriptor,
             JetParameter valueParameter, int index, JetType type, BindingTrace trace,
-            List<AnnotationDescriptor> annotations
+            Annotations annotations
     ) {
         JetType varargElementType = null;
         JetType variableType = type;
@@ -575,7 +574,7 @@ public class DescriptorResolver {
 
         TypeParameterDescriptorImpl typeParameterDescriptor = TypeParameterDescriptorImpl.createForFurtherModification(
                 containingDescriptor,
-                Collections.<AnnotationDescriptor>emptyList(),
+                Annotations.EMPTY,
                 typeParameter.hasModifier(JetTokens.REIFIED_KEYWORD),
                 typeParameter.getVariance(),
                 JetPsiUtil.safeName(typeParameter.getName()),
@@ -1042,7 +1041,7 @@ public class DescriptorResolver {
         JetPropertyAccessor setter = property.getSetter();
         PropertySetterDescriptorImpl setterDescriptor = null;
         if (setter != null) {
-            List<AnnotationDescriptor> annotations =
+            Annotations annotations =
                     annotationResolver.resolveAnnotationsWithoutArguments(scope, setter.getModifierList(), trace);
             JetParameter parameter = setter.getParameter();
 
@@ -1110,7 +1109,7 @@ public class DescriptorResolver {
         PropertyGetterDescriptorImpl getterDescriptor;
         JetPropertyAccessor getter = property.getGetter();
         if (getter != null) {
-            List<AnnotationDescriptor> annotations =
+            Annotations annotations =
                     annotationResolver.resolveAnnotationsWithoutArguments(scope, getter.getModifierList(), trace);
 
             JetType outType = propertyDescriptor.getType();
@@ -1310,36 +1309,22 @@ public class DescriptorResolver {
             @NotNull PsiElement reportErrorsOn,
             @NotNull ClassDescriptor target
     ) {
-        return checkHasOuterClassInstance(scope, trace, reportErrorsOn, target, true);
-    }
+        ClassDescriptor classDescriptor = getContainingClass(scope);
 
-    public static boolean checkHasOuterClassInstance(
-            @NotNull JetScope scope,
-            @NotNull BindingTrace trace,
-            @NotNull PsiElement reportErrorsOn,
-            @NotNull ClassDescriptor target,
-            boolean doSuperClassCheck
-    ) {
-        DeclarationDescriptor descriptor = getContainingClass(scope);
+        if (!isInsideOuterClassOrItsSubclass(classDescriptor, target)) {
+            return true;
+        }
 
-        while (descriptor != null) {
-            if (descriptor instanceof ClassDescriptor) {
-                ClassDescriptor classDescriptor = (ClassDescriptor) descriptor;
-
-                if (classDescriptor == target) {
-                    return true;
-                }
-
-                if (doSuperClassCheck && isSubclass(classDescriptor, target)) {
-                    return true;
-                }
-
-                if (isStaticNestedClass(classDescriptor)) {
-                    trace.report(INACCESSIBLE_OUTER_CLASS_EXPRESSION.on(reportErrorsOn, classDescriptor));
-                    return false;
-                }
+        while (classDescriptor != null) {
+            if (isSubclass(classDescriptor, target)) {
+                return true;
             }
-            descriptor = descriptor.getContainingDeclaration();
+
+            if (isStaticNestedClass(classDescriptor)) {
+                trace.report(INACCESSIBLE_OUTER_CLASS_EXPRESSION.on(reportErrorsOn, classDescriptor));
+                return false;
+            }
+            classDescriptor = getParentOfType(classDescriptor, ClassDescriptor.class, true);
         }
         return true;
     }

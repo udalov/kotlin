@@ -35,7 +35,7 @@ public abstract class JetFilesProvider {
         return ServiceManager.getService(project, JetFilesProvider.class);
     }
 
-    public final Function<JetFile, Collection<JetFile>> allNamespaceFiles() {
+    public final Function<JetFile, Collection<JetFile>> allPackageFiles() {
         return new Function<JetFile, Collection<JetFile>>() {
             @Override
             public Collection<JetFile> fun(JetFile file) {
@@ -45,6 +45,7 @@ public abstract class JetFilesProvider {
     }
 
     public abstract Function<JetFile, Collection<JetFile>> sampleToAllFilesInModule();
+    @NotNull
     public abstract Collection<JetFile> allInScope(@NotNull GlobalSearchScope scope);
     public abstract boolean isFileInScope(@NotNull JetFile file, @NotNull GlobalSearchScope scope);
 

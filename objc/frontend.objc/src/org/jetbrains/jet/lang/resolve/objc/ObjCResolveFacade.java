@@ -17,27 +17,53 @@
 package org.jetbrains.jet.lang.resolve.objc;
 
 import com.intellij.openapi.project.Project;
+import jet.Function0;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.jet.lang.descriptors.NamespaceDescriptor;
+import org.jetbrains.jet.lang.descriptors.ModuleDescriptor;
+import org.jetbrains.jet.lang.descriptors.PackageFragmentDescriptor;
+import org.jetbrains.jet.lang.descriptors.PackageFragmentProvider;
+import org.jetbrains.jet.lang.resolve.name.FqName;
+import org.jetbrains.jet.storage.LockBasedStorageManager;
+import org.jetbrains.jet.storage.NotNullLazyValue;
 import org.jetbrains.jet.utils.ExceptionUtils;
 
 import javax.inject.Inject;
 import java.io.IOException;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 
 import static org.jetbrains.jet.lang.resolve.objc.ObjCIndex.TranslationUnit;
 
-public class ObjCResolveFacade {
+// TODO: rename to ObjCPackageFragmentProvider
+public class ObjCResolveFacade implements PackageFragmentProvider {
     private Project project;
-    private NamespaceDescriptor rootNamespace;
-    private NamespaceDescriptor resolvedNamespace;
+    private ModuleDescriptor module;
+
+    private final NotNullLazyValue<PackageFragmentDescriptor> objcPackage =
+            LockBasedStorageManager.NO_LOCKS.createLazyValue(new Function0<PackageFragmentDescriptor>() {
+                @Override
+                public PackageFragmentDescriptor invoke() {
+                    assert project != null : "Project should be initialized in " + getClass().getName();
+                    String args = ObjCInteropParameters.getArgs(project);
+                    assert args != null : "Header parameter should be saved into " + ObjCInteropParameters.class.getName();
+                    assert module != null : "Module should be set before Obj-C resolve";
+
+                    TranslationUnit translationUnit = indexObjCHeaders(args);
+
+                    ObjCDescriptorResolver resolver = new ObjCDescriptorResolver(module, ObjCResolveFacade.this);
+                    return resolver.resolveTranslationUnit(translationUnit);
+                }
+            });
 
     @Inject
     public void setProject(@NotNull Project project) {
         this.project = project;
     }
 
-    public void setRootNamespace(@NotNull NamespaceDescriptor rootNamespace) {
-        this.rootNamespace = rootNamespace;
+    @Inject
+    public void setModule(@NotNull ModuleDescriptor module) {
+        this.module = module;
     }
 
     static {
@@ -58,21 +84,17 @@ public class ObjCResolveFacade {
     }
 
     @NotNull
-    public NamespaceDescriptor resolve() {
-        if (resolvedNamespace != null) {
-            return resolvedNamespace;
-        }
+    @Override
+    public List<PackageFragmentDescriptor> getPackageFragments(@NotNull FqName fqName) {
+        return fqName.equals(ObjCDescriptorResolver.OBJC_PACKAGE_FQ_NAME) ?
+                Collections.singletonList(objcPackage.invoke()) :
+                Collections.<PackageFragmentDescriptor>emptyList();
+    }
 
-        assert project != null : "Project should be initialized in " + getClass().getName();
-        String args = ObjCInteropParameters.getArgs(project);
-        assert args != null : "Header parameter should be saved into " + ObjCInteropParameters.class.getName();
-        assert rootNamespace != null : "Root namespace should be set before Obj-C resolve";
-
-        TranslationUnit translationUnit = indexObjCHeaders(args);
-
-        ObjCDescriptorResolver resolver = new ObjCDescriptorResolver(rootNamespace);
-        resolvedNamespace = resolver.resolveTranslationUnit(translationUnit);
-
-        return resolvedNamespace;
+    @NotNull
+    @Override
+    public Collection<FqName> getSubPackagesOf(@NotNull FqName fqName) {
+        // TODO?
+        return Collections.emptySet();
     }
 }

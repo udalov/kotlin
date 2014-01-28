@@ -19,7 +19,7 @@ package org.jetbrains.jet.lang.resolve.objc;
 import jet.Function0;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.lang.descriptors.ClassDescriptor;
-import org.jetbrains.jet.lang.descriptors.annotations.AnnotationDescriptor;
+import org.jetbrains.jet.lang.descriptors.annotations.Annotations;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.types.*;
 
@@ -67,13 +67,8 @@ public class ObjCBuiltIns {
         return new ObjCDeferredType(new Function0<JetType>() {
             @Override
             public JetType invoke() {
-                return new JetTypeImpl(
-                        Collections.<AnnotationDescriptor>emptyList(),
-                        pointerClass.getTypeConstructor(),
-                        false,
-                        arguments,
-                        pointerClass.getMemberScope(arguments)
-                );
+                return new JetTypeImpl(Annotations.EMPTY, pointerClass.getTypeConstructor(), false, arguments,
+                                       pointerClass.getMemberScope(arguments));
             }
         });
     }

@@ -20,7 +20,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.descriptors.impl.MutableClassDescriptorLite;
-import org.jetbrains.jet.lang.descriptors.impl.NamespaceLikeBuilder;
+import org.jetbrains.jet.lang.descriptors.impl.PackageLikeBuilder;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
 import org.jetbrains.jet.lang.resolve.scopes.RedeclarationHandler;
@@ -103,13 +103,13 @@ public class ObjCClassDescriptor extends MutableClassDescriptorLite {
         return null;
     }
 
-    private NamespaceLikeBuilder builder = null;
+    private PackageLikeBuilder builder = null;
 
     @Override
-    public NamespaceLikeBuilder getBuilder() {
+    public PackageLikeBuilder getBuilder() {
         if (builder == null) {
-            final NamespaceLikeBuilder superBuilder = super.getBuilder();
-            builder = new NamespaceLikeBuilder() {
+            final PackageLikeBuilder superBuilder = super.getBuilder();
+            builder = new PackageLikeBuilder() {
                 @NotNull
                 @Override
                 public DeclarationDescriptor getOwnerForChildren() {

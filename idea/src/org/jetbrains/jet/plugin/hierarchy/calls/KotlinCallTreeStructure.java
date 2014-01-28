@@ -7,6 +7,7 @@ import com.intellij.openapi.project.Project;
 import com.intellij.psi.PsiClass;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiMethod;
+import com.intellij.util.ArrayUtil;
 import com.intellij.util.containers.HashMap;
 import jet.Function1;
 import org.jetbrains.annotations.NotNull;
@@ -26,9 +27,9 @@ public abstract class KotlinCallTreeStructure extends HierarchyTreeStructure {
         this.scopeType = scopeType;
     }
 
-    protected static JetElement getEnclosingBlockForLocalDeclaration(PsiElement element) {
+    protected static JetElement getEnclosingElementForLocalDeclaration(PsiElement element) {
         return element instanceof JetNamedDeclaration
-                                   ? JetPsiUtil.getEnclosingBlockForLocalDeclaration((JetNamedDeclaration) element)
+                                   ? JetPsiUtil.getEnclosingElementForLocalDeclaration((JetNamedDeclaration) element)
                                    : null;
     }
 
@@ -57,7 +58,7 @@ public abstract class KotlinCallTreeStructure extends HierarchyTreeStructure {
     @Nullable
     protected static PsiMethod getRepresentativePsiMethod(PsiElement element) {
         while (true) {
-            element = PsiUtilPackage.getParentByTypeAndPredicate(element, PsiElement.class, false, IS_NON_LOCAL_DECLARATION);
+            element = PsiUtilPackage.getParentByTypesAndPredicate(element, false, ArrayUtil.EMPTY_CLASS_ARRAY, IS_NON_LOCAL_DECLARATION);
             if (element == null) return null;
 
             PsiMethod method = getRepresentativePsiMethodForNonLocalDeclaration(element);

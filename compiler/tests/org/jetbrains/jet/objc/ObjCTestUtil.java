@@ -25,9 +25,8 @@ import org.jetbrains.jet.JetTestUtils;
 import org.jetbrains.jet.TestJdkKind;
 import org.jetbrains.jet.analyzer.AnalyzeExhaust;
 import org.jetbrains.jet.cli.jvm.compiler.JetCoreEnvironment;
-import org.jetbrains.jet.lang.ModuleConfiguration;
-import org.jetbrains.jet.lang.descriptors.NamespaceDescriptor;
-import org.jetbrains.jet.lang.resolve.objc.ObjCModuleConfiguration;
+import org.jetbrains.jet.lang.descriptors.PackageViewDescriptor;
+import org.jetbrains.jet.lang.resolve.objc.ObjCDescriptorResolver;
 import org.jetbrains.jet.utils.ExceptionUtils;
 
 import java.io.File;
@@ -50,11 +49,10 @@ public class ObjCTestUtil {
     }
 
     @NotNull
-    public static NamespaceDescriptor extractObjCNamespaceFromAnalyzeExhaust(@NotNull AnalyzeExhaust analyzeExhaust) {
-        ModuleConfiguration moduleConfiguration = analyzeExhaust.getModuleDescriptor().getModuleConfiguration();
-        assert moduleConfiguration instanceof ObjCModuleConfiguration
-                : "Not an Obj-C module configuration: " + moduleConfiguration;
-        return ((ObjCModuleConfiguration) moduleConfiguration).getResolver().resolve();
+    public static PackageViewDescriptor extractObjCPackageFromAnalyzeExhaust(@NotNull AnalyzeExhaust analyzeExhaust) {
+        PackageViewDescriptor objcPackage = analyzeExhaust.getModuleDescriptor().getPackage(ObjCDescriptorResolver.OBJC_PACKAGE_FQ_NAME);
+        assert objcPackage != null : "Obj-C package wasn't resolved: " + analyzeExhaust.getModuleDescriptor();
+        return objcPackage;
     }
 
     @NotNull

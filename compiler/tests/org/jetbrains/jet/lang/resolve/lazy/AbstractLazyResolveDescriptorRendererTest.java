@@ -25,14 +25,15 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.ConfigurationKind;
 import org.jetbrains.jet.JetTestUtils;
 import org.jetbrains.jet.cli.jvm.compiler.JetCoreEnvironment;
-import org.jetbrains.jet.di.InjectorForTopDownAnalyzer;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.java.AnalyzerFacadeForJVM;
 import org.jetbrains.jet.lang.resolve.lazy.declarations.FileBasedDeclarationProviderFactory;
-import org.jetbrains.jet.lang.resolve.lazy.storage.LockBasedLazyResolveStorageManager;
+import org.jetbrains.jet.storage.LockBasedLazyResolveStorageManager;
 import org.jetbrains.jet.lang.resolve.name.FqName;
+import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 import org.jetbrains.jet.renderer.DescriptorRenderer;
+import org.jetbrains.jet.storage.LockBasedStorageManager;
 
 import java.io.File;
 import java.io.IOException;
@@ -41,22 +42,24 @@ import java.util.Collection;
 import java.util.List;
 
 public abstract class AbstractLazyResolveDescriptorRendererTest extends KotlinTestWithEnvironment {
-
     @Override
     protected JetCoreEnvironment createEnvironment() {
         return createEnvironmentWithMockJdk(ConfigurationKind.ALL);
     }
 
+    protected DeclarationDescriptor getDescriptor(JetDeclaration declaration, ResolveSession resolveSession) {
+        return resolveSession.resolveToDescriptor(declaration);
+    }
+
     protected void doTest(@NotNull String testFile) throws IOException {
+        String fileText = FileUtil.loadFile(new File(testFile), true);
 
-        InjectorForTopDownAnalyzer injectorForTopDownAnalyzer = LazyResolveTestUtil.getEagerInjectorForTopDownAnalyzer(getEnvironment());
-
-        JetFile psiFile = JetPsiFactory.createFile(getProject(), FileUtil.loadFile(new File(testFile), true));
+        JetFile psiFile = JetPsiFactory.createFile(getProject(), fileText);
         Collection<JetFile> files = Lists.newArrayList(psiFile);
 
-        ModuleDescriptorImpl lazyModule = AnalyzerFacadeForJVM.createJavaModule("<lazy module>");
-        lazyModule.setModuleConfiguration(injectorForTopDownAnalyzer.getModuleDescriptor().getModuleConfiguration());
-        LockBasedLazyResolveStorageManager storageManager = new LockBasedLazyResolveStorageManager();
+        final ModuleDescriptorImpl lazyModule = AnalyzerFacadeForJVM.createJavaModule("<lazy module>");
+        lazyModule.addFragmentProvider(DependencyKind.BUILT_INS, KotlinBuiltIns.getInstance().getBuiltInsModule().getPackageFragmentProvider());
+        LockBasedLazyResolveStorageManager storageManager = new LockBasedLazyResolveStorageManager(new LockBasedStorageManager());
         final ResolveSession resolveSession = new ResolveSession(getProject(), storageManager, lazyModule,
                                                                  new FileBasedDeclarationProviderFactory(storageManager, files));
 
@@ -64,9 +67,9 @@ public abstract class AbstractLazyResolveDescriptorRendererTest extends KotlinTe
         psiFile.accept(new JetVisitorVoid() {
             @Override
             public void visitJetFile(@NotNull JetFile file) {
-                String qualifiedName = file.getNamespaceHeader().getQualifiedName();
-                if (!qualifiedName.isEmpty()) {
-                    NamespaceDescriptor packageDescriptor = resolveSession.getPackageDescriptorByFqName(new FqName(qualifiedName));
+                FqName fqName = file.getPackageDirective().getFqName();
+                if (!fqName.isRoot()) {
+                    PackageViewDescriptor packageDescriptor = lazyModule.getPackage(fqName);
                     descriptors.add(packageDescriptor);
                 }
                 file.acceptChildren(this);
@@ -85,13 +88,13 @@ public abstract class AbstractLazyResolveDescriptorRendererTest extends KotlinTe
                 }
                 if (declaringElement instanceof JetNamedFunction) {
                     JetNamedFunction jetNamedFunction = (JetNamedFunction) declaringElement;
-                    FunctionDescriptor functionDescriptor = (FunctionDescriptor) resolveSession.resolveToDescriptor(jetNamedFunction);
+                    FunctionDescriptor functionDescriptor = (FunctionDescriptor) getDescriptor(jetNamedFunction, resolveSession);
                     addCorrespondingParameterDescriptor(functionDescriptor, parameter);
                 }
                 else if (declaringElement instanceof JetClass) {
                     // Primary constructor parameter
                     JetClass jetClass = (JetClass) declaringElement;
-                    ClassDescriptor classDescriptor = resolveSession.getClassDescriptor(jetClass);
+                    ClassDescriptor classDescriptor = (ClassDescriptor) getDescriptor(jetClass, resolveSession);
                     addCorrespondingParameterDescriptor(classDescriptor.getConstructors().iterator().next(), parameter);
                 }
                 else {
@@ -105,23 +108,30 @@ public abstract class AbstractLazyResolveDescriptorRendererTest extends KotlinTe
                         descriptors.add(valueParameterDescriptor);
                     }
                 }
+                parameter.acceptChildren(this);
             }
 
             @Override
             public void visitPropertyAccessor(@NotNull JetPropertyAccessor accessor) {
                 JetProperty parent = (JetProperty) accessor.getParent();
-                PropertyDescriptor propertyDescriptor = (PropertyDescriptor) resolveSession.resolveToDescriptor(parent);
+                PropertyDescriptor propertyDescriptor = (PropertyDescriptor) getDescriptor(parent, resolveSession);
                 if (accessor.isGetter()) {
                     descriptors.add(propertyDescriptor.getGetter());
                 }
                 else {
                     descriptors.add(propertyDescriptor.getSetter());
                 }
+                accessor.acceptChildren(this);
+            }
+
+            @Override
+            public void visitAnonymousInitializer(@NotNull JetClassInitializer initializer) {
+                initializer.acceptChildren(this);
             }
 
             @Override
             public void visitDeclaration(@NotNull JetDeclaration element) {
-                DeclarationDescriptor descriptor = resolveSession.resolveToDescriptor(element);
+                DeclarationDescriptor descriptor = getDescriptor(element, resolveSession);
                 descriptors.add(descriptor);
                 if (descriptor instanceof ClassDescriptor) {
                     descriptors.addAll(((ClassDescriptor) descriptor).getConstructors());

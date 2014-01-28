@@ -18,11 +18,7 @@ package org.jetbrains.jet.descriptors.serialization;
 
 import gnu.trove.TObjectHashingStrategy;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.jet.lang.descriptors.ClassDescriptor;
-import org.jetbrains.jet.lang.descriptors.ClassOrNamespaceDescriptor;
-import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor;
-import org.jetbrains.jet.lang.descriptors.NamespaceDescriptor;
-import org.jetbrains.jet.lang.resolve.DescriptorUtils;
+import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.Name;
 
@@ -70,7 +66,7 @@ public class NameTable {
         return simpleNames.intern(name.asString());
     }
 
-    public int getFqNameIndex(@NotNull ClassOrNamespaceDescriptor descriptor) {
+    public int getFqNameIndex(@NotNull ClassOrPackageFragmentDescriptor descriptor) {
         QualifiedName.Builder builder = QualifiedName.newBuilder();
         if (descriptor instanceof ClassDescriptor) {
             builder.setKind(QualifiedName.Kind.CLASS);
@@ -78,10 +74,10 @@ public class NameTable {
         builder.setShortName(getSimpleNameIndex(descriptor.getName()));
 
         DeclarationDescriptor containingDeclaration = descriptor.getContainingDeclaration();
-        if (containingDeclaration instanceof NamespaceDescriptor) {
-            NamespaceDescriptor namespaceDescriptor = (NamespaceDescriptor) containingDeclaration;
-            if (!DescriptorUtils.isRootNamespace(namespaceDescriptor)) {
-                builder.setParentQualifiedName(getFqNameIndex(namespaceDescriptor));
+        if (containingDeclaration instanceof PackageFragmentDescriptor) {
+            PackageFragmentDescriptor fragment = (PackageFragmentDescriptor) containingDeclaration;
+            if (!fragment.getFqName().isRoot()) {
+                builder.setParentQualifiedName(getFqNameIndex(fragment.getFqName()));
             }
         }
         else if (containingDeclaration instanceof ClassDescriptor) {

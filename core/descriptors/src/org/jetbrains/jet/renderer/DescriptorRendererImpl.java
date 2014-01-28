@@ -19,13 +19,17 @@ package org.jetbrains.jet.renderer;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.intellij.openapi.util.text.StringUtil;
+import com.intellij.util.Function;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.descriptors.annotations.Annotated;
 import org.jetbrains.jet.lang.descriptors.annotations.AnnotationDescriptor;
+import org.jetbrains.jet.lang.descriptors.annotations.DefaultAnnotationArgumentVisitor;
 import org.jetbrains.jet.lang.descriptors.impl.DeclarationDescriptorVisitorEmptyBodies;
 import org.jetbrains.jet.lang.resolve.DescriptorUtils;
+import org.jetbrains.jet.lang.resolve.constants.*;
 import org.jetbrains.jet.lang.resolve.name.FqName;
+import org.jetbrains.jet.lang.resolve.name.FqNameBase;
 import org.jetbrains.jet.lang.resolve.name.FqNameUnsafe;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.types.*;
@@ -33,8 +37,7 @@ import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 
 import java.util.*;
 
-import static org.jetbrains.jet.lang.types.TypeUtils.CANT_INFER_LAMBDA_PARAM_TYPE;
-import static org.jetbrains.jet.lang.types.TypeUtils.CANT_INFER_TYPE_PARAMETER;
+import static org.jetbrains.jet.lang.types.TypeUtils.*;
 
 public class DescriptorRendererImpl implements DescriptorRenderer {
     private final boolean shortNames;
@@ -47,8 +50,6 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
     private final boolean unitReturnType;
     private final boolean normalizedVisibilities;
     private final boolean showInternalKeyword;
-    private final boolean alwaysRenderAny;
-    private final boolean prettyFunctionTypes;
     @NotNull
     private final OverrideRenderingPolicy overrideRenderingPolicy;
     @NotNull
@@ -69,8 +70,6 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
             boolean unitReturnType,
             boolean normalizedVisibilities,
             boolean showInternalKeyword,
-            boolean alwaysRenderAny,
-            boolean prettyFunctionTypes,
             @NotNull OverrideRenderingPolicy overrideRenderingPolicy,
             @NotNull ValueParametersHandler handler,
             @NotNull TextFormat textFormat,
@@ -90,10 +89,7 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
         this.debugMode = debugMode;
         this.textFormat = textFormat;
         this.excludedAnnotationClasses = Sets.newHashSet(excludedAnnotationClasses);
-        this.alwaysRenderAny = alwaysRenderAny;
-        this.prettyFunctionTypes = prettyFunctionTypes;
     }
-
 
     /* FORMATTING */
     @NotNull
@@ -158,7 +154,7 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
     }
 
     @NotNull
-    private String renderFqName(@NotNull FqNameUnsafe fqName) {
+    private String renderFqName(@NotNull FqNameBase fqName) {
         return renderFqName(fqName.pathSegments());
     }
 
@@ -196,7 +192,7 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
             Collections.reverse(qualifiedNameElements);
             return renderFqName(qualifiedNameElements);
         }
-        return renderFqName(DescriptorUtils.getFQName(klass));
+        return renderFqName(DescriptorUtils.getFqName(klass));
     }
 
     /* TYPES RENDERING */
@@ -206,14 +202,28 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
         return escape(renderTypeWithoutEscape(type));
     }
 
+    @NotNull
+    @Override
+    public String renderTypeArguments(@NotNull List<TypeProjection> typeArguments) {
+        if (typeArguments.isEmpty()) return "";
+        StringBuilder sb = new StringBuilder();
+        sb.append("<");
+        appendTypeProjections(typeArguments, sb);
+        sb.append(">");
+        return sb.toString();
+    }
+
     private String renderTypeWithoutEscape(@NotNull JetType type) {
-        if (type == CANT_INFER_LAMBDA_PARAM_TYPE || type == CANT_INFER_TYPE_PARAMETER) {
+        if (type == CANT_INFER_LAMBDA_PARAM_TYPE || type == CANT_INFER_TYPE_PARAMETER || type == DONT_CARE) {
             return "???";
         }
-        if (type.isError()) {
+        if (type instanceof LazyType && debugMode) {
             return type.toString();
         }
-        if (KotlinBuiltIns.getInstance().isExactFunctionOrExtensionFunctionType(type) && prettyFunctionTypes) {
+        if (type.isError()) {
+            return renderDefaultType(type);
+        }
+        if (KotlinBuiltIns.getInstance().isExactFunctionOrExtensionFunctionType(type)) {
             return renderFunctionType(type);
         }
         return renderDefaultType(type);
@@ -223,7 +233,12 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
     private String renderDefaultType(@NotNull JetType type) {
         StringBuilder sb = new StringBuilder();
 
-        sb.append(renderTypeName(type.getConstructor()));
+        if (type.isError()) {
+            sb.append(type.getConstructor().toString()); // Debug name of an error type is more informative
+        }
+        else {
+            sb.append(renderTypeName(type.getConstructor()));
+        }
         if (!type.getArguments().isEmpty()) {
             sb.append("<");
             appendTypeProjections(type.getArguments(), sb);
@@ -287,6 +302,9 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
 
     /* METHODS FOR ALL KINDS OF DESCRIPTORS */
     private void appendDefinedIn(@NotNull DeclarationDescriptor descriptor, @NotNull StringBuilder builder) {
+        if (descriptor instanceof PackageFragmentDescriptor || descriptor instanceof PackageViewDescriptor) {
+            return;
+        }
         if (descriptor instanceof ModuleDescriptor) {
             builder.append(" is a module");
             return;
@@ -295,7 +313,7 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
 
         DeclarationDescriptor containingDeclaration = descriptor.getContainingDeclaration();
         if (containingDeclaration != null) {
-            FqNameUnsafe fqName = DescriptorUtils.getFQName(containingDeclaration);
+            FqNameUnsafe fqName = DescriptorUtils.getFqName(containingDeclaration);
             builder.append(FqName.ROOT.equalsTo(fqName) ? "root package" : renderFqName(fqName));
         }
     }
@@ -306,14 +324,71 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
             ClassDescriptor annotationClass = (ClassDescriptor) annotation.getType().getConstructor().getDeclarationDescriptor();
             assert annotationClass != null;
 
-            if (!excludedAnnotationClasses.contains(DescriptorUtils.getFQName(annotationClass).toSafe())) {
-                builder.append(renderType(annotation.getType()));
-                if (verbose) {
-                    builder.append("(").append(StringUtil.join(DescriptorUtils.getSortedValueArguments(annotation, this), ", ")).append(")");
-                }
-                builder.append(" ");
+            if (!excludedAnnotationClasses.contains(DescriptorUtils.getFqNameSafe(annotationClass))) {
+                builder.append(renderAnnotation(annotation)).append(" ");
             }
         }
+    }
+
+    @Override
+    @NotNull
+    public String renderAnnotation(@NotNull AnnotationDescriptor annotation) {
+        StringBuilder sb = new StringBuilder();
+        sb.append(renderType(annotation.getType()));
+        if (verbose) {
+            sb.append("(").append(StringUtil.join(renderAndSortAnnotationArguments(annotation), ", ")).append(")");
+        }
+        return sb.toString();
+    }
+
+    @NotNull
+    private List<String> renderAndSortAnnotationArguments(@NotNull AnnotationDescriptor descriptor) {
+        List<String> resultList = Lists.newArrayList();
+        for (Map.Entry<ValueParameterDescriptor, CompileTimeConstant<?>> entry : descriptor.getAllValueArguments().entrySet()) {
+            CompileTimeConstant<?> value = entry.getValue();
+            String typeSuffix = ": " + renderType(value.getType(KotlinBuiltIns.getInstance()));
+            resultList.add(entry.getKey().getName().asString() + " = " + renderConstant(value) + typeSuffix);
+        }
+        Collections.sort(resultList);
+        return resultList;
+    }
+
+    @NotNull
+    private String renderConstant(@NotNull CompileTimeConstant<?> value) {
+        return value.accept(
+                new DefaultAnnotationArgumentVisitor<String, Void>() {
+                    @Override
+                    public String visitValue(@NotNull CompileTimeConstant<?> value, Void data) {
+                        return value.toString();
+                    }
+
+                    @Override
+                    public String visitArrayValue(ArrayValue value, Void data) {
+                        return "{" +
+                               StringUtil.join(
+                                value.getValue(),
+                                new Function<CompileTimeConstant<?>, String>() {
+                                    @Override
+                                    public String fun(CompileTimeConstant<?> constant) {
+                                        return renderConstant(constant);
+                                    }
+                                },
+                                ", ") +
+                               "}";
+                    }
+
+                    @Override
+                    public String visitAnnotationValue(AnnotationValue value, Void data) {
+                        return renderAnnotation(value.getValue());
+                    }
+
+                    @Override
+                    public String visitJavaClassValue(JavaClassValue value, Void data) {
+                        return renderType(value.getValue()) + ".class";
+                    }
+                },
+                null
+        );
     }
 
     private void renderVisibility(@NotNull Visibility visibility, @NotNull StringBuilder builder) {
@@ -406,7 +481,7 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
         int upperBoundsCount = typeParameter.getUpperBounds().size();
         if ((upperBoundsCount > 1 && !topLevel) || upperBoundsCount == 1) {
             JetType upperBound = typeParameter.getUpperBounds().iterator().next();
-            if (!KotlinBuiltIns.getInstance().getDefaultBound().equals(upperBound) || alwaysRenderAny) {
+            if (!KotlinBuiltIns.getInstance().getDefaultBound().equals(upperBound)) {
                 builder.append(" : ").append(renderType(upperBound));
             }
         }
@@ -636,7 +711,8 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
 
         if (!klass.equals(KotlinBuiltIns.getInstance().getNothing())) {
             Collection<JetType> supertypes = klass.getTypeConstructor().getSupertypes();
-            if (supertypes.isEmpty() || !alwaysRenderAny && supertypes.size() == 1 && KotlinBuiltIns.getInstance().isAny(supertypes.iterator().next())) {
+            if (supertypes.isEmpty() || supertypes.size() == 1 && KotlinBuiltIns.getInstance().isAnyOrNullableAny(
+                    supertypes.iterator().next())) {
             }
             else {
                 builder.append(" : ");
@@ -681,9 +757,22 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
         renderName(moduleOrScript, builder);
     }
 
-    private void renderNamespace(@NotNull NamespaceDescriptor namespace, @NotNull StringBuilder builder) {
+    private void renderPackageView(@NotNull PackageViewDescriptor packageView, @NotNull StringBuilder builder) {
         builder.append(renderKeyword("package")).append(" ");
-        renderName(namespace, builder);
+        builder.append(renderFqName(packageView.getFqName()));
+        if (debugMode) {
+            builder.append(" in context of ");
+            renderName(packageView.getModule(), builder);
+        }
+    }
+
+    private void renderPackageFragment(@NotNull PackageFragmentDescriptor fragment, @NotNull StringBuilder builder) {
+        builder.append(renderKeyword("package-fragment")).append(" ");
+        builder.append(renderFqName(fragment.getFqName()));
+        if (debugMode) {
+            builder.append(" in ");
+            renderName(fragment.getContainingDeclaration(), builder);
+        }
     }
 
 
@@ -731,8 +820,18 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
         }
 
         @Override
-        public Void visitNamespaceDescriptor(NamespaceDescriptor namespaceDescriptor, StringBuilder builder) {
-            renderNamespace(namespaceDescriptor, builder);
+        public Void visitPackageFragmentDescriptor(
+                PackageFragmentDescriptor descriptor, StringBuilder builder
+        ) {
+            renderPackageFragment(descriptor, builder);
+            return null;
+        }
+
+        @Override
+        public Void visitPackageViewDescriptor(
+                PackageViewDescriptor descriptor, StringBuilder builder
+        ) {
+            renderPackageView(descriptor, builder);
             return null;
         }
 

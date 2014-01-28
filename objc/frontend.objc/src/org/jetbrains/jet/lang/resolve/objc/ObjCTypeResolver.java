@@ -19,22 +19,21 @@ package org.jetbrains.jet.lang.resolve.objc;
 import com.intellij.util.containers.ContainerUtil;
 import jet.Function0;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.jet.lang.descriptors.annotations.AnnotationDescriptor;
-import org.jetbrains.jet.lang.descriptors.impl.NamespaceDescriptorImpl;
+import org.jetbrains.jet.lang.descriptors.PackageFragmentDescriptor;
+import org.jetbrains.jet.lang.descriptors.annotations.Annotations;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
 public class ObjCTypeResolver {
-    private final NamespaceDescriptorImpl namespace;
+    private final PackageFragmentDescriptor objcPackage;
 
-    public ObjCTypeResolver(@NotNull NamespaceDescriptorImpl namespace) {
-        this.namespace = namespace;
+    public ObjCTypeResolver(@NotNull PackageFragmentDescriptor objcPackage) {
+        this.objcPackage = objcPackage;
     }
 
     private static final Map<String, JetType> BUILT_IN_TYPES;
@@ -59,7 +58,7 @@ public class ObjCTypeResolver {
 
     @NotNull
     public JetType createTypeForClass(@NotNull Name className) {
-        return new ObjCClassType(namespace, className);
+        return new ObjCClassType(objcPackage, className);
     }
 
     @NotNull
@@ -72,12 +71,7 @@ public class ObjCTypeResolver {
         return new ObjCDeferredType(new Function0<JetType>() {
             @Override
             public JetType invoke() {
-                return KotlinBuiltIns.getInstance().getFunctionType(
-                        Collections.<AnnotationDescriptor>emptyList(),
-                        /* receiverType */ null,
-                        paramTypes,
-                        returnType
-                );
+                return KotlinBuiltIns.getInstance().getFunctionType(Annotations.EMPTY, /* receiverType */ null, paramTypes, returnType);
             }
         });
     }

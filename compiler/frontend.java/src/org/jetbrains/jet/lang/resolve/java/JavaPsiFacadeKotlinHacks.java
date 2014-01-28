@@ -20,16 +20,18 @@ import com.google.common.collect.Lists;
 import com.intellij.core.CoreJavaFileManager;
 import com.intellij.openapi.progress.ProgressIndicatorProvider;
 import com.intellij.openapi.project.Project;
-import com.intellij.psi.PsiClass;
-import com.intellij.psi.PsiElementFinder;
-import com.intellij.psi.PsiPackage;
+import com.intellij.psi.*;
 import com.intellij.psi.impl.JavaPsiFacadeImpl;
 import com.intellij.psi.impl.file.impl.JavaFileManager;
 import com.intellij.psi.search.GlobalSearchScope;
+import com.intellij.util.containers.ContainerUtil;
+import com.intellij.util.containers.HashMap;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 
 /**
  * TODO Temporary class until {@link JavaPsiFacadeImpl} hacked.
@@ -99,5 +101,4 @@ public class JavaPsiFacadeKotlinHacks {
 
         return null;
     }
-
 }

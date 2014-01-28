@@ -36,6 +36,7 @@ import org.jetbrains.jet.cli.jvm.JVMConfigurationKeys;
 import org.jetbrains.jet.cli.jvm.compiler.JetCoreEnvironment;
 import org.jetbrains.jet.config.CompilerConfiguration;
 import org.jetbrains.jet.di.InjectorForJavaDescriptorResolver;
+import org.jetbrains.jet.di.InjectorForJavaDescriptorResolverUtil;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.descriptors.impl.DeclarationDescriptorVisitorEmptyBodies;
 import org.jetbrains.jet.lang.resolve.BindingContext;
@@ -52,9 +53,7 @@ import org.jetbrains.jet.renderer.DescriptorRenderer;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -63,6 +62,26 @@ import static org.jetbrains.jet.lang.resolve.java.DescriptorSearchRule.IGNORE_KO
 public class JdkAnnotationsValidityTest extends UsefulTestCase {
 
     private static final int CLASSES_IN_CHUNK = 500;
+
+    // KT-4359 Alternative signature checking problem: Set<?> is incompatible with Set<Object>
+    //
+    // <item name='javax.management.openmbean.TabularDataSupport java.util.Set&lt;java.lang.Object&gt; keySet()'>
+    //   <annotation name='org.jetbrains.annotations.NotNull'/>
+    // </item>
+    // <item name='java.util.Map java.util.Set&lt;K&gt; keySet()'>
+    //   <annotation name='org.jetbrains.annotations.NotNull'/>
+    //   <annotation name='jet.runtime.typeinfo.KotlinSignature'>
+    //     <val name="value" val="&quot;fun keySet() : Set&lt;K&gt;&quot;"/>
+    //   </annotation>
+    // </item>
+    // <item name='javax.management.openmbean.TabularData java.util.Set&lt;?&gt; keySet()'>
+    //   <annotation name='org.jetbrains.annotations.NotNull'/>
+    // </item>
+    //
+    // KAnnotator produces above annotations and validation of TabularDataSupport results into:
+    // public open fun keySet(): jet.MutableSet<jet.Any> defined in javax.management.openmbean.TabularDataSupport :
+    // [Incompatible types in superclasses: [Any?, Any, Any], Incompatible projection kinds in type arguments of super methods' return types: [out Any?, Any, Any]]
+    private static final Set<String> classesToIgnore = new HashSet<String>(Arrays.asList("javax.management.openmbean.TabularDataSupport"));
 
     private static JetCoreEnvironment createEnvironment(Disposable parentDisposable) {
         CompilerConfiguration configuration = JetTestUtils.compilerConfigurationForTests(
@@ -95,7 +114,8 @@ public class JdkAnnotationsValidityTest extends UsefulTestCase {
                 JetCoreEnvironment commonEnvironment = createEnvironment(parentDisposable);
 
                 BindingTrace trace = new BindingTraceContext();
-                InjectorForJavaDescriptorResolver injector = new InjectorForJavaDescriptorResolver(commonEnvironment.getProject(), trace);
+                InjectorForJavaDescriptorResolver injector =
+                        InjectorForJavaDescriptorResolverUtil.create(commonEnvironment.getProject(), trace);
 
                 BindingContext bindingContext = trace.getBindingContext();
                 JavaDescriptorResolver javaDescriptorResolver = injector.getJavaDescriptorResolver();
@@ -105,15 +125,15 @@ public class JdkAnnotationsValidityTest extends UsefulTestCase {
                 int chunkStart = chunkIndex * CLASSES_IN_CHUNK;
                 for (FqName javaClass : affectedClasses.subList(chunkStart, Math.min(chunkStart + CLASSES_IN_CHUNK, affectedClasses.size()))) {
                     ClassDescriptor topLevelClass = javaDescriptorResolver.resolveClass(javaClass, IGNORE_KOTLIN_SOURCES);
-                    NamespaceDescriptor topLevelNamespace = javaDescriptorResolver.resolveNamespace(javaClass, IGNORE_KOTLIN_SOURCES);
+                    PackageViewDescriptor topLevelPackage = injector.getModule().getPackage(javaClass);
                     if (topLevelClass == null) {
                         continue;
                     }
 
                     topLevelClass.acceptVoid(visitor);
 
-                    if (topLevelNamespace != null) {
-                        topLevelNamespace.acceptVoid(visitor);
+                    if (topLevelPackage != null) {
+                        topLevelPackage.acceptVoid(visitor);
                     }
                 }
             }
@@ -150,7 +170,10 @@ public class JdkAnnotationsValidityTest extends UsefulTestCase {
                             String text = StreamUtil.readText(file.getInputStream());
                             Matcher matcher = Pattern.compile("<item name=['\"]([\\w\\d\\.]+)[\\s'\"]").matcher(text);
                             while (matcher.find()) {
-                                result.add(new FqName(matcher.group(1)));
+                                String className = matcher.group(1);
+                                if (!classesToIgnore.contains(className)) {
+                                    result.add(new FqName(className));
+                                }
                             }
                         }
                         catch (IOException e) {
@@ -179,14 +202,14 @@ public class JdkAnnotationsValidityTest extends UsefulTestCase {
         }
 
         @Override
-        public Void visitNamespaceDescriptor(NamespaceDescriptor descriptor, Void data) {
+        public Void visitPackageViewDescriptor(PackageViewDescriptor descriptor, Void data) {
             return visitDeclarationRecursively(descriptor, descriptor.getMemberScope());
         }
 
         @Override
         public Void visitClassDescriptor(ClassDescriptor descriptor, Void data) {
             // skip java.util.Collection, etc.
-            if (!JavaToKotlinClassMap.getInstance().mapPlatformClass(DescriptorUtils.getFQName(descriptor).toSafe()).isEmpty()) {
+            if (!JavaToKotlinClassMap.getInstance().mapPlatformClass(DescriptorUtils.getFqNameSafe(descriptor)).isEmpty()) {
                 return null;
             }
 

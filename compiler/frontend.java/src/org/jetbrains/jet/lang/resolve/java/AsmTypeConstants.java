@@ -28,12 +28,10 @@ public class AsmTypeConstants {
     public static final Type OBJECT_TYPE = getType(Object.class);
     public static final Type JAVA_STRING_TYPE = getType(String.class);
     public static final Type JAVA_THROWABLE_TYPE = getType(Throwable.class);
-    public static final Type JAVA_ARRAY_GENERIC_TYPE = getType(Object[].class);
 
     public static final Type JET_UNIT_TYPE = Type.getObjectType("jet/Unit");
     public static final Type JET_FUNCTION0_TYPE = Type.getObjectType("jet/Function0");
     public static final Type JET_FUNCTION1_TYPE = Type.getObjectType("jet/Function1");
-    public static final Type JET_ITERATOR_TYPE = Type.getObjectType("jet/Iterator");
     public static final Type JET_INT_RANGE_TYPE = Type.getObjectType("jet/IntRange");
     public static final Type JET_SHARED_VAR_TYPE = Type.getObjectType("jet/runtime/SharedVar$Object");
     public static final Type JET_SHARED_INT_TYPE = Type.getObjectType("jet/runtime/SharedVar$Int");

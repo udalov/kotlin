@@ -33,6 +33,7 @@ import org.jetbrains.jet.TimeUtils;
 import org.jetbrains.jet.cli.jvm.compiler.JetCoreEnvironment;
 import org.jetbrains.jet.config.CompilerConfiguration;
 import org.jetbrains.jet.di.InjectorForJavaDescriptorResolver;
+import org.jetbrains.jet.di.InjectorForJavaDescriptorResolverUtil;
 import org.jetbrains.jet.lang.descriptors.ClassDescriptor;
 import org.jetbrains.jet.lang.resolve.BindingTraceContext;
 import org.jetbrains.jet.lang.resolve.java.JavaDescriptorResolver;
@@ -112,7 +113,7 @@ public class ResolveDescriptorsFromExternalLibraries {
             System.out.println("Using file " + jar);
         }
         else {
-            jar = PathUtil.findRtJar();
+            jar = findRtJar();
             System.out.println("Using rt.jar: " + jar);
         }
 
@@ -137,6 +138,17 @@ public class ResolveDescriptorsFromExternalLibraries {
         return hasErrors;
     }
 
+    @NotNull
+    private static File findRtJar() {
+        List<File> roots = PathUtil.getJdkClassesRoots();
+        for (File root : roots) {
+            if (root.getName().equals("rt.jar") || root.getName().equals("classes.jar")) {
+                return root;
+            }
+        }
+        throw new IllegalArgumentException("No rt.jar/classes.jar found under " + System.getProperty("java.home"));
+    }
+
     private boolean parseLibraryFileChunk(File jar, String libDescription, ZipInputStream zip, int classesPerChunk) throws IOException {
         Disposable junk = new Disposable() {
             @Override
@@ -152,12 +164,12 @@ public class ResolveDescriptorsFromExternalLibraries {
             CompilerConfiguration configuration =
                     JetTestUtils.compilerConfigurationForTests(ConfigurationKind.JDK_AND_ANNOTATIONS, TestJdkKind.FULL_JDK);
             jetCoreEnvironment = JetCoreEnvironment.createForTests(junk, configuration);
-            if (!PathUtil.findRtJar().equals(jar)) {
-                throw new RuntimeException("rt.jar mismatch: " + jar + ", " + PathUtil.findRtJar());
+            if (!findRtJar().equals(jar)) {
+                throw new RuntimeException("rt.jar mismatch: " + jar + ", " + findRtJar());
             }
         }
 
-        InjectorForJavaDescriptorResolver injector = new InjectorForJavaDescriptorResolver(
+        InjectorForJavaDescriptorResolver injector = InjectorForJavaDescriptorResolverUtil.create(
                 jetCoreEnvironment.getProject(), new BindingTraceContext());
         JavaDescriptorResolver javaDescriptorResolver = injector.getJavaDescriptorResolver();
 

@@ -6,7 +6,7 @@
   <version>@snapshot@</version>
   <vendor url="http://www.jetbrains.com">JetBrains Inc.</vendor>
 
-  <idea-version since-build="132.839" until-build="134.0"/>
+  <idea-version since-build="133.0" until-build="134.0"/>
 
   <depends optional="true" config-file="junit.xml">JUnit</depends>
   <depends optional="true" config-file="gradle.xml">org.jetbrains.plugins.gradle</depends>
@@ -226,7 +226,7 @@
     <spellchecker.support implementationClass="org.jetbrains.jet.plugin.KotlinSpellcheckingStrategy" language="jet"/>
 
     <liveTemplateContext implementation="org.jetbrains.jet.plugin.liveTemplates.JetTemplateContextType$Generic"/>
-    <liveTemplateContext implementation="org.jetbrains.jet.plugin.liveTemplates.JetTemplateContextType$Namespace"/>
+    <liveTemplateContext implementation="org.jetbrains.jet.plugin.liveTemplates.JetTemplateContextType$TopLevel"/>
     <liveTemplateContext implementation="org.jetbrains.jet.plugin.liveTemplates.JetTemplateContextType$Statement"/>
     <liveTemplateContext implementation="org.jetbrains.jet.plugin.liveTemplates.JetTemplateContextType$Class"/>
     <liveTemplateContext implementation="org.jetbrains.jet.plugin.liveTemplates.JetTemplateContextType$Expression"/>
@@ -270,7 +270,7 @@
                               forClass="org.jetbrains.jet.lang.psi.JetParameter"/>
     <gotoTargetRendererProvider id="JetGotoTargetRenderProvider" implementation="org.jetbrains.jet.plugin.JetGotoTargetRenderProvider"
                                 order="first"/>
-    <elementDescriptionProvider implementation="org.jetbrains.jet.plugin.findUsages.JetElementDescriptionProvider"/>
+    <elementDescriptionProvider implementation="org.jetbrains.jet.plugin.findUsages.JetElementDescriptionProvider" order="first"/>
     <findUsagesHandlerFactory implementation="org.jetbrains.jet.plugin.findUsages.KotlinFindUsagesHandlerFactory"/>
     <usageTypeProvider implementation="org.jetbrains.jet.plugin.findUsages.JetUsageTypeProvider"/>
     <refactoring.safeDeleteProcessor
@@ -299,6 +299,9 @@
         language="JAVA"
         implementationClass="org.jetbrains.jet.plugin.hierarchy.calls.KotlinCallHierarchyProvider"
         order="first" />
+    <methodHierarchyProvider
+        language="jet"
+        implementationClass="org.jetbrains.jet.plugin.hierarchy.overrides.KotlinOverrideHierarchyProvider" />
 
     <java.elementFinder implementation="org.jetbrains.jet.asJava.JavaElementFinder"/>
     <java.shortNamesCache implementation="org.jetbrains.jet.plugin.caches.JetShortNamesCache"/>
@@ -331,11 +334,11 @@
 
     <psi.treeChangePreprocessor implementation="org.jetbrains.jet.asJava.JetCodeBlockModificationListener"/>
 
-    <referencesSearch implementation="org.jetbrains.jet.plugin.search.KotlinReferencesSearcher"/>
-    <directClassInheritorsSearch implementation="org.jetbrains.jet.plugin.search.KotlinDirectInheritorsSearcher"/>
-    <definitionsScopedSearch implementation="org.jetbrains.jet.plugin.search.KotlinDefinitionsSearcher"/>
-    <annotatedElementsSearch implementation="org.jetbrains.jet.plugin.search.KotlinAnnotatedElementsSearcher"/>
-    <methodReferencesSearch implementation="org.jetbrains.jet.plugin.search.KotlinLightMethodUsagesSearcher"/>
+    <referencesSearch implementation="org.jetbrains.jet.plugin.search.ideaExtensions.KotlinReferencesSearcher"/>
+    <directClassInheritorsSearch implementation="org.jetbrains.jet.plugin.search.ideaExtensions.KotlinDirectInheritorsSearcher"/>
+    <definitionsScopedSearch implementation="org.jetbrains.jet.plugin.search.ideaExtensions.KotlinDefinitionsSearcher"/>
+    <annotatedElementsSearch implementation="org.jetbrains.jet.plugin.search.ideaExtensions.KotlinAnnotatedElementsSearcher"/>
+    <methodReferencesSearch implementation="org.jetbrains.jet.plugin.search.ideaExtensions.KotlinLightMethodUsagesSearcher"/>
 
     <exceptionFilter implementation="org.jetbrains.jet.plugin.filters.JetExceptionFilterFactory" order="first"/>
 
@@ -361,10 +364,15 @@
 
     <targetElementEvaluator
         language="jet"
-        implementationClass="org.jetbrains.jet.plugin.search.JetTargetElementEvaluator" />
+        implementationClass="org.jetbrains.jet.plugin.search.ideaExtensions.JetTargetElementEvaluator" />
 
     <intentionAction>
       <className>org.jetbrains.jet.plugin.intentions.SpecifyTypeExplicitlyAction</className>
+      <category>Kotlin</category>
+    </intentionAction>
+
+    <intentionAction>
+      <className>org.jetbrains.jet.plugin.intentions.ConvertToExpressionBodyAction</className>
       <category>Kotlin</category>
     </intentionAction>
 

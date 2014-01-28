@@ -16,24 +16,32 @@
 
 package org.jetbrains.jet.lang.descriptors;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.intellij.openapi.diagnostic.Logger;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.jet.lang.ModuleConfiguration;
 import org.jetbrains.jet.lang.PlatformToKotlinClassMap;
-import org.jetbrains.jet.lang.descriptors.annotations.AnnotationDescriptor;
+import org.jetbrains.jet.lang.descriptors.annotations.Annotations;
+import org.jetbrains.jet.lang.descriptors.impl.CompositePackageFragmentProvider;
 import org.jetbrains.jet.lang.descriptors.impl.DeclarationDescriptorImpl;
-import org.jetbrains.jet.lang.descriptors.impl.NamespaceDescriptorImpl;
+import org.jetbrains.jet.lang.descriptors.impl.PackageViewDescriptorImpl;
 import org.jetbrains.jet.lang.resolve.ImportPath;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.types.TypeSubstitutor;
 
-import java.util.Collections;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public class ModuleDescriptorImpl extends DeclarationDescriptorImpl implements ModuleDescriptor {
-    private NamespaceDescriptor rootNamepsace;
-    private ModuleConfiguration moduleConfiguration;
+    private static final Logger LOG = Logger.getInstance(ModuleDescriptorImpl.class);
+
+
+    private final Map<DependencyKind, List<PackageFragmentProvider>> prioritizedFragmentProviders = Maps.newHashMap();
+    private final List<PackageFragmentProvider> fragmentProviders = Lists.newArrayList();
+    private final CompositePackageFragmentProvider packageFragmentProvider = new CompositePackageFragmentProvider(fragmentProviders);
     private final List<ImportPath> defaultImports;
     private final PlatformToKotlinClassMap platformToKotlinClassMap;
 
@@ -42,7 +50,7 @@ public class ModuleDescriptorImpl extends DeclarationDescriptorImpl implements M
             @NotNull List<ImportPath> defaultImports,
             @NotNull PlatformToKotlinClassMap platformToKotlinClassMap
     ) {
-        super(Collections.<AnnotationDescriptor>emptyList(), name);
+        super(Annotations.EMPTY, name);
         if (!name.isSpecial()) {
             throw new IllegalArgumentException("module name must be special: " + name);
         }
@@ -50,11 +58,27 @@ public class ModuleDescriptorImpl extends DeclarationDescriptorImpl implements M
         this.platformToKotlinClassMap = platformToKotlinClassMap;
     }
 
-    public void setRootNamespace(@NotNull NamespaceDescriptor rootNs) {
-        if (this.rootNamepsace != null) {
-            throw new IllegalStateException("setRootNamespace() is called twice");
+    public void addFragmentProvider(@NotNull DependencyKind dependencyKind, @NotNull PackageFragmentProvider provider) {
+        if (fragmentProviders.contains(provider)) {
+            LOG.error("Trying to add already present fragment provider: " + provider);
         }
-        this.rootNamepsace = rootNs;
+        List<PackageFragmentProvider> providers = prioritizedFragmentProviders.get(dependencyKind);
+        if (providers == null) {
+            providers = new ArrayList<PackageFragmentProvider>(1);
+            prioritizedFragmentProviders.put(dependencyKind, providers);
+        }
+        providers.add(provider);
+        buildProvidersList();
+    }
+
+    private void buildProvidersList() {
+        fragmentProviders.clear();
+        for (DependencyKind dependencyKind : DependencyKind.values()) {
+            List<PackageFragmentProvider> providers = prioritizedFragmentProviders.get(dependencyKind);
+            if (providers != null) {
+                fragmentProviders.addAll(providers);
+            }
+        }
     }
 
     @Override
@@ -63,29 +87,19 @@ public class ModuleDescriptorImpl extends DeclarationDescriptorImpl implements M
         return null;
     }
 
+    @NotNull
+    @Override
+    public PackageFragmentProvider getPackageFragmentProvider() {
+        return packageFragmentProvider;
+    }
+
     @Nullable
     @Override
-    public NamespaceDescriptor getNamespace(@NotNull FqName fqName) {
-        if (fqName.isRoot()) return rootNamepsace;
-        NamespaceDescriptor current = rootNamepsace;
-        for (Name simpleName : fqName.pathSegments()) {
-            current = current.getMemberScope().getNamespace(simpleName);
-            if (current == null) return null;
-        }
-        return current;
-    }
-
-    @NotNull
-    @Override
-    public ModuleConfiguration getModuleConfiguration() {
-        return moduleConfiguration;
-    }
-
-    @NotNull
-    public ModuleDescriptorImpl setModuleConfiguration(@NotNull ModuleConfiguration moduleConfiguration) {
-        assert this.moduleConfiguration == null : "Trying to set module configuration twice for " + this;
-        this.moduleConfiguration = moduleConfiguration;
-        return this;
+    public PackageViewDescriptor getPackage(@NotNull FqName fqName) {
+        List<PackageFragmentDescriptor> fragments = packageFragmentProvider.getPackageFragments(fqName);
+        return !fragments.isEmpty()
+               ? new PackageViewDescriptorImpl(this, fqName, fragments)
+               : null;
     }
 
     @NotNull
@@ -100,10 +114,6 @@ public class ModuleDescriptorImpl extends DeclarationDescriptorImpl implements M
         return platformToKotlinClassMap;
     }
 
-    public NamespaceDescriptorImpl getRootNamespaceDescriptorImpl() {
-        return (NamespaceDescriptorImpl) rootNamepsace;
-    }
-
     @NotNull
     @Override
     public ModuleDescriptor substitute(@NotNull TypeSubstitutor substitutor) {
@@ -114,14 +124,4 @@ public class ModuleDescriptorImpl extends DeclarationDescriptorImpl implements M
     public <R, D> R accept(DeclarationDescriptorVisitor<R, D> visitor, D data) {
         return visitor.visitModuleDeclaration(this, data);
     }
-
-
-    @Override
-    public void addNamespace(@NotNull NamespaceDescriptor namespaceDescriptor) {
-        if (namespaceDescriptor.getContainingDeclaration() != this) {
-            throw new IllegalStateException();
-        }
-        setRootNamespace(namespaceDescriptor);
-    }
-
 }

@@ -65,7 +65,7 @@ public final class JavaClassResolver {
     private JavaMemberResolver memberResolver;
     private JavaAnnotationResolver annotationResolver;
     private JavaClassFinder javaClassFinder;
-    private JavaNamespaceResolver namespaceResolver;
+    private JavaPackageFragmentProvider packageFragmentProvider;
     private JavaSupertypeResolver supertypesResolver;
     private JavaFunctionResolver functionResolver;
     private DeserializedDescriptorResolver deserializedDescriptorResolver;
@@ -105,8 +105,8 @@ public final class JavaClassResolver {
     }
 
     @Inject
-    public void setNamespaceResolver(JavaNamespaceResolver namespaceResolver) {
-        this.namespaceResolver = namespaceResolver;
+    public void setPackageFragmentProvider(JavaPackageFragmentProvider packageFragmentProvider) {
+        this.packageFragmentProvider = packageFragmentProvider;
     }
 
     @Inject
@@ -168,13 +168,13 @@ public final class JavaClassResolver {
     }
 
     @Nullable
-    private static ClassDescriptor getKotlinBuiltinClassDescriptor(@NotNull FqName qualifiedName) {
+    public static ClassDescriptor getKotlinBuiltinClassDescriptor(@NotNull FqName qualifiedName) {
         if (!qualifiedName.firstSegmentIs(KotlinBuiltIns.BUILT_INS_PACKAGE_NAME)) return null;
 
         List<Name> segments = qualifiedName.pathSegments();
         if (segments.size() < 2) return null;
 
-        JetScope scope = KotlinBuiltIns.getInstance().getBuiltInsScope();
+        JetScope scope = KotlinBuiltIns.getInstance().getBuiltInsPackageScope();
         for (int i = 1, size = segments.size(); i < size; i++) {
             ClassifierDescriptor classifier = scope.getClassifier(segments.get(i));
             if (classifier == null) return null;
@@ -187,7 +187,7 @@ public final class JavaClassResolver {
 
     private ClassDescriptor doResolveClass(@NotNull FqName qualifiedName, @NotNull PostponedTasks tasks) {
         //TODO: correct scope
-        KotlinJvmBinaryClass kotlinClass = kotlinClassFinder.find(qualifiedName);
+        KotlinJvmBinaryClass kotlinClass = kotlinClassFinder.findKotlinClass(qualifiedName);
         if (kotlinClass != null) {
             ClassDescriptor deserializedDescriptor = deserializedDescriptorResolver.resolveClass(kotlinClass);
             if (deserializedDescriptor != null) {
@@ -208,7 +208,7 @@ public final class JavaClassResolver {
             return alreadyResolved;
         }
 
-        ClassOrNamespaceDescriptor containingDeclaration = resolveParentDescriptor(qualifiedName, javaClass.getOuterClass());
+        ClassOrPackageFragmentDescriptor containingDeclaration = resolveParentDescriptor(qualifiedName, javaClass.getOuterClass());
         // class may be resolved during resolution of parent
         ClassDescriptor cachedDescriptor = classDescriptorCache.get(javaClassToKotlinFqName(qualifiedName));
         if (cachedDescriptor != null) {
@@ -226,7 +226,7 @@ public final class JavaClassResolver {
     }
 
     private void cacheNegativeValue(@NotNull FqNameUnsafe fqNameUnsafe) {
-        if (unresolvedCache.contains(fqNameUnsafe) || classDescriptorCache.containsKey(fqNameUnsafe)) {
+        if (classDescriptorCache.containsKey(fqNameUnsafe)) {
             throw new IllegalStateException("rewrite at " + fqNameUnsafe);
         }
         unresolvedCache.add(fqNameUnsafe);
@@ -242,7 +242,7 @@ public final class JavaClassResolver {
             @NotNull FqName fqName,
             @NotNull JavaClass javaClass,
             @NotNull PostponedTasks taskList,
-            @NotNull ClassOrNamespaceDescriptor containingDeclaration
+            @NotNull ClassOrPackageFragmentDescriptor containingDeclaration
     ) {
         ClassDescriptorFromJvmBytecode classDescriptor =
                 new ClassDescriptorFromJvmBytecode(containingDeclaration, javaClass.getName(), determineClassKind(javaClass), isInnerClass(javaClass));
@@ -290,7 +290,7 @@ public final class JavaClassResolver {
     }
 
     @NotNull
-    private static ClassKind determineClassKind(@NotNull JavaClass klass) {
+    public static ClassKind determineClassKind(@NotNull JavaClass klass) {
         if (klass.isInterface()) {
             return klass.isAnnotationType() ? ClassKind.ANNOTATION_CLASS : ClassKind.TRAIT;
         }
@@ -298,14 +298,14 @@ public final class JavaClassResolver {
     }
 
     @NotNull
-    private static Modality determineClassModality(@NotNull JavaClass klass) {
+    public static Modality determineClassModality(@NotNull JavaClass klass) {
         return klass.isAnnotationType()
                ? Modality.FINAL
                : Modality.convertFromFlags(klass.isAbstract() || klass.isInterface(), !klass.isFinal());
     }
 
     @NotNull
-    private static FqNameUnsafe getFqNameForClassObject(@NotNull JavaClass javaClass) {
+    public static FqNameUnsafe getFqNameForClassObject(@NotNull JavaClass javaClass) {
         FqName fqName = javaClass.getFqName();
         assert fqName != null : "Reading java class with no qualified name";
         return fqName.toUnsafe().child(getClassObjectName(javaClass.getName()));
@@ -320,7 +320,7 @@ public final class JavaClassResolver {
         FqName containerFqName = methodContainer.getFqName();
         assert containerFqName != null : "qualified name is null for " + methodContainer;
 
-        if (DescriptorUtils.getFQName(samInterface).equalsTo(containerFqName)) {
+        if (DescriptorUtils.getFqName(samInterface).equalsTo(containerFqName)) {
             SimpleFunctionDescriptor abstractMethod = functionResolver.resolveFunctionMutely(samInterfaceMethod, samInterface);
             assert abstractMethod != null : "couldn't resolve method " + samInterfaceMethod;
             return abstractMethod;
@@ -331,7 +331,7 @@ public final class JavaClassResolver {
     }
 
     @NotNull
-    private static SimpleFunctionDescriptor findFunctionWithMostSpecificReturnType(@NotNull Set<JetType> supertypes) {
+    public static SimpleFunctionDescriptor findFunctionWithMostSpecificReturnType(@NotNull Set<JetType> supertypes) {
         List<SimpleFunctionDescriptor> candidates = new ArrayList<SimpleFunctionDescriptor>(supertypes.size());
         for (JetType supertype : supertypes) {
             List<CallableMemberDescriptor> abstractMembers = SingleAbstractMethodUtils.getAbstractMembers(supertype);
@@ -374,7 +374,7 @@ public final class JavaClassResolver {
     }
 
     @NotNull
-    private ClassOrNamespaceDescriptor resolveParentDescriptor(@NotNull FqName childClassFQName, JavaClass parentClass) {
+    private ClassOrPackageFragmentDescriptor resolveParentDescriptor(@NotNull FqName childClassFQName, JavaClass parentClass) {
         if (parentClass != null) {
             FqName parentFqName = parentClass.getFqName();
             ClassDescriptor parentClassDescriptor = resolveClass(parentFqName, INCLUDE_KOTLIN_SOURCES);
@@ -385,11 +385,11 @@ public final class JavaClassResolver {
         }
         else {
             FqName parentFqName = childClassFQName.parent();
-            NamespaceDescriptor parentNamespace = namespaceResolver.resolveNamespace(parentFqName, INCLUDE_KOTLIN_SOURCES);
-            if (parentNamespace == null) {
+            PackageFragmentDescriptor parentPackage = packageFragmentProvider.getPackageFragment(parentFqName);
+            if (parentPackage == null) {
                 throw new IllegalStateException("Could not resolve " + parentFqName + " required to be parent for " + childClassFQName);
             }
-            return parentNamespace;
+            return parentPackage;
         }
     }
 
@@ -410,11 +410,11 @@ public final class JavaClassResolver {
         return FqNameUnsafe.fromSegments(correctedSegments);
     }
 
-    private static boolean isInnerClass(@NotNull JavaClass javaClass) {
+    public static boolean isInnerClass(@NotNull JavaClass javaClass) {
         return javaClass.getOuterClass() != null && !javaClass.isStatic();
     }
 
-    private static void createEnumSyntheticMethods(@NotNull JavaEnumClassObjectDescriptor classObject, @NotNull JetType enumType) {
+    public static void createEnumSyntheticMethods(@NotNull JavaEnumClassObjectDescriptor classObject, @NotNull JetType enumType) {
         JetType valuesReturnType = KotlinBuiltIns.getInstance().getArrayType(enumType);
         SimpleFunctionDescriptor valuesMethod = DescriptorFactory.createEnumClassObjectValuesMethod(classObject, valuesReturnType);
         classObject.getBuilder().addFunctionDescriptor(valuesMethod);
@@ -427,6 +427,7 @@ public final class JavaClassResolver {
     private JavaEnumClassObjectDescriptor createEnumClassObject(@NotNull ClassDescriptor enumClass, @NotNull JavaClass javaClass) {
         JavaEnumClassObjectDescriptor classObject = new JavaEnumClassObjectDescriptor(enumClass);
 
+        classObject.setSupertypes(Collections.singleton(KotlinBuiltIns.getInstance().getAnyType()));
         classObject.setModality(Modality.FINAL);
         classObject.setVisibility(DescriptorUtils.getSyntheticClassObjectVisibility());
         classObject.setTypeParameterDescriptors(Collections.<TypeParameterDescriptor>emptyList());

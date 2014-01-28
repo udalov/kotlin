@@ -21,7 +21,7 @@ import com.intellij.psi.PsiFile;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.analyzer.AnalyzeExhaust;
 import org.jetbrains.jet.cli.jvm.compiler.JetCoreEnvironment;
-import org.jetbrains.jet.lang.descriptors.NamespaceDescriptor;
+import org.jetbrains.jet.lang.descriptors.PackageViewDescriptor;
 import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.resolve.AnalyzerScriptParameter;
 import org.jetbrains.jet.lang.resolve.AnalyzingUtils;
@@ -33,9 +33,9 @@ import java.io.File;
 import java.util.Collections;
 
 import static org.jetbrains.jet.objc.ObjCTestUtil.createEnvironment;
-import static org.jetbrains.jet.objc.ObjCTestUtil.extractObjCNamespaceFromAnalyzeExhaust;
-import static org.jetbrains.jet.test.util.NamespaceComparator.DONT_INCLUDE_METHODS_OF_OBJECT;
-import static org.jetbrains.jet.test.util.NamespaceComparator.validateAndCompareNamespaceWithFile;
+import static org.jetbrains.jet.objc.ObjCTestUtil.extractObjCPackageFromAnalyzeExhaust;
+import static org.jetbrains.jet.test.util.RecursiveDescriptorComparator.DONT_INCLUDE_METHODS_OF_OBJECT;
+import static org.jetbrains.jet.test.util.RecursiveDescriptorComparator.validateAndCompareDescriptorWithFile;
 
 public abstract class AbstractObjCDescriptorResolverTest extends TestCaseWithTmpdir {
     public void doTest(@NotNull String header) {
@@ -54,10 +54,10 @@ public abstract class AbstractObjCDescriptorResolverTest extends TestCaseWithTmp
         analyzeExhaust.throwIfError();
         AnalyzingUtils.throwExceptionOnErrors(analyzeExhaust.getBindingContext());
 
-        NamespaceDescriptor descriptor = extractObjCNamespaceFromAnalyzeExhaust(analyzeExhaust);
+        PackageViewDescriptor descriptor = extractObjCPackageFromAnalyzeExhaust(analyzeExhaust);
 
         // TODO: add a configuration not to show INVISIBLE_FAKE members
 
-        validateAndCompareNamespaceWithFile(descriptor, DONT_INCLUDE_METHODS_OF_OBJECT, expected);
+        validateAndCompareDescriptorWithFile(descriptor, DONT_INCLUDE_METHODS_OF_OBJECT, expected);
     }
 }

@@ -22,7 +22,6 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Pair;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.tree.IElementType;
-import com.intellij.psi.tree.TokenSet;
 import com.intellij.psi.util.PsiTreeUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -130,15 +129,6 @@ public class ExpressionTypingUtils {
         else {
             throw new IllegalArgumentException("Unsupported constant type: " + constantType);
         }
-    }
-
-    public static boolean isTypeFlexible(@Nullable JetExpression expression) {
-        if (expression == null) return false;
-
-        return TokenSet.create(
-                JetNodeTypes.INTEGER_CONSTANT,
-                JetNodeTypes.FLOAT_CONSTANT
-        ).contains(expression.getNode().getElementType());
     }
 
     private static boolean isCapturedInInline(
@@ -268,7 +258,7 @@ public class ExpressionTypingUtils {
     ) {
         JetType type = receiverArgument.getType();
 
-        if (type instanceof NamespaceType) {
+        if (type instanceof PackageType) {
             // This fake class ruins standard algorithms
             return false;
         }

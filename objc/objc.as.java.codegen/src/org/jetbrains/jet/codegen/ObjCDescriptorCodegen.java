@@ -23,7 +23,7 @@ import org.jetbrains.jet.codegen.binding.CodegenBinding;
 import org.jetbrains.jet.codegen.state.JetTypeMapper;
 import org.jetbrains.jet.lang.descriptors.ClassDescriptor;
 import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor;
-import org.jetbrains.jet.lang.descriptors.NamespaceDescriptor;
+import org.jetbrains.jet.lang.descriptors.PackageViewDescriptor;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.BindingTraceContext;
 import org.jetbrains.jet.lang.resolve.java.JvmAbi;
@@ -91,8 +91,8 @@ public class ObjCDescriptorCodegen {
         return result;
     }
 
-    public void generate(@NotNull NamespaceDescriptor namespace, @NotNull File outputDir, @NotNull File dylib) {
-        Collection<ClassDescriptor> classes = filterClasses(namespace.getMemberScope().getAllDescriptors());
+    public void generate(@NotNull PackageViewDescriptor objcPackage, @NotNull File outputDir, @NotNull File dylib) {
+        Collection<ClassDescriptor> classes = filterClasses(objcPackage.getMemberScope().getAllDescriptors());
 
         for (ClassDescriptor descriptor : classes) {
             if (descriptor instanceof ObjCMetaclassDescriptor) {

@@ -23,6 +23,7 @@ import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
 import org.jetbrains.jet.lang.types.JetType;
+import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 
 import java.io.PrintStream;
 import java.util.Arrays;
@@ -175,8 +176,16 @@ public class DescriptorValidator {
         }
 
         @Override
-        public Boolean visitNamespaceDescriptor(
-                NamespaceDescriptor descriptor, DiagnosticCollector collector
+        public Boolean visitPackageFragmentDescriptor(
+                PackageFragmentDescriptor descriptor, DiagnosticCollector collector
+        ) {
+            validateScope(descriptor.getMemberScope(), collector);
+            return true;
+        }
+
+        @Override
+        public Boolean visitPackageViewDescriptor(
+                PackageViewDescriptor descriptor, DiagnosticCollector collector
         ) {
             validateScope(descriptor.getMemberScope(), collector);
             return true;
@@ -214,7 +223,14 @@ public class DescriptorValidator {
                 ClassDescriptor descriptor, DiagnosticCollector collector
         ) {
             validateTypeParameters(collector, descriptor.getTypeConstructor().getParameters());
-            validateTypes(descriptor, collector, descriptor.getTypeConstructor().getSupertypes());
+
+            Collection<JetType> supertypes = descriptor.getTypeConstructor().getSupertypes();
+            if (supertypes.isEmpty() && descriptor.getKind() != ClassKind.TRAIT
+                && KotlinBuiltIns.getInstance().getAny() != descriptor
+                && KotlinBuiltIns.getInstance().getNothing() != descriptor) {
+                report(collector, descriptor, "No supertypes for non-trait");
+            }
+            validateTypes(descriptor, collector, supertypes);
 
             validateType(descriptor, descriptor.getDefaultType(), collector);
 
@@ -340,12 +356,13 @@ public class DescriptorValidator {
         private void assertFound(
                 @NotNull JetScope scope,
                 @NotNull DeclarationDescriptor expected,
-                @Nullable DeclarationDescriptor found
+                @Nullable DeclarationDescriptor found,
+                boolean shouldBeSame
         ) {
             if (found == null) {
                 report(expected, "Not found in " + scope);
             }
-            if (expected != found) {
+            if (shouldBeSame ? expected != found : !expected.equals(found)) {
                 report(expected, "Lookup error in " + scope + ": " + found);
             }
         }
@@ -361,10 +378,17 @@ public class DescriptorValidator {
         }
 
         @Override
-        public Void visitNamespaceDescriptor(
-                NamespaceDescriptor descriptor, JetScope scope
+        public Void visitPackageFragmentDescriptor(
+                PackageFragmentDescriptor descriptor, JetScope scope
         ) {
-            assertFound(scope, descriptor, scope.getNamespace(descriptor.getName()));
+            return null;
+        }
+
+        @Override
+        public Void visitPackageViewDescriptor(
+                PackageViewDescriptor descriptor, JetScope scope
+        ) {
+            assertFound(scope, descriptor, scope.getPackage(descriptor.getName()), false);
             return null;
         }
 
@@ -388,7 +412,7 @@ public class DescriptorValidator {
         public Void visitTypeParameterDescriptor(
                 TypeParameterDescriptor descriptor, JetScope scope
         ) {
-            assertFound(scope, descriptor, scope.getClassifier(descriptor.getName()));
+            assertFound(scope, descriptor, scope.getClassifier(descriptor.getName()), true);
             return null;
         }
 
@@ -396,7 +420,7 @@ public class DescriptorValidator {
         public Void visitClassDescriptor(
                 ClassDescriptor descriptor, JetScope scope
         ) {
-            assertFound(scope, descriptor, scope.getClassifier(descriptor.getName()));
+            assertFound(scope, descriptor, scope.getClassifier(descriptor.getName()), true);
             return null;
         }
 

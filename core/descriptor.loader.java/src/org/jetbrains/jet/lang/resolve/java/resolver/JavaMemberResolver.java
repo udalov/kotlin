@@ -30,7 +30,6 @@ import java.util.Set;
 
 public class JavaMemberResolver {
     private JavaClassResolver classResolver;
-    private JavaNamespaceResolver namespaceResolver;
     private JavaFunctionResolver functionResolver;
     private JavaPropertyResolver propertyResolver;
     private JavaConstructorResolver constructorResolver;
@@ -38,11 +37,6 @@ public class JavaMemberResolver {
     @Inject
     public void setClassResolver(JavaClassResolver classResolver) {
         this.classResolver = classResolver;
-    }
-
-    @Inject
-    public void setNamespaceResolver(JavaNamespaceResolver namespaceResolver) {
-        this.namespaceResolver = namespaceResolver;
     }
 
     @Inject
@@ -65,18 +59,13 @@ public class JavaMemberResolver {
         return classResolver.resolveClass(qualifiedName, searchRule);
     }
 
-    @Nullable
-    public NamespaceDescriptor resolveNamespace(@NotNull FqName qualifiedName, @NotNull DescriptorSearchRule searchRule) {
-        return namespaceResolver.resolveNamespace(qualifiedName, searchRule);
-    }
-
     @NotNull
-    public Set<FunctionDescriptor> resolveFunctionGroupForClass(@NotNull NamedMembers members, @NotNull ClassOrNamespaceDescriptor owner) {
+    public Set<FunctionDescriptor> resolveFunctionGroupForClass(@NotNull NamedMembers members, @NotNull ClassOrPackageFragmentDescriptor owner) {
         return functionResolver.resolveFunctionGroupForClass(members, owner);
     }
 
     @NotNull
-    public Set<VariableDescriptor> resolveFieldGroup(@NotNull NamedMembers members, @NotNull ClassOrNamespaceDescriptor ownerDescriptor) {
+    public Set<VariableDescriptor> resolveFieldGroup(@NotNull NamedMembers members, @NotNull ClassOrPackageFragmentDescriptor ownerDescriptor) {
         return propertyResolver.resolveFieldGroup(members, ownerDescriptor);
     }
 

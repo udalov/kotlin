@@ -18,24 +18,19 @@ package org.jetbrains.jet.lang.resolve.objc;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor;
-import org.jetbrains.jet.lang.descriptors.annotations.AnnotationDescriptor;
+import org.jetbrains.jet.lang.descriptors.annotations.Annotations;
 import org.jetbrains.jet.lang.descriptors.impl.SimpleFunctionDescriptorImpl;
 import org.jetbrains.jet.lang.resolve.name.Name;
-
-import java.util.List;
 
 public class ObjCMethodDescriptor extends SimpleFunctionDescriptorImpl {
     private final String objcName;
 
     public ObjCMethodDescriptor(
             @NotNull DeclarationDescriptor containingDeclaration,
-            @NotNull List<AnnotationDescriptor> annotations,
+            @NotNull Annotations annotations,
             @NotNull String objcName
     ) {
-        super(containingDeclaration,
-              annotations,
-              transformMethodName(objcName),
-              Kind.DECLARATION);
+        super(containingDeclaration, annotations, transformMethodName(objcName), Kind.DECLARATION);
 
         this.objcName = objcName;
     }

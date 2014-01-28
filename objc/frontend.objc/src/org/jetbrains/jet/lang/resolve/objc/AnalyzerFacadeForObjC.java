@@ -23,12 +23,14 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.analyzer.AnalyzeExhaust;
 import org.jetbrains.jet.analyzer.AnalyzerFacade;
 import org.jetbrains.jet.di.InjectorForTopDownAnalyzerForObjC;
-import org.jetbrains.jet.lang.DefaultModuleConfiguration;
 import org.jetbrains.jet.lang.PlatformToKotlinClassMap;
+import org.jetbrains.jet.lang.descriptors.DependencyKind;
 import org.jetbrains.jet.lang.descriptors.ModuleDescriptor;
 import org.jetbrains.jet.lang.descriptors.ModuleDescriptorImpl;
 import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.resolve.*;
+import org.jetbrains.jet.lang.resolve.java.AnalyzerFacadeForJVM;
+import org.jetbrains.jet.lang.resolve.java.JavaDescriptorResolver;
 import org.jetbrains.jet.lang.resolve.lazy.ResolveSession;
 import org.jetbrains.jet.lang.resolve.name.Name;
 
@@ -50,9 +52,9 @@ public enum AnalyzerFacadeForObjC implements AnalyzerFacade {
     ) {
         List<ImportPath> imports = new ArrayList<ImportPath>();
         imports.add(new ImportPath("jet.objc.*"));
-        imports.addAll(DefaultModuleConfiguration.DEFAULT_JET_IMPORTS);
+        imports.addAll(AnalyzerFacadeForJVM.DEFAULT_IMPORTS);
 
-        ModuleDescriptorImpl owner = new ModuleDescriptorImpl(Name.special("<module>"), imports, PlatformToKotlinClassMap.EMPTY);
+        ModuleDescriptorImpl module = new ModuleDescriptorImpl(Name.special("<module>"), imports, PlatformToKotlinClassMap.EMPTY);
 
         TopDownAnalysisParameters topDownAnalysisParameters = new TopDownAnalysisParameters(
                 filesToAnalyzeCompletely, false, false, scriptParameters
@@ -62,15 +64,18 @@ public enum AnalyzerFacadeForObjC implements AnalyzerFacade {
 
         InjectorForTopDownAnalyzerForObjC injector = new InjectorForTopDownAnalyzerForObjC(
                 project, topDownAnalysisParameters,
-                new ObservableBindingTrace(trace), owner);
-        owner.setModuleConfiguration(injector.getObjCModuleConfiguration());
+                new ObservableBindingTrace(trace), module);
+
+        JavaDescriptorResolver jdr = injector.getJavaDescriptorResolver();
 
         // TODO: this is temporary to resolve Objective-C built-ins from Java compiled classes in runtime
-        ObjCBuiltIns.initialize(injector.getJavaDescriptorResolver());
+        ObjCBuiltIns.initialize(jdr);
 
         try {
+            module.addFragmentProvider(DependencyKind.BINARIES, jdr.getPackageFragmentProvider());
+            module.addFragmentProvider(DependencyKind.SOURCES, injector.getObjCResolveFacade());
             injector.getTopDownAnalyzer().analyzeFiles(files, scriptParameters);
-            return AnalyzeExhaust.success(trace.getBindingContext(), null, owner);
+            return AnalyzeExhaust.success(trace.getBindingContext(), null, module);
         } finally {
             injector.destroy();
         }

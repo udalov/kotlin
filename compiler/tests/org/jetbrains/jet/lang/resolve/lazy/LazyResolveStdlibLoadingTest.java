@@ -22,11 +22,11 @@ import org.jetbrains.jet.KotlinTestWithEnvironmentManagement;
 import org.jetbrains.jet.TestJdkKind;
 import org.jetbrains.jet.cli.jvm.compiler.JetCoreEnvironment;
 import org.jetbrains.jet.lang.descriptors.ModuleDescriptor;
-import org.jetbrains.jet.lang.descriptors.NamespaceDescriptor;
+import org.jetbrains.jet.lang.descriptors.PackageViewDescriptor;
 import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.Name;
-import org.jetbrains.jet.test.util.NamespaceComparator;
+import org.jetbrains.jet.test.util.RecursiveDescriptorComparator;
 
 import java.io.File;
 import java.util.List;
@@ -46,15 +46,15 @@ public class LazyResolveStdlibLoadingTest extends KotlinTestWithEnvironmentManag
     protected void doTestForGivenFiles(
             List<JetFile> files
     ) {
-        Set<Name> namespaceShortNames = LazyResolveTestUtil.getTopLevelPackagesFromFileList(files);
+        Set<Name> packageShortNames = LazyResolveTestUtil.getTopLevelPackagesFromFileList(files);
 
         ModuleDescriptor module = LazyResolveTestUtil.resolveEagerly(files, stdlibEnvironment);
         ModuleDescriptor lazyModule = LazyResolveTestUtil.resolveLazily(files, stdlibEnvironment);
 
-        for (Name name : namespaceShortNames) {
-            NamespaceDescriptor eager = module.getNamespace(FqName.topLevel(name));
-            NamespaceDescriptor lazy = lazyModule.getNamespace(FqName.topLevel(name));
-            NamespaceComparator.validateAndCompareNamespaces(eager, lazy, NamespaceComparator.RECURSIVE, null);
+        for (Name name : packageShortNames) {
+            PackageViewDescriptor eager = module.getPackage(FqName.topLevel(name));
+            PackageViewDescriptor lazy = lazyModule.getPackage(FqName.topLevel(name));
+            RecursiveDescriptorComparator.validateAndCompareDescriptors(eager, lazy, RecursiveDescriptorComparator.RECURSIVE, null);
         }
     }
 

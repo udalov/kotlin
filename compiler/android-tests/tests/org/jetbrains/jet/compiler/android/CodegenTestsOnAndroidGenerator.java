@@ -26,6 +26,7 @@ import org.jetbrains.jet.JetTestUtils;
 import org.jetbrains.jet.OutputFileCollection;
 import org.jetbrains.jet.cli.common.output.outputUtils.OutputUtilsPackage;
 import org.jetbrains.jet.cli.jvm.compiler.JetCoreEnvironment;
+import org.jetbrains.jet.codegen.CodegenTestFiles;
 import org.jetbrains.jet.codegen.GenerationUtils;
 import org.jetbrains.jet.compiler.PathManager;
 import org.jetbrains.jet.generators.tests.generator.TestGeneratorUtil;
@@ -38,7 +39,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
 
 public class CodegenTestsOnAndroidGenerator extends UsefulTestCase {
 
@@ -154,7 +154,8 @@ public class CodegenTestsOnAndroidGenerator extends UsefulTestCase {
     }
 
     private static OutputFileCollection compileFromText(String filePath, String text, JetCoreEnvironment jetEnvironment) {
-        JetFile psiFile = JetTestUtils.createFile("dummy.kt", text, jetEnvironment.getProject());
+        CodegenTestFiles codegenFile = CodegenTestFiles.create("dummy.kt", text, jetEnvironment.getProject());
+        JetFile psiFile = codegenFile.getPsiFile();
         OutputFileCollection outputFiles;
         try {
             outputFiles = GenerationUtils.compileFileGetClassFileFactoryForTest(psiFile);
@@ -179,10 +180,10 @@ public class CodegenTestsOnAndroidGenerator extends UsefulTestCase {
         }
     }
 
-    private static void generateTestMethod(Printer p, String testName, String namespace) {
+    private static void generateTestMethod(Printer p, String testName, String packageName) {
         p.println("public void test" + testName + "() throws Exception {");
         p.pushIndent();
-        p.println("invokeBoxMethod(\"" + namespace + "\", \"OK\");");
+        p.println("invokeBoxMethod(\"" + packageName + "\", \"OK\");");
         p.popIndent();
         p.println("}");
         p.println();

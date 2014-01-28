@@ -89,12 +89,12 @@ public class DataFlowValueFactory {
     private static class IdentifierInfo {
         public final Object id;
         public final boolean isStable;
-        public final boolean isNamespace;
+        public final boolean isPackage;
 
-        private IdentifierInfo(Object id, boolean isStable, boolean isNamespace) {
+        private IdentifierInfo(Object id, boolean isStable, boolean isPackage) {
             this.id = id;
             this.isStable = isStable;
-            this.isNamespace = isNamespace;
+            this.isPackage = isPackage;
         }
     }
 
@@ -111,7 +111,7 @@ public class DataFlowValueFactory {
     }
 
     @NotNull
-    private static IdentifierInfo createNamespaceInfo(Object id) {
+    private static IdentifierInfo createPackageInfo(Object id) {
         return new IdentifierInfo(id, true, true);
     }
 
@@ -120,7 +120,7 @@ public class DataFlowValueFactory {
         if (selectorInfo.id == null) {
             return NO_IDENTIFIER_INFO;
         }
-        if (receiverInfo == null || receiverInfo == NO_IDENTIFIER_INFO || receiverInfo.isNamespace) {
+        if (receiverInfo == null || receiverInfo == NO_IDENTIFIER_INFO || receiverInfo.isPackage) {
             return selectorInfo;
         }
         return createInfo(Pair.create(receiverInfo.id, selectorInfo.id), receiverInfo.isStable && selectorInfo.isStable);
@@ -155,8 +155,8 @@ public class DataFlowValueFactory {
 
             return getIdForThisReceiver(declarationDescriptor);
         }
-        else if (expression instanceof JetRootNamespaceExpression) {
-            return createNamespaceInfo(JetModuleUtil.getRootNamespaceType(expression));
+        else if (expression instanceof JetRootPackageExpression) {
+            return createPackageInfo(JetModuleUtil.getRootPackageType(expression));
         }
         return NO_IDENTIFIER_INFO;
     }
@@ -179,8 +179,8 @@ public class DataFlowValueFactory {
             VariableDescriptor variableDescriptor = (VariableDescriptor) declarationDescriptor;
             return combineInfo(receiverInfo, createInfo(variableDescriptor, isStableVariable(variableDescriptor)));
         }
-        if (declarationDescriptor instanceof NamespaceDescriptor) {
-            return createNamespaceInfo(declarationDescriptor);
+        if (declarationDescriptor instanceof PackageViewDescriptor) {
+            return createPackageInfo(declarationDescriptor);
         }
         return NO_IDENTIFIER_INFO;
     }

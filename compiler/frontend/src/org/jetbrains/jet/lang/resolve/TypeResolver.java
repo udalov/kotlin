@@ -20,7 +20,7 @@ import jet.Function0;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.*;
-import org.jetbrains.jet.lang.descriptors.annotations.AnnotationDescriptor;
+import org.jetbrains.jet.lang.descriptors.annotations.Annotations;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
 import org.jetbrains.jet.lang.resolve.scopes.LazyScopeAdapter;
@@ -76,7 +76,7 @@ public class TypeResolver {
         JetType cachedType = c.trace.getBindingContext().get(BindingContext.TYPE, typeReference);
         if (cachedType != null) return type(cachedType);
 
-        List<AnnotationDescriptor> annotations = annotationResolver.getResolvedAnnotations(typeReference.getAnnotations(), c.trace);
+        Annotations annotations = annotationResolver.getResolvedAnnotations(typeReference.getAnnotations(), c.trace);
 
         JetTypeElement typeElement = typeReference.getTypeElement();
         PossiblyBareType type = resolveTypeElement(c, annotations, typeElement);
@@ -91,7 +91,7 @@ public class TypeResolver {
     @NotNull
     private PossiblyBareType resolveTypeElement(
             final TypeResolutionContext c,
-            final List<AnnotationDescriptor> annotations,
+            final Annotations annotations,
             JetTypeElement typeElement
     ) {
 
@@ -135,8 +135,7 @@ public class TypeResolver {
 
                         DeclarationDescriptor containing = typeParameterDescriptor.getContainingDeclaration();
                         if (containing instanceof ClassDescriptor) {
-                            // Type parameter can't be inherited from member of parent class, so we can skip subclass check
-                            DescriptorResolver.checkHasOuterClassInstance(c.scope, c.trace, referenceExpression, (ClassDescriptor) containing, false);
+                            DescriptorResolver.checkHasOuterClassInstance(c.scope, c.trace, referenceExpression, (ClassDescriptor) containing);
                         }
                     }
                     else if (classifierDescriptor instanceof ClassDescriptor) {

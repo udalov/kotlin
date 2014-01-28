@@ -210,56 +210,12 @@ public class JetClass extends JetTypeParameterListOwnerStub<PsiJetClassStub> imp
         }
         PsiFile file = getContainingFile();
         if (!(file instanceof JetFile)) return null;
-        String fileQualifiedName = ((JetFile) file).getNamespaceHeader().getQualifiedName();
+        String fileQualifiedName = ((JetFile) file).getPackageDirective().getQualifiedName();
         if (!fileQualifiedName.isEmpty()) {
             parts.add(fileQualifiedName);
         }
         Collections.reverse(parts);
         return StringUtil.join(parts, ".");
-    }
-
-    /**
-     * Returns the list of unqualified names that are indexed as the superclass names of this class. For the names that might be imported
-     * via an aliased import, includes both the original and the aliased name (reference resolution during inheritor search will sort this out).
-     *
-     * @return the list of possible superclass names
-     */
-    @NotNull
-    public List<String> getSuperNames() {
-        PsiJetClassStub stub = getStub();
-        if (stub != null) {
-            return stub.getSuperNames();
-        }
-
-        List<JetDelegationSpecifier> specifiers = getDelegationSpecifiers();
-        if (specifiers.size() == 0) return Collections.emptyList();
-        List<String> result = new ArrayList<String>();
-        for (JetDelegationSpecifier specifier : specifiers) {
-            JetUserType superType = specifier.getTypeAsUserType();
-            if (superType != null) {
-                String referencedName = superType.getReferencedName();
-                if (referencedName != null) {
-                    addSuperName(result, referencedName);
-                }
-            }
-        }
-        return result;
-    }
-
-    private void addSuperName(List<String> result, String referencedName) {
-        result.add(referencedName);
-        if (getContainingFile() instanceof JetFile) {
-            JetImportDirective directive = ((JetFile) getContainingFile()).findImportByAlias(referencedName);
-            if (directive != null) {
-                JetExpression reference = directive.getImportedReference();
-                while (reference instanceof JetDotQualifiedExpression) {
-                    reference = ((JetDotQualifiedExpression) reference).getSelectorExpression();
-                }
-                if (reference instanceof JetSimpleNameExpression) {
-                    result.add(((JetSimpleNameExpression) reference).getReferencedName());
-                }
-            }
-        }
     }
 
     @Override

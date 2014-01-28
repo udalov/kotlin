@@ -23,24 +23,43 @@ import org.jetbrains.jet.lang.psi.JetDeclaration
 import org.jetbrains.jet.lang.psi.JetClass
 import org.jetbrains.jet.lang.psi.JetClassOrObject
 import org.jetbrains.jet.lexer.JetTokens
+import java.util.Collections
+import com.intellij.extapi.psi.StubBasedPsiElementBase
+import org.jetbrains.jet.lang.psi.stubs.PsiJetClassOrObjectStub
+import org.jetbrains.jet.lang.psi.JetFile
+import org.jetbrains.jet.lang.psi.JetDotQualifiedExpression
+import org.jetbrains.jet.lang.psi.JetSimpleNameExpression
+import java.util.ArrayList
 import org.jetbrains.jet.lang.psi.JetElement
 import org.jetbrains.jet.lang.psi.JetBlockExpression
 import org.jetbrains.jet.lang.psi.JetPsiUtil
 import org.jetbrains.jet.lang.psi.JetPsiFactory
+import kotlin.test.assertTrue
+import com.intellij.psi.search.SearchScope
+import com.intellij.psi.search.PsiSearchScopeUtil
+import org.jetbrains.jet.lang.psi.JetClassBody
+import org.jetbrains.jet.lang.psi.JetParameterList
+import org.jetbrains.jet.lang.psi.JetNamedDeclaration
+import com.intellij.psi.PsiNamedElement
+import org.jetbrains.jet.lang.psi.JetObjectDeclaration
+import org.jetbrains.jet.lang.psi.JetNamedFunction
+import org.jetbrains.jet.lang.psi.JetProperty
+import org.jetbrains.jet.lang.psi.JetCallableDeclaration
+import org.jetbrains.jet.lang.psi.JetPropertyAccessor
 
-fun PsiElement.getParentByTypeAndPredicate<T: PsiElement>(
-        parentClass : Class<T>, strict : Boolean = false, predicate: (T) -> Boolean
+fun PsiElement.getParentByTypesAndPredicate<T: PsiElement>(
+        strict : Boolean = false, vararg parentClasses : Class<T>, predicate: (T) -> Boolean
 ) : T? {
     var element = if (strict) getParent() else this
     while (element != null) {
         [suppress("UNCHECKED_CAST")]
         when {
-            parentClass.isInstance(element) && predicate(element as T) ->
+            (parentClasses.isEmpty() || parentClasses.any {parentClass -> parentClass.isInstance(element)}) && predicate(element!! as T) ->
                 return element as T
             element is PsiFile ->
                 return null
             else ->
-                element = element?.getParent()
+                element = element!!.getParent()
         }
     }
 
@@ -75,7 +94,7 @@ fun JetClassOrObject.effectiveDeclarations(): List<JetDeclaration> =
 fun JetClass.isAbstract() = isTrait() || hasModifier(JetTokens.ABSTRACT_KEYWORD)
 
 [suppress("UNCHECKED_CAST")]
-fun <T: PsiElement> PsiElement.replaced(newElement: T): T = replace(newElement)!! as T
+fun <T: PsiElement> PsiElement.replaced(newElement: T): T = replace(newElement) as T
 
 fun JetElement.blockExpressionsOrSingle(): Iterator<JetElement> =
         if (this is JetBlockExpression) getStatements().iterator() else SingleIterator(this)
@@ -92,3 +111,82 @@ fun JetElement.wrapInBlock(): JetBlockExpression {
     block.appendElement(this)
     return block
 }
+/**
+ * Returns the list of unqualified names that are indexed as the superclass names of this class. For the names that might be imported
+ * via an aliased import, includes both the original and the aliased name (reference resolution during inheritor search will sort this out).
+ *
+ * @return the list of possible superclass names
+ */
+fun <T: JetClassOrObject> StubBasedPsiElementBase<out PsiJetClassOrObjectStub<T>>.getSuperNames(): List<String> {
+    fun addSuperName(result: MutableList<String>, referencedName: String): Unit {
+        result.add(referencedName)
+
+        val file = getContainingFile()
+        if (file is JetFile) {
+            val directive = file.findImportByAlias(referencedName)
+            if (directive != null) {
+                var reference = directive.getImportedReference()
+                while (reference is JetDotQualifiedExpression) {
+                    reference = (reference as JetDotQualifiedExpression).getSelectorExpression()
+                }
+                if (reference is JetSimpleNameExpression) {
+                    result.add((reference as JetSimpleNameExpression).getReferencedName())
+                }
+            }
+        }
+    }
+
+    assertTrue(this is JetClassOrObject)
+
+    val stub = getStub()
+    if (stub != null) {
+        return stub.getSuperNames()
+    }
+
+    val specifiers = (this as JetClassOrObject).getDelegationSpecifiers()
+    if (specifiers.isEmpty()) return Collections.emptyList<String>()
+
+    val result = ArrayList<String>()
+    for (specifier in specifiers) {
+        val superType = specifier.getTypeAsUserType()
+        if (superType != null) {
+            val referencedName = superType.getReferencedName()
+            if (referencedName != null) {
+                addSuperName(result, referencedName)
+            }
+        }
+    }
+
+    return result
+}
+
+fun SearchScope.contains(element: PsiElement): Boolean = PsiSearchScopeUtil.isInScope(this, element)
+
+fun JetClass.isInheritable(): Boolean {
+    return isTrait() || hasModifier(JetTokens.OPEN_KEYWORD)
+}
+
+fun JetDeclaration.isOverridable(): Boolean {
+    val parent = getParent()
+    if (!(parent is JetClassBody || parent is JetParameterList)) return false
+
+    val klass = parent.getParent()
+    if (!(klass is JetClass && klass.isInheritable())) return false
+
+    if (hasModifier(JetTokens.FINAL_KEYWORD) || hasModifier(JetTokens.PRIVATE_KEYWORD)) return false
+
+    return klass.isTrait() ||
+        hasModifier(JetTokens.ABSTRACT_KEYWORD) || hasModifier(JetTokens.OPEN_KEYWORD) || hasModifier(JetTokens.OVERRIDE_KEYWORD)
+}
+
+fun PsiElement.isExtensionDeclaration(): Boolean {
+    val callable: JetCallableDeclaration? = when (this) {
+        is JetNamedFunction, is JetProperty -> this as JetCallableDeclaration
+        is JetPropertyAccessor -> getParentByType(javaClass<JetProperty>())
+        else -> null
+    }
+
+    return callable?.getReceiverTypeRef() != null
+}
+
+fun PsiElement.isObjectLiteral(): Boolean = this is JetObjectDeclaration && isObjectLiteral()

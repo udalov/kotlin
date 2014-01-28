@@ -33,10 +33,8 @@ import org.jetbrains.jet.lang.resolve.ImportPath;
 import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCall;
 import org.jetbrains.jet.lang.resolve.java.JavaResolverPsiUtils;
 import org.jetbrains.jet.lang.resolve.name.FqName;
-import org.jetbrains.jet.lang.resolve.name.FqNameUnsafe;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.plugin.project.AnalyzerFacadeWithCache;
-import org.jetbrains.jet.plugin.quickfix.ImportInsertHelper;
 import org.jetbrains.jet.util.QualifiedNamesUtil;
 
 import java.util.*;
@@ -132,7 +130,7 @@ public class JetImportOptimizer implements ImportOptimizer {
             @Override
             public void visitReferenceExpression(@NotNull JetReferenceExpression expression) {
                 if (PsiTreeUtil.getParentOfType(expression, JetImportDirective.class) == null &&
-                        PsiTreeUtil.getParentOfType(expression, JetNamespaceHeader.class) == null) {
+                        PsiTreeUtil.getParentOfType(expression, JetPackageDirective.class) == null) {
 
                     PsiReference reference = expression.getReference();
                     if (reference != null) {
@@ -184,9 +182,7 @@ public class JetImportOptimizer implements ImportOptimizer {
             private void addResolvedCallFqName(@Nullable ResolvedCall resolvedCall) {
                 if (resolvedCall != null) {
                     CallableDescriptor resultingDescriptor = resolvedCall.getResultingDescriptor();
-                    FqNameUnsafe name = DescriptorUtils.getFQName(resultingDescriptor);
-                    assert name.isSafe(): "FqName for resulting descriptor should be safe " + resultingDescriptor.getName();
-                    usedQualifiedNames.add(name.toSafe());
+                    usedQualifiedNames.add(DescriptorUtils.getFqNameSafe(resultingDescriptor));
                 }
             }
         });
@@ -202,9 +198,9 @@ public class JetImportOptimizer implements ImportOptimizer {
         }
 
         if (element instanceof JetSimpleNameExpression) {
-            JetNamespaceHeader namespaceHeader = PsiTreeUtil.getParentOfType(element, JetNamespaceHeader.class);
-            if (namespaceHeader != null) {
-                List<JetSimpleNameExpression> simpleNameExpressions = PsiTreeUtil.getChildrenOfTypeAsList(namespaceHeader, JetSimpleNameExpression.class);
+            JetPackageDirective packageDirective = PsiTreeUtil.getParentOfType(element, JetPackageDirective.class);
+            if (packageDirective != null) {
+                List<JetSimpleNameExpression> simpleNameExpressions = PsiTreeUtil.getChildrenOfTypeAsList(packageDirective, JetSimpleNameExpression.class);
                 FqName fqName = null;
                 for (JetSimpleNameExpression nameExpression : simpleNameExpressions) {
                     Name referencedName = nameExpression.getReferencedNameAsName();

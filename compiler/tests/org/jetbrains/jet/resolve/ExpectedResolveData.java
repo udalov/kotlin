@@ -178,8 +178,8 @@ public abstract class ExpectedResolveData {
             else {
                 ancestorOfType = getAncestorOfType(JetDeclaration.class, element);
                 if (ancestorOfType == null) {
-                    JetNamespaceHeader header = getAncestorOfType(JetNamespaceHeader.class, element);
-                    assert header != null : "Not a declaration: " + name;
+                    JetPackageDirective directive = getAncestorOfType(JetPackageDirective.class, element);
+                    assert directive != null : "Not a declaration: " + name;
                     ancestorOfType = element;
                 }
             }
@@ -254,18 +254,18 @@ public abstract class ExpectedResolveData {
 
                 JetType actualType = bindingContext.get(BindingContext.TYPE, typeReference);
                 assertNotNull("Type " + name + " not resolved for reference " + name, actualType);
-                ClassifierDescriptor expectedClass = builtIns.getBuiltInsScope().getClassifier(Name.identifier(name.substring(STANDARD_PREFIX.length())));
+                ClassifierDescriptor expectedClass = builtIns.getBuiltInClassByName(Name.identifier(name.substring(STANDARD_PREFIX.length())));
                 assertNotNull("Expected class not found: " + name);
                 assertSame("Type resolution mismatch: ", expectedClass.getTypeConstructor(), actualType.getConstructor());
                 continue;
             }
             assert expected != null : "No declaration for " + name;
 
-            if (referenceTarget instanceof NamespaceDescriptor) {
-                JetNamespaceHeader expectedHeader = PsiTreeUtil.getParentOfType(expected, JetNamespaceHeader.class);
+            if (referenceTarget instanceof PackageViewDescriptor) {
+                JetPackageDirective expectedDirective = PsiTreeUtil.getParentOfType(expected, JetPackageDirective.class);
                 FqName expectedFqName;
-                if (expectedHeader != null) {
-                    expectedFqName = expectedHeader.getFqName();
+                if (expectedDirective != null) {
+                    expectedFqName = expectedDirective.getFqName();
                 }
                 else if (expected instanceof PsiQualifiedNamedElement) {
                     String qualifiedName = ((PsiQualifiedNamedElement) expected).getQualifiedName();
@@ -275,7 +275,7 @@ public abstract class ExpectedResolveData {
                 else {
                     throw new IllegalStateException(expected.getClass().getName() + " name=" + name);
                 }
-                assertEquals(expectedFqName, ((NamespaceDescriptor) referenceTarget).getFqName());
+                assertEquals(expectedFqName, ((PackageViewDescriptor) referenceTarget).getFqName());
                 continue;
             }
 
@@ -311,7 +311,7 @@ public abstract class ExpectedResolveData {
             TypeConstructor expectedTypeConstructor;
             if (typeName.startsWith(STANDARD_PREFIX)) {
                 String name = typeName.substring(STANDARD_PREFIX.length());
-                ClassifierDescriptor expectedClass = builtIns.getBuiltInsScope().getClassifier(Name.identifier(name));
+                ClassifierDescriptor expectedClass = builtIns.getBuiltInClassByName(Name.identifier(name));
 
                 assertNotNull("Expected class not found: " + typeName, expectedClass);
                 expectedTypeConstructor = expectedClass.getTypeConstructor();

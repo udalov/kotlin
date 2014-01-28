@@ -23,10 +23,11 @@ import org.jetbrains.jet.ConfigurationKind;
 import org.jetbrains.jet.JetTestUtils;
 import org.jetbrains.jet.cli.jvm.compiler.JetCoreEnvironment;
 import org.jetbrains.jet.di.InjectorForJavaDescriptorResolver;
+import org.jetbrains.jet.di.InjectorForJavaDescriptorResolverUtil;
 import org.jetbrains.jet.lang.descriptors.*;
-import org.jetbrains.jet.lang.descriptors.impl.NamespaceDescriptorImpl;
+import org.jetbrains.jet.lang.descriptors.impl.MutablePackageFragmentDescriptor;
+import org.jetbrains.jet.lang.descriptors.impl.PackageViewDescriptorImpl;
 import org.jetbrains.jet.lang.resolve.BindingTraceContext;
-import org.jetbrains.jet.lang.resolve.DescriptorUtils;
 import org.jetbrains.jet.lang.resolve.java.JavaDescriptorResolver;
 import org.jetbrains.jet.lang.resolve.lazy.KotlinTestWithEnvironment;
 import org.jetbrains.jet.lang.resolve.lazy.LazyResolveTestUtil;
@@ -35,13 +36,13 @@ import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
 import org.jetbrains.jet.lang.resolve.scopes.WritableScope;
 import org.jetbrains.jet.storage.LockBasedStorageManager;
-import org.jetbrains.jet.test.util.NamespaceComparator;
+import org.jetbrains.jet.test.util.RecursiveDescriptorComparator;
+import org.jetbrains.jet.utils.builtinsSerializer.ClassSerializationUtil;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
 
-import static org.jetbrains.jet.descriptors.serialization.ClassSerializationUtil.getClassId;
 import static org.jetbrains.jet.descriptors.serialization.NameSerializationUtil.createNameResolver;
 import static org.jetbrains.jet.descriptors.serialization.descriptors.AnnotationDeserializer.UNSUPPORTED;
 import static org.jetbrains.jet.lang.resolve.java.DescriptorSearchRule.IGNORE_KOTLIN_SOURCES;
@@ -61,21 +62,24 @@ public abstract class AbstractDescriptorSerializationTest extends KotlinTestWith
                 JetTestUtils.createFile(ktFile.getName(), FileUtil.loadFile(ktFile), getProject())
         ), getEnvironment());
 
-        NamespaceDescriptor testNamespace = moduleDescriptor.getNamespace(FqName.topLevel(TEST_PACKAGE_NAME));
-        assert testNamespace != null;
+        PackageViewDescriptor testPackage = moduleDescriptor.getPackage(FqName.topLevel(TEST_PACKAGE_NAME));
+        assert testPackage != null : "Test package not found: " + TEST_PACKAGE_NAME;
 
-        InjectorForJavaDescriptorResolver injector = new InjectorForJavaDescriptorResolver(getProject(), new BindingTraceContext());
+        InjectorForJavaDescriptorResolver injector = InjectorForJavaDescriptorResolverUtil.create(getProject(), new BindingTraceContext());
         JavaDescriptorResolver javaDescriptorResolver = injector.getJavaDescriptorResolver();
 
-        NamespaceDescriptor deserialized = serializeAndDeserialize(javaDescriptorResolver, testNamespace);
+        PackageFragmentDescriptor deserialized = serializeAndDeserialize(javaDescriptorResolver, testPackage);
 
-        NamespaceComparator.validateAndCompareNamespaces(testNamespace, deserialized, NamespaceComparator.RECURSIVE, null);
+        PackageViewDescriptorImpl deserializedPackageView =
+                new PackageViewDescriptorImpl(moduleDescriptor, deserialized.getFqName(), Arrays.asList(deserialized));
+        RecursiveDescriptorComparator
+                .validateAndCompareDescriptors(testPackage, deserializedPackageView, RecursiveDescriptorComparator.RECURSIVE, null);
     }
 
     @NotNull
-    private static NamespaceDescriptor serializeAndDeserialize(
+    private static PackageFragmentDescriptor serializeAndDeserialize(
             @NotNull JavaDescriptorResolver javaDescriptorResolver,
-            @NotNull NamespaceDescriptor testPackage
+            @NotNull PackageViewDescriptor testPackage
     ) {
         List<ClassDescriptor> classesAndObjects = getAllClassesAndObjects(testPackage.getMemberScope());
 
@@ -90,36 +94,37 @@ public abstract class AbstractDescriptorSerializationTest extends KotlinTestWith
             classDataMap.put(key, value);
         }
 
-        NamespaceDescriptorImpl namespace = JetTestUtils.createTestNamespace(TEST_PACKAGE_NAME);
+        MutablePackageFragmentDescriptor packageFragment = JetTestUtils.createTestPackageFragment(TEST_PACKAGE_NAME, "<fake>");
 
-        DescriptorFinder descriptorFinder = new DescriptorFinderFromClassDataOrJava(javaDescriptorResolver, namespace, classDataMap);
+        DescriptorFinder descriptorFinder = new DescriptorFinderFromClassDataOrJava(
+                javaDescriptorResolver, classDataMap, packageFragment.getContainingDeclaration().getPackageFragmentProvider());
 
         for (ClassDescriptor classDescriptor : classesAndObjects) {
-            ClassId classId = getClassId(classDescriptor);
+            ClassId classId = ClassSerializationUtil.instance$.getClassId(classDescriptor);
             ClassDescriptor descriptor = descriptorFinder.findClass(classId);
             assert descriptor != null : "Class not loaded: " + classId;
-            namespace.getMemberScope().addClassifierDescriptor(descriptor);
+            packageFragment.getMemberScope().addClassifierDescriptor(descriptor);
         }
 
         PackageData data = PackageData.read(serializedPackage, JavaProtoBufUtil.getExtensionRegistry());
 
         DescriptorDeserializer deserializer = DescriptorDeserializer
-                .create(new LockBasedStorageManager(), namespace, data.getNameResolver(), descriptorFinder, UNSUPPORTED);
+                .create(new LockBasedStorageManager(), packageFragment, data.getNameResolver(), descriptorFinder, UNSUPPORTED);
         for (ProtoBuf.Callable proto : data.getPackageProto().getMemberList()) {
             CallableMemberDescriptor descriptor = deserializer.loadCallable(proto);
             if (descriptor instanceof FunctionDescriptor) {
-                namespace.getMemberScope().addFunctionDescriptor((FunctionDescriptor) descriptor);
+                packageFragment.getMemberScope().addFunctionDescriptor((FunctionDescriptor) descriptor);
             }
             else if (descriptor instanceof PropertyDescriptor) {
-                namespace.getMemberScope().addPropertyDescriptor((PropertyDescriptor) descriptor);
+                packageFragment.getMemberScope().addPropertyDescriptor((PropertyDescriptor) descriptor);
             }
             else {
                 throw new IllegalStateException("Unknown descriptor type: " + descriptor);
             }
         }
-        namespace.getMemberScope().changeLockLevel(WritableScope.LockLevel.READING);
+        packageFragment.getMemberScope().changeLockLevel(WritableScope.LockLevel.READING);
 
-        return namespace;
+        return packageFragment;
     }
 
     @NotNull
@@ -134,9 +139,11 @@ public abstract class AbstractDescriptorSerializationTest extends KotlinTestWith
     }
 
     @NotNull
-    private static byte[] serializePackage(@NotNull NamespaceDescriptor descriptor) {
+    private static byte[] serializePackage(@NotNull PackageViewDescriptor descriptor) {
         DescriptorSerializer serializer = new DescriptorSerializer();
-        ProtoBuf.Package proto = serializer.packageProto(descriptor).build();
+        List<PackageFragmentDescriptor> fragments =
+                descriptor.getModule().getPackageFragmentProvider().getPackageFragments(descriptor.getFqName());
+        ProtoBuf.Package proto = serializer.packageProto(fragments).build();
         PackageData data = new PackageData(createNameResolver(serializer.getNameTable()), proto);
         return data.toBytes();
     }
@@ -146,7 +153,7 @@ public abstract class AbstractDescriptorSerializationTest extends KotlinTestWith
         final Map<ClassDescriptor, byte[]> serializedClasses = new HashMap<ClassDescriptor, byte[]>();
         final DescriptorSerializer serializer = new DescriptorSerializer();
 
-        ClassSerializationUtil.serializeClasses(classes, serializer, new ClassSerializationUtil.Sink() {
+        ClassSerializationUtil.instance$.serializeClasses(classes, serializer, new ClassSerializationUtil.Sink() {
             @Override
             public void writeClass(@NotNull ClassDescriptor classDescriptor, @NotNull ProtoBuf.Class classProto) {
                 ClassData data = new ClassData(createNameResolver(serializer.getNameTable()), classProto);
@@ -159,17 +166,15 @@ public abstract class AbstractDescriptorSerializationTest extends KotlinTestWith
 
     private static class DescriptorFinderFromClassDataOrJava extends AbstractDescriptorFinder {
         private final JavaDescriptorResolver javaDescriptorResolver;
-        private final NamespaceDescriptor packageForClasses;
         private final Map<String, ClassData> classDataMap;
 
         public DescriptorFinderFromClassDataOrJava(
                 @NotNull JavaDescriptorResolver javaDescriptorResolver,
-                @NotNull NamespaceDescriptor packageForClasses,
-                @NotNull Map<String, ClassData> classDataMap
+                @NotNull Map<String, ClassData> classDataMap,
+                @NotNull PackageFragmentProvider packageFragmentProvider
         ) {
-            super(new LockBasedStorageManager(), UNSUPPORTED);
+            super(new LockBasedStorageManager(), UNSUPPORTED, packageFragmentProvider);
             this.javaDescriptorResolver = javaDescriptorResolver;
-            this.packageForClasses = packageForClasses;
             this.classDataMap = classDataMap;
         }
 
@@ -184,13 +189,6 @@ public abstract class AbstractDescriptorSerializationTest extends KotlinTestWith
         @Override
         protected ClassData getClassData(@NotNull ClassId classId) {
             return classDataMap.get(classId.asSingleFqName().asString());
-        }
-
-        @Nullable
-        @Override
-        public NamespaceDescriptor findPackage(@NotNull FqName name) {
-            assert DescriptorUtils.getFQName(packageForClasses).equals(name.toUnsafe()) : name + " : " + packageForClasses;
-            return packageForClasses;
         }
 
         @NotNull

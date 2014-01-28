@@ -18,10 +18,10 @@ package org.jetbrains.jet.lang.types;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.jet.lang.ModuleConfiguration;
 import org.jetbrains.jet.lang.PlatformToKotlinClassMap;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.descriptors.annotations.AnnotationDescriptor;
+import org.jetbrains.jet.lang.descriptors.annotations.Annotations;
 import org.jetbrains.jet.lang.descriptors.impl.PropertyDescriptorImpl;
 import org.jetbrains.jet.lang.descriptors.impl.TypeParameterDescriptorImpl;
 import org.jetbrains.jet.lang.resolve.ImportPath;
@@ -42,13 +42,11 @@ public class ErrorUtils {
 
     private static final ModuleDescriptor ERROR_MODULE;
     static {
-        ModuleDescriptorImpl module = new ModuleDescriptorImpl(
+        ERROR_MODULE = new ModuleDescriptorImpl(
                 Name.special("<ERROR MODULE>"),
                 Collections.<ImportPath>emptyList(),
                 PlatformToKotlinClassMap.EMPTY
         );
-        module.setModuleConfiguration(ModuleConfiguration.EMPTY);
-        ERROR_MODULE = module;
     }
 
     public static boolean containsErrorType(@NotNull FunctionDescriptor function) {
@@ -100,8 +98,8 @@ public class ErrorUtils {
         }
 
         @Override
-        public NamespaceDescriptor getNamespace(@NotNull Name name) {
-            return null; // TODO : review
+        public PackageViewDescriptor getPackage(@NotNull Name name) {
+            return null;
         }
 
         @NotNull
@@ -166,7 +164,7 @@ public class ErrorUtils {
 
         @Nullable
         @Override
-        public NamespaceDescriptor getNamespace(@NotNull Name name) {
+        public PackageViewDescriptor getPackage(@NotNull Name name) {
             throw new IllegalStateException();
         }
 
@@ -247,7 +245,7 @@ public class ErrorUtils {
     private static final JetType ERROR_PROPERTY_TYPE = createErrorType("<ERROR PROPERTY TYPE>");
     private static final VariableDescriptor ERROR_PROPERTY = new PropertyDescriptorImpl(
             ERROR_CLASS,
-            Collections.<AnnotationDescriptor>emptyList(),
+            Annotations.EMPTY,
             Modality.OPEN,
             Visibilities.INTERNAL,
             true,
@@ -290,7 +288,7 @@ public class ErrorUtils {
 
     @NotNull
     private static TypeConstructor createErrorTypeConstructorWithCustomDebugName(@NotNull String debugName) {
-        return new TypeConstructorImpl(ERROR_CLASS, Collections.<AnnotationDescriptor>emptyList(), false, debugName,
+        return new TypeConstructorImpl(ERROR_CLASS, Annotations.EMPTY, false, debugName,
                                 Collections.<TypeParameterDescriptorImpl>emptyList(),
                                 Collections.singleton(KotlinBuiltIns.getInstance().getAnyType()));
     }
@@ -302,7 +300,7 @@ public class ErrorUtils {
 
     public static boolean containsErrorType(@Nullable JetType type) {
         if (type == null) return false;
-        if (type instanceof NamespaceType) return false;
+        if (type instanceof PackageType) return false;
         if (type.isError()) return true;
         for (TypeProjection projection : type.getArguments()) {
             if (containsErrorType(projection.getType())) return true;
@@ -316,6 +314,18 @@ public class ErrorUtils {
 
     private static boolean isErrorClass(@Nullable DeclarationDescriptor candidate) {
         return candidate instanceof ErrorClassDescriptor;
+    }
+
+    @NotNull
+    public static TypeParameterDescriptor createErrorTypeParameter(int index, @NotNull String debugMessage) {
+        return TypeParameterDescriptorImpl.createWithDefaultBound(
+                ERROR_CLASS,
+                Annotations.EMPTY,
+                false,
+                Variance.INVARIANT,
+                Name.special("<ERROR: " + debugMessage + ">"),
+                index
+        );
     }
 
     private static class ErrorTypeImpl implements JetType {
@@ -357,8 +367,8 @@ public class ErrorUtils {
 
         @NotNull
         @Override
-        public List<AnnotationDescriptor> getAnnotations() {
-            return Collections.emptyList();
+        public Annotations getAnnotations() {
+            return Annotations.EMPTY;
         }
 
         @Override

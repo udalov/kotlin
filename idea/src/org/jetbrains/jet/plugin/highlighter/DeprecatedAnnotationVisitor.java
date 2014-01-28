@@ -220,14 +220,8 @@ public class DeprecatedAnnotationVisitor extends AfterAnalysisHighlightingVisito
 
     @Nullable
     private static AnnotationDescriptor getDeprecated(DeclarationDescriptor descriptor) {
-        for (AnnotationDescriptor annotation : descriptor.getAnnotations()) {
-            ClassDescriptor jetDeprecated = KotlinBuiltIns.getInstance().getDeprecatedAnnotation();
-            ClassDescriptor classDescriptor = TypeUtils.getClassDescriptor(annotation.getType());
-            if (jetDeprecated.equals(classDescriptor)) {
-                return annotation;
-            }
-        }
-        return null;
+        ClassDescriptor jetDeprecated = KotlinBuiltIns.getInstance().getDeprecatedAnnotation();
+        return descriptor.getAnnotations().findAnnotation(DescriptorUtils.getFqNameSafe(jetDeprecated));
     }
 
     private static String composeTooltipString(@NotNull DeclarationDescriptor declarationDescriptor, @NotNull AnnotationDescriptor descriptor) {
@@ -247,7 +241,7 @@ public class DeprecatedAnnotationVisitor extends AfterAnalysisHighlightingVisito
 
     private static String getDescriptorString(@NotNull DeclarationDescriptor descriptor) {
         if (descriptor instanceof ClassDescriptor) {
-            return DescriptorUtils.getFQName(descriptor).asString();
+            return DescriptorUtils.getFqName(descriptor).asString();
         }
         else if (descriptor instanceof ConstructorDescriptor) {
             DeclarationDescriptor containingDeclaration = descriptor.getContainingDeclaration();

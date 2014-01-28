@@ -20,9 +20,12 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.descriptors.impl.TypeParameterDescriptorImpl;
+import org.jetbrains.jet.lang.resolve.DescriptorUtils;
 import org.jetbrains.jet.lang.resolve.OverridingUtil;
 import org.jetbrains.jet.lang.resolve.java.JvmAnnotationNames;
-import org.jetbrains.jet.lang.resolve.java.PackageClassUtils;
+import org.jetbrains.jet.lang.resolve.java.descriptor.JavaClassDescriptor;
+import org.jetbrains.jet.lang.resolve.java.descriptor.JavaPackageFragmentDescriptor;
+import org.jetbrains.jet.lang.resolve.java.sam.SingleAbstractMethodUtils;
 import org.jetbrains.jet.lang.resolve.java.structure.*;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.Name;
@@ -33,6 +36,7 @@ import org.jetbrains.jet.lang.types.TypeSubstitutor;
 
 import java.util.*;
 
+import static org.jetbrains.jet.lang.resolve.DescriptorUtils.getFqNameSafe;
 import static org.jetbrains.jet.lang.resolve.DescriptorUtils.isEnumClassObject;
 
 public final class DescriptorResolverUtils {
@@ -41,10 +45,8 @@ public final class DescriptorResolverUtils {
 
     public static boolean isCompiledKotlinPackageClass(@NotNull JavaClass javaClass) {
         if (javaClass.getOriginKind() == JavaClass.OriginKind.COMPILED) {
-            FqName fqName = javaClass.getFqName();
-            if (fqName != null && PackageClassUtils.isPackageClassFqName(fqName)) {
-                return javaClass.findAnnotation(JvmAnnotationNames.KOTLIN_PACKAGE) != null;
-            }
+            return javaClass.findAnnotation(JvmAnnotationNames.KOTLIN_PACKAGE) != null
+                   || javaClass.findAnnotation(JvmAnnotationNames.KOTLIN_PACKAGE_FRAGMENT) != null;
         }
         return false;
     }
@@ -56,7 +58,7 @@ public final class DescriptorResolverUtils {
         return false;
     }
 
-    public static boolean isCompiledKotlinClassOrPackageClass(@NotNull JavaClass javaClass) {
+    private static boolean isCompiledKotlinClassOrPackageClass(@NotNull JavaClass javaClass) {
         return isCompiledKotlinClass(javaClass) || isCompiledKotlinPackageClass(javaClass);
     }
 
@@ -127,7 +129,7 @@ public final class DescriptorResolverUtils {
                "valueOf(java.lang.String)".equals(signature);
     }
 
-    public static boolean isCorrectOwnerForEnumMethod(@NotNull ClassOrNamespaceDescriptor ownerDescriptor, @NotNull JavaMethod method) {
+    public static boolean isCorrectOwnerForEnumMethod(@NotNull ClassOrPackageFragmentDescriptor ownerDescriptor, @NotNull JavaMethod method) {
         return isEnumClassObject(ownerDescriptor) == shouldBeInEnumClassObject(method);
     }
 
@@ -264,5 +266,44 @@ public final class DescriptorResolverUtils {
                                         new TypeProjectionImpl(originalToAltTypeParameter.getValue().getDefaultType()));
         }
         return TypeSubstitutor.create(typeSubstitutionContext);
+    }
+
+    @Nullable
+    public static JavaPackageFragmentDescriptor getPackageForCorrespondingJavaClass(@NotNull JavaClassDescriptor javaClass) {
+        PackageFragmentDescriptor packageFragment = DescriptorUtils.getParentOfType(javaClass, PackageFragmentDescriptor.class);
+        assert packageFragment instanceof JavaPackageFragmentDescriptor :
+                "java class " + javaClass + " is under non-java fragment: " + packageFragment;
+
+        JavaPackageFragmentProvider provider = ((JavaPackageFragmentDescriptor) packageFragment).getProvider();
+        return provider.getPackageFragment(getFqNameSafe(javaClass));
+    }
+
+    public static boolean isJavaClassVisibleAsPackage(@NotNull JavaClass javaClass) {
+        return !isCompiledKotlinClassOrPackageClass(javaClass) && hasStaticMembers(javaClass);
+    }
+
+    private static boolean hasStaticMembers(@NotNull JavaClass javaClass) {
+        for (JavaMethod method : javaClass.getMethods()) {
+            if (method.isStatic() && !shouldBeInEnumClassObject(method)) {
+                return true;
+            }
+        }
+
+        for (JavaField field : javaClass.getFields()) {
+            if (field.isStatic() && !field.isEnumEntry()) {
+                return true;
+            }
+        }
+
+        for (JavaClass nestedClass : javaClass.getInnerClasses()) {
+            if (SingleAbstractMethodUtils.isSamInterface(nestedClass)) {
+                return true;
+            }
+            if (nestedClass.isStatic() && hasStaticMembers(nestedClass)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
