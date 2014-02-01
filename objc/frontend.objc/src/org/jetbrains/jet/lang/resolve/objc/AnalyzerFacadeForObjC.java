@@ -33,6 +33,7 @@ import org.jetbrains.jet.lang.resolve.java.AnalyzerFacadeForJVM;
 import org.jetbrains.jet.lang.resolve.java.JavaDescriptorResolver;
 import org.jetbrains.jet.lang.resolve.lazy.ResolveSession;
 import org.jetbrains.jet.lang.resolve.name.Name;
+import org.jetbrains.jet.storage.LockBasedStorageManager;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -57,7 +58,7 @@ public enum AnalyzerFacadeForObjC implements AnalyzerFacade {
         ModuleDescriptorImpl module = new ModuleDescriptorImpl(Name.special("<module>"), imports, PlatformToKotlinClassMap.EMPTY);
 
         TopDownAnalysisParameters topDownAnalysisParameters = new TopDownAnalysisParameters(
-                filesToAnalyzeCompletely, false, false, scriptParameters
+                LockBasedStorageManager.NO_LOCKS, filesToAnalyzeCompletely, false, false, scriptParameters
         );
 
         BindingTrace trace = new BindingTraceContext();

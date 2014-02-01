@@ -27,7 +27,7 @@ import org.jetbrains.jet.analyzer.AnalyzeExhaust;
 import org.jetbrains.jet.cli.jvm.compiler.JetCoreEnvironment;
 import org.jetbrains.jet.lang.descriptors.PackageViewDescriptor;
 import org.jetbrains.jet.lang.resolve.objc.ObjCDescriptorResolver;
-import org.jetbrains.jet.utils.ExceptionUtils;
+import org.jetbrains.jet.utils.UtilsPackage;
 
 import java.io.File;
 import java.io.InputStreamReader;
@@ -77,7 +77,7 @@ public class ObjCTestUtil {
             return result;
         }
         catch (Exception e) {
-            throw ExceptionUtils.rethrow(e);
+            throw UtilsPackage.rethrow(e);
         }
     }
 }

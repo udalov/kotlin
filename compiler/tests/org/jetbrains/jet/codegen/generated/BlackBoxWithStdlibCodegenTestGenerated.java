@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2013 JetBrains s.r.o.
+ * Copyright 2010-2014 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -901,6 +901,11 @@ public class BlackBoxWithStdlibCodegenTestGenerated extends AbstractBlackBoxCode
         @TestMetadata("generic.kt")
         public void testGeneric() throws Exception {
             doTestWithStdlib("compiler/testData/codegen/boxWithStdlib/regressions/generic.kt");
+        }
+        
+        @TestMetadata("getGenericInterfaces.kt")
+        public void testGetGenericInterfaces() throws Exception {
+            doTestWithStdlib("compiler/testData/codegen/boxWithStdlib/regressions/getGenericInterfaces.kt");
         }
         
         @TestMetadata("implicitlyCastToHashable.kt")

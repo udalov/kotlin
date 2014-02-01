@@ -28,7 +28,7 @@ import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.BindingTraceContext;
 import org.jetbrains.jet.lang.resolve.java.JvmAbi;
 import org.jetbrains.jet.lang.resolve.objc.ObjCMetaclassDescriptor;
-import org.jetbrains.jet.utils.ExceptionUtils;
+import org.jetbrains.jet.utils.UtilsPackage;
 
 import java.io.File;
 import java.io.IOException;
@@ -70,7 +70,7 @@ public class ObjCDescriptorCodegen {
             FileUtil.writeToFile(file, bytes);
         }
         catch (IOException e) {
-            throw ExceptionUtils.rethrow(e);
+            throw UtilsPackage.rethrow(e);
         }
     }
 

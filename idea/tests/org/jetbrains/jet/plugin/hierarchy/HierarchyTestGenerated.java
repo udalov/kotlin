@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2013 JetBrains s.r.o.
+ * Copyright 2010-2014 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -128,6 +128,11 @@ public class HierarchyTestGenerated extends AbstractHierarchyTest {
             doTypeClassHierarchyTest("idea/testData/hierarchy/class/type/JavaFromKotlin");
         }
         
+        @TestMetadata("JavaFromKotlinByRef")
+        public void testJavaFromKotlinByRef() throws Exception {
+            doTypeClassHierarchyTest("idea/testData/hierarchy/class/type/JavaFromKotlinByRef");
+        }
+        
         @TestMetadata("JavaFromKotlinForKotlinClass")
         public void testJavaFromKotlinForKotlinClass() throws Exception {
             doTypeClassHierarchyTest("idea/testData/hierarchy/class/type/JavaFromKotlinForKotlinClass");
@@ -146,6 +151,16 @@ public class HierarchyTestGenerated extends AbstractHierarchyTest {
         @TestMetadata("KotlinFromJava")
         public void testKotlinFromJava() throws Exception {
             doTypeClassHierarchyTest("idea/testData/hierarchy/class/type/KotlinFromJava");
+        }
+        
+        @TestMetadata("KotlinFromJavaByRef")
+        public void testKotlinFromJavaByRef() throws Exception {
+            doTypeClassHierarchyTest("idea/testData/hierarchy/class/type/KotlinFromJavaByRef");
+        }
+        
+        @TestMetadata("KotlinFromKotlinByRef")
+        public void testKotlinFromKotlinByRef() throws Exception {
+            doTypeClassHierarchyTest("idea/testData/hierarchy/class/type/KotlinFromKotlinByRef");
         }
         
         @TestMetadata("Object")

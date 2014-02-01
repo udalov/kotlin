@@ -34,11 +34,11 @@ import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.resolve.*;
 import org.jetbrains.jet.lang.resolve.lazy.ResolveSession;
 import org.jetbrains.jet.lang.resolve.lazy.declarations.FileBasedDeclarationProviderFactory;
-import org.jetbrains.jet.storage.LockBasedLazyResolveStorageManager;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 import org.jetbrains.jet.storage.LockBasedStorageManager;
+import org.jetbrains.jet.storage.LockBasedStorageManagerWithExceptionTracking;
 import org.jetbrains.k2js.config.Config;
 
 import java.util.Collection;
@@ -91,7 +91,7 @@ public final class AnalyzerFacadeForJS {
         Predicate<PsiFile> completely = Predicates.and(notLibFiles(config.getLibFiles()), filesToAnalyzeCompletely);
 
         TopDownAnalysisParameters topDownAnalysisParameters = new TopDownAnalysisParameters(
-                completely, false, false, Collections.<AnalyzerScriptParameter>emptyList());
+                new LockBasedStorageManager(), completely, false, false, Collections.<AnalyzerScriptParameter>emptyList());
 
         ModuleDescriptor libraryModule = config.getLibraryModule();
         if (libraryModule != null) {
@@ -153,7 +153,7 @@ public final class AnalyzerFacadeForJS {
 
     @NotNull
     public static ResolveSession getLazyResolveSession(Collection<JetFile> files, Config config) {
-        LockBasedLazyResolveStorageManager storageManager = new LockBasedLazyResolveStorageManager(new LockBasedStorageManager());
+        LockBasedStorageManagerWithExceptionTracking storageManager = LockBasedStorageManagerWithExceptionTracking.create();
         FileBasedDeclarationProviderFactory declarationProviderFactory = new FileBasedDeclarationProviderFactory(
                 storageManager, Config.withJsLibAdded(files, config), Predicates.<FqName>alwaysFalse());
         ModuleDescriptorImpl module = createJsModule("<lazy module>");

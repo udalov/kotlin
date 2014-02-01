@@ -25,7 +25,7 @@ import org.jetbrains.jet.lang.descriptors.PackageFragmentProvider;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.storage.LockBasedStorageManager;
 import org.jetbrains.jet.storage.NotNullLazyValue;
-import org.jetbrains.jet.utils.ExceptionUtils;
+import org.jetbrains.jet.utils.UtilsPackage;
 
 import javax.inject.Inject;
 import java.io.IOException;
@@ -79,7 +79,7 @@ public class ObjCResolveFacade implements PackageFragmentProvider {
             return TranslationUnit.parseFrom(bytes);
         }
         catch (IOException e) {
-            throw ExceptionUtils.rethrow(e);
+            throw UtilsPackage.rethrow(e);
         }
     }
 
