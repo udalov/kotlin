@@ -73,7 +73,7 @@ dylib: $(OBJ_FILES)
 	$(CPP) $(LD_FLAGS) -dynamiclib -o $(DYLIB) $^
 
 javah:
-	@javah -classpath ../../../out/production/frontend.objc -o Indexer.h org.jetbrains.jet.lang.resolve.objc.ObjCResolveFacade
+	@javah -classpath ../../../out/production/frontend.objc:../../../out/production/descriptors:../../../dependencies/bootstrap-compiler/Kotlin/lib/kotlin-runtime.jar:../../../ideaSDK/core/intellij-core.jar -o Indexer.h org.jetbrains.jet.lang.resolve.objc.ObjCPackageFragmentProvider
 
 $(OUT)/%.o: %.cc
 	$(CPP) $(CC_FLAGS) -c $^ -o $@

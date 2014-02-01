@@ -38,7 +38,7 @@ import org.jetbrains.jet.lang.resolve.java.resolver.PsiBasedMethodSignatureCheck
 import org.jetbrains.jet.lang.resolve.java.resolver.PsiBasedExternalAnnotationResolver;
 import org.jetbrains.jet.lang.resolve.MutablePackageFragmentProvider;
 import org.jetbrains.jet.lang.resolve.java.resolver.JavaPackageFragmentProviderImpl;
-import org.jetbrains.jet.lang.resolve.objc.ObjCResolveFacade;
+import org.jetbrains.jet.lang.resolve.objc.ObjCPackageFragmentProvider;
 import org.jetbrains.jet.lang.resolve.kotlin.VirtualFileFinder;
 import org.jetbrains.jet.lang.resolve.DeclarationResolver;
 import org.jetbrains.jet.lang.resolve.AnnotationResolver;
@@ -100,7 +100,7 @@ public class InjectorForTopDownAnalyzerForObjC implements InjectorForTopDownAnal
     private final PsiBasedExternalAnnotationResolver psiBasedExternalAnnotationResolver;
     private final MutablePackageFragmentProvider mutablePackageFragmentProvider;
     private final JavaPackageFragmentProviderImpl javaPackageFragmentProvider;
-    private final ObjCResolveFacade objCResolveFacade;
+    private final ObjCPackageFragmentProvider objCPackageFragmentProvider;
     private final VirtualFileFinder virtualFileFinder;
     private final DeclarationResolver declarationResolver;
     private final AnnotationResolver annotationResolver;
@@ -162,7 +162,7 @@ public class InjectorForTopDownAnalyzerForObjC implements InjectorForTopDownAnal
         this.psiBasedExternalAnnotationResolver = new PsiBasedExternalAnnotationResolver();
         this.mutablePackageFragmentProvider = new MutablePackageFragmentProvider(getModuleDescriptor());
         this.javaPackageFragmentProvider = new JavaPackageFragmentProviderImpl();
-        this.objCResolveFacade = new ObjCResolveFacade();
+        this.objCPackageFragmentProvider = new ObjCPackageFragmentProvider();
         this.virtualFileFinder = com.intellij.openapi.components.ServiceManager.getService(project, VirtualFileFinder.class);
         this.declarationResolver = new DeclarationResolver();
         this.annotationResolver = new AnnotationResolver();
@@ -265,8 +265,8 @@ public class InjectorForTopDownAnalyzerForObjC implements InjectorForTopDownAnal
         javaPackageFragmentProvider.setMemberResolver(javaMemberResolver);
         javaPackageFragmentProvider.setModule(moduleDescriptor);
 
-        this.objCResolveFacade.setModule(moduleDescriptor);
-        this.objCResolveFacade.setProject(project);
+        this.objCPackageFragmentProvider.setModule(moduleDescriptor);
+        this.objCPackageFragmentProvider.setProject(project);
 
         declarationResolver.setAnnotationResolver(annotationResolver);
         declarationResolver.setContext(topDownAnalysisContext);
@@ -454,8 +454,8 @@ public class InjectorForTopDownAnalyzerForObjC implements InjectorForTopDownAnal
         return this.javaDescriptorResolver;
     }
     
-    public ObjCResolveFacade getObjCResolveFacade() {
-        return this.objCResolveFacade;
+    public ObjCPackageFragmentProvider getObjCPackageFragmentProvider() {
+        return this.objCPackageFragmentProvider;
     }
     
 }

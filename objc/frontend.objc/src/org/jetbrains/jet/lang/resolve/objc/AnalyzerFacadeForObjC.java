@@ -74,7 +74,7 @@ public enum AnalyzerFacadeForObjC implements AnalyzerFacade {
 
         try {
             module.addFragmentProvider(DependencyKind.BINARIES, jdr.getPackageFragmentProvider());
-            module.addFragmentProvider(DependencyKind.SOURCES, injector.getObjCResolveFacade());
+            module.addFragmentProvider(DependencyKind.SOURCES, injector.getObjCPackageFragmentProvider());
             injector.getTopDownAnalyzer().analyzeFiles(files, scriptParameters);
             return AnalyzeExhaust.success(trace.getBindingContext(), null, module);
         } finally {

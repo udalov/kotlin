@@ -22,6 +22,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.lang.descriptors.ModuleDescriptor;
 import org.jetbrains.jet.lang.descriptors.PackageFragmentDescriptor;
 import org.jetbrains.jet.lang.descriptors.PackageFragmentProvider;
+import org.jetbrains.jet.lang.descriptors.impl.MutablePackageFragmentDescriptor;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.storage.LockBasedStorageManager;
 import org.jetbrains.jet.storage.NotNullLazyValue;
@@ -35,8 +36,9 @@ import java.util.List;
 
 import static org.jetbrains.jet.lang.resolve.objc.ObjCIndex.TranslationUnit;
 
-// TODO: rename to ObjCPackageFragmentProvider
-public class ObjCResolveFacade implements PackageFragmentProvider {
+public class ObjCPackageFragmentProvider implements PackageFragmentProvider {
+    public static final FqName OBJC_PACKAGE_FQ_NAME = new FqName("objc");
+
     private Project project;
     private ModuleDescriptor module;
 
@@ -44,15 +46,18 @@ public class ObjCResolveFacade implements PackageFragmentProvider {
             LockBasedStorageManager.NO_LOCKS.createLazyValue(new Function0<PackageFragmentDescriptor>() {
                 @Override
                 public PackageFragmentDescriptor invoke() {
-                    assert project != null : "Project should be initialized in " + getClass().getName();
+                    assert project != null : "Project should be initialized";
                     String args = ObjCInteropParameters.getArgs(project);
-                    assert args != null : "Header parameter should be saved into " + ObjCInteropParameters.class.getName();
+                    assert args != null : "Header parameter should be saved beforehand";
                     assert module != null : "Module should be set before Obj-C resolve";
 
                     TranslationUnit translationUnit = indexObjCHeaders(args);
 
-                    ObjCDescriptorResolver resolver = new ObjCDescriptorResolver(module, ObjCResolveFacade.this);
-                    return resolver.resolveTranslationUnit(translationUnit);
+                    MutablePackageFragmentDescriptor objcPackage =
+                            new MutablePackageFragmentDescriptor(ObjCPackageFragmentProvider.this, module, OBJC_PACKAGE_FQ_NAME);
+                    new ObjCDescriptorResolver(objcPackage).processTranslationUnit(translationUnit);
+
+                    return objcPackage;
                 }
             });
 
@@ -86,7 +91,7 @@ public class ObjCResolveFacade implements PackageFragmentProvider {
     @NotNull
     @Override
     public List<PackageFragmentDescriptor> getPackageFragments(@NotNull FqName fqName) {
-        return fqName.equals(ObjCDescriptorResolver.OBJC_PACKAGE_FQ_NAME) ?
+        return fqName.equals(OBJC_PACKAGE_FQ_NAME) ?
                 Collections.singletonList(objcPackage.invoke()) :
                 Collections.<PackageFragmentDescriptor>emptyList();
     }

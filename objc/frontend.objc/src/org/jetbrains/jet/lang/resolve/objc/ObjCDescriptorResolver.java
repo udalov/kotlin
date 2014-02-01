@@ -24,7 +24,6 @@ import org.jetbrains.jet.lang.descriptors.impl.MutablePackageFragmentDescriptor;
 import org.jetbrains.jet.lang.descriptors.impl.PackageLikeBuilder;
 import org.jetbrains.jet.lang.descriptors.impl.SimpleFunctionDescriptorImpl;
 import org.jetbrains.jet.lang.descriptors.impl.ValueParameterDescriptorImpl;
-import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.resolve.name.SpecialNames;
 import org.jetbrains.jet.lang.resolve.scopes.WritableScope;
@@ -36,8 +35,6 @@ import static org.jetbrains.jet.lang.descriptors.impl.PackageLikeBuilder.ClassOb
 import static org.jetbrains.jet.lang.resolve.objc.ObjCIndex.*;
 
 public class ObjCDescriptorResolver {
-    public static final FqName OBJC_PACKAGE_FQ_NAME = new FqName("objc");
-
     private static final String PROTOCOL_NAME_SUFFIX = "Protocol";
 
     private final ObjCTypeResolver typeResolver;
@@ -45,13 +42,12 @@ public class ObjCDescriptorResolver {
     private final MutablePackageFragmentDescriptor objcPackage;
     private final Map<String, Name> protocolNames = new HashMap<String, Name>();
 
-    public ObjCDescriptorResolver(@NotNull ModuleDescriptor module, @NotNull ObjCResolveFacade provider) {
-        objcPackage = new MutablePackageFragmentDescriptor(provider, module, OBJC_PACKAGE_FQ_NAME);
-        typeResolver = new ObjCTypeResolver(objcPackage);
+    public ObjCDescriptorResolver(@NotNull MutablePackageFragmentDescriptor objcPackage) {
+        this.objcPackage = objcPackage;
+        this.typeResolver = new ObjCTypeResolver(objcPackage);
     }
 
-    @NotNull
-    public PackageFragmentDescriptor resolveTranslationUnit(@NotNull TranslationUnit tu) {
+    public void processTranslationUnit(@NotNull TranslationUnit tu) {
         calculateProtocolNames(tu);
 
         WritableScope scope = objcPackage.getMemberScope();
@@ -104,8 +100,6 @@ public class ObjCDescriptorResolver {
         for (ObjCClassDescriptor descriptor : classes) {
             descriptor.lockScopes();
         }
-
-        return objcPackage;
     }
 
     private void calculateProtocolNames(@NotNull TranslationUnit tu) {

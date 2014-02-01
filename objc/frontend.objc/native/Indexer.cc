@@ -366,7 +366,7 @@ void split(const std::string& s, char delimiter, std::vector<std::string>& resul
     }
 }
 
-JNIEXPORT jbyteArray JNICALL Java_org_jetbrains_jet_lang_resolve_objc_ObjCResolveFacade_buildObjCIndex
+JNIEXPORT jbyteArray JNICALL Java_org_jetbrains_jet_lang_resolve_objc_ObjCPackageFragmentProvider_buildObjCIndex
         (JNIEnv *env, jobject, jstring argsString) {
     auto argsChars = env->GetStringUTFChars(argsString, nullptr);
     std::vector<std::string> args;

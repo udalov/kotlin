@@ -17,7 +17,6 @@
 package org.jetbrains.jet.objc;
 
 import com.google.common.io.CharStreams;
-import com.google.common.io.Closeables;
 import com.intellij.openapi.Disposable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.ConfigurationKind;
@@ -26,7 +25,7 @@ import org.jetbrains.jet.TestJdkKind;
 import org.jetbrains.jet.analyzer.AnalyzeExhaust;
 import org.jetbrains.jet.cli.jvm.compiler.JetCoreEnvironment;
 import org.jetbrains.jet.lang.descriptors.PackageViewDescriptor;
-import org.jetbrains.jet.lang.resolve.objc.ObjCDescriptorResolver;
+import org.jetbrains.jet.lang.resolve.objc.ObjCPackageFragmentProvider;
 import org.jetbrains.jet.utils.UtilsPackage;
 
 import java.io.File;
@@ -50,7 +49,8 @@ public class ObjCTestUtil {
 
     @NotNull
     public static PackageViewDescriptor extractObjCPackageFromAnalyzeExhaust(@NotNull AnalyzeExhaust analyzeExhaust) {
-        PackageViewDescriptor objcPackage = analyzeExhaust.getModuleDescriptor().getPackage(ObjCDescriptorResolver.OBJC_PACKAGE_FQ_NAME);
+        PackageViewDescriptor objcPackage =
+                analyzeExhaust.getModuleDescriptor().getPackage(ObjCPackageFragmentProvider.OBJC_PACKAGE_FQ_NAME);
         assert objcPackage != null : "Obj-C package wasn't resolved: " + analyzeExhaust.getModuleDescriptor();
         return objcPackage;
     }
@@ -64,11 +64,11 @@ public class ObjCTestUtil {
 
             InputStreamReader output = new InputStreamReader(process.getInputStream());
             String result = CharStreams.toString(output);
-            Closeables.closeQuietly(output);
+            output.close();
 
             InputStreamReader errorStream = new InputStreamReader(process.getErrorStream());
             String error = CharStreams.toString(errorStream);
-            Closeables.closeQuietly(errorStream);
+            errorStream.close();
             System.err.print(error);
 
             int exitCode = process.exitValue();
