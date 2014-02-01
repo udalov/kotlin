@@ -7,13 +7,9 @@ HOME=$CWD/../../..
 
 javah -classpath $HOME/out/production/runtime.objc:$HOME/dependencies/bootstrap-compiler/Kotlin/lib/kotlin-runtime.jar -o $CWD/KotlinNative.h jet.objc.Native
 
-# TODO: figure out why this doesn't work on Mavericks with JDK 7
-# Worked on Mac OS X Lion/Mountain Lion with JDK 6
-# Also see frontend.objc/native/Makefile
+# Working path on Mac OS X Lion/Mountain Lion with JDK 6:
 # JAVA_INCLUDE=-I/System/Library/Frameworks/JavaVM.framework/Versions/Current/Headers
-
-# JDK 1.7.0_45
-JAVA_HOME=/Library/Java/JavaVirtualMachines/jdk1.7.0_45.jdk/Contents/Home/include
-JAVA_INCLUDE="-I$JAVA_HOME -I$JAVA_HOME/darwin"
+JAVA_HOME=`/usr/libexec/java_home`
+JAVA_INCLUDE="-I$JAVA_HOME/include -I$JAVA_HOME/include/darwin"
 
 c++ -O2 -Wall -Wl,-no_compact_unwind $JAVA_INCLUDE -Iffi -Lffi -lffi -lobjc -dynamiclib $CWD/KotlinNative.cc -o $CWD/libKotlinNative.dylib

@@ -29,13 +29,10 @@
 
 PROJECT_NAME=KotlinNativeIndexer
 
-# TODO: figure out why this doesn't work on Mavericks with JDK 7
-# Worked on Mac OS X Lion/Mountain Lion with JDK 6
-# Also see runtime.objc/native/make_native
+# Working path on Mac OS X Lion/Mountain Lion with JDK 6:
 # JAVA_INCLUDE=-I/System/Library/Frameworks/JavaVM.framework/Versions/Current/Headers
-
-JAVA_HOME=/Library/Java/JavaVirtualMachines/jdk1.7.0_45.jdk/Contents/Home/include
-JAVA_INCLUDE=-I$(JAVA_HOME) -I$(JAVA_HOME)/darwin
+JAVA_HOME=$(shell /usr/libexec/java_home)
+JAVA_INCLUDE=-I$(JAVA_HOME)/include -I$(JAVA_HOME)/include/darwin
 
 CPP=c++
 CC_FLAGS=-O2 -Wall -std=c++0x $(JAVA_INCLUDE) -Iinclude -stdlib=libstdc++
