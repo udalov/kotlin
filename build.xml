@@ -67,8 +67,6 @@
         <include name="core/serialization.java/src"/>
         <include name="compiler/backend-common/src"/>
         <include name="compiler/backend/src"/>
-        <include name="compiler/objc/frontend.objc/src"/>
-        <include name="compiler/objc/objc.as.java.codegen/src"/>
         <include name="compiler/cli/src"/>
         <include name="compiler/cli/cli-common/src"/>
         <include name="compiler/util/src"/>
