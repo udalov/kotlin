@@ -59,6 +59,7 @@ import org.jetbrains.jet.plugin.highlighter.AbstractHighlightingTest
 import org.jetbrains.jet.plugin.folding.AbstractKotlinFoldingTest
 import org.jetbrains.jet.plugin.codeInsight.surroundWith.AbstractSurroundWithTest
 import org.jetbrains.jet.plugin.intentions.AbstractCodeTransformationTest
+import org.jetbrains.jet.plugin.AbstractSmartSelectionTest
 import org.jetbrains.jet.plugin.hierarchy.AbstractHierarchyTest
 import org.jetbrains.jet.plugin.codeInsight.moveUpDown.AbstractCodeMoverTest
 import org.jetbrains.jet.plugin.refactoring.inline.AbstractInlineTest
@@ -88,10 +89,13 @@ import org.jetbrains.jet.completion.handlers.AbstractSmartCompletionHandlerTest
 import org.jetbrains.jet.generators.tests.generator.TestGeneratorUtil
 import org.jetbrains.jet.resolve.AbstractAdditionalLazyResolveDescriptorRendererTest
 import org.jetbrains.jet.resolve.AbstractReferenceResolveInLibrarySourcesTest
+import org.jetbrains.jet.resolve.constraintSystem.AbstractConstraintSystemTest
 import org.jetbrains.jet.completion.AbstractCompiledKotlinInJavaCompletionTest
 import org.jetbrains.jet.completion.AbstractKotlinSourceInJavaCompletionTest
 import org.jetbrains.jet.plugin.intentions.AbstractIntentionTest
 import org.jetbrains.jet.checkers.AbstractJetDiagnosticsTestWithStdLib
+import org.jetbrains.jet.plugin.codeInsight.AbstractInsertImportOnPasteTest
+import org.jetbrains.jet.resolve.AbstractReferenceToJavaWithWrongFileStructureTest
 
 fun main(args: Array<String>) {
     System.setProperty("java.awt.headless", "true")
@@ -114,6 +118,10 @@ fun main(args: Array<String>) {
 
         testClass(javaClass<AbstractResolvedCallsTest>()) {
             model("resolvedCalls")
+        }
+
+        testClass(javaClass<AbstractConstraintSystemTest>()) {
+            model("constraintSystem", extension = "bounds")
         }
 
         testClass(javaClass<AbstractJetParsingTest>()) {
@@ -346,6 +354,7 @@ fun main(args: Array<String>) {
             model("intentions/declarations/convertMemberToExtension", testMethod = "doTestConvertMemberToExtension")
             model("intentions/reconstructedType", testMethod = "doTestReconstructType")
             model("intentions/removeUnnecessaryParentheses", testMethod = "doTestRemoveUnnecessaryParentheses")
+            model("intentions/replaceWithDotQualifiedMethodCall", testMethod = "doTestReplaceWithDotQualifiedMethodCall")
         }
 
         testClass(javaClass<AbstractHierarchyTest>()) {
@@ -412,6 +421,10 @@ fun main(args: Array<String>) {
             model("resolve/referenceInLib", recursive = false)
         }
 
+        testClass(javaClass<AbstractReferenceToJavaWithWrongFileStructureTest>()) {
+            model("resolve/referenceToJavaWithWrongFileStructure", recursive = false)
+        }
+
         testClass(javaClass<AbstractJetFindUsagesTest>()) {
             model("findUsages/kotlin", pattern = """^(.+)\.0\.kt$""")
             model("findUsages/java", pattern = """^(.+)\.0\.java$""")
@@ -453,8 +466,13 @@ fun main(args: Array<String>) {
             model("copyPaste/conversion", extension = "java")
         }
 
+        testClass(javaClass<AbstractInsertImportOnPasteTest>()) {
+            model("copyPaste/imports", pattern = """^([^\.]+)\.kt$""", testMethod = "doTestCopy", testClassName = "Copy", recursive = false)
+            model("copyPaste/imports", pattern = """^([^\.]+)\.kt$""", testMethod = "doTestCut", testClassName = "Cut", recursive = false)
+        }
+
         testClass(javaClass<AbstractShortenRefsTest>()) {
-            model("shortenRefs")
+            model("shortenRefs", pattern = """^([^\.]+)\.kt$""")
         }
 
         testClass(javaClass<AbstractCompiledKotlinInJavaCompletionTest>()) {
@@ -463,6 +481,10 @@ fun main(args: Array<String>) {
 
         testClass(javaClass<AbstractKotlinSourceInJavaCompletionTest>()) {
             model("completion/injava", extension = "java")
+        }
+
+        testClass(javaClass<AbstractSmartSelectionTest>()) {
+            model("smartSelection", testMethod = "doTestSmartSelection", pattern = """^([^\.]+)\.kt$""")
         }
     }
 

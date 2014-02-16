@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2012 JetBrains s.r.o.
+ * Copyright 2010-2014 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,9 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.analyzer.AnalyzeExhaust;
 import org.jetbrains.jet.analyzer.AnalyzerFacadeForEverything;
+import org.jetbrains.jet.di.InjectorForLazyResolve;
+import org.jetbrains.jet.context.ContextPackage;
+import org.jetbrains.jet.context.GlobalContextImpl;
 import org.jetbrains.jet.di.InjectorForTopDownAnalyzerForJs;
 import org.jetbrains.jet.lang.PlatformToKotlinClassMap;
 import org.jetbrains.jet.lang.descriptors.DependencyKind;
@@ -37,8 +40,6 @@ import org.jetbrains.jet.lang.resolve.lazy.declarations.FileBasedDeclarationProv
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
-import org.jetbrains.jet.storage.LockBasedStorageManager;
-import org.jetbrains.jet.storage.LockBasedStorageManagerWithExceptionTracking;
 import org.jetbrains.k2js.config.Config;
 
 import java.util.Collection;
@@ -90,8 +91,9 @@ public final class AnalyzerFacadeForJS {
 
         Predicate<PsiFile> completely = Predicates.and(notLibFiles(config.getLibFiles()), filesToAnalyzeCompletely);
 
+        GlobalContextImpl globalContext = ContextPackage.GlobalContext();
         TopDownAnalysisParameters topDownAnalysisParameters = new TopDownAnalysisParameters(
-                new LockBasedStorageManager(), completely, false, false, Collections.<AnalyzerScriptParameter>emptyList());
+                globalContext.getStorageManager(), globalContext.getExceptionTracker(), completely, false, false, Collections.<AnalyzerScriptParameter>emptyList());
 
         ModuleDescriptor libraryModule = config.getLibraryModule();
         if (libraryModule != null) {
@@ -153,12 +155,18 @@ public final class AnalyzerFacadeForJS {
 
     @NotNull
     public static ResolveSession getLazyResolveSession(Collection<JetFile> files, Config config) {
-        LockBasedStorageManagerWithExceptionTracking storageManager = LockBasedStorageManagerWithExceptionTracking.create();
+        GlobalContextImpl globalContext = ContextPackage.GlobalContext();
         FileBasedDeclarationProviderFactory declarationProviderFactory = new FileBasedDeclarationProviderFactory(
-                storageManager, Config.withJsLibAdded(files, config), Predicates.<FqName>alwaysFalse());
+                globalContext.getStorageManager(), Config.withJsLibAdded(files, config));
         ModuleDescriptorImpl module = createJsModule("<lazy module>");
         module.addFragmentProvider(DependencyKind.BUILT_INS, KotlinBuiltIns.getInstance().getBuiltInsModule().getPackageFragmentProvider());
-        return new ResolveSession(config.getProject(), storageManager, module, declarationProviderFactory);
+
+        return new InjectorForLazyResolve(
+                config.getProject(),
+                globalContext,
+                module,
+                declarationProviderFactory,
+                new BindingTraceContext()).getResolveSession();
     }
 
     @NotNull

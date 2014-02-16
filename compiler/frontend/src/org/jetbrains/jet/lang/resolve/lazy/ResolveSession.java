@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2013 JetBrains s.r.o.
+ * Copyright 2010-2014 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,12 +27,10 @@ import com.intellij.util.containers.ContainerUtil;
 import jet.Function0;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.jet.di.InjectorForLazyResolve;
+import org.jetbrains.jet.context.GlobalContextImpl;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.psi.*;
-import org.jetbrains.jet.lang.resolve.BindingContext;
-import org.jetbrains.jet.lang.resolve.BindingTrace;
-import org.jetbrains.jet.lang.resolve.BindingTraceContext;
+import org.jetbrains.jet.lang.resolve.*;
 import org.jetbrains.jet.lang.resolve.lazy.data.JetClassLikeInfo;
 import org.jetbrains.jet.lang.resolve.lazy.declarations.DeclarationProviderFactory;
 import org.jetbrains.jet.lang.resolve.lazy.declarations.PackageMemberDeclarationProvider;
@@ -44,8 +42,12 @@ import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.resolve.name.SpecialNames;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
 import org.jetbrains.jet.renderer.DescriptorRenderer;
-import org.jetbrains.jet.storage.*;
+import org.jetbrains.jet.storage.ExceptionTracker;
+import org.jetbrains.jet.storage.LazyResolveStorageManager;
+import org.jetbrains.jet.storage.LockBasedLazyResolveStorageManager;
+import org.jetbrains.jet.storage.MemoizedFunctionToNullable;
 
+import javax.inject.Inject;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -53,8 +55,7 @@ import java.util.List;
 import static org.jetbrains.jet.lang.resolve.lazy.ResolveSessionUtils.safeNameForLazyResolve;
 
 public class ResolveSession implements KotlinCodeAnalyzer {
-    public static final Function<FqName, Name> NO_ALIASES = new Function<FqName, Name>() {
-
+    private static final Function<FqName, Name> NO_ALIASES = new Function<FqName, Name>() {
         @Override
         public Name fun(FqName name) {
             return null;
@@ -71,66 +72,66 @@ public class ResolveSession implements KotlinCodeAnalyzer {
 
     private final Predicate<FqNameUnsafe> specialClasses;
 
-
-    private final InjectorForLazyResolve injector;
-
     private final Function<FqName, Name> classifierAliases;
 
     private final MemoizedFunctionToNullable<FqName, LazyPackageDescriptor> packages;
     private final PackageFragmentProvider packageFragmentProvider;
 
-    public ResolveSession(
-            @NotNull Project project,
-            @NotNull LockBasedStorageManagerWithExceptionTracking storageManager,
-            @NotNull ModuleDescriptorImpl rootDescriptor,
-            @NotNull DeclarationProviderFactory declarationProviderFactory
-    ) {
-        this(project,
-             storageManager,
-             storageManager.getTracker(),
-             rootDescriptor,
-             declarationProviderFactory,
-             NO_ALIASES,
-             Predicates.<FqNameUnsafe>alwaysFalse(),
-             new BindingTraceContext());
+    private ScopeProvider scopeProvider;
+
+    private JetImportsFactory jetImportFactory;
+    private AnnotationResolver annotationResolve;
+    private DescriptorResolver descriptorResolver;
+    private TypeResolver typeResolver;
+    private QualifiedExpressionResolver qualifiedExpressionResolver;
+
+    @Inject
+    public void setJetImportFactory(JetImportsFactory jetImportFactory) {
+        this.jetImportFactory = jetImportFactory;
     }
 
+    @Inject
+    public void setAnnotationResolve(AnnotationResolver annotationResolve) {
+        this.annotationResolve = annotationResolve;
+    }
+
+    @Inject
+    public void setDescriptorResolver(DescriptorResolver descriptorResolver) {
+        this.descriptorResolver = descriptorResolver;
+    }
+
+    @Inject
+    public void setTypeResolver(TypeResolver typeResolver) {
+        this.typeResolver = typeResolver;
+    }
+
+    @Inject
+    public void setQualifiedExpressionResolver(QualifiedExpressionResolver qualifiedExpressionResolver) {
+        this.qualifiedExpressionResolver = qualifiedExpressionResolver;
+    }
+
+    @Inject
+    public void setScopeProvider(ScopeProvider scopeProvider) {
+        this.scopeProvider = scopeProvider;
+    }
+
+    // Only calls from injectors expected
+    @Deprecated
     public ResolveSession(
             @NotNull Project project,
-            @NotNull LockBasedStorageManagerWithExceptionTracking storageManager,
+            @NotNull GlobalContextImpl globalContext,
             @NotNull ModuleDescriptorImpl rootDescriptor,
             @NotNull DeclarationProviderFactory declarationProviderFactory,
             @NotNull BindingTrace delegationTrace
     ) {
-        this(project,
-             storageManager,
-             storageManager.getTracker(),
-             rootDescriptor,
-             declarationProviderFactory,
-             NO_ALIASES,
-             Predicates.<FqNameUnsafe>alwaysFalse(),
-             delegationTrace);
-    }
-
-    @Deprecated // Internal use only
-    public ResolveSession(
-            @NotNull Project project,
-            @NotNull LockBasedStorageManager storageManager,
-            @NotNull ExceptionTracker exceptionTracker,
-            @NotNull ModuleDescriptorImpl rootDescriptor,
-            @NotNull DeclarationProviderFactory declarationProviderFactory,
-            @NotNull Function<FqName, Name> classifierAliases,
-            @NotNull Predicate<FqNameUnsafe> specialClasses,
-            @NotNull BindingTrace delegationTrace
-    ) {
-        LockBasedLazyResolveStorageManager lockBasedLazyResolveStorageManager = new LockBasedLazyResolveStorageManager(storageManager);
+        LockBasedLazyResolveStorageManager lockBasedLazyResolveStorageManager = new LockBasedLazyResolveStorageManager(globalContext.getStorageManager());
         this.storageManager = lockBasedLazyResolveStorageManager;
-        this.exceptionTracker = exceptionTracker;
-        this.classifierAliases = classifierAliases;
-        this.specialClasses = specialClasses;
+        this.exceptionTracker = globalContext.getExceptionTracker();
         this.trace = lockBasedLazyResolveStorageManager.createSafeTrace(delegationTrace);
-        this.injector = new InjectorForLazyResolve(project, this, rootDescriptor);
         this.module = rootDescriptor;
+
+        this.classifierAliases = NO_ALIASES;
+        this.specialClasses = Predicates.alwaysFalse();
 
         this.packages = storageManager.createMemoizedFunctionWithNullableValues(new MemoizedFunctionToNullable<FqName, LazyPackageDescriptor>() {
             @Nullable
@@ -159,6 +160,8 @@ public class ResolveSession implements KotlinCodeAnalyzer {
                 return packageDescriptor.getDeclarationProvider().getAllDeclaredPackages();
             }
         };
+
+        // TODO: parameter modification
         rootDescriptor.addFragmentProvider(DependencyKind.SOURCES, packageFragmentProvider);
     }
 
@@ -184,11 +187,6 @@ public class ResolveSession implements KotlinCodeAnalyzer {
         return new LazyPackageDescriptor(module, fqName, this, provider);
     }
 
-    @NotNull
-    public InjectorForLazyResolve getInjector() {
-        return injector;
-    }
-
     public boolean isClassSpecial(@NotNull FqNameUnsafe fqName) {
         return specialClasses.apply(fqName);
     }
@@ -199,11 +197,13 @@ public class ResolveSession implements KotlinCodeAnalyzer {
     }
 
     @NotNull
+    //@Override
     public LazyResolveStorageManager getStorageManager() {
         return storageManager;
     }
 
     @NotNull
+    //@Override
     public ExceptionTracker getExceptionTracker() {
         return exceptionTracker;
     }
@@ -214,7 +214,7 @@ public class ResolveSession implements KotlinCodeAnalyzer {
         if (classOrObject.getParent() instanceof JetClassObject) {
             return getClassObjectDescriptor((JetClassObject) classOrObject.getParent());
         }
-        JetScope resolutionScope = getInjector().getScopeProvider().getResolutionScopeForDeclaration(classOrObject);
+        JetScope resolutionScope = getScopeProvider().getResolutionScopeForDeclaration(classOrObject);
         Name name = safeNameForLazyResolve(classOrObject.getNameAsName());
 
         // Why not use the result here. Because it may be that there is a redeclaration:
@@ -347,7 +347,7 @@ public class ResolveSession implements KotlinCodeAnalyzer {
 
             @Override
             public DeclarationDescriptor visitNamedFunction(@NotNull JetNamedFunction function, Void data) {
-                JetScope scopeForDeclaration = getInjector().getScopeProvider().getResolutionScopeForDeclaration(function);
+                JetScope scopeForDeclaration = getScopeProvider().getResolutionScopeForDeclaration(function);
                 scopeForDeclaration.getFunctions(safeNameForLazyResolve(function));
                 return getBindingContext().get(BindingContext.DECLARATION_TO_DESCRIPTOR, function);
             }
@@ -375,7 +375,7 @@ public class ResolveSession implements KotlinCodeAnalyzer {
 
             @Override
             public DeclarationDescriptor visitProperty(@NotNull JetProperty property, Void data) {
-                JetScope scopeForDeclaration = getInjector().getScopeProvider().getResolutionScopeForDeclaration(property);
+                JetScope scopeForDeclaration = getScopeProvider().getResolutionScopeForDeclaration(property);
                 scopeForDeclaration.getProperties(safeNameForLazyResolve(property));
                 return getBindingContext().get(BindingContext.DECLARATION_TO_DESCRIPTOR, property);
             }
@@ -429,5 +429,35 @@ public class ResolveSession implements KotlinCodeAnalyzer {
         for (LazyPackageDescriptor lazyPackage : getAllPackages()) {
             ForceResolveUtil.forceResolveAllContents(lazyPackage);
         }
+    }
+
+    @NotNull
+    public ScopeProvider getScopeProvider() {
+        return scopeProvider;
+    }
+
+    @NotNull
+    public JetImportsFactory getJetImportsFactory() {
+        return jetImportFactory;
+    }
+
+    @NotNull
+    public AnnotationResolver getAnnotationResolver() {
+        return annotationResolve;
+    }
+
+    @NotNull
+    public DescriptorResolver getDescriptorResolver() {
+        return descriptorResolver;
+    }
+
+    @NotNull
+    public TypeResolver getTypeResolver() {
+        return typeResolver;
+    }
+
+    @NotNull
+    public QualifiedExpressionResolver getQualifiedExpressionResolver() {
+        return qualifiedExpressionResolver;
     }
 }

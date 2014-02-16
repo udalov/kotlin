@@ -22,16 +22,12 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.JetNodeTypes;
 import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor;
-import org.jetbrains.jet.lang.descriptors.FunctionDescriptor;
 import org.jetbrains.jet.lang.descriptors.VariableDescriptor;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.BindingContextUtils;
 import org.jetbrains.jet.lang.resolve.constants.CompileTimeConstant;
-import org.jetbrains.jet.lang.resolve.constants.IntegerValueTypeConstant;
 import org.jetbrains.jet.lang.resolve.constants.NullValue;
-import org.jetbrains.jet.lang.types.JetType;
-import org.jetbrains.jet.lang.types.TypeUtils;
 import org.jetbrains.jet.lexer.JetTokens;
 import org.jetbrains.k2js.translate.context.TemporaryVariable;
 import org.jetbrains.k2js.translate.context.TranslationContext;
@@ -182,7 +178,7 @@ public final class ExpressionVisitor extends TranslatorVisitor<JsNode> {
     @NotNull
     public JsNode visitCallExpression(@NotNull JetCallExpression expression,
             @NotNull TranslationContext context) {
-        return CallExpressionTranslator.translate(expression, null, CallType.NORMAL, context).source(expression);
+        return CallExpressionTranslator.translate(expression, null, context).source(expression);
     }
 
     @Override
@@ -403,18 +399,13 @@ public final class ExpressionVisitor extends TranslatorVisitor<JsNode> {
     @Override
     @NotNull
     public JsNode visitFunctionLiteralExpression(@NotNull JetFunctionLiteralExpression expression, @NotNull TranslationContext context) {
-        FunctionDescriptor descriptor = getFunctionDescriptor(context.bindingContext(), expression.getFunctionLiteral());
-        return context.literalFunctionTranslator().translate(expression.getFunctionLiteral(), descriptor, context);
+        return LiteralFunctionTranslator.translate(expression.getFunctionLiteral(), context);
     }
 
     @Override
     @NotNull
     public JsNode visitNamedFunction(@NotNull JetNamedFunction expression, @NotNull TranslationContext context) {
-        FunctionDescriptor descriptor = getFunctionDescriptor(context.bindingContext(), expression);
-        JsExpression alias = context.literalFunctionTranslator().translate(expression, descriptor, context);
-        JsName name = context.scope().declareFreshName(descriptor.getName().asString());
-        context.aliasingContext().registerAlias(descriptor, name.makeRef());
-        return new JsVars(new JsVars.JsVar(name, alias)).source(expression);
+        return LiteralFunctionTranslator.translateLocalNamedFunction(expression, context).source(expression);
     }
 
     @Override

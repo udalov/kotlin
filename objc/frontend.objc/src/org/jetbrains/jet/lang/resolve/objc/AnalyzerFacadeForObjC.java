@@ -22,6 +22,8 @@ import com.intellij.psi.PsiFile;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.analyzer.AnalyzeExhaust;
 import org.jetbrains.jet.analyzer.AnalyzerFacade;
+import org.jetbrains.jet.context.ContextPackage;
+import org.jetbrains.jet.context.GlobalContextImpl;
 import org.jetbrains.jet.di.InjectorForTopDownAnalyzerForObjC;
 import org.jetbrains.jet.lang.PlatformToKotlinClassMap;
 import org.jetbrains.jet.lang.descriptors.DependencyKind;
@@ -33,7 +35,6 @@ import org.jetbrains.jet.lang.resolve.java.AnalyzerFacadeForJVM;
 import org.jetbrains.jet.lang.resolve.java.JavaDescriptorResolver;
 import org.jetbrains.jet.lang.resolve.lazy.ResolveSession;
 import org.jetbrains.jet.lang.resolve.name.Name;
-import org.jetbrains.jet.storage.LockBasedStorageManager;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -57,8 +58,9 @@ public enum AnalyzerFacadeForObjC implements AnalyzerFacade {
 
         ModuleDescriptorImpl module = new ModuleDescriptorImpl(Name.special("<module>"), imports, PlatformToKotlinClassMap.EMPTY);
 
+        GlobalContextImpl global = ContextPackage.GlobalContext();
         TopDownAnalysisParameters topDownAnalysisParameters = new TopDownAnalysisParameters(
-                LockBasedStorageManager.NO_LOCKS, filesToAnalyzeCompletely, false, false, scriptParameters
+                global.getStorageManager(), global.getExceptionTracker(), filesToAnalyzeCompletely, false, false, scriptParameters
         );
 
         BindingTrace trace = new BindingTraceContext();

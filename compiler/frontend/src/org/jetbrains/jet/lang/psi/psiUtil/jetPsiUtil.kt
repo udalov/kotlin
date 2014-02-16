@@ -46,6 +46,9 @@ import org.jetbrains.jet.lang.psi.JetNamedFunction
 import org.jetbrains.jet.lang.psi.JetProperty
 import org.jetbrains.jet.lang.psi.JetCallableDeclaration
 import org.jetbrains.jet.lang.psi.JetPropertyAccessor
+import org.jetbrains.jet.lang.psi.JetParameter
+import com.intellij.psi.PsiParameterList
+import com.intellij.psi.PsiParameter
 
 fun PsiElement.getParentByTypesAndPredicate<T: PsiElement>(
         strict : Boolean = false, vararg parentClasses : Class<T>, predicate: (T) -> Boolean
@@ -190,3 +193,20 @@ fun PsiElement.isExtensionDeclaration(): Boolean {
 }
 
 fun PsiElement.isObjectLiteral(): Boolean = this is JetObjectDeclaration && isObjectLiteral()
+
+fun PsiElement.deleteElementAndCleanParent() {
+    val parent = getParent()
+
+    JetPsiUtil.deleteElementWithDelimiters(this)
+    [suppress("UNCHECKED_CAST")]
+    JetPsiUtil.deleteChildlessElement(parent, this.getClass() as Class<PsiElement>)
+}
+
+fun PsiElement.parameterIndex(): Int {
+    val parent = getParent()
+    return when {
+        this is JetParameter && parent is JetParameterList -> parent.getParameters().indexOf(this)
+        this is PsiParameter && parent is PsiParameterList -> parent.getParameterIndex(this)
+        else -> -1
+    }
+}

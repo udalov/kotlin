@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2013 JetBrains s.r.o.
+ * Copyright 2010-2014 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,8 +25,12 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.analyzer.AnalyzeExhaust;
 import org.jetbrains.jet.analyzer.AnalyzerFacade;
 import org.jetbrains.jet.analyzer.AnalyzerFacadeForEverything;
+import org.jetbrains.jet.context.ContextPackage;
+import org.jetbrains.jet.context.GlobalContext;
+import org.jetbrains.jet.context.GlobalContextImpl;
 import org.jetbrains.jet.di.InjectorForJavaDescriptorResolver;
 import org.jetbrains.jet.di.InjectorForJavaDescriptorResolverUtil;
+import org.jetbrains.jet.di.InjectorForLazyResolve;
 import org.jetbrains.jet.di.InjectorForTopDownAnalyzerForJvm;
 import org.jetbrains.jet.lang.descriptors.DependencyKind;
 import org.jetbrains.jet.lang.descriptors.ModuleDescriptor;
@@ -39,8 +43,6 @@ import org.jetbrains.jet.lang.resolve.lazy.declarations.FileBasedDeclarationProv
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
-import org.jetbrains.jet.storage.LockBasedStorageManager;
-import org.jetbrains.jet.storage.LockBasedStorageManagerWithExceptionTracking;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -101,13 +103,16 @@ public enum AnalyzerFacadeForJVM implements AnalyzerFacade {
         final JavaClassFinderImpl classFinder = injector.getJavaClassFinder();
 
         // TODO: Replace with stub declaration provider
-        LockBasedStorageManagerWithExceptionTracking storageManager = injector.getStorageManager();
-        FileBasedDeclarationProviderFactory declarationProviderFactory = new FileBasedDeclarationProviderFactory(storageManager, files, new Predicate<FqName>() {
-            @Override
-            public boolean apply(FqName fqName) {
-                return classFinder.findPackage(fqName) != null || KotlinBuiltIns.BUILT_INS_PACKAGE_FQ_NAME.equals(fqName);
-            }
-        });
+        GlobalContextImpl globalContext = injector.getGlobalContext();
+        FileBasedDeclarationProviderFactory declarationProviderFactory = new FileBasedDeclarationProviderFactory(
+                globalContext.getStorageManager(),
+                files,
+                new Predicate<FqName>() {
+                    @Override
+                    public boolean apply(FqName fqName) {
+                        return classFinder.findPackage(fqName) != null || KotlinBuiltIns.BUILT_INS_PACKAGE_FQ_NAME.equals(fqName);
+                    }
+                });
 
         ModuleDescriptorImpl module = injector.getModule();
 
@@ -115,7 +120,7 @@ public enum AnalyzerFacadeForJVM implements AnalyzerFacade {
             module.addFragmentProvider(DependencyKind.BUILT_INS, KotlinBuiltIns.getInstance().getBuiltInsModule().getPackageFragmentProvider());
         }
 
-        return new ResolveSession(project, storageManager, module, declarationProviderFactory, trace);
+        return new InjectorForLazyResolve(project, globalContext, module, declarationProviderFactory, trace).getResolveSession();
     }
 
     @NotNull
@@ -200,8 +205,30 @@ public enum AnalyzerFacadeForJVM implements AnalyzerFacade {
             boolean storeContextForBodiesResolve,
             ModuleDescriptorImpl module
     ) {
+        GlobalContext globalContext = ContextPackage.GlobalContext();
+        return analyzeFilesWithJavaIntegrationInGlobalContext(project, files, trace, scriptParameters, filesToAnalyzeCompletely,
+                                                              storeContextForBodiesResolve, module, globalContext);
+    }
+
+    @NotNull
+    public static AnalyzeExhaust analyzeFilesWithJavaIntegrationInGlobalContext(
+            Project project,
+            Collection<JetFile> files,
+            BindingTrace trace,
+            List<AnalyzerScriptParameter> scriptParameters,
+            Predicate<PsiFile> filesToAnalyzeCompletely,
+            boolean storeContextForBodiesResolve,
+            ModuleDescriptorImpl module,
+            GlobalContext globalContext
+    ) {
         TopDownAnalysisParameters topDownAnalysisParameters = new TopDownAnalysisParameters(
-                new LockBasedStorageManager(), filesToAnalyzeCompletely, false, false, scriptParameters);
+                globalContext.getStorageManager(),
+                globalContext.getExceptionTracker(),
+                filesToAnalyzeCompletely,
+                false,
+                false,
+                scriptParameters
+        );
 
         InjectorForTopDownAnalyzerForJvm injector = new InjectorForTopDownAnalyzerForJvm(project, topDownAnalysisParameters, trace, module);
         try {

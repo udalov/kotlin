@@ -53,8 +53,7 @@ public class ObjCPackageFragmentProvider implements PackageFragmentProvider {
 
                     TranslationUnit translationUnit = indexObjCHeaders(args);
 
-                    MutablePackageFragmentDescriptor objcPackage =
-                            new MutablePackageFragmentDescriptor(ObjCPackageFragmentProvider.this, module, OBJC_PACKAGE_FQ_NAME);
+                    MutablePackageFragmentDescriptor objcPackage = new MutablePackageFragmentDescriptor(module, OBJC_PACKAGE_FQ_NAME);
                     new ObjCDescriptorResolver(objcPackage).processTranslationUnit(translationUnit);
 
                     return objcPackage;

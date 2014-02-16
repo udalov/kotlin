@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2013 JetBrains s.r.o.
+ * Copyright 2010-2014 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package org.jetbrains.jet.plugin.refactoring;
 
 import com.intellij.codeInsight.unwrap.ScopeHighlighter;
 import com.intellij.ide.IdeBundle;
+import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
@@ -27,16 +28,20 @@ import com.intellij.openapi.ui.popup.LightweightWindowEvent;
 import com.intellij.openapi.util.Pair;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.psi.*;
+import com.intellij.psi.search.searches.OverridingMethodsSearch;
 import com.intellij.psi.util.PsiFormatUtil;
 import com.intellij.psi.util.PsiFormatUtilBase;
 import com.intellij.ui.components.JBList;
 import com.intellij.util.Function;
 import com.intellij.util.containers.ContainerUtil;
+import jet.runtime.typeinfo.KotlinSignature;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.jet.asJava.AsJavaPackage;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.descriptors.impl.LocalVariableDescriptor;
 import org.jetbrains.jet.lang.psi.*;
+import org.jetbrains.jet.lang.psi.psiUtil.PsiUtilPackage;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.BindingContextUtils;
 import org.jetbrains.jet.lang.resolve.OverridingUtil;
@@ -113,6 +118,8 @@ public class JetRefactoringUtil {
         return markAsJava ? "[Java] " + description : description;
     }
 
+    @KotlinSignature(
+            "fun checkSuperMethods(declaration: JetDeclaration, ignore: Collection<PsiElement>?, actionStringKey: String): MutableList<out PsiElement>?")
     @Nullable
     public static List<? extends PsiElement> checkSuperMethods(
             @NotNull JetDeclaration declaration, @Nullable Collection<PsiElement> ignore, @NotNull String actionStringKey
@@ -158,6 +165,10 @@ public class JetRefactoringUtil {
             @NotNull List<String> superClasses,
             @NotNull String actionStringKey
     ) {
+        if (ApplicationManager.getApplication().isUnitTestMode()) {
+            return ContainerUtil.newArrayList(overriddenElementsToDescriptor.keySet());
+        }
+
         String superClassesStr = "\n" + StringUtil.join(superClasses, "");
         String message = JetBundle.message(
                 "x.overrides.y.in.class.list",
@@ -167,9 +178,7 @@ public class JetRefactoringUtil {
                 JetBundle.message(actionStringKey)
         );
 
-        int exitCode = Messages.showYesNoCancelDialog(
-                declaration.getProject(), message, IdeBundle.message("title.warning"), Messages.getQuestionIcon()
-        );
+        int exitCode = Messages.showYesNoCancelDialog(declaration.getProject(), message, IdeBundle.message("title.warning"), Messages.getQuestionIcon());
         switch (exitCode) {
             case Messages.YES:
                 return ContainerUtil.newArrayList(overriddenElementsToDescriptor.keySet());
@@ -261,12 +270,12 @@ public class JetRefactoringUtil {
 
     @NotNull
     public static String formatJavaOrLightMethod(@NotNull PsiMethod method) {
-        if (method instanceof KotlinLightMethod) {
-            JetDeclaration declaration = ((KotlinLightMethod) method).getOrigin();
-            BindingContext bindingContext =
-                    AnalyzerFacadeWithCache.analyzeFileWithCache((JetFile) declaration.getContainingFile()).getBindingContext();
-            DeclarationDescriptor descriptor =
-                    bindingContext.get(BindingContext.DECLARATION_TO_DESCRIPTOR, declaration);
+        PsiElement originalDeclaration = AsJavaPackage.getUnwrapped(method);
+        if (originalDeclaration instanceof JetDeclaration) {
+            JetDeclaration jetDeclaration = (JetDeclaration) originalDeclaration;
+            BindingContext bindingContext = AnalyzerFacadeWithCache.getContextForElement(jetDeclaration);
+            DeclarationDescriptor descriptor = bindingContext.get(BindingContext.DECLARATION_TO_DESCRIPTOR, jetDeclaration);
+
             if (descriptor != null) return formatFunctionDescriptor(descriptor);
         }
         return formatPsiMethod(method, false, false);
@@ -274,13 +283,83 @@ public class JetRefactoringUtil {
 
     @NotNull
     public static String formatClass(@NotNull JetClassOrObject classOrObject) {
-        BindingContext bindingContext =
-                AnalyzerFacadeWithCache.analyzeFileWithCache((JetFile) classOrObject.getContainingFile()).getBindingContext();
-        DeclarationDescriptor descriptor =
-                bindingContext.get(BindingContext.DECLARATION_TO_DESCRIPTOR, classOrObject);
+        BindingContext bindingContext = AnalyzerFacadeWithCache.getContextForElement(classOrObject);
+        DeclarationDescriptor descriptor = bindingContext.get(BindingContext.DECLARATION_TO_DESCRIPTOR, classOrObject);
 
         if (descriptor instanceof ClassDescriptor) return formatClassDescriptor(descriptor);
         return "class " + classOrObject.getName();
+    }
+
+    @KotlinSignature("fun checkParametersInMethodHierarchy(parameter: PsiParameter): MutableCollection<out PsiElement>?")
+    @Nullable
+    public static Collection<? extends PsiElement> checkParametersInMethodHierarchy(@NotNull PsiParameter parameter) {
+        PsiMethod method = (PsiMethod)parameter.getDeclarationScope();
+
+        Set<PsiElement> parametersToDelete = collectParametersHierarchy(method, parameter);
+        if (parametersToDelete.size() > 1) {
+            if (ApplicationManager.getApplication().isUnitTestMode()) {
+                return parametersToDelete;
+            }
+
+            String message =
+                    JetBundle.message("delete.param.in.method.hierarchy", formatJavaOrLightMethod(method));
+            int exitCode = Messages.showOkCancelDialog(
+                    parameter.getProject(), message, IdeBundle.message("title.warning"), Messages.getQuestionIcon()
+            );
+            if (exitCode == Messages.OK) {
+                return parametersToDelete;
+            }
+            else {
+                return null;
+            }
+        }
+
+        return parametersToDelete;
+    }
+
+    // TODO: generalize breadth-first search
+    @NotNull
+    private static Set<PsiElement> collectParametersHierarchy(@NotNull PsiMethod method, @NotNull PsiParameter parameter) {
+        Deque<PsiMethod> queue = new ArrayDeque<PsiMethod>();
+        Set<PsiMethod> visited = new HashSet<PsiMethod>();
+        Set<PsiElement> parametersToDelete = new HashSet<PsiElement>();
+
+        queue.add(method);
+        while (!queue.isEmpty()) {
+            PsiMethod currentMethod = queue.poll();
+
+            visited.add(currentMethod);
+            addParameter(currentMethod, parametersToDelete, parameter);
+
+            for (PsiMethod superMethod : currentMethod.findSuperMethods(true)) {
+                if (!visited.contains(superMethod)) {
+                    queue.offer(superMethod);
+                }
+            }
+            for (PsiMethod overrider : OverridingMethodsSearch.search(currentMethod)) {
+                if (!visited.contains(overrider)) {
+                    queue.offer(overrider);
+                }
+            }
+        }
+        return parametersToDelete;
+    }
+
+    private static void addParameter(@NotNull PsiMethod method, @NotNull Set<PsiElement> result, @NotNull PsiParameter parameter) {
+        int parameterIndex = PsiUtilPackage.parameterIndex(AsJavaPackage.getUnwrapped(parameter));
+
+        if (method instanceof KotlinLightMethod) {
+            JetDeclaration declaration = ((KotlinLightMethod) method).getOrigin();
+            if (declaration instanceof JetNamedFunction) {
+                result.add(((JetNamedFunction) declaration).getValueParameters().get(parameterIndex));
+            }
+            else if (declaration instanceof JetClass) {
+                result.add(((JetClass) declaration).getPrimaryConstructorParameters().get(parameterIndex));
+            }
+        }
+        else {
+            result.add(method.getParameterList().getParameters()[parameterIndex]);
+        }
     }
 
     public interface SelectExpressionCallback {
@@ -304,16 +383,22 @@ public class JetRefactoringUtil {
         }
     }
 
-    private static void smartSelectExpression(@NotNull Editor editor, @NotNull PsiFile file, int offset,
-                                             @NotNull final SelectExpressionCallback callback)
-            throws IntroduceRefactoringException {
-        if (offset < 0) throw new IntroduceRefactoringException(JetRefactoringBundle.message("cannot.refactor.not.expression"));
-        PsiElement element = file.findElementAt(offset);
-        if (element == null) throw new IntroduceRefactoringException(JetRefactoringBundle.message("cannot.refactor.not.expression"));
-        if (element instanceof PsiWhiteSpace) {
-            smartSelectExpression(editor, file, offset - 1, callback);
-            return;
+    public static List<JetExpression> getSmartSelectSuggestions(
+            @NotNull PsiFile file,
+            int offset
+    ) throws IntroduceRefactoringException {
+        if (offset < 0) {
+            return new ArrayList<JetExpression>();
         }
+
+        PsiElement element = file.findElementAt(offset);
+        if (element == null) {
+            return new ArrayList<JetExpression>();
+        }
+        if (element instanceof PsiWhiteSpace) {
+            return getSmartSelectSuggestions(file, offset - 1);
+        }
+
         ArrayList<JetExpression> expressions = new ArrayList<JetExpression>();
         while (element != null && !(element instanceof JetBlockExpression && !(element.getParent() instanceof JetFunctionLiteral)) &&
                !(element instanceof JetNamedFunction)
@@ -326,7 +411,7 @@ public class JetRefactoringUtil {
                         addExpression = false;
                     }
                 }
-                else if (element.getParent() instanceof JetCallElement) {
+                else if (element.getParent() instanceof JetCallElement || element.getParent() instanceof JetThisExpression) {
                     addExpression = false;
                 }
                 else if (element.getParent() instanceof JetOperationExpression) {
@@ -337,7 +422,7 @@ public class JetRefactoringUtil {
                 }
                 if (addExpression) {
                     JetExpression expression = (JetExpression)element;
-                    BindingContext bindingContext = AnalyzerFacadeWithCache.analyzeFileWithCache((JetFile) expression.getContainingFile()).getBindingContext();
+                    BindingContext bindingContext = AnalyzerFacadeWithCache.getContextForElement(expression);
                     JetType expressionType = bindingContext.get(BindingContext.EXPRESSION_TYPE, expression);
                     if (expressionType == null || !(expressionType instanceof PackageType) &&
                                                   !JetTypeChecker.INSTANCE.equalTypes(KotlinBuiltIns.
@@ -348,6 +433,13 @@ public class JetRefactoringUtil {
             }
             element = element.getParent();
         }
+        return expressions;
+    }
+
+    private static void smartSelectExpression(
+            @NotNull Editor editor, @NotNull PsiFile file, int offset,
+            @NotNull final SelectExpressionCallback callback) throws IntroduceRefactoringException {
+        List<JetExpression> expressions = getSmartSelectSuggestions(file, offset);
         if (expressions.size() == 0) throw new IntroduceRefactoringException(JetRefactoringBundle.message("cannot.refactor.not.expression"));
 
         if (expressions.size() == 1) {

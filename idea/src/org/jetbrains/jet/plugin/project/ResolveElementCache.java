@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2013 JetBrains s.r.o.
+ * Copyright 2010-2014 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,6 +41,7 @@ import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
 import org.jetbrains.jet.lang.resolve.scopes.WritableScope;
 import org.jetbrains.jet.lang.types.TypeConstructor;
+import org.jetbrains.jet.storage.ExceptionTracker;
 import org.jetbrains.jet.storage.LazyResolveStorageManager;
 import org.jetbrains.jet.storage.MemoizedFunctionToNotNull;
 import org.jetbrains.jet.storage.StorageManager;
@@ -62,7 +63,8 @@ public class ResolveElementCache {
                             @Nullable
                             @Override
                             public Result<MemoizedFunctionToNotNull<JetElement, BindingContext>> compute() {
-                                LazyResolveStorageManager manager = ResolveElementCache.this.resolveSession.getStorageManager();
+                                ResolveSession resolveSession = ResolveElementCache.this.resolveSession;
+                                LazyResolveStorageManager manager = resolveSession.getStorageManager();
                                 MemoizedFunctionToNotNull<JetElement, BindingContext> elementsCacheFunction =
                                         manager.createWeaklyRetainedMemoizedFunction(new Function1<JetElement, BindingContext>() {
                                             @Override
@@ -71,7 +73,9 @@ public class ResolveElementCache {
                                             }
                                         });
 
-                                return Result.create(elementsCacheFunction, PsiModificationTracker.MODIFICATION_COUNT);
+                                return Result.create(elementsCacheFunction,
+                                                     PsiModificationTracker.MODIFICATION_COUNT,
+                                                     resolveSession.getExceptionTracker());
                             }
                         },
                         false);
@@ -142,7 +146,7 @@ public class ResolveElementCache {
         }
         else if (resolveElement instanceof JetImportDirective) {
             JetImportDirective importDirective = (JetImportDirective) resolveElement;
-            JetScope scope = resolveSession.getInjector().getScopeProvider().getFileScope((JetFile) importDirective.getContainingFile());
+            JetScope scope = resolveSession.getScopeProvider().getFileScope((JetFile) importDirective.getContainingFile());
 
             // Get all descriptors to force resolving all imports
             scope.getAllDescriptors();
@@ -226,8 +230,7 @@ public class ResolveElementCache {
     private static void delegationSpecifierAdditionalResolve(
             ResolveSession resolveSession,
             JetDelegationSpecifierList specifier, BindingTrace trace, JetFile file) {
-        BodyResolver bodyResolver = createBodyResolverWithEmptyContext(resolveSession.getStorageManager(),
-                                                                       trace, file, resolveSession.getModuleDescriptor());
+        BodyResolver bodyResolver = createBodyResolverWithEmptyContext(resolveSession, trace, file);
 
         JetClassOrObject classOrObject = (JetClassOrObject) specifier.getParent();
         LazyClassDescriptor descriptor = (LazyClassDescriptor) resolveSession.resolveToDescriptor(classOrObject);
@@ -242,11 +245,11 @@ public class ResolveElementCache {
     }
 
     private static void propertyAdditionalResolve(ResolveSession resolveSession, final JetProperty jetProperty, BindingTrace trace, JetFile file) {
-        final JetScope propertyResolutionScope = resolveSession.getInjector().getScopeProvider().getResolutionScopeForDeclaration(
-                jetProperty);
+        final JetScope propertyResolutionScope = resolveSession.getScopeProvider().getResolutionScopeForDeclaration(jetProperty);
 
         BodyResolveContextForLazy bodyResolveContext = new BodyResolveContextForLazy(
                 resolveSession.getStorageManager(),
+                resolveSession.getExceptionTracker(),
                 new Function<JetDeclaration, JetScope>() {
                     @Override
                     public JetScope apply(JetDeclaration declaration) {
@@ -277,9 +280,8 @@ public class ResolveElementCache {
             BindingTrace trace,
             JetFile file
     ) {
-        BodyResolver bodyResolver = createBodyResolverWithEmptyContext(resolveSession.getStorageManager(),
-                                                                       trace, file, resolveSession.getModuleDescriptor());
-        JetScope scope = resolveSession.getInjector().getScopeProvider().getResolutionScopeForDeclaration(namedFunction);
+        BodyResolver bodyResolver = createBodyResolverWithEmptyContext(resolveSession, trace, file);
+        JetScope scope = resolveSession.getScopeProvider().getResolutionScopeForDeclaration(namedFunction);
         FunctionDescriptor functionDescriptor = (FunctionDescriptor) resolveSession.resolveToDescriptor(namedFunction);
         bodyResolver.resolveFunctionBody(trace, namedFunction, functionDescriptor, scope);
     }
@@ -290,9 +292,8 @@ public class ResolveElementCache {
             BindingTrace trace,
             JetFile file
     ) {
-        BodyResolver bodyResolver = createBodyResolverWithEmptyContext(resolveSession.getStorageManager(),
-                                                                       trace, file, resolveSession.getModuleDescriptor());
-        JetScope scope = resolveSession.getInjector().getScopeProvider().getResolutionScopeForDeclaration(klass);
+        BodyResolver bodyResolver = createBodyResolverWithEmptyContext(resolveSession, trace, file);
+        JetScope scope = resolveSession.getScopeProvider().getResolutionScopeForDeclaration(klass);
 
         ClassDescriptor classDescriptor = (ClassDescriptor) resolveSession.resolveToDescriptor(klass);
         ConstructorDescriptor constructorDescriptor = classDescriptor.getUnsubstitutedPrimaryConstructor();
@@ -307,8 +308,7 @@ public class ResolveElementCache {
             BindingTrace trace,
             JetFile file
     ) {
-        BodyResolver bodyResolver = createBodyResolverWithEmptyContext(resolveSession.getStorageManager(),
-                                                                       trace, file, resolveSession.getModuleDescriptor());
+        BodyResolver bodyResolver = createBodyResolverWithEmptyContext(resolveSession, trace, file);
         JetClassOrObject classOrObject = PsiTreeUtil.getParentOfType(classInitializer, JetClassOrObject.class);
         LazyClassDescriptor classOrObjectDescriptor = (LazyClassDescriptor) resolveSession.resolveToDescriptor(classOrObject);
         bodyResolver.resolveAnonymousInitializers(classOrObject, classOrObjectDescriptor.getUnsubstitutedPrimaryConstructor(),
@@ -321,22 +321,27 @@ public class ResolveElementCache {
             ModuleDescriptor module) {
         TopDownAnalysisParameters parameters = new TopDownAnalysisParameters(
                 bodyResolveContext.getStorageManager(),
+                bodyResolveContext.getExceptionTracker(),
                 Predicates.<PsiFile>alwaysTrue(), false, true, Collections.<AnalyzerScriptParameter>emptyList());
         InjectorForBodyResolve bodyResolve = new InjectorForBodyResolve(file.getProject(), parameters, trace, bodyResolveContext, module);
         return bodyResolve.getBodyResolver();
     }
 
     private static BodyResolver createBodyResolverWithEmptyContext(
-            StorageManager storageManager,
+            ResolveSession resolveSession,
             BindingTrace trace,
-            JetFile file,
-            ModuleDescriptor module
+            JetFile file
     ) {
-        return createBodyResolver(trace, file, new BodyResolveContextForLazy(storageManager, Functions.<JetScope>constant(null)), module);
+        return createBodyResolver(trace, file,
+                                  new BodyResolveContextForLazy(
+                                          resolveSession.getStorageManager(),
+                                          resolveSession.getExceptionTracker(),
+                                          Functions.<JetScope>constant(null)),
+                                  resolveSession.getModuleDescriptor());
     }
 
     private static JetScope getExpressionResolutionScope(@NotNull ResolveSession resolveSession, @NotNull JetExpression expression) {
-        ScopeProvider provider = resolveSession.getInjector().getScopeProvider();
+        ScopeProvider provider = resolveSession.getScopeProvider();
         JetDeclaration parentDeclaration = PsiTreeUtil.getParentOfType(expression, JetDeclaration.class);
         if (parentDeclaration == null) {
             return provider.getFileScope((JetFile) expression.getContainingFile());
@@ -349,7 +354,7 @@ public class ResolveElementCache {
                 resolveSession.getBindingContext(), "trace to resolve a member scope of expression", expression));
 
         if (BindingContextUtils.isExpressionWithValidReference(expression, resolveSession.getBindingContext())) {
-            QualifiedExpressionResolver qualifiedExpressionResolver = resolveSession.getInjector().getQualifiedExpressionResolver();
+            QualifiedExpressionResolver qualifiedExpressionResolver = resolveSession.getQualifiedExpressionResolver();
 
             // In some type declaration
             if (expression.getParent() instanceof JetUserType) {
@@ -422,16 +427,28 @@ public class ResolveElementCache {
     private static class BodyResolveContextForLazy implements BodiesResolveContext {
 
         private final StorageManager storageManager;
+        private final ExceptionTracker exceptionTracker;
         private final Function<? super JetDeclaration, JetScope> declaringScopes;
 
-        private BodyResolveContextForLazy(StorageManager storageManager, @NotNull Function<? super JetDeclaration, JetScope> declaringScopes) {
+        private BodyResolveContextForLazy(
+                @NotNull StorageManager storageManager,
+                @NotNull ExceptionTracker exceptionTracker,
+                @NotNull Function<? super JetDeclaration, JetScope> declaringScopes) {
             this.storageManager = storageManager;
+            this.exceptionTracker = exceptionTracker;
             this.declaringScopes = declaringScopes;
         }
 
+        @NotNull
         @Override
         public StorageManager getStorageManager() {
             return storageManager;
+        }
+
+        @NotNull
+        @Override
+        public ExceptionTracker getExceptionTracker() {
+            return exceptionTracker;
         }
 
         @Override

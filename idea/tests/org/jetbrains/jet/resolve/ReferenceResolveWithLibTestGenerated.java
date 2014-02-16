@@ -36,6 +36,11 @@ public class ReferenceResolveWithLibTestGenerated extends AbstractReferenceResol
         JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), "org.jetbrains.jet.generators.tests.TestsPackage", new File("idea/testData/resolve/referenceWithLib"), Pattern.compile("^(.+)\\.kt$"), false);
     }
     
+    @TestMetadata("delegatedPropertyWithTypeParameters.kt")
+    public void testDelegatedPropertyWithTypeParameters() throws Exception {
+        doTest("idea/testData/resolve/referenceWithLib/delegatedPropertyWithTypeParameters.kt");
+    }
+    
     @TestMetadata("fakeOverride.kt")
     public void testFakeOverride() throws Exception {
         doTest("idea/testData/resolve/referenceWithLib/fakeOverride.kt");
@@ -46,9 +51,29 @@ public class ReferenceResolveWithLibTestGenerated extends AbstractReferenceResol
         doTest("idea/testData/resolve/referenceWithLib/fakeOverride2.kt");
     }
     
+    @TestMetadata("innerClassFromLib.kt")
+    public void testInnerClassFromLib() throws Exception {
+        doTest("idea/testData/resolve/referenceWithLib/innerClassFromLib.kt");
+    }
+    
+    @TestMetadata("iteratorWithTypeParameter.kt")
+    public void testIteratorWithTypeParameter() throws Exception {
+        doTest("idea/testData/resolve/referenceWithLib/iteratorWithTypeParameter.kt");
+    }
+    
+    @TestMetadata("packageOfLibDeclaration.kt")
+    public void testPackageOfLibDeclaration() throws Exception {
+        doTest("idea/testData/resolve/referenceWithLib/packageOfLibDeclaration.kt");
+    }
+    
     @TestMetadata("sameNameInLib.kt")
     public void testSameNameInLib() throws Exception {
         doTest("idea/testData/resolve/referenceWithLib/sameNameInLib.kt");
+    }
+    
+    @TestMetadata("setWithTypeParameters.kt")
+    public void testSetWithTypeParameters() throws Exception {
+        doTest("idea/testData/resolve/referenceWithLib/setWithTypeParameters.kt");
     }
     
 }

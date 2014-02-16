@@ -41,7 +41,6 @@ import org.jetbrains.jet.descriptors.serialization.ClassData;
 import org.jetbrains.jet.descriptors.serialization.DescriptorSerializer;
 import org.jetbrains.jet.descriptors.serialization.ProtoBuf;
 import org.jetbrains.jet.lang.descriptors.*;
-import org.jetbrains.jet.lang.descriptors.impl.MutableClassDescriptor;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.BindingContextUtils;
@@ -53,6 +52,7 @@ import org.jetbrains.jet.lang.resolve.constants.CompileTimeConstant;
 import org.jetbrains.jet.lang.resolve.java.AsmTypeConstants;
 import org.jetbrains.jet.lang.resolve.java.JvmAbi;
 import org.jetbrains.jet.lang.resolve.java.JvmAnnotationNames;
+import org.jetbrains.jet.lang.resolve.name.FqNameUnsafe;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.types.*;
 import org.jetbrains.jet.lang.types.checker.JetTypeChecker;
@@ -349,23 +349,38 @@ public class ImplementationBodyCodegen extends ClassBodyCodegen {
         }
         sw.writeSuperclassEnd();
 
-        LinkedHashSet<String> superInterfaces = new LinkedHashSet<String>();
-        sw.writeInterface();
-        sw.writeClassBegin(Type.getObjectType(JvmAbi.JET_OBJECT.getInternalName()));
-        sw.writeClassEnd();
-        sw.writeInterfaceEnd();
-        superInterfaces.add(JvmAbi.JET_OBJECT.getInternalName());
+        List<JetType> interfaceSupertypes = Lists.newArrayList();
+        FqNameUnsafe jetObjectFqName = JvmAbi.JET_OBJECT.getFqNameForClassNameWithoutDollars().toUnsafe();
+        boolean explicitJetObject = false;
 
         for (JetDelegationSpecifier specifier : myClass.getDelegationSpecifiers()) {
             JetType superType = bindingContext.get(BindingContext.TYPE, specifier.getTypeReference());
             assert superType != null : "No supertype for class: " + myClass.getText();
             ClassDescriptor superClassDescriptor = (ClassDescriptor) superType.getConstructor().getDeclarationDescriptor();
             if (isInterface(superClassDescriptor)) {
-                sw.writeInterface();
-                Type jvmName = typeMapper.mapSupertype(superType, sw);
-                sw.writeInterfaceEnd();
-                superInterfaces.add(jvmName.getInternalName());
+                interfaceSupertypes.add(superType);
+
+                assert superClassDescriptor != null : "should be already checked by isInterface()";
+                if (jetObjectFqName.equals(DescriptorUtils.getFqName(superClassDescriptor))) {
+                    explicitJetObject = true;
+                }
             }
+        }
+
+        LinkedHashSet<String> superInterfaces = new LinkedHashSet<String>();
+        if (!explicitJetObject) {
+            sw.writeInterface();
+            sw.writeClassBegin(Type.getObjectType(JvmAbi.JET_OBJECT.getInternalName()));
+            sw.writeClassEnd();
+            sw.writeInterfaceEnd();
+            superInterfaces.add(JvmAbi.JET_OBJECT.getInternalName());
+        }
+
+        for (JetType supertype : interfaceSupertypes) {
+            sw.writeInterface();
+            Type jvmName = typeMapper.mapSupertype(supertype, sw);
+            sw.writeInterfaceEnd();
+            superInterfaces.add(jvmName.getInternalName());
         }
 
         return new JvmClassSignature(classAsmType.getInternalName(), superClassAsmType.getInternalName(),
@@ -1142,7 +1157,7 @@ public class ImplementationBodyCodegen extends ClassBodyCodegen {
         FunctionCodegen.generateConstructorWithoutParametersIfNeeded(state, callableMethod, constructorDescriptor, v);
 
         if (isClassObject(descriptor)) {
-            context.recordSyntheticAccessorIfNeeded(constructorDescriptor, typeMapper);
+            context.recordSyntheticAccessorIfNeeded(constructorDescriptor, bindingContext);
         }
     }
 
@@ -1310,27 +1325,24 @@ public class ImplementationBodyCodegen extends ClassBodyCodegen {
             @Override
             public void visitSimpleNameExpression(@NotNull JetSimpleNameExpression expr) {
                 DeclarationDescriptor descriptor = bindingContext.get(BindingContext.REFERENCE_TARGET, expr);
-                if (descriptor instanceof VariableDescriptor && !(descriptor instanceof PropertyDescriptor)) {
+
+                DeclarationDescriptor toLookup;
+                if (isLocalNamedFun(descriptor)) {
+                    toLookup = descriptor;
+                }
+                else if (descriptor instanceof CallableMemberDescriptor) {
+                    toLookup = descriptor.getContainingDeclaration();
+                }
+                else if (descriptor instanceof VariableDescriptor) {
                     ConstructorDescriptor constructorDescriptor = (ConstructorDescriptor) constructorContext.getContextDescriptor();
                     for (ValueParameterDescriptor parameterDescriptor : constructorDescriptor.getValueParameters()) {
-                        //noinspection ConstantConditions
-                        if (descriptor.equals(parameterDescriptor)) {
-                            return;
-                        }
+                        if (descriptor.equals(parameterDescriptor)) return;
                     }
-                    constructorContext.lookupInContext(descriptor, null, state, true);
-                } else if (isLocalNamedFun(descriptor)) {
-                    assert descriptor != null;
-                    MutableClassDescriptor classDescriptor =
-                            (MutableClassDescriptor) constructorContext.getParentContext().getContextDescriptor();
-
-                    for (CallableMemberDescriptor memberDescriptor : classDescriptor.getAllCallableMembers()) {
-                        if (descriptor.equals(memberDescriptor)) {
-                            return;
-                        }
-                    }
-                    constructorContext.lookupInContext(descriptor, null, state, true);
+                    toLookup = descriptor;
                 }
+                else return;
+
+                constructorContext.lookupInContext(toLookup, null, state, true);
             }
 
             @Override

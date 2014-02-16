@@ -7,7 +7,7 @@ fun f() {
         }
 
         fun member() {
-            val x: MyClass = MyClass()
+            val <!UNUSED_VARIABLE!>x<!>: MyClass = MyClass()
         }
     }
 
@@ -23,7 +23,7 @@ fun f() {
 val closure = {
     class MyClass {
         {
-            val x: MyClass = MyClass()
+            val <!UNUSED_VARIABLE!>x<!>: MyClass = MyClass()
         }
     }
 }

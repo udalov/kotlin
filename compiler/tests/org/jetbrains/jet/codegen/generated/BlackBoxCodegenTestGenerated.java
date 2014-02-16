@@ -1241,6 +1241,11 @@ public class BlackBoxCodegenTestGenerated extends AbstractBlackBoxCodegenTest {
             doTest("compiler/testData/codegen/box/classes/kt3546.kt");
         }
         
+        @TestMetadata("kt3862.kt")
+        public void testKt3862() throws Exception {
+            doTest("compiler/testData/codegen/box/classes/kt3862.kt");
+        }
+        
         @TestMetadata("kt454.kt")
         public void testKt454() throws Exception {
             doTest("compiler/testData/codegen/box/classes/kt454.kt");
@@ -1384,7 +1389,7 @@ public class BlackBoxCodegenTestGenerated extends AbstractBlackBoxCodegenTest {
     }
     
     @TestMetadata("compiler/testData/codegen/box/closures")
-    @InnerTestClasses({Closures.ClosureInsideClosure.class})
+    @InnerTestClasses({Closures.CaptureOuterProperty.class, Closures.ClosureInsideClosure.class})
     public static class Closures extends AbstractBlackBoxCodegenTest {
         public void testAllFilesPresentInClosures() throws Exception {
             JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), "org.jetbrains.jet.generators.tests.TestsPackage", new File("compiler/testData/codegen/box/closures"), Pattern.compile("^(.+)\\.kt$"), true);
@@ -1455,6 +1460,11 @@ public class BlackBoxCodegenTestGenerated extends AbstractBlackBoxCodegenTest {
             doTest("compiler/testData/codegen/box/closures/kt3523.kt");
         }
         
+        @TestMetadata("kt3738.kt")
+        public void testKt3738() throws Exception {
+            doTest("compiler/testData/codegen/box/closures/kt3738.kt");
+        }
+        
         @TestMetadata("kt3905.kt")
         public void testKt3905() throws Exception {
             doTest("compiler/testData/codegen/box/closures/kt3905.kt");
@@ -1510,6 +1520,49 @@ public class BlackBoxCodegenTestGenerated extends AbstractBlackBoxCodegenTest {
             doTest("compiler/testData/codegen/box/closures/simplestClosureAndBoxing.kt");
         }
         
+        @TestMetadata("compiler/testData/codegen/box/closures/captureOuterProperty")
+        public static class CaptureOuterProperty extends AbstractBlackBoxCodegenTest {
+            public void testAllFilesPresentInCaptureOuterProperty() throws Exception {
+                JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), "org.jetbrains.jet.generators.tests.TestsPackage", new File("compiler/testData/codegen/box/closures/captureOuterProperty"), Pattern.compile("^(.+)\\.kt$"), true);
+            }
+            
+            @TestMetadata("captureFunctionInProperty.kt")
+            public void testCaptureFunctionInProperty() throws Exception {
+                doTest("compiler/testData/codegen/box/closures/captureOuterProperty/captureFunctionInProperty.kt");
+            }
+            
+            @TestMetadata("inFunction.kt")
+            public void testInFunction() throws Exception {
+                doTest("compiler/testData/codegen/box/closures/captureOuterProperty/inFunction.kt");
+            }
+            
+            @TestMetadata("inProperty.kt")
+            public void testInProperty() throws Exception {
+                doTest("compiler/testData/codegen/box/closures/captureOuterProperty/inProperty.kt");
+            }
+            
+            @TestMetadata("inPropertyDeepObjectChain.kt")
+            public void testInPropertyDeepObjectChain() throws Exception {
+                doTest("compiler/testData/codegen/box/closures/captureOuterProperty/inPropertyDeepObjectChain.kt");
+            }
+            
+            @TestMetadata("inPropertyFromSuperClass.kt")
+            public void testInPropertyFromSuperClass() throws Exception {
+                doTest("compiler/testData/codegen/box/closures/captureOuterProperty/inPropertyFromSuperClass.kt");
+            }
+            
+            @TestMetadata("inPropertyFromSuperSuperClass.kt")
+            public void testInPropertyFromSuperSuperClass() throws Exception {
+                doTest("compiler/testData/codegen/box/closures/captureOuterProperty/inPropertyFromSuperSuperClass.kt");
+            }
+            
+            @TestMetadata("kt4176.kt")
+            public void testKt4176() throws Exception {
+                doTest("compiler/testData/codegen/box/closures/captureOuterProperty/kt4176.kt");
+            }
+            
+        }
+        
         @TestMetadata("compiler/testData/codegen/box/closures/closureInsideClosure")
         public static class ClosureInsideClosure extends AbstractBlackBoxCodegenTest {
             public void testAllFilesPresentInClosureInsideClosure() throws Exception {
@@ -1551,6 +1604,7 @@ public class BlackBoxCodegenTestGenerated extends AbstractBlackBoxCodegenTest {
         public static Test innerSuite() {
             TestSuite suite = new TestSuite("Closures");
             suite.addTestSuite(Closures.class);
+            suite.addTestSuite(CaptureOuterProperty.class);
             suite.addTestSuite(ClosureInsideClosure.class);
             return suite;
         }
@@ -1923,6 +1977,11 @@ public class BlackBoxCodegenTestGenerated extends AbstractBlackBoxCodegenTest {
             @TestMetadata("kt2852.kt")
             public void testKt2852() throws Exception {
                 doTest("compiler/testData/codegen/box/defaultArguments/constructor/kt2852.kt");
+            }
+            
+            @TestMetadata("kt3060.kt")
+            public void testKt3060() throws Exception {
+                doTest("compiler/testData/codegen/box/defaultArguments/constructor/kt3060.kt");
             }
             
         }
@@ -2342,6 +2401,11 @@ public class BlackBoxCodegenTestGenerated extends AbstractBlackBoxCodegenTest {
             doTest("compiler/testData/codegen/box/extensionFunctions/kt1953_class.kt");
         }
         
+        @TestMetadata("kt3298.kt")
+        public void testKt3298() throws Exception {
+            doTest("compiler/testData/codegen/box/extensionFunctions/kt3298.kt");
+        }
+        
         @TestMetadata("kt3646.kt")
         public void testKt3646() throws Exception {
             doTest("compiler/testData/codegen/box/extensionFunctions/kt3646.kt");
@@ -2544,6 +2608,11 @@ public class BlackBoxCodegenTestGenerated extends AbstractBlackBoxCodegenTest {
             doTest("compiler/testData/codegen/box/finally/kt3549.kt");
         }
         
+        @TestMetadata("kt3706.kt")
+        public void testKt3706() throws Exception {
+            doTest("compiler/testData/codegen/box/finally/kt3706.kt");
+        }
+        
         @TestMetadata("kt3867.kt")
         public void testKt3867() throws Exception {
             doTest("compiler/testData/codegen/box/finally/kt3867.kt");
@@ -2557,6 +2626,11 @@ public class BlackBoxCodegenTestGenerated extends AbstractBlackBoxCodegenTest {
         @TestMetadata("kt3894.kt")
         public void testKt3894() throws Exception {
             doTest("compiler/testData/codegen/box/finally/kt3894.kt");
+        }
+        
+        @TestMetadata("kt4134.kt")
+        public void testKt4134() throws Exception {
+            doTest("compiler/testData/codegen/box/finally/kt4134.kt");
         }
         
         @TestMetadata("loopAndFinally.kt")
@@ -2671,6 +2745,11 @@ public class BlackBoxCodegenTestGenerated extends AbstractBlackBoxCodegenTest {
         @TestMetadata("kt1199.kt")
         public void testKt1199() throws Exception {
             doTest("compiler/testData/codegen/box/functions/kt1199.kt");
+        }
+        
+        @TestMetadata("kt1291.kt")
+        public void testKt1291() throws Exception {
+            doTest("compiler/testData/codegen/box/functions/kt1291.kt");
         }
         
         @TestMetadata("kt1413.kt")
@@ -2815,6 +2894,11 @@ public class BlackBoxCodegenTestGenerated extends AbstractBlackBoxCodegenTest {
         public static class LocalFunctions extends AbstractBlackBoxCodegenTest {
             public void testAllFilesPresentInLocalFunctions() throws Exception {
                 JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), "org.jetbrains.jet.generators.tests.TestsPackage", new File("compiler/testData/codegen/box/functions/localFunctions"), Pattern.compile("^(.+)\\.kt$"), true);
+            }
+            
+            @TestMetadata("kt2895.kt")
+            public void testKt2895() throws Exception {
+                doTest("compiler/testData/codegen/box/functions/localFunctions/kt2895.kt");
             }
             
             @TestMetadata("kt3978.kt")
@@ -4257,6 +4341,11 @@ public class BlackBoxCodegenTestGenerated extends AbstractBlackBoxCodegenTest {
             doTest("compiler/testData/codegen/box/primitiveTypes/kt3576.kt");
         }
         
+        @TestMetadata("kt3613.kt")
+        public void testKt3613() throws Exception {
+            doTest("compiler/testData/codegen/box/primitiveTypes/kt3613.kt");
+        }
+        
         @TestMetadata("kt4097.kt")
         public void testKt4097() throws Exception {
             doTest("compiler/testData/codegen/box/primitiveTypes/kt4097.kt");
@@ -4969,6 +5058,11 @@ public class BlackBoxCodegenTestGenerated extends AbstractBlackBoxCodegenTest {
             doTest("compiler/testData/codegen/box/typeInfo/asInLoop.kt");
         }
         
+        @TestMetadata("implicitSmartCastedThis.kt")
+        public void testImplicitSmartCastedThis() throws Exception {
+            doTest("compiler/testData/codegen/box/typeInfo/implicitSmartCastedThis.kt");
+        }
+        
         @TestMetadata("inheritance.kt")
         public void testInheritance() throws Exception {
             doTest("compiler/testData/codegen/box/typeInfo/inheritance.kt");
@@ -4987,6 +5081,11 @@ public class BlackBoxCodegenTestGenerated extends AbstractBlackBoxCodegenTest {
         @TestMetadata("primitiveTypeInfo.kt")
         public void testPrimitiveTypeInfo() throws Exception {
             doTest("compiler/testData/codegen/box/typeInfo/primitiveTypeInfo.kt");
+        }
+        
+        @TestMetadata("smartCastedThis.kt")
+        public void testSmartCastedThis() throws Exception {
+            doTest("compiler/testData/codegen/box/typeInfo/smartCastedThis.kt");
         }
         
     }

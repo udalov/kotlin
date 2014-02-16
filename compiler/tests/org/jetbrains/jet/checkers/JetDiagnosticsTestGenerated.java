@@ -1493,6 +1493,11 @@ public class JetDiagnosticsTestGenerated extends AbstractJetDiagnosticsTest {
                 doTest("compiler/testData/diagnostics/tests/controlFlowAnalysis/checkInnerLocalDeclarations.kt");
             }
             
+            @TestMetadata("checkPropertyAccessor.kt")
+            public void testCheckPropertyAccessor() throws Exception {
+                doTest("compiler/testData/diagnostics/tests/controlFlowAnalysis/checkPropertyAccessor.kt");
+            }
+            
             @TestMetadata("DeadCode.kt")
             public void testDeadCode() throws Exception {
                 doTest("compiler/testData/diagnostics/tests/controlFlowAnalysis/DeadCode.kt");
@@ -1608,6 +1613,16 @@ public class JetDiagnosticsTestGenerated extends AbstractJetDiagnosticsTest {
                 doTest("compiler/testData/diagnostics/tests/controlFlowAnalysis/kt3444.kt");
             }
             
+            @TestMetadata("kt3501.kt")
+            public void testKt3501() throws Exception {
+                doTest("compiler/testData/diagnostics/tests/controlFlowAnalysis/kt3501.kt");
+            }
+            
+            @TestMetadata("kt4405.kt")
+            public void testKt4405() throws Exception {
+                doTest("compiler/testData/diagnostics/tests/controlFlowAnalysis/kt4405.kt");
+            }
+            
             @TestMetadata("kt510.kt")
             public void testKt510() throws Exception {
                 doTest("compiler/testData/diagnostics/tests/controlFlowAnalysis/kt510.kt");
@@ -1641,6 +1656,11 @@ public class JetDiagnosticsTestGenerated extends AbstractJetDiagnosticsTest {
             @TestMetadata("kt897.kt")
             public void testKt897() throws Exception {
                 doTest("compiler/testData/diagnostics/tests/controlFlowAnalysis/kt897.kt");
+            }
+            
+            @TestMetadata("localClasses.kt")
+            public void testLocalClasses() throws Exception {
+                doTest("compiler/testData/diagnostics/tests/controlFlowAnalysis/localClasses.kt");
             }
             
             @TestMetadata("propertiesOrderInPackage.kt")
@@ -3066,6 +3086,11 @@ public class JetDiagnosticsTestGenerated extends AbstractJetDiagnosticsTest {
                 doTest("compiler/testData/diagnostics/tests/functionLiterals/kt2906.kt");
             }
             
+            @TestMetadata("kt4529.kt")
+            public void testKt4529() throws Exception {
+                doTest("compiler/testData/diagnostics/tests/functionLiterals/kt4529.kt");
+            }
+            
             @TestMetadata("LabeledFunctionLiterals.kt")
             public void testLabeledFunctionLiterals() throws Exception {
                 doTest("compiler/testData/diagnostics/tests/functionLiterals/LabeledFunctionLiterals.kt");
@@ -3324,6 +3349,11 @@ public class JetDiagnosticsTestGenerated extends AbstractJetDiagnosticsTest {
             @TestMetadata("incompleteAssignment.kt")
             public void testIncompleteAssignment() throws Exception {
                 doTest("compiler/testData/diagnostics/tests/incompleteCode/incompleteAssignment.kt");
+            }
+            
+            @TestMetadata("incompleteEquals.kt")
+            public void testIncompleteEquals() throws Exception {
+                doTest("compiler/testData/diagnostics/tests/incompleteCode/incompleteEquals.kt");
             }
             
             @TestMetadata("kt1955.kt")
@@ -4034,7 +4064,7 @@ public class JetDiagnosticsTestGenerated extends AbstractJetDiagnosticsTest {
         }
         
         @TestMetadata("compiler/testData/diagnostics/tests/inline")
-        @InnerTestClasses({Inline.BinaryExpressions.class, Inline.NonPublicMember.class, Inline.UnaryExpressions.class})
+        @InnerTestClasses({Inline.BinaryExpressions.class, Inline.NonPublicMember.class, Inline.Regressions.class, Inline.UnaryExpressions.class})
         public static class Inline extends AbstractJetDiagnosticsTest {
             public void testAllFilesPresentInInline() throws Exception {
                 JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), "org.jetbrains.jet.generators.tests.TestsPackage", new File("compiler/testData/diagnostics/tests/inline"), Pattern.compile("^(.+)\\.kt$"), true);
@@ -4231,6 +4261,19 @@ public class JetDiagnosticsTestGenerated extends AbstractJetDiagnosticsTest {
                 
             }
             
+            @TestMetadata("compiler/testData/diagnostics/tests/inline/regressions")
+            public static class Regressions extends AbstractJetDiagnosticsTest {
+                public void testAllFilesPresentInRegressions() throws Exception {
+                    JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), "org.jetbrains.jet.generators.tests.TestsPackage", new File("compiler/testData/diagnostics/tests/inline/regressions"), Pattern.compile("^(.+)\\.kt$"), true);
+                }
+                
+                @TestMetadata("kt4341.kt")
+                public void testKt4341() throws Exception {
+                    doTest("compiler/testData/diagnostics/tests/inline/regressions/kt4341.kt");
+                }
+                
+            }
+            
             @TestMetadata("compiler/testData/diagnostics/tests/inline/unaryExpressions")
             public static class UnaryExpressions extends AbstractJetDiagnosticsTest {
                 public void testAllFilesPresentInUnaryExpressions() throws Exception {
@@ -4254,6 +4297,7 @@ public class JetDiagnosticsTestGenerated extends AbstractJetDiagnosticsTest {
                 suite.addTestSuite(Inline.class);
                 suite.addTestSuite(BinaryExpressions.class);
                 suite.addTestSuite(NonPublicMember.class);
+                suite.addTestSuite(Regressions.class);
                 suite.addTestSuite(UnaryExpressions.class);
                 return suite;
             }
@@ -4498,6 +4542,11 @@ public class JetDiagnosticsTestGenerated extends AbstractJetDiagnosticsTest {
                 doTest("compiler/testData/diagnostics/tests/j+k/innerNestedClassFromJava.kt");
             }
             
+            @TestMetadata("invisiblePackagePrivateInheritedMember.kt")
+            public void testInvisiblePackagePrivateInheritedMember() throws Exception {
+                doTest("compiler/testData/diagnostics/tests/j+k/invisiblePackagePrivateInheritedMember.kt");
+            }
+            
             @TestMetadata("KJKInheritance.kt")
             public void testKJKInheritance() throws Exception {
                 doTest("compiler/testData/diagnostics/tests/j+k/KJKInheritance.kt");
@@ -4556,6 +4605,11 @@ public class JetDiagnosticsTestGenerated extends AbstractJetDiagnosticsTest {
             @TestMetadata("mutableIterator.kt")
             public void testMutableIterator() throws Exception {
                 doTest("compiler/testData/diagnostics/tests/j+k/mutableIterator.kt");
+            }
+            
+            @TestMetadata("overrideRawType.kt")
+            public void testOverrideRawType() throws Exception {
+                doTest("compiler/testData/diagnostics/tests/j+k/overrideRawType.kt");
             }
             
             @TestMetadata("OverrideVararg.kt")
@@ -5924,6 +5978,11 @@ public class JetDiagnosticsTestGenerated extends AbstractJetDiagnosticsTest {
                     doTest("compiler/testData/diagnostics/tests/resolve/invoke/invokeAsMemberExtensionToExplicitReceiver.kt");
                 }
                 
+                @TestMetadata("KT-4372.kt")
+                public void testKT_4372() throws Exception {
+                    doTest("compiler/testData/diagnostics/tests/resolve/invoke/KT-4372.kt");
+                }
+                
                 @TestMetadata("kt3772.kt")
                 public void testKt3772() throws Exception {
                     doTest("compiler/testData/diagnostics/tests/resolve/invoke/kt3772.kt");
@@ -5937,6 +5996,11 @@ public class JetDiagnosticsTestGenerated extends AbstractJetDiagnosticsTest {
                 @TestMetadata("kt4204-completeNestedCallsForInvoke.kt")
                 public void testKt4204_completeNestedCallsForInvoke() throws Exception {
                     doTest("compiler/testData/diagnostics/tests/resolve/invoke/kt4204-completeNestedCallsForInvoke.kt");
+                }
+                
+                @TestMetadata("valNamedInvoke.kt")
+                public void testValNamedInvoke() throws Exception {
+                    doTest("compiler/testData/diagnostics/tests/resolve/invoke/valNamedInvoke.kt");
                 }
                 
             }
@@ -6299,6 +6363,11 @@ public class JetDiagnosticsTestGenerated extends AbstractJetDiagnosticsTest {
         @TestMetadata("compiler/testData/diagnostics/tests/smartCasts")
         @InnerTestClasses({SmartCasts.Inference.class})
         public static class SmartCasts extends AbstractJetDiagnosticsTest {
+            @TestMetadata("afterBinaryExpr.kt")
+            public void testAfterBinaryExpr() throws Exception {
+                doTest("compiler/testData/diagnostics/tests/smartCasts/afterBinaryExpr.kt");
+            }
+            
             public void testAllFilesPresentInSmartCasts() throws Exception {
                 JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), "org.jetbrains.jet.generators.tests.TestsPackage", new File("compiler/testData/diagnostics/tests/smartCasts"), Pattern.compile("^(.+)\\.kt$"), true);
             }
@@ -6387,6 +6456,16 @@ public class JetDiagnosticsTestGenerated extends AbstractJetDiagnosticsTest {
                 @TestMetadata("kt4009.kt")
                 public void testKt4009() throws Exception {
                     doTest("compiler/testData/diagnostics/tests/smartCasts/inference/kt4009.kt");
+                }
+                
+                @TestMetadata("kt4403.kt")
+                public void testKt4403() throws Exception {
+                    doTest("compiler/testData/diagnostics/tests/smartCasts/inference/kt4403.kt");
+                }
+                
+                @TestMetadata("kt4415.kt")
+                public void testKt4415() throws Exception {
+                    doTest("compiler/testData/diagnostics/tests/smartCasts/inference/kt4415.kt");
                 }
                 
                 @TestMetadata("smartCastOnReceiver.kt")

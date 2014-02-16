@@ -33,7 +33,6 @@ import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.BindingContextUtils;
 import org.jetbrains.jet.lang.resolve.BindingTrace;
-import org.jetbrains.jet.lang.resolve.calls.autocasts.AutoCastReceiver;
 import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCall;
 import org.jetbrains.jet.lang.resolve.calls.model.ResolvedValueArgument;
 import org.jetbrains.jet.lang.resolve.calls.model.VariableAsFunctionResolvedCall;
@@ -793,8 +792,10 @@ public class JetControlFlowProcessor {
             if (delegate != null) {
                 generateInstructions(delegate, NOT_IN_CONDITION);
             }
-            for (JetPropertyAccessor accessor : property.getAccessors()) {
-                generateInstructions(accessor, NOT_IN_CONDITION);
+            if (JetPsiUtil.isLocal(property)) {
+                for (JetPropertyAccessor accessor : property.getAccessors()) {
+                    generateInstructions(accessor, NOT_IN_CONDITION);
+                }
             }
         }
 
@@ -916,16 +917,6 @@ public class JetControlFlowProcessor {
             JetObjectDeclaration declaration = expression.getObjectDeclaration();
             generateInstructions(declaration, context);
 
-            List<JetDeclaration> declarations = declaration.getDeclarations();
-            List<JetDeclaration> functions = Lists.newArrayList();
-            for (JetDeclaration localDeclaration : declarations) {
-                if (!(localDeclaration instanceof JetProperty) && !(localDeclaration instanceof JetClassInitializer)) {
-                    functions.add(localDeclaration);
-                }
-            }
-            for (JetDeclaration function : functions) {
-                generateInstructions(function, context);
-            }
             builder.createAnonymousObject(expression);
         }
 
@@ -961,6 +952,13 @@ public class JetControlFlowProcessor {
                 generateInstructions(specifier, context);
             }
             List<JetDeclaration> declarations = classOrObject.getDeclarations();
+            if (JetPsiUtil.isLocal(classOrObject)) {
+                for (JetDeclaration declaration : declarations) {
+                    generateInstructions(declaration, context);
+                }
+                return;
+            }
+            //For top-level and inner classes and objects functions are collected and checked separately.
             for (JetDeclaration declaration : declarations) {
                 if (declaration instanceof JetProperty || declaration instanceof JetClassInitializer) {
                     generateInstructions(declaration, context);
@@ -1063,10 +1061,6 @@ public class JetControlFlowProcessor {
             }
             else if (receiver instanceof TransientReceiver) {
                 // Do nothing
-            }
-            else if (receiver instanceof AutoCastReceiver) {
-                // No cast instruction in our CFG
-                generateReceiver(((AutoCastReceiver) receiver).getOriginal());
             }
             else {
                 throw new IllegalArgumentException("Unknown receiver kind: " + receiver);

@@ -37,6 +37,7 @@ public final class Namer {
     public static final String OUTER_CLASS_NAME = "$outer";
 
     private static final String CALL_FUNCTION = "call";
+    private static final String APPLY_FUNCTION = "apply";
     private static final String CLASS_OBJECT_NAME = "createClass";
     private static final String TRAIT_OBJECT_NAME = "createTrait";
     private static final String OBJECT_OBJECT_NAME = "createObject";
@@ -54,7 +55,6 @@ public final class Namer {
 
 
     private static final String DELEGATE_POSTFIX = "$delegate";
-    private static final String PROPERTY_METADATA = "PropertyMetadata";
 
     @NotNull
     public static String getReceiverParameterName() {
@@ -138,6 +138,10 @@ public final class Namer {
     @NotNull
     public static JsNameRef getFunctionCallRef(@NotNull JsExpression functionExpression) {
         return new JsNameRef(CALL_FUNCTION, functionExpression);
+    }
+    @NotNull
+    public static JsNameRef getFunctionApplyRef(@NotNull JsExpression functionExpression) {
+        return new JsNameRef(APPLY_FUNCTION, functionExpression);
     }
 
     @NotNull
@@ -224,11 +228,6 @@ public final class Namer {
     @NotNull
     public JsExpression throwNPEFunctionRef() {
         return new JsNameRef(THROW_NPE_FUN_NAME, kotlinObject());
-    }
-
-    @NotNull
-    public JsNameRef propertyMetadataRef() {
-        return new JsNameRef(PROPERTY_METADATA, kotlinObject());
     }
 
     @NotNull

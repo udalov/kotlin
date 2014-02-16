@@ -343,6 +343,11 @@ public class JetFindUsagesTestGenerated extends AbstractJetFindUsagesTest {
                 doTest("idea/testData/findUsages/kotlin/findFunctionUsages/kotlinTopLevelMethodUsagesNoImport.0.kt");
             }
             
+            @TestMetadata("usagesOfBaseForFunction.0.kt")
+            public void testUsagesOfBaseForFunction() throws Exception {
+                doTest("idea/testData/findUsages/kotlin/findFunctionUsages/usagesOfBaseForFunction.0.kt");
+            }
+            
         }
         
         @TestMetadata("idea/testData/findUsages/kotlin/findObjectUsages")
@@ -624,6 +629,11 @@ public class JetFindUsagesTestGenerated extends AbstractJetFindUsagesTest {
             @TestMetadata("JKClassMethodsUsages.0.java")
             public void testJKClassMethodsUsages() throws Exception {
                 doTest("idea/testData/findUsages/java/findJavaClassUsages/JKClassMethodsUsages.0.java");
+            }
+            
+            @TestMetadata("JKClassWithImplicitConstructorAllUsages.0.java")
+            public void testJKClassWithImplicitConstructorAllUsages() throws Exception {
+                doTest("idea/testData/findUsages/java/findJavaClassUsages/JKClassWithImplicitConstructorAllUsages.0.java");
             }
             
             @TestMetadata("JKDerivedInterfaces.0.java")

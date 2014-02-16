@@ -34,6 +34,8 @@ import com.intellij.util.containers.ContainerUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.asJava.LightClassUtil;
+import org.jetbrains.jet.context.ContextPackage;
+import org.jetbrains.jet.context.GlobalContextImpl;
 import org.jetbrains.jet.di.InjectorForTopDownAnalyzerBasic;
 import org.jetbrains.jet.lang.PlatformToKotlinClassMap;
 import org.jetbrains.jet.lang.descriptors.*;
@@ -44,7 +46,6 @@ import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 import org.jetbrains.jet.renderer.DescriptorRenderer;
-import org.jetbrains.jet.storage.LockBasedStorageManager;
 import org.jetbrains.jet.utils.UtilsPackage;
 
 import java.io.File;
@@ -84,20 +85,23 @@ public class BuiltInsReferenceResolver extends AbstractProjectComponent {
         final Runnable initializeRunnable = new Runnable() {
             @Override
             public void run() {
+                GlobalContextImpl globalContext = ContextPackage.GlobalContext();
                 TopDownAnalysisParameters topDownAnalysisParameters = new TopDownAnalysisParameters(
-                        new LockBasedStorageManager(),
+                        globalContext.getStorageManager(),
+                        globalContext.getExceptionTracker(),
                         Predicates.<PsiFile>alwaysFalse(), true, false, Collections.<AnalyzerScriptParameter>emptyList());
                 ModuleDescriptorImpl module = new ModuleDescriptorImpl(
                         Name.special("<fake_module>"), Collections.<ImportPath>emptyList(), PlatformToKotlinClassMap.EMPTY);
+                BindingTraceContext trace = new BindingTraceContext();
                 InjectorForTopDownAnalyzerBasic injector = new InjectorForTopDownAnalyzerBasic(
-                        myProject, topDownAnalysisParameters, new BindingTraceContext(), module, PlatformToKotlinClassMap.EMPTY);
+                        myProject, topDownAnalysisParameters, trace, module, PlatformToKotlinClassMap.EMPTY);
 
                 TopDownAnalyzer analyzer = injector.getTopDownAnalyzer();
                 analyzer.analyzeFiles(jetBuiltInsFiles, Collections.<AnalyzerScriptParameter>emptyList());
 
                 builtinsPackageFragment = analyzer.getPackageFragmentProvider().getOrCreateFragment(KotlinBuiltIns.BUILT_INS_PACKAGE_FQ_NAME);
                 builtInsSources = Sets.newHashSet(jetBuiltInsFiles);
-                bindingContext = injector.getBindingTrace().getBindingContext();
+                bindingContext = trace.getBindingContext();
             }
         };
 

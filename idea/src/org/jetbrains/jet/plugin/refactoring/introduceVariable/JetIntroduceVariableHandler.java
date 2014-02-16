@@ -33,7 +33,6 @@ import com.intellij.refactoring.HelpID;
 import com.intellij.refactoring.introduce.inplace.OccurrencesChooser;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.jet.analyzer.AnalyzeExhaust;
 import org.jetbrains.jet.di.InjectorForMacros;
 import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor;
 import org.jetbrains.jet.lang.psi.*;
@@ -51,6 +50,7 @@ import org.jetbrains.jet.lexer.JetTokens;
 import org.jetbrains.jet.plugin.codeInsight.CodeInsightUtils;
 import org.jetbrains.jet.plugin.codeInsight.ShortenReferences;
 import org.jetbrains.jet.plugin.project.AnalyzerFacadeWithCache;
+import org.jetbrains.jet.plugin.project.ResolveSessionForBodies;
 import org.jetbrains.jet.plugin.refactoring.*;
 import org.jetbrains.jet.renderer.DescriptorRenderer;
 
@@ -112,8 +112,9 @@ public class JetIntroduceVariableHandler extends JetIntroduceHandlerBase {
                 return;
             }
         }
-        AnalyzeExhaust analyzeExhaust = AnalyzerFacadeWithCache.analyzeFileWithCache((JetFile) expression.getContainingFile());
-        BindingContext bindingContext = analyzeExhaust.getBindingContext();
+        ResolveSessionForBodies resolveSession =
+                AnalyzerFacadeWithCache.getLazyResolveSessionForFile((JetFile) expression.getContainingFile());
+        BindingContext bindingContext = resolveSession.resolveToElement(expression);
         final JetType expressionType = bindingContext.get(BindingContext.EXPRESSION_TYPE, expression); //can be null or error type
         JetScope scope = bindingContext.get(BindingContext.RESOLUTION_SCOPE, expression);
         if (scope != null) {
@@ -123,7 +124,7 @@ public class JetIntroduceVariableHandler extends JetIntroduceHandlerBase {
             }
 
             ObservableBindingTrace bindingTrace = new ObservableBindingTrace(new BindingTraceContext());
-            InjectorForMacros injector = new InjectorForMacros(project, analyzeExhaust.getModuleDescriptor());
+            InjectorForMacros injector = new InjectorForMacros(project, resolveSession.getModuleDescriptor());
             JetType typeNoExpectedType = injector.getExpressionTypingServices().getType(scope, expression,
                                                                                 TypeUtils.NO_EXPECTED_TYPE, dataFlowInfo,
                                                                                 bindingTrace);
@@ -252,7 +253,6 @@ public class JetIntroduceVariableHandler extends JetIntroduceHandlerBase {
                     variableText += expression.getText();
                 }
                 JetProperty property = JetPsiFactory.createProperty(project, variableText);
-                if (property == null) return;
                 PsiElement anchor = calculateAnchor(commonParent, commonContainer, allReplaces);
                 if (anchor == null) return;
                 boolean needBraces = !(commonContainer instanceof JetBlockExpression ||
@@ -346,7 +346,10 @@ public class JetIntroduceVariableHandler extends JetIntroduceHandlerBase {
                         if (!function.hasDeclaredReturnType()) {
                             //todo: add return type
                         }
-                        function.getEqualsToken().delete();
+
+                        PsiElement equalsToken = function.getEqualsToken();
+                        assert equalsToken != null : "Function without block body was expected: " + function.getText();
+                        equalsToken.delete();
                     }
                     else if (commonContainer instanceof JetContainerNode) {
                         JetContainerNode node = (JetContainerNode)commonContainer;
@@ -429,7 +432,7 @@ public class JetIntroduceVariableHandler extends JetIntroduceHandlerBase {
 
         final ArrayList<JetExpression> result = new ArrayList<JetExpression>();
 
-        final BindingContext bindingContext = AnalyzerFacadeWithCache.analyzeFileWithCache((JetFile) expression.getContainingFile()).getBindingContext();
+        final BindingContext bindingContext = AnalyzerFacadeWithCache.getContextForElement(expression);
 
         JetVisitorVoid visitor = new JetVisitorVoid() {
             @Override
@@ -442,7 +445,7 @@ public class JetIntroduceVariableHandler extends JetIntroduceHandlerBase {
             public void visitExpression(@NotNull JetExpression expression) {
                 if (PsiEquivalenceUtil.areElementsEquivalent(expression, actualExpression, null, new Comparator<PsiElement>() {
                     @Override
-                    public int compare(PsiElement element1, PsiElement element2) {
+                    public int compare(@NotNull PsiElement element1, @NotNull PsiElement element2) {
                         if (element1.getNode().getElementType() == JetTokens.IDENTIFIER &&
                             element2.getNode().getElementType() == JetTokens.IDENTIFIER) {
                             if (element1.getParent() instanceof JetSimpleNameExpression &&

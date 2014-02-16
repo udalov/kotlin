@@ -38,7 +38,7 @@ import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.plugin.hierarchy.HierarchyUtils;
 import org.jetbrains.jet.plugin.project.AnalyzerFacadeWithCache;
-import org.jetbrains.jet.plugin.references.JetPsiReference;
+import org.jetbrains.jet.plugin.references.JetReference;
 import org.jetbrains.jet.plugin.search.usagesSearch.UsagesSearchPackage;
 
 import java.util.*;
@@ -61,11 +61,12 @@ public abstract class KotlinCallerMethodsTreeStructure extends KotlinCallTreeStr
         @Override
         protected Object[] buildChildren(@NotNull HierarchyNodeDescriptor descriptor) {
             final PsiElement element = getTargetElement(descriptor);
+            assert element instanceof JetElement :
+                    "JetElement must be passed by KotlinCallerMethodsTreeStructure.newInstance(): " + element.getText();
 
-            BindingContext bindingContext =
-                    AnalyzerFacadeWithCache.analyzeFileWithCache((JetFile) element.getContainingFile()).getBindingContext();
+            BindingContext bindingContext = AnalyzerFacadeWithCache.getContextForElement((JetElement) element);
 
-            final ArrayList<PsiElement> result = new ArrayList<PsiElement>();
+            final Map<PsiReference, PsiElement> referencesToElements = new HashMap<PsiReference, PsiElement>();
             codeBlockForLocalDeclaration.accept(new CalleeReferenceVisitorBase(bindingContext, true) {
                 @Override
                 protected void processDeclaration(JetReferenceExpression reference, PsiElement declaration) {
@@ -79,11 +80,11 @@ public abstract class KotlinCallerMethodsTreeStructure extends KotlinCallTreeStr
                     }
 
                     if (container != null) {
-                        result.add(container);
+                        referencesToElements.put(reference.getReference(), container);
                     }
                 }
             });
-            return collectNodeDescriptors(descriptor, result, null);
+            return collectNodeDescriptors(descriptor, referencesToElements, null);
         }
     }
 
@@ -195,7 +196,7 @@ public abstract class KotlinCallerMethodsTreeStructure extends KotlinCallTreeStr
                 @Override
                 public boolean processInReadAction(PsiReference ref) {
                     // copied from Java
-                    if (!(ref instanceof PsiReferenceExpression || ref instanceof JetPsiReference)) {
+                    if (!(ref instanceof PsiReferenceExpression || ref instanceof JetReference)) {
                         if (!(ref instanceof PsiElement)) {
                             return true;
                         }
@@ -229,7 +230,7 @@ public abstract class KotlinCallerMethodsTreeStructure extends KotlinCallTreeStr
                     }
 
                     if (element != null) {
-                        addNodeDescriptorForElement(element, methodToDescriptorMap, descriptor);
+                        addNodeDescriptorForElement(ref, element, methodToDescriptorMap, descriptor);
                     }
 
                     return true;
@@ -247,7 +248,7 @@ public abstract class KotlinCallerMethodsTreeStructure extends KotlinCallTreeStr
         if (codeBlockForLocalDeclaration != null) return new WithLocalRoot(project, element, scopeType, codeBlockForLocalDeclaration);
 
         PsiMethod representativeMethod = getRepresentativePsiMethod(element);
-        assert representativeMethod != null;
+        assert representativeMethod != null : "Can't generate light method: " + element.getText();
         return new WithNonLocalRoot(project, element, scopeType, representativeMethod);
     }
 }
