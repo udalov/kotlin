@@ -105,6 +105,7 @@ public class ObjCClassDescriptor extends MutableClassDescriptorLite {
 
     private PackageLikeBuilder builder = null;
 
+    @NotNull
     @Override
     public PackageLikeBuilder getBuilder() {
         if (builder == null) {
