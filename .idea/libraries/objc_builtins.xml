@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="objc-builtins">
+    <CLASSES>
+      <root url="file://$PROJECT_DIR$/dist/objc-builtins" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

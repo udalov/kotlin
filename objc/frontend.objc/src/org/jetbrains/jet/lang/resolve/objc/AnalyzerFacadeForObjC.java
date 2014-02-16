@@ -32,9 +32,9 @@ import org.jetbrains.jet.lang.descriptors.ModuleDescriptorImpl;
 import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.resolve.*;
 import org.jetbrains.jet.lang.resolve.java.AnalyzerFacadeForJVM;
-import org.jetbrains.jet.lang.resolve.java.JavaDescriptorResolver;
 import org.jetbrains.jet.lang.resolve.lazy.ResolveSession;
 import org.jetbrains.jet.lang.resolve.name.Name;
+import org.jetbrains.jet.lang.resolve.objc.builtins.ObjCBuiltIns;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -69,14 +69,10 @@ public enum AnalyzerFacadeForObjC implements AnalyzerFacade {
                 project, topDownAnalysisParameters,
                 new ObservableBindingTrace(trace), module);
 
-        JavaDescriptorResolver jdr = injector.getJavaDescriptorResolver();
-
-        // TODO: this is temporary to resolve Objective-C built-ins from Java compiled classes in runtime
-        ObjCBuiltIns.initialize(jdr);
-
         try {
-            module.addFragmentProvider(DependencyKind.BINARIES, jdr.getPackageFragmentProvider());
             module.addFragmentProvider(DependencyKind.SOURCES, injector.getObjCPackageFragmentProvider());
+            module.addFragmentProvider(DependencyKind.BUILT_INS, ObjCBuiltIns.getInstance().getPackageFragmentProvider());
+            module.addFragmentProvider(DependencyKind.BINARIES, injector.getJavaDescriptorResolver().getPackageFragmentProvider());
             injector.getTopDownAnalyzer().analyzeFiles(files, scriptParameters);
             return AnalyzeExhaust.success(trace.getBindingContext(), null, module);
         } finally {
