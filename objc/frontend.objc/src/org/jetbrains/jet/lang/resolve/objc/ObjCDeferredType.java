@@ -18,70 +18,29 @@ package org.jetbrains.jet.lang.resolve.objc;
 
 import kotlin.Function0;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.jet.lang.descriptors.annotations.Annotations;
-import org.jetbrains.jet.lang.resolve.scopes.JetScope;
+import org.jetbrains.jet.lang.types.DelegatingType;
 import org.jetbrains.jet.lang.types.JetType;
-import org.jetbrains.jet.lang.types.TypeConstructor;
-import org.jetbrains.jet.lang.types.TypeProjection;
 import org.jetbrains.jet.storage.LockBasedStorageManager;
 import org.jetbrains.jet.storage.NotNullLazyValue;
 import org.jetbrains.jet.util.ReenteringLazyValueComputationException;
 
-import java.util.List;
-
-/** Copied from org.jetbrains.jet.lang.types.DeferredType */
-// TODO: use DelegatingType
-public class ObjCDeferredType implements JetType {
+public class ObjCDeferredType extends DelegatingType {
     private final NotNullLazyValue<JetType> lazyValue;
 
     public ObjCDeferredType(@NotNull Function0<JetType> lazyType) {
         this.lazyValue = LockBasedStorageManager.NO_LOCKS.createLazyValue(lazyType);
     }
 
-    @NotNull
-    private JetType getActualType() {
+    @Override
+    protected JetType getDelegate() {
         return lazyValue.invoke();
-    }
-
-    @Override
-    @NotNull
-    public JetScope getMemberScope() {
-        return getActualType().getMemberScope();
-    }
-
-    @Override
-    public boolean isError() {
-        return getActualType().isError();
-    }
-
-    @Override
-    @NotNull
-    public TypeConstructor getConstructor() {
-        return getActualType().getConstructor();
-    }
-
-    @Override
-    @NotNull
-    public List<TypeProjection> getArguments() {
-        return getActualType().getArguments();
-    }
-
-    @Override
-    public boolean isNullable() {
-        return getActualType().isNullable();
-    }
-
-    @Override
-    @NotNull
-    public Annotations getAnnotations() {
-        return getActualType().getAnnotations();
     }
 
     @Override
     public String toString() {
         try {
             if (lazyValue.isComputed()) {
-                return getActualType().toString();
+                return getDelegate().toString();
             }
             else {
                 return "<Not computed yet>";
@@ -90,15 +49,5 @@ public class ObjCDeferredType implements JetType {
         catch (ReenteringLazyValueComputationException e) {
             return "<Failed to compute this type>";
         }
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        return getActualType().equals(obj);
-    }
-
-    @Override
-    public int hashCode() {
-        return getActualType().hashCode();
     }
 }
