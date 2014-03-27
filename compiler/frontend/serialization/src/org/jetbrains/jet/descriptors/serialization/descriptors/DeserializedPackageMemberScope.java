@@ -16,6 +16,7 @@
 
 package org.jetbrains.jet.descriptors.serialization.descriptors;
 
+import com.google.common.collect.Lists;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.descriptors.serialization.*;
@@ -26,6 +27,7 @@ import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.storage.StorageManager;
 
 import java.util.Collection;
+import java.util.List;
 
 public class DeserializedPackageMemberScope extends DeserializedMemberScope {
     private final DescriptorFinder descriptorFinder;
@@ -35,14 +37,15 @@ public class DeserializedPackageMemberScope extends DeserializedMemberScope {
     public DeserializedPackageMemberScope(
             @NotNull StorageManager storageManager,
             @NotNull PackageFragmentDescriptor packageDescriptor,
-            @NotNull AnnotationDeserializer annotationDeserializer,
+            @NotNull Deserializers deserializers,
+            @NotNull MemberFilter memberFilter,
             @NotNull DescriptorFinder descriptorFinder,
             @NotNull ProtoBuf.Package proto,
             @NotNull NameResolver nameResolver
     ) {
         super(storageManager, packageDescriptor,
-              DescriptorDeserializer.create(storageManager, packageDescriptor, nameResolver, descriptorFinder, annotationDeserializer),
-              proto.getMemberList());
+              DescriptorDeserializer.create(storageManager, packageDescriptor, nameResolver, descriptorFinder, deserializers),
+              getFilteredMembers(packageDescriptor, proto, memberFilter, nameResolver));
         this.descriptorFinder = descriptorFinder;
         this.packageFqName = packageDescriptor.getFqName();
     }
@@ -50,11 +53,12 @@ public class DeserializedPackageMemberScope extends DeserializedMemberScope {
     public DeserializedPackageMemberScope(
             @NotNull StorageManager storageManager,
             @NotNull PackageFragmentDescriptor packageDescriptor,
-            @NotNull AnnotationDeserializer annotationDeserializer,
+            @NotNull Deserializers deserializers,
+            @NotNull MemberFilter memberFilter,
             @NotNull DescriptorFinder descriptorFinder,
             @NotNull PackageData packageData
     ) {
-        this(storageManager, packageDescriptor, annotationDeserializer, descriptorFinder, packageData.getPackageProto(),
+        this(storageManager, packageDescriptor, deserializers, memberFilter, descriptorFinder, packageData.getPackageProto(),
              packageData.getNameResolver());
     }
 
@@ -84,5 +88,21 @@ public class DeserializedPackageMemberScope extends DeserializedMemberScope {
     @Override
     protected ReceiverParameterDescriptor getImplicitReceiver() {
         return null;
+    }
+
+    @NotNull
+    private static Collection<ProtoBuf.Callable> getFilteredMembers(
+            @NotNull PackageFragmentDescriptor packageDescriptor,
+            @NotNull ProtoBuf.Package packageProto,
+            @NotNull MemberFilter memberFilter,
+            @NotNull NameResolver nameResolver
+    ) {
+        List<ProtoBuf.Callable> result = Lists.newArrayList();
+        for (ProtoBuf.Callable member : packageProto.getMemberList()) {
+            if (memberFilter.acceptPackagePartClass(packageDescriptor, member, nameResolver)) {
+                result.add(member);
+            }
+        }
+        return result;
     }
 }

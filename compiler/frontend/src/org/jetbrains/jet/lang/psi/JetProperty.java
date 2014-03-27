@@ -20,7 +20,6 @@ import com.intellij.lang.ASTNode;
 import com.intellij.navigation.ItemPresentation;
 import com.intellij.navigation.ItemPresentationProviders;
 import com.intellij.psi.PsiElement;
-import com.intellij.psi.stubs.IStubElementType;
 import com.intellij.psi.tree.IElementType;
 import com.intellij.psi.tree.TokenSet;
 import com.intellij.psi.util.PsiTreeUtil;
@@ -43,19 +42,13 @@ public class JetProperty extends JetTypeParameterListOwnerStub<PsiJetPropertyStu
         super(node);
     }
 
-    public JetProperty(@NotNull PsiJetPropertyStub stub, @NotNull IStubElementType nodeType) {
-        super(stub, nodeType);
+    public JetProperty(@NotNull PsiJetPropertyStub stub) {
+        super(stub, JetStubElementTypes.PROPERTY);
     }
 
     @Override
     public <R, D> R accept(@NotNull JetVisitor<R, D> visitor, D data) {
         return visitor.visitProperty(this, data);
-    }
-
-    @NotNull
-    @Override
-    public IStubElementType getElementType() {
-        return JetStubElementTypes.PROPERTY;
     }
 
     @Override

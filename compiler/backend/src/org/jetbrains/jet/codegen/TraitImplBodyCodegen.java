@@ -18,15 +18,14 @@ package org.jetbrains.jet.codegen;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.asm4.AnnotationVisitor;
 import org.jetbrains.jet.codegen.context.ClassContext;
 import org.jetbrains.jet.codegen.state.GenerationState;
 import org.jetbrains.jet.lang.psi.JetClassOrObject;
-import org.jetbrains.jet.lang.resolve.java.JvmAbi;
-import org.jetbrains.jet.lang.resolve.java.JvmAnnotationNames;
+import org.jetbrains.jet.lang.resolve.DescriptorUtils;
 
 import static org.jetbrains.asm4.Opcodes.*;
-import static org.jetbrains.jet.codegen.AsmUtil.asmDescByFqNameWithoutInnerClasses;
+import static org.jetbrains.jet.codegen.AsmUtil.writeKotlinSyntheticClassAnnotation;
+import static org.jetbrains.jet.lang.resolve.java.JvmAnnotationNames.KotlinSyntheticClass;
 
 public class TraitImplBodyCodegen extends ClassBodyCodegen {
 
@@ -54,9 +53,10 @@ public class TraitImplBodyCodegen extends ClassBodyCodegen {
 
     @Override
     protected void generateKotlinAnnotation() {
-        AnnotationVisitor av =
-                v.getVisitor().visitAnnotation(asmDescByFqNameWithoutInnerClasses(JvmAnnotationNames.KOTLIN_TRAIT_IMPL), true);
-        av.visit(JvmAnnotationNames.ABI_VERSION_FIELD_NAME, JvmAbi.VERSION);
-        av.visitEnd();
+        // We write LOCAL_CLASS to local trait-impl, because we don't want PSI classes to be constructed for such files
+        // (currently PSI for synthetic class is built only if this class is a trait-impl, see DecompiledUtils.kt)
+        writeKotlinSyntheticClassAnnotation(v, DescriptorUtils.isTopLevelOrInnerClass(descriptor)
+                                               ? KotlinSyntheticClass.Kind.TRAIT_IMPL
+                                               : KotlinSyntheticClass.Kind.LOCAL_CLASS);
     }
 }

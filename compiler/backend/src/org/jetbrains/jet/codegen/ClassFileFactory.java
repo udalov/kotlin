@@ -71,7 +71,7 @@ public final class ClassFileFactory extends GenerationStateAware implements Outp
         return answer;
     }
 
-    private void done() {
+    void done() {
         if (!isDone) {
             isDone = true;
             for (PackageCodegen codegen : package2codegen.values()) {
@@ -80,6 +80,7 @@ public final class ClassFileFactory extends GenerationStateAware implements Outp
         }
     }
 
+    @NotNull
     @Override
     public List<OutputFile> asList() {
         done();
@@ -136,8 +137,15 @@ public final class ClassFileFactory extends GenerationStateAware implements Outp
         return newVisitor(type, sourceFile);
     }
 
+    public ClassBuilder forLambdaInlining(Type lambaType, PsiFile sourceFile) {
+        if (isPrimitive(lambaType)) {
+            throw new IllegalStateException("Codegen for primitive type is not possible: " + lambaType);
+        }
+        return newVisitor(lambaType, sourceFile);
+    }
+
     @NotNull
-    public ClassBuilder forPackageFragment(@NotNull Type asmType, @NotNull PsiFile sourceFile) {
+    public ClassBuilder forPackagePart(@NotNull Type asmType, @NotNull PsiFile sourceFile) {
         return newVisitor(asmType, sourceFile);
     }
 
@@ -166,11 +174,13 @@ public final class ClassFileFactory extends GenerationStateAware implements Outp
             this.relativeClassFilePath = relativeClassFilePath;
         }
 
+        @NotNull
         @Override
         public String getRelativePath() {
             return relativeClassFilePath;
         }
 
+        @NotNull
         @Override
         public List<File> getSourceFiles() {
             ClassBuilderAndSourceFileList pair = generators.get(relativeClassFilePath);
@@ -192,16 +202,22 @@ public final class ClassFileFactory extends GenerationStateAware implements Outp
             );
         }
 
+        @NotNull
         @Override
         public byte[] asByteArray() {
-            done();
             return builderFactory.asBytes(generators.get(relativeClassFilePath).classBuilder);
         }
 
+        @NotNull
         @Override
         public String asText() {
-            done();
             return builderFactory.asText(generators.get(relativeClassFilePath).classBuilder);
+        }
+
+        @NotNull
+        @Override
+        public String toString() {
+            return getRelativePath() + " (compiled from " + getSourceFiles() + ")";
         }
     }
 
@@ -212,6 +228,12 @@ public final class ClassFileFactory extends GenerationStateAware implements Outp
         private ClassBuilderAndSourceFileList(ClassBuilder classBuilder, Collection<? extends PsiFile> sourceFiles) {
             this.classBuilder = classBuilder;
             this.sourceFiles = sourceFiles;
+        }
+    }
+
+    public void removeInlinedClasses(Set<String> classNamesToRemove) {
+        for (String classInternalName : classNamesToRemove) {
+            generators.remove(classInternalName + ".class");
         }
     }
 }

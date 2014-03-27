@@ -19,21 +19,22 @@ package org.jetbrains.jet.generators.injectors
 import com.intellij.openapi.project.Project
 import org.jetbrains.jet.context.GlobalContext
 import org.jetbrains.jet.context.GlobalContextImpl
-import org.jetbrains.jet.lang.PlatformToKotlinClassMap
 import org.jetbrains.jet.lang.descriptors.ModuleDescriptor
 import org.jetbrains.jet.lang.descriptors.ModuleDescriptorImpl
 import org.jetbrains.jet.lang.resolve.*
 import org.jetbrains.jet.lang.resolve.java.JavaClassFinderImpl
 import org.jetbrains.jet.lang.resolve.java.JavaDescriptorResolver
-import org.jetbrains.jet.lang.resolve.java.mapping.JavaToKotlinClassMap
 import org.jetbrains.jet.lang.resolve.java.resolver.*
 import org.jetbrains.jet.lang.resolve.kotlin.VirtualFileFinder
 import org.jetbrains.jet.lang.resolve.lazy.ResolveSession
 import org.jetbrains.jet.lang.resolve.lazy.declarations.DeclarationProviderFactory
+import org.jetbrains.jet.lang.resolve.objc.ObjCPackageFragmentProvider
 import org.jetbrains.jet.lang.types.DependencyClassByQualifiedNameResolverDummyImpl
 import org.jetbrains.jet.lang.types.expressions.ExpressionTypingServices
 import org.jetbrains.jet.di.*
-import org.jetbrains.jet.lang.resolve.objc.ObjCPackageFragmentProvider
+import org.jetbrains.jet.lang.types.expressions.ExpressionTypingComponents
+import org.jetbrains.jet.lang.types.expressions.ExpressionTypingUtils
+import org.jetbrains.jet.descriptors.serialization.descriptors.MemberFilter
 
 // NOTE: After making changes, you need to re-generate the injectors.
 //       To do that, you can run main in this file.
@@ -54,6 +55,7 @@ public fun createInjectorGenerators(): List<DependencyInjectorGenerator> =
                 generatorForTopDownAnalyzerBasic(),
                 generatorForTopDownAnalyzerForJvm(),
                 generatorForJavaDescriptorResolver(),
+                generatorForLazyResolveWithJava(),
                 generatorForTopDownAnalyzerForJs(),
                 generatorForTopDownAnalyzerForObjC(),
                 generatorForMacro(),
@@ -64,13 +66,12 @@ public fun createInjectorGenerators(): List<DependencyInjectorGenerator> =
 
 private fun DependencyInjectorGenerator.commonForTopDownAnalyzer() {
     parameter(javaClass<Project>())
-    parameter(javaClass<TopDownAnalysisParameters>(), useAsContext = true)
+    parameter(javaClass<GlobalContext>(), useAsContext = true)
     parameter(javaClass<BindingTrace>())
-    publicParameter(javaClass<ModuleDescriptorImpl>())
+    publicParameter(javaClass<ModuleDescriptorImpl>(), useAsContext = true)
 
     publicFields(
-            javaClass<TopDownAnalyzer>(),
-            javaClass<TopDownAnalysisContext>()
+            javaClass<TopDownAnalyzer>()
     )
 
     field(javaClass<MutablePackageFragmentProvider>())
@@ -80,8 +81,6 @@ private fun generatorForTopDownAnalyzerBasic() =
         generator("compiler/frontend/src", "org.jetbrains.jet.di", "InjectorForTopDownAnalyzerBasic") {
             commonForTopDownAnalyzer()
 
-            parameter(javaClass<PlatformToKotlinClassMap>())
-
             field(javaClass<DependencyClassByQualifiedNameResolverDummyImpl>())
         }
 
@@ -90,7 +89,6 @@ private fun generatorForTopDownAnalyzerForJs() =
             commonForTopDownAnalyzer()
 
             field(javaClass<DependencyClassByQualifiedNameResolverDummyImpl>())
-            field(javaClass<PlatformToKotlinClassMap>(), init = GivenExpression("org.jetbrains.jet.lang.PlatformToKotlinClassMap.EMPTY"))
         }
 
 private fun generatorForTopDownAnalyzerForJvm() =
@@ -98,9 +96,10 @@ private fun generatorForTopDownAnalyzerForJvm() =
             implementInterface(javaClass<InjectorForTopDownAnalyzer>())
             commonForTopDownAnalyzer()
 
+            parameter(javaClass<MemberFilter>())
+
             publicField(javaClass<JavaDescriptorResolver>())
 
-            field(javaClass<JavaToKotlinClassMap>(), init = GivenExpression("org.jetbrains.jet.lang.resolve.java.mapping.JavaToKotlinClassMap.getInstance()"))
             fields(
                     javaClass<JavaClassFinderImpl>(),
                     javaClass<TraceBasedExternalSignatureResolver>(),
@@ -118,10 +117,11 @@ private fun generatorForTopDownAnalyzerForObjC() =
             implementInterface(javaClass<InjectorForTopDownAnalyzer>())
             commonForTopDownAnalyzer()
 
+            parameter(javaClass<MemberFilter>())
+
             publicField(javaClass<JavaDescriptorResolver>())
             publicField(javaClass<ObjCPackageFragmentProvider>())
 
-            field(javaClass<JavaToKotlinClassMap>(), init = GivenExpression("org.jetbrains.jet.lang.resolve.java.mapping.JavaToKotlinClassMap.getInstance()"))
             fields(
                     javaClass<JavaClassFinderImpl>(),
                     javaClass<TraceBasedExternalSignatureResolver>(),
@@ -157,6 +157,38 @@ private fun generatorForJavaDescriptorResolver() =
             )
             field(javaClass<VirtualFileFinder>(),
                   init = GivenExpression(javaClass<VirtualFileFinder>().getName() + ".SERVICE.getInstance(project)"))
+            field(javaClass<MemberFilter>(),
+                  init = GivenExpression(javaClass<MemberFilter>().getName() + ".ALWAYS_TRUE"))
+        }
+
+private fun generatorForLazyResolveWithJava() =
+        generator("compiler/frontend.java/src", "org.jetbrains.jet.di", "InjectorForLazyResolveWithJava") {
+            parameter(javaClass<Project>())
+            parameter(javaClass<GlobalContextImpl>(), useAsContext = true)
+            parameters(
+                    javaClass<DeclarationProviderFactory>(),
+                    javaClass<BindingTrace>()
+            )
+
+            publicField(javaClass<ModuleDescriptorImpl>(), name = "module", useAsContext = true,
+                        init = GivenExpression("org.jetbrains.jet.lang.resolve.java.AnalyzerFacadeForJVM.createJavaModule(\"<fake-jdr-module>\")"))
+            publicFields(
+                    javaClass<ResolveSession>(),
+                    javaClass<JavaDescriptorResolver>()
+            )
+
+            field(javaClass<VirtualFileFinder>(),
+                  init = GivenExpression(javaClass<VirtualFileFinder>().getName() + ".SERVICE.getInstance(project)"))
+            field(javaClass<MemberFilter>(),
+                  init = GivenExpression(javaClass<MemberFilter>().getName() + ".ALWAYS_TRUE"))
+            fields(
+                    javaClass<JavaClassFinderImpl>(),
+                    javaClass<TraceBasedExternalSignatureResolver>(),
+                    javaClass<LazyResolveBasedCache>(),
+                    javaClass<TraceBasedErrorReporter>(),
+                    javaClass<PsiBasedMethodSignatureChecker>(),
+                    javaClass<PsiBasedExternalAnnotationResolver>()
+            )
         }
 
 private fun generatorForMacro() =
@@ -165,6 +197,7 @@ private fun generatorForMacro() =
             parameter(javaClass<ModuleDescriptor>(), useAsContext = true)
 
             publicField(javaClass<ExpressionTypingServices>())
+            publicField(javaClass<ExpressionTypingComponents>())
 
             field(javaClass<GlobalContext>(), useAsContext = true,
                   init = GivenExpression("org.jetbrains.jet.context.ContextPackage.GlobalContext()"))
@@ -178,6 +211,7 @@ private fun generatorForTests() =
             publicFields(
                     javaClass<DescriptorResolver>(),
                     javaClass<ExpressionTypingServices>(),
+                    javaClass<ExpressionTypingUtils>(),
                     javaClass<TypeResolver>()
             )
 
@@ -188,9 +222,8 @@ private fun generatorForTests() =
 private fun generatorForBodyResolve() =
         generator("compiler/frontend/src", "org.jetbrains.jet.di", "InjectorForBodyResolve") {
             parameter(javaClass<Project>())
-            parameter(javaClass<TopDownAnalysisParameters>(), useAsContext = true)
+            parameter(javaClass<GlobalContext>(), useAsContext = true)
             parameter(javaClass<BindingTrace>())
-            parameter(javaClass<BodiesResolveContext>())
             parameter(javaClass<ModuleDescriptor>(), useAsContext = true)
 
             publicField(javaClass<BodyResolver>())

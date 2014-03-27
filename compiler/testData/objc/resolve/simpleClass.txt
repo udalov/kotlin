@@ -4,9 +4,9 @@ public trait <metaclass-for-A> {
 }
 
 public open class A : jet.objc.ObjCObject {
-    invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: jet.Long
+    invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: kotlin.Long
     
     public class object <class-object-for-A> : jet.objc.ObjCClass, objc.<metaclass-for-A>, objc.A {
-        invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: jet.Long
+        invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: kotlin.Long
     }
 }

@@ -1509,6 +1509,11 @@ public class LazyResolveRecursiveComparingTestGenerated extends AbstractLazyReso
             doTestNotCheckingPrimaryConstructors("compiler/testData/loadJava/compiledJavaCompareWithKotlin/ClassDoesNotOverrideMethod.kt");
         }
         
+        @TestMetadata("ClassWithConstVal.kt")
+        public void testClassWithConstVal() throws Exception {
+            doTestNotCheckingPrimaryConstructors("compiler/testData/loadJava/compiledJavaCompareWithKotlin/ClassWithConstVal.kt");
+        }
+        
         @TestMetadata("ClassWithTypeP.kt")
         public void testClassWithTypeP() throws Exception {
             doTestNotCheckingPrimaryConstructors("compiler/testData/loadJava/compiledJavaCompareWithKotlin/ClassWithTypeP.kt");
@@ -2508,6 +2513,11 @@ public class LazyResolveRecursiveComparingTestGenerated extends AbstractLazyReso
         @TestMetadata("classObjectHeader.kt")
         public void testClassObjectHeader() throws Exception {
             doTestCheckingPrimaryConstructors("compiler/testData/lazyResolve/recursiveComparator/classObjectHeader.kt");
+        }
+        
+        @TestMetadata("CyclicHierarchy.kt")
+        public void testCyclicHierarchy() throws Exception {
+            doTestCheckingPrimaryConstructors("compiler/testData/lazyResolve/recursiveComparator/CyclicHierarchy.kt");
         }
         
         @TestMetadata("enum.kt")

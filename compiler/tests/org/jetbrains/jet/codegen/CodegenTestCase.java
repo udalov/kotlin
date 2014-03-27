@@ -36,8 +36,8 @@ import org.jetbrains.jet.OutputFile;
 import org.jetbrains.jet.cli.jvm.JVMConfigurationKeys;
 import org.jetbrains.jet.cli.jvm.compiler.JetCoreEnvironment;
 import org.jetbrains.jet.codegen.forTestCompile.ForTestCompileRuntime;
-import org.jetbrains.jet.lang.psi.JetPsiUtil;
 import org.jetbrains.jet.lang.resolve.name.FqName;
+import org.jetbrains.jet.utils.UtilsPackage;
 
 import java.io.File;
 import java.io.IOException;
@@ -168,7 +168,7 @@ public abstract class CodegenTestCase extends UsefulTestCase {
 
     @NotNull
     protected Class<?> generatePackageClass() {
-        FqName packageFqName = JetPsiUtil.getFQName(myFiles.getPsiFile());
+        FqName packageFqName = myFiles.getPsiFile().getPackageFqName();
         return generateClass(getPackageClassFqName(packageFqName).asString());
     }
 
@@ -282,11 +282,14 @@ public abstract class CodegenTestCase extends UsefulTestCase {
         return method;
     }
 
-    public Class<? extends Annotation> getCorrespondingAnnotationClass(Class<? extends Annotation> classForName) {
-        return ClassLoaderIsolationUtil.getAnnotationClass(classForName, initializedClassLoader);
-    }
-
-    public Class<?> getCorrespondingClass(Class<?> classForName) {
-        return ClassLoaderIsolationUtil.getClassFromClassLoader(classForName, initializedClassLoader);
+    @NotNull
+    public Class<? extends Annotation> loadAnnotationClassQuietly(@NotNull String fqName) {
+        try {
+            //noinspection unchecked
+            return (Class<? extends Annotation>) initializedClassLoader.loadClass(fqName);
+        }
+        catch (ClassNotFoundException e) {
+            throw UtilsPackage.rethrow(e);
+        }
     }
 }

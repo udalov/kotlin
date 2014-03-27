@@ -49,7 +49,7 @@ abstract class LazyJavaType(storageManager: StorageManager) : AbstractJetType(),
 
     override fun getAnnotations() = Annotations.EMPTY
 
-    override fun toString(): String? {
+    override fun toString(): String {
         if (!_typeConstructor.isComputed()) {
             return "Type constructor is not computed"
         }

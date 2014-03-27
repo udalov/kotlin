@@ -1,19 +1,20 @@
 package org.jetbrains.jet.lang.types.lang;
 
-import jet.Function0;
+import kotlin.Function0;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.descriptors.serialization.*;
-import org.jetbrains.jet.descriptors.serialization.descriptors.AnnotationDeserializer;
 import org.jetbrains.jet.descriptors.serialization.descriptors.DeserializedPackageMemberScope;
-import org.jetbrains.jet.lang.descriptors.*;
-import org.jetbrains.jet.lang.descriptors.annotations.Annotations;
-import org.jetbrains.jet.lang.descriptors.impl.DeclarationDescriptorImpl;
+import org.jetbrains.jet.descriptors.serialization.descriptors.Deserializers;
+import org.jetbrains.jet.descriptors.serialization.descriptors.MemberFilter;
+import org.jetbrains.jet.lang.descriptors.ModuleDescriptor;
+import org.jetbrains.jet.lang.descriptors.PackageFragmentDescriptor;
+import org.jetbrains.jet.lang.descriptors.PackageFragmentDescriptorImpl;
+import org.jetbrains.jet.lang.descriptors.PackageFragmentProvider;
 import org.jetbrains.jet.lang.descriptors.impl.MutablePackageFragmentDescriptor;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
-import org.jetbrains.jet.lang.types.TypeSubstitutor;
 import org.jetbrains.jet.storage.NotNullLazyValue;
 import org.jetbrains.jet.storage.StorageManager;
 
@@ -25,21 +26,19 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
-class BuiltinsPackageFragment extends DeclarationDescriptorImpl implements PackageFragmentDescriptor {
+class BuiltinsPackageFragment extends PackageFragmentDescriptorImpl {
     private final DeserializedPackageMemberScope members;
     private final NameResolver nameResolver;
-    private final ModuleDescriptor module;
     private final PackageFragmentProvider packageFragmentProvider;
 
     public BuiltinsPackageFragment(@NotNull StorageManager storageManager, @NotNull ModuleDescriptor module) {
-        super(Annotations.EMPTY, KotlinBuiltIns.BUILT_INS_PACKAGE_NAME);
-        this.module = module;
+        super(module, KotlinBuiltIns.BUILT_INS_PACKAGE_FQ_NAME);
         nameResolver = NameSerializationUtil.deserializeNameResolver(getStream(BuiltInsSerializationUtil.getNameTableFilePath(getFqName())));
 
         packageFragmentProvider = new BuiltinsPackageFragmentProvider();
 
         // TODO: support annotations
-        members = new DeserializedPackageMemberScope(storageManager, this, AnnotationDeserializer.UNSUPPORTED,
+        members = new DeserializedPackageMemberScope(storageManager, this, Deserializers.UNSUPPORTED, MemberFilter.ALWAYS_TRUE,
                                                      new BuiltInsDescriptorFinder(storageManager), loadPackage(), nameResolver);
     }
 
@@ -67,29 +66,6 @@ class BuiltinsPackageFragment extends DeclarationDescriptorImpl implements Packa
     }
 
     @NotNull
-    @Override
-    public ModuleDescriptor getContainingDeclaration() {
-        return module;
-    }
-
-    @Nullable
-    @Override
-    public DeclarationDescriptor substitute(@NotNull TypeSubstitutor substitutor) {
-        return this;
-    }
-
-    @Override
-    public <R, D> R accept(DeclarationDescriptorVisitor<R, D> visitor, D data) {
-        return visitor.visitPackageFragmentDescriptor(this, data);
-    }
-
-    @NotNull
-    @Override
-    public FqName getFqName() {
-        return KotlinBuiltIns.BUILT_INS_PACKAGE_FQ_NAME;
-    }
-
-    @NotNull
     private static InputStream getStream(@NotNull String path) {
         InputStream stream = getStreamNullable(path);
         if (stream == null) {
@@ -104,7 +80,7 @@ class BuiltinsPackageFragment extends DeclarationDescriptorImpl implements Packa
     }
 
     private class BuiltinsPackageFragmentProvider implements PackageFragmentProvider {
-        private final PackageFragmentDescriptor rootPackage = new MutablePackageFragmentDescriptor(module, FqName.ROOT);
+        private final PackageFragmentDescriptor rootPackage = new MutablePackageFragmentDescriptor(getContainingDeclaration(), FqName.ROOT);
 
         @NotNull
         @Override
@@ -133,7 +109,7 @@ class BuiltinsPackageFragment extends DeclarationDescriptorImpl implements Packa
 
         public BuiltInsDescriptorFinder(@NotNull StorageManager storageManager) {
             // TODO: support annotations
-            super(storageManager, AnnotationDeserializer.UNSUPPORTED, packageFragmentProvider);
+            super(storageManager, Deserializers.UNSUPPORTED, packageFragmentProvider);
 
             classNames = storageManager.createLazyValue(new Function0<Collection<Name>>() {
                 @Override

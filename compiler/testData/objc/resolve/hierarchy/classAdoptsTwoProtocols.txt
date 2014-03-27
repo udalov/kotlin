@@ -13,27 +13,27 @@ public trait <metaclass-for-Q> {
 }
 
 public open class A : objc.NSObject, objc.P, objc.Q {
-    invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: jet.Long
-    public open override /*1*/ /*fake_override*/ fun anotherMethod(): jet.Int
-    public open override /*1*/ /*fake_override*/ fun protocolMethod(): jet.Unit
+    invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: kotlin.Long
+    public open override /*1*/ /*fake_override*/ fun anotherMethod(): kotlin.Int
+    public open override /*1*/ /*fake_override*/ fun protocolMethod(): kotlin.Unit
     
     public class object <class-object-for-A> : jet.objc.ObjCClass, objc.<metaclass-for-A>, objc.NSObject {
-        invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: jet.Long
+        invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: kotlin.Long
     }
 }
 
 public open class NSObject : jet.objc.ObjCObject {
-    invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: jet.Long
+    invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: kotlin.Long
     
     public class object <class-object-for-NSObject> : jet.objc.ObjCClass, objc.<metaclass-for-NSObject>, objc.NSObject {
-        invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: jet.Long
+        invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: kotlin.Long
     }
 }
 
 public trait P {
-    public open fun protocolMethod(): jet.Unit
+    public open fun protocolMethod(): kotlin.Unit
 }
 
 public trait Q {
-    public open fun anotherMethod(): jet.Int
+    public open fun anotherMethod(): kotlin.Int
 }

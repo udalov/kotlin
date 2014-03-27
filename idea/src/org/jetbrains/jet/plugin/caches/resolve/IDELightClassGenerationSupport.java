@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2013 JetBrains s.r.o.
+ * Copyright 2010-2014 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,38 +16,42 @@
 
 package org.jetbrains.jet.plugin.caches.resolve;
 
-import com.google.common.collect.Sets;
 import com.intellij.openapi.components.ServiceManager;
+import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.roots.libraries.LibraryUtil;
-import com.intellij.openapi.util.Condition;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiClass;
 import com.intellij.psi.search.GlobalSearchScope;
-import com.intellij.util.containers.ContainerUtil;
 import com.intellij.util.containers.MultiMap;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.asJava.KotlinLightClassForExplicitDeclaration;
 import org.jetbrains.jet.asJava.LightClassConstructionContext;
 import org.jetbrains.jet.asJava.LightClassGenerationSupport;
-import org.jetbrains.jet.lang.psi.JetClassOrObject;
-import org.jetbrains.jet.lang.psi.JetFile;
-import org.jetbrains.jet.lang.psi.JetPsiUtil;
+import org.jetbrains.jet.lang.descriptors.*;
+import org.jetbrains.jet.lang.psi.*;
+import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.java.PackageClassUtils;
+import org.jetbrains.jet.lang.resolve.lazy.ForceResolveUtil;
+import org.jetbrains.jet.lang.resolve.lazy.KotlinCodeAnalyzer;
 import org.jetbrains.jet.lang.resolve.name.FqName;
+import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.plugin.libraries.JetSourceNavigationHelper;
+import org.jetbrains.jet.plugin.project.AnalyzerFacadeWithCache;
+import org.jetbrains.jet.plugin.project.ResolveSessionForBodies;
 import org.jetbrains.jet.plugin.stubindex.JetAllPackagesIndex;
 import org.jetbrains.jet.plugin.stubindex.JetClassByPackageIndex;
 import org.jetbrains.jet.plugin.stubindex.JetFullClassNameIndex;
-import org.jetbrains.jet.util.QualifiedNamesUtil;
+import org.jetbrains.jet.plugin.stubindex.PackageIndexUtil;
 
-import java.util.Collection;
-import java.util.Set;
+import java.util.*;
 
 import static org.jetbrains.jet.plugin.stubindex.JetSourceFilterScope.kotlinSources;
 
 public class IDELightClassGenerationSupport extends LightClassGenerationSupport {
+
+    private static final Logger LOG = Logger.getInstance(IDELightClassGenerationSupport.class);
 
     public static IDELightClassGenerationSupport getInstanceForIDE(@NotNull Project project) {
         return (IDELightClassGenerationSupport) ServiceManager.getService(project, LightClassGenerationSupport.class);
@@ -55,23 +59,102 @@ public class IDELightClassGenerationSupport extends LightClassGenerationSupport 
 
     private final Project project;
 
+    private final Comparator<JetFile> jetFileComparator;
+
     public IDELightClassGenerationSupport(@NotNull Project project) {
         this.project = project;
+        final GlobalSearchScope searchScope = GlobalSearchScope.allScope(project);
+        this.jetFileComparator = new Comparator<JetFile>() {
+            @Override
+            public int compare(@NotNull JetFile o1, @NotNull JetFile o2) {
+                VirtualFile f1 = o1.getVirtualFile();
+                VirtualFile f2 = o2.getVirtualFile();
+                if (f1 == f2) return 0;
+                if (f1 == null) return -1;
+                if (f2 == null) return 1;
+                return searchScope.compare(f1, f2);
+            }
+        };
     }
 
     @NotNull
     @Override
-    public LightClassConstructionContext analyzeRelevantCode(@NotNull Collection<JetFile> files) {
-        KotlinCacheManager cacheManager = KotlinCacheManager.getInstance(project);
-        KotlinDeclarationsCache declarationsCache = cacheManager.getPossiblyIncompleteDeclarationsForLightClassGeneration();
-        return new LightClassConstructionContext(declarationsCache.getBindingContext(), null);
+    public LightClassConstructionContext getContextForPackage(@NotNull Collection<JetFile> files) {
+        if (files.isEmpty()) {
+            return new LightClassConstructionContext(BindingContext.EMPTY, null);
+        }
+
+        List<JetFile> sortedFiles = new ArrayList<JetFile>(files);
+        Collections.sort(sortedFiles, jetFileComparator);
+
+        ResolveSessionForBodies session = AnalyzerFacadeWithCache.getLazyResolveSessionForFile(sortedFiles.get(0));
+        forceResolvePackageDeclarations(files, session);
+        return new LightClassConstructionContext(session.getBindingContext(), null);
     }
 
     @NotNull
     @Override
-    public LightClassConstructionContext analyzeRelevantCode(@NotNull JetClassOrObject classOrObject) {
-        KotlinCacheManager cacheManager = KotlinCacheManager.getInstance(project);
-        return new LightClassConstructionContext(cacheManager.getLightClassContextCache().getLightClassContext(classOrObject), null);
+    public LightClassConstructionContext getContextForClassOrObject(@NotNull JetClassOrObject classOrObject) {
+        ResolveSessionForBodies session = AnalyzerFacadeWithCache.getLazyResolveSessionForFile((JetFile) classOrObject.getContainingFile());
+
+        if (JetPsiUtil.isLocal(classOrObject)) {
+            BindingContext bindingContext = session.resolveToElement(classOrObject);
+            ClassDescriptor descriptor = bindingContext.get(BindingContext.CLASS, classOrObject);
+
+            if (descriptor == null) {
+                LOG.warn("No class descriptor in context for class: " + JetPsiUtil.getElementTextWithContext(classOrObject));
+                return new LightClassConstructionContext(BindingContext.EMPTY, null);
+            }
+
+            ForceResolveUtil.forceResolveAllContents(descriptor);
+
+            return new LightClassConstructionContext(bindingContext, null);
+        }
+
+        ForceResolveUtil.forceResolveAllContents(session.getClassDescriptor(classOrObject));
+        return new LightClassConstructionContext(session.getBindingContext(), null);
+    }
+
+    private static void forceResolvePackageDeclarations(@NotNull Collection<JetFile> files, @NotNull KotlinCodeAnalyzer session) {
+        for (JetFile file : files) {
+            // SCRIPT: not supported
+            if (file.isScript()) continue;
+
+            FqName packageFqName = file.getPackageFqName();
+
+            // make sure we create a package descriptor
+            PackageViewDescriptor packageDescriptor = session.getModuleDescriptor().getPackage(packageFqName);
+            if (packageDescriptor == null) {
+                LOG.warn("No descriptor found for package " + packageFqName + " in file " + file.getName() + "\n" + file.getText());
+                session.forceResolveAll();
+                continue;
+            }
+
+            for (JetDeclaration declaration : file.getDeclarations()) {
+                if (declaration instanceof JetFunction) {
+                    JetFunction jetFunction = (JetFunction) declaration;
+                    Name name = jetFunction.getNameAsSafeName();
+                    Collection<FunctionDescriptor> functions = packageDescriptor.getMemberScope().getFunctions(name);
+                    for (FunctionDescriptor descriptor : functions) {
+                        ForceResolveUtil.forceResolveAllContents(descriptor);
+                    }
+                }
+                else if (declaration instanceof JetProperty) {
+                    JetProperty jetProperty = (JetProperty) declaration;
+                    Name name = jetProperty.getNameAsSafeName();
+                    Collection<VariableDescriptor> properties = packageDescriptor.getMemberScope().getProperties(name);
+                    for (VariableDescriptor descriptor : properties) {
+                        ForceResolveUtil.forceResolveAllContents(descriptor);
+                    }
+                }
+                else if (declaration instanceof JetClassOrObject) {
+                    // Do nothing: we are not interested in classes
+                }
+                else {
+                    LOG.error("Unsupported declaration kind: " + declaration + " in file " + file.getName() + "\n" + file.getText());
+                }
+            }
+        }
     }
 
     @NotNull
@@ -83,13 +166,7 @@ public class IDELightClassGenerationSupport extends LightClassGenerationSupport 
     @NotNull
     @Override
     public Collection<JetFile> findFilesForPackage(@NotNull final FqName fqName, @NotNull GlobalSearchScope searchScope) {
-        Collection<JetFile> files = JetAllPackagesIndex.getInstance().get(fqName.asString(), project, kotlinSources(searchScope));
-        return ContainerUtil.filter(files, new Condition<JetFile>() {
-            @Override
-            public boolean value(JetFile file) {
-                return fqName.equals(JetPsiUtil.getFQName(file));
-            }
-        });
+        return PackageIndexUtil.findFilesWithExactPackage(fqName, kotlinSources(searchScope), project);
     }
 
     @NotNull
@@ -101,31 +178,14 @@ public class IDELightClassGenerationSupport extends LightClassGenerationSupport 
     }
 
     @Override
-    public boolean packageExists(
-            @NotNull FqName fqName, @NotNull GlobalSearchScope scope
-    ) {
+    public boolean packageExists(@NotNull FqName fqName, @NotNull GlobalSearchScope scope) {
         return !JetAllPackagesIndex.getInstance().get(fqName.asString(), project, kotlinSources(scope)).isEmpty();
     }
 
     @NotNull
     @Override
     public Collection<FqName> getSubPackages(@NotNull FqName fqn, @NotNull GlobalSearchScope scope) {
-        Collection<JetFile> files = JetAllPackagesIndex.getInstance().get(fqn.asString(), project, kotlinSources(scope));
-
-        Set<FqName> result = Sets.newHashSet();
-        for (JetFile file : files) {
-            FqName fqName = JetPsiUtil.getFQName(file);
-
-            assert QualifiedNamesUtil.isSubpackageOf(fqName, fqn) : "Registered package is not a subpackage of actually declared package:\n" +
-                                                                    "in index: " + fqn + "\n" +
-                                                                    "declared: " + fqName;
-            FqName subpackage = QualifiedNamesUtil.plusOneSegment(fqn, fqName);
-            if (subpackage != null) {
-                result.add(subpackage);
-            }
-        }
-
-        return result;
+        return PackageIndexUtil.getSubPackageFqNames(fqn, kotlinSources(scope), project);
     }
 
     @Nullable

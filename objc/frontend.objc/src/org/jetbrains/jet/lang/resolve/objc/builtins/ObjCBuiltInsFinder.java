@@ -38,7 +38,7 @@ import java.util.List;
     private final NameResolver nameResolver;
 
     public ObjCBuiltInsFinder(@NotNull PackageFragmentProvider packageFragmentProvider, @NotNull NameResolver nameResolver) {
-        super(LockBasedStorageManager.NO_LOCKS, ObjCBuiltInsAnnotationDeserializer.INSTANCE, packageFragmentProvider);
+        super(LockBasedStorageManager.NO_LOCKS, ObjCBuiltInsDeserializers.INSTANCE, packageFragmentProvider);
         this.nameResolver = nameResolver;
     }
 

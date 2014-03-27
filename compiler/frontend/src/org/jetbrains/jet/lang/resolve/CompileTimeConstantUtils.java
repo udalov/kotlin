@@ -16,16 +16,20 @@
 
 package org.jetbrains.jet.lang.resolve;
 
-import jet.runtime.Intrinsic;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.jet.JetNodeTypes;
 import org.jetbrains.jet.lang.descriptors.ClassDescriptor;
 import org.jetbrains.jet.lang.descriptors.VariableDescriptor;
 import org.jetbrains.jet.lang.descriptors.annotations.Annotated;
 import org.jetbrains.jet.lang.descriptors.annotations.AnnotationDescriptor;
+import org.jetbrains.jet.lang.evaluate.ConstantExpressionEvaluator;
+import org.jetbrains.jet.lang.psi.JetConstantExpression;
+import org.jetbrains.jet.lang.psi.JetExpression;
 import org.jetbrains.jet.lang.psi.JetParameter;
 import org.jetbrains.jet.lang.psi.JetTypeReference;
 import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCall;
+import org.jetbrains.jet.lang.resolve.constants.BooleanValue;
 import org.jetbrains.jet.lang.resolve.constants.CompileTimeConstant;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.types.JetType;
@@ -97,7 +101,8 @@ public class CompileTimeConstantUtils {
 
     @Nullable
     public static String getIntrinsicAnnotationArgument(@NotNull Annotated annotatedDescriptor) {
-        AnnotationDescriptor intrinsicAnnotation = annotatedDescriptor.getAnnotations().findAnnotation(new FqName(Intrinsic.class.getName()));
+        AnnotationDescriptor intrinsicAnnotation =
+                annotatedDescriptor.getAnnotations().findAnnotation(new FqName("kotlin.jvm.internal.Intrinsic"));
         if (intrinsicAnnotation == null) return null;
 
         Collection<CompileTimeConstant<?>> values = intrinsicAnnotation.getAllValueArguments().values();
@@ -107,27 +112,32 @@ public class CompileTimeConstantUtils {
         return value instanceof String ? (String) value : null;
     }
 
-    public static boolean isArrayMethodCall(@NotNull ResolvedCall resolvedCall) {
+    public static boolean isArrayMethodCall(@NotNull ResolvedCall<?> resolvedCall) {
         return "kotlin.arrays.array".equals(getIntrinsicAnnotationArgument(resolvedCall.getResultingDescriptor().getOriginal()));
     }
 
-    public static boolean isJavaClassMethodCall(@NotNull ResolvedCall resolvedCall) {
+    public static boolean isJavaClassMethodCall(@NotNull ResolvedCall<?> resolvedCall) {
         return "kotlin.javaClass.function".equals(getIntrinsicAnnotationArgument(resolvedCall.getResultingDescriptor().getOriginal()));
-    }
-
-    public static boolean isPropertyCompileTimeConstant(@NotNull VariableDescriptor descriptor) {
-        if (descriptor.isVar()) {
-            return false;
-        }
-        if (isClassObject(descriptor.getContainingDeclaration()) || isTopLevelDeclaration(descriptor)) {
-            JetType type = descriptor.getType();
-            return KotlinBuiltIns.getInstance().isPrimitiveType(type) || KotlinBuiltIns.getInstance().getStringType().equals(type);
-        }
-        return false;
     }
 
     public static boolean isJavaLangClass(ClassDescriptor descriptor) {
         return "java.lang.Class".equals(DescriptorUtils.getFqName(descriptor).asString());
+    }
+
+    public static boolean canBeReducedToBooleanConstant(
+            @Nullable JetExpression expression,
+            @NotNull BindingTrace trace,
+            @Nullable Boolean expectedValue
+    ) {
+        if (!(expression instanceof JetConstantExpression) || expression.getNode().getElementType() != JetNodeTypes.BOOLEAN_CONSTANT) {
+            return false;
+        }
+        CompileTimeConstant<?> compileTimeConstant =
+                ConstantExpressionEvaluator.object$.evaluate(expression, trace, KotlinBuiltIns.getInstance().getBooleanType());
+        if (!(compileTimeConstant instanceof BooleanValue)) return false;
+
+        Boolean value = ((BooleanValue) compileTimeConstant).getValue();
+        return expectedValue == null || expectedValue.equals(value);
     }
 
     private CompileTimeConstantUtils() {

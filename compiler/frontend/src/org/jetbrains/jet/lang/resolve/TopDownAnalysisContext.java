@@ -23,7 +23,6 @@ import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.lang.descriptors.*;
-import org.jetbrains.jet.lang.descriptors.impl.MutableClassDescriptor;
 import org.jetbrains.jet.lang.descriptors.impl.MutableClassDescriptorLite;
 import org.jetbrains.jet.lang.descriptors.impl.MutablePackageFragmentDescriptor;
 import org.jetbrains.jet.lang.psi.*;
@@ -33,18 +32,16 @@ import org.jetbrains.jet.lang.resolve.scopes.WritableScope;
 import org.jetbrains.jet.storage.ExceptionTracker;
 import org.jetbrains.jet.storage.StorageManager;
 
-import javax.inject.Inject;
 import java.io.PrintStream;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class TopDownAnalysisContext implements BodiesResolveContext {
 
     private DataFlowInfo outerDataFlowInfo = DataFlowInfo.EMPTY;
 
-    private final Map<JetClassOrObject, MutableClassDescriptor> classes = Maps.newLinkedHashMap();
+    private final Map<JetClassOrObject, ClassDescriptorWithResolutionScopes> classes = Maps.newLinkedHashMap();
     protected final Map<JetFile, MutablePackageFragmentDescriptor> packageFragments = Maps.newHashMap();
+    protected final Set<JetFile> files = new LinkedHashSet<JetFile>();
     private List<MutableClassDescriptorLite> classesTopologicalOrder = null;
 
     private final Map<JetDeclaration, JetScope> declaringScopes = Maps.newHashMap();
@@ -65,17 +62,21 @@ public class TopDownAnalysisContext implements BodiesResolveContext {
 
     private StringBuilder debugOutput;
 
-
     private TopDownAnalysisParameters topDownAnalysisParameters;
 
-    @Override
-    @Inject
-    public void setTopDownAnalysisParameters(TopDownAnalysisParameters topDownAnalysisParameters) {
+    public TopDownAnalysisContext(@NotNull TopDownAnalysisParameters topDownAnalysisParameters) {
         this.topDownAnalysisParameters = topDownAnalysisParameters;
     }
 
+    @Override
+    @NotNull
     public TopDownAnalysisParameters getTopDownAnalysisParameters() {
         return topDownAnalysisParameters;
+    }
+
+    @Override
+    public void setTopDownAnalysisParameters(TopDownAnalysisParameters topDownAnalysisParameters) {
+        this.topDownAnalysisParameters = topDownAnalysisParameters;
     }
 
     public void debug(Object message) {
@@ -108,7 +109,7 @@ public class TopDownAnalysisContext implements BodiesResolveContext {
     }
 
     @Override
-    public Map<JetClassOrObject, MutableClassDescriptor> getClasses() {
+    public Map<JetClassOrObject, ClassDescriptorWithResolutionScopes> getClasses() {
         return classes;
     }
 
@@ -120,11 +121,13 @@ public class TopDownAnalysisContext implements BodiesResolveContext {
         return packageFragments;
     }
 
+    @NotNull
     @Override
     public StorageManager getStorageManager() {
         return topDownAnalysisParameters.getStorageManager();
     }
 
+    @NotNull
     @Override
     public ExceptionTracker getExceptionTracker() {
         return topDownAnalysisParameters.getExceptionTracker();
@@ -132,7 +135,11 @@ public class TopDownAnalysisContext implements BodiesResolveContext {
 
     @Override
     public Collection<JetFile> getFiles() {
-        return packageFragments.keySet();
+        return files;
+    }
+
+    public void addFile(@NotNull JetFile file) {
+        files.add(file);
     }
 
     @Override

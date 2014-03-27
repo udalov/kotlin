@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2013 JetBrains s.r.o.
+ * Copyright 2010-2014 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,7 +31,6 @@ import com.intellij.psi.impl.compiled.ClsFileImpl;
 import com.intellij.psi.impl.java.stubs.PsiJavaFileStub;
 import com.intellij.psi.impl.light.LightClass;
 import com.intellij.psi.impl.light.LightMethod;
-import com.intellij.psi.impl.light.LightModifierList;
 import com.intellij.psi.stubs.PsiClassHolderFileStub;
 import com.intellij.psi.util.CachedValue;
 import com.intellij.psi.util.CachedValuesManager;
@@ -62,8 +61,8 @@ import java.util.List;
 
 import static org.jetbrains.jet.lexer.JetTokens.*;
 
-public class KotlinLightClassForExplicitDeclaration extends KotlinWrappingLightClass implements KotlinLightClass, JetJavaMirrorMarker {
-    private final static Key<CachedValue<LightClassStubWithData>> JAVA_API_STUB = Key.create("JAVA_API_STUB");
+public class KotlinLightClassForExplicitDeclaration extends KotlinWrappingLightClass implements JetJavaMirrorMarker {
+    private final static Key<CachedValue<OutermostKotlinClassLightClassData>> JAVA_API_STUB = Key.create("JAVA_API_STUB");
 
     @Nullable
     public static KotlinLightClassForExplicitDeclaration create(@NotNull PsiManager manager, @NotNull JetClassOrObject classOrObject) {
@@ -237,7 +236,7 @@ public class KotlinLightClassForExplicitDeclaration extends KotlinWrappingLightC
 
     @NotNull
     private PsiJavaFileStub getJavaFileStub() {
-        return getLightClassStubWithData().getJavaFileStub();
+        return getLightClassData().getJavaFileStub();
     }
 
     @Nullable
@@ -247,12 +246,12 @@ public class KotlinLightClassForExplicitDeclaration extends KotlinWrappingLightC
     }
 
     @NotNull
-    private LightClassStubWithData getLightClassStubWithData() {
-        return getLightClassStubWithData(classOrObject);
+    private OutermostKotlinClassLightClassData getLightClassData() {
+        return getLightClassData(classOrObject);
     }
 
     @NotNull
-    private static LightClassStubWithData getLightClassStubWithData(JetClassOrObject classOrObject) {
+    private static OutermostKotlinClassLightClassData getLightClassData(JetClassOrObject classOrObject) {
         JetClassOrObject outermostClassOrObject = getOutermostClassOrObject(classOrObject);
         return CachedValuesManager.getManager(classOrObject.getProject()).getCachedValue(
                 outermostClassOrObject,
@@ -264,8 +263,7 @@ public class KotlinLightClassForExplicitDeclaration extends KotlinWrappingLightC
 
     @Nullable
     private static LightClassDataForKotlinClass getLightClassDataExactly(JetClassOrObject classOrObject) {
-        OutermostKotlinClassLightClassData data =
-                (OutermostKotlinClassLightClassData) getLightClassStubWithData(classOrObject).getClassData();
+        OutermostKotlinClassLightClassData data = getLightClassData(classOrObject);
         return data.getClassOrObject().equals(classOrObject) ? data : data.getAllInnerClasses().get(classOrObject);
     }
 
@@ -290,7 +288,7 @@ public class KotlinLightClassForExplicitDeclaration extends KotlinWrappingLightC
                 @NotNull
                 @Override
                 public String getPackageName() {
-                    return JetPsiUtil.getFQName((JetFile) classOrObject.getContainingFile()).asString();
+                    return ((JetFile) classOrObject.getContainingFile()).getPackageFqName().asString();
                 }
 
                 @NotNull
@@ -387,7 +385,12 @@ public class KotlinLightClassForExplicitDeclaration extends KotlinWrappingLightC
     @Override
     public PsiModifierList getModifierList() {
         if (modifierList == null) {
-            modifierList = new KotlinLightModifierList(computeModifiers());
+            modifierList = new KotlinLightModifierList(this.getManager(), computeModifiers()) {
+                @Override
+                public PsiAnnotationOwner getDelegate() {
+                    return KotlinLightClassForExplicitDeclaration.this.getDelegate().getModifierList();
+                }
+            };
         }
         return modifierList;
     }
@@ -564,39 +567,5 @@ public class KotlinLightClassForExplicitDeclaration extends KotlinWrappingLightC
         }
 
         return false;
-    }
-
-    private class KotlinLightModifierList extends LightModifierList {
-        public KotlinLightModifierList(@NotNull String[] modifiers) {
-            super(KotlinLightClassForExplicitDeclaration.this.getManager(), JetLanguage.INSTANCE, modifiers);
-        }
-
-        private PsiAnnotationOwner getDelegate() {
-            return KotlinLightClassForExplicitDeclaration.this.getDelegate().getModifierList();
-        }
-
-        @Override
-        @NotNull
-        public PsiAnnotation[] getAnnotations() {
-            return getDelegate().getAnnotations();
-        }
-
-        @Override
-        @NotNull
-        public PsiAnnotation[] getApplicableAnnotations() {
-            return getDelegate().getApplicableAnnotations();
-        }
-
-        @Override
-        @Nullable
-        public PsiAnnotation findAnnotation(@NotNull @NonNls String qualifiedName) {
-            return getDelegate().findAnnotation(qualifiedName);
-        }
-
-        @Override
-        @NotNull
-        public PsiAnnotation addAnnotation(@NotNull @NonNls String qualifiedName) {
-            return getDelegate().addAnnotation(qualifiedName);
-        }
     }
 }

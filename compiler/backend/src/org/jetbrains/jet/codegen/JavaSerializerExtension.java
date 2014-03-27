@@ -21,11 +21,11 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.asm4.Type;
 import org.jetbrains.asm4.commons.Method;
-import org.jetbrains.jet.descriptors.serialization.JavaProtoBuf;
-import org.jetbrains.jet.descriptors.serialization.NameTable;
-import org.jetbrains.jet.descriptors.serialization.ProtoBuf;
-import org.jetbrains.jet.descriptors.serialization.SerializerExtension;
+import org.jetbrains.jet.descriptors.serialization.*;
+import org.jetbrains.jet.descriptors.serialization.descriptors.DeserializedPropertyDescriptor;
+import org.jetbrains.jet.descriptors.serialization.descriptors.DeserializedSimpleFunctionDescriptor;
 import org.jetbrains.jet.lang.descriptors.*;
+import org.jetbrains.jet.lang.resolve.kotlin.SignatureDeserializer;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.Name;
 
@@ -67,10 +67,20 @@ public class JavaSerializerExtension extends SerializerExtension {
             @NotNull ProtoBuf.Callable.Builder proto,
             @NotNull NameTable nameTable
     ) {
+        SignatureSerializer signatureSerializer = new SignatureSerializer(nameTable);
         if (callable instanceof FunctionDescriptor) {
-            Method method = bindings.get(METHOD_FOR_FUNCTION, (FunctionDescriptor) callable);
-            if (method != null) {
-                proto.setExtension(JavaProtoBuf.methodSignature, new SignatureSerializer(nameTable).methodSignature(method));
+            JavaProtoBuf.JavaMethodSignature signature;
+            if (callable instanceof DeserializedSimpleFunctionDescriptor) {
+                DeserializedSimpleFunctionDescriptor deserialized = (DeserializedSimpleFunctionDescriptor) callable;
+                signature = signatureSerializer.copyMethodSignature(
+                        deserialized.getProto().getExtension(JavaProtoBuf.methodSignature), deserialized.getNameResolver());
+            }
+            else {
+                Method method = bindings.get(METHOD_FOR_FUNCTION, (FunctionDescriptor) callable);
+                signature = method != null ? signatureSerializer.methodSignature(method) : null;
+            }
+            if (signature != null) {
+                proto.setExtension(JavaProtoBuf.methodSignature, signature);
             }
         }
         else if (callable instanceof PropertyDescriptor) {
@@ -99,8 +109,18 @@ public class JavaSerializerExtension extends SerializerExtension {
                 syntheticMethod = bindings.get(SYNTHETIC_METHOD_FOR_PROPERTY, property);
             }
 
-            JavaProtoBuf.JavaPropertySignature signature = new SignatureSerializer(nameTable)
-                            .propertySignature(fieldType, fieldName, isStaticInOuter, syntheticMethod, getterMethod, setterMethod);
+            JavaProtoBuf.JavaPropertySignature signature;
+            if (callable instanceof DeserializedPropertyDescriptor) {
+                DeserializedPropertyDescriptor deserializedCallable = (DeserializedPropertyDescriptor) callable;
+                signature = signatureSerializer.copyPropertySignature(
+                        deserializedCallable.getProto().getExtension(JavaProtoBuf.propertySignature),
+                        deserializedCallable.getNameResolver()
+                );
+            }
+            else {
+                signature = signatureSerializer
+                        .propertySignature(fieldType, fieldName, isStaticInOuter, syntheticMethod, getterMethod, setterMethod);
+            }
             proto.setExtension(JavaProtoBuf.propertySignature, signature);
         }
     }
@@ -124,6 +144,15 @@ public class JavaSerializerExtension extends SerializerExtension {
         }
 
         @NotNull
+        public JavaProtoBuf.JavaMethodSignature copyMethodSignature(
+                @NotNull JavaProtoBuf.JavaMethodSignature signature,
+                @NotNull NameResolver nameResolver
+        ) {
+            String method = new SignatureDeserializer(nameResolver).methodSignatureString(signature);
+            return methodSignature(getAsmMethod(method));
+        }
+
+        @NotNull
         public JavaProtoBuf.JavaMethodSignature methodSignature(@NotNull Method method) {
             JavaProtoBuf.JavaMethodSignature.Builder signature = JavaProtoBuf.JavaMethodSignature.newBuilder();
 
@@ -136,6 +165,37 @@ public class JavaSerializerExtension extends SerializerExtension {
             }
 
             return signature.build();
+        }
+
+        @NotNull
+        public JavaProtoBuf.JavaPropertySignature copyPropertySignature(
+                @NotNull JavaProtoBuf.JavaPropertySignature signature,
+                @NotNull NameResolver nameResolver
+        ) {
+            Type fieldType;
+            String fieldName;
+            boolean isStaticInOuter;
+            SignatureDeserializer signatureDeserializer = new SignatureDeserializer(nameResolver);
+            if (signature.hasField()) {
+                JavaProtoBuf.JavaFieldSignature field = signature.getField();
+                fieldType = Type.getType(signatureDeserializer.typeDescriptor(field.getType()));
+                fieldName = nameResolver.getName(field.getName()).asString();
+                isStaticInOuter = field.getIsStaticInOuter();
+            }
+            else {
+                fieldType = null;
+                fieldName = null;
+                isStaticInOuter = false;
+            }
+
+            Method syntheticMethod = signature.hasSyntheticMethod()
+                    ? getAsmMethod(signatureDeserializer.methodSignatureString(signature.getSyntheticMethod()))
+                    : null;
+
+            Method getter = signature.hasGetter() ? getAsmMethod(signatureDeserializer.methodSignatureString(signature.getGetter())) : null;
+            Method setter = signature.hasSetter() ? getAsmMethod(signatureDeserializer.methodSignatureString(signature.getSetter())) : null;
+
+            return propertySignature(fieldType, fieldName, isStaticInOuter, syntheticMethod, getter, setter);
         }
 
         @NotNull
@@ -208,5 +268,11 @@ public class JavaSerializerExtension extends SerializerExtension {
         private static FqName internalNameToFqName(@NotNull String internalName) {
             return FqName.fromSegments(Arrays.asList(internalName.split("/")));
         }
+    }
+
+    @NotNull
+    private static Method getAsmMethod(@NotNull String nameAndDesc) {
+        int indexOf = nameAndDesc.indexOf('(');
+        return new Method(nameAndDesc.substring(0, indexOf), nameAndDesc.substring(indexOf));
     }
 }

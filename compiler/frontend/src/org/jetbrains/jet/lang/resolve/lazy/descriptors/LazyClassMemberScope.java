@@ -18,7 +18,7 @@ package org.jetbrains.jet.lang.resolve.lazy.descriptors;
 
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
-import jet.Function0;
+import kotlin.Function0;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.*;
@@ -36,10 +36,7 @@ import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 import org.jetbrains.jet.storage.NullableLazyValue;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 import static org.jetbrains.jet.lang.descriptors.CallableMemberDescriptor.Kind.DELEGATION;
 import static org.jetbrains.jet.lang.descriptors.CallableMemberDescriptor.Kind.FAKE_OVERRIDE;
@@ -94,7 +91,7 @@ public class LazyClassMemberScope extends AbstractLazyMemberScope<LazyClassDescr
     @Override
     protected JetScope getScopeForMemberDeclarationResolution(JetDeclaration declaration) {
         if (declaration instanceof JetProperty) {
-            return thisDescriptor.getScopeForPropertyInitializerResolution();
+            return thisDescriptor.getScopeForInitializerResolution();
         }
         return thisDescriptor.getScopeForMemberDeclarationResolution();
     }
@@ -290,7 +287,9 @@ public class LazyClassMemberScope extends AbstractLazyMemberScope<LazyClassDescr
     }
 
     @Override
-    protected void addExtraDescriptors(@NotNull Collection<DeclarationDescriptor> result) {
+    @NotNull
+    protected Collection<DeclarationDescriptor> computeExtraDescriptors() {
+        ArrayList<DeclarationDescriptor> result = new ArrayList<DeclarationDescriptor>();
         for (JetType supertype : thisDescriptor.getTypeConstructor().getSupertypes()) {
             for (DeclarationDescriptor descriptor : supertype.getMemberScope().getAllDescriptors()) {
                 if (descriptor instanceof FunctionDescriptor) {
@@ -307,6 +306,9 @@ public class LazyClassMemberScope extends AbstractLazyMemberScope<LazyClassDescr
         result.addAll(getFunctions(DescriptorFactory.VALUE_OF_METHOD_NAME));
 
         addDataClassMethods(result);
+
+        result.trimToSize();
+        return result;
     }
 
     private void addDataClassMethods(@NotNull Collection<DeclarationDescriptor> result) {

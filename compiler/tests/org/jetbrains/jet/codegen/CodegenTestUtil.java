@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2013 JetBrains s.r.o.
+ * Copyright 2010-2014 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.JetTestUtils;
 import org.jetbrains.jet.analyzer.AnalyzeExhaust;
+import org.jetbrains.jet.cli.common.arguments.CompilerArgumentsUtil;
 import org.jetbrains.jet.cli.jvm.JVMConfigurationKeys;
 import org.jetbrains.jet.cli.jvm.compiler.JetCoreEnvironment;
 import org.jetbrains.jet.codegen.forTestCompile.ForTestCompileRuntime;
@@ -31,7 +32,6 @@ import org.jetbrains.jet.codegen.state.Progress;
 import org.jetbrains.jet.config.CompilerConfiguration;
 import org.jetbrains.jet.lang.resolve.AnalyzingUtils;
 import org.jetbrains.jet.lang.resolve.java.AnalyzerFacadeForJVM;
-import org.jetbrains.jet.lang.types.lang.InlineUtil;
 import org.jetbrains.jet.utils.UtilsPackage;
 
 import java.io.File;
@@ -61,8 +61,8 @@ public class CodegenTestUtil {
                 environment.getProject(), ClassBuilderFactories.TEST, Progress.DEAF, analyzeExhaust.getBindingContext(), files.getPsiFiles(),
                 configuration.get(JVMConfigurationKeys.GENERATE_NOT_NULL_ASSERTIONS, true),
                 configuration.get(JVMConfigurationKeys.GENERATE_NOT_NULL_PARAMETER_ASSERTIONS, true),
-                /*generateDeclaredClasses = */true,
-                configuration.get(JVMConfigurationKeys.ENABLE_INLINE, InlineUtil.DEFAULT_INLINE_FLAG_FOR_TEST)
+                GenerationState.GenerateClassFilter.GENERATE_ALL,
+                configuration.get(JVMConfigurationKeys.ENABLE_INLINE, CompilerArgumentsUtil.DEFAULT_INLINE_FLAG_FOR_TEST)
         );
         KotlinCodegenFacade.compileCorrectFiles(state, CompilationErrorHandler.THROW_EXCEPTION);
         return state.getFactory();
@@ -137,5 +137,15 @@ public class CodegenTestUtil {
             throw new AssertionError("No public methods in class " + aClass);
         }
         return r;
+    }
+
+    @Nullable
+    public static Object getAnnotationAttribute(@NotNull Object annotation, @NotNull String name) {
+        try {
+            return annotation.getClass().getMethod(name).invoke(annotation);
+        }
+        catch (Exception e) {
+            throw UtilsPackage.rethrow(e);
+        }
     }
 }

@@ -16,14 +16,13 @@
 
 package org.jetbrains.jet.descriptors.serialization.descriptors;
 
-import jet.Function0;
-import jet.Function1;
+import kotlin.Function0;
+import kotlin.Function1;
 import kotlin.KotlinPackage;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.descriptors.serialization.*;
 import org.jetbrains.jet.lang.descriptors.*;
-import org.jetbrains.jet.lang.descriptors.annotations.AnnotationDescriptor;
 import org.jetbrains.jet.lang.descriptors.annotations.Annotations;
 import org.jetbrains.jet.lang.descriptors.impl.AbstractClassDescriptor;
 import org.jetbrains.jet.lang.descriptors.impl.ConstructorDescriptorImpl;
@@ -59,7 +58,7 @@ public class DeserializedClassDescriptor extends AbstractClassDescriptor impleme
 
     private final NullableLazyValue<ConstructorDescriptor> primaryConstructor;
 
-    private final AnnotationDeserializer annotationDeserializer;
+    private final Deserializers deserializers;
     private final NotNullLazyValue<Annotations> annotations;
 
     private final NullableLazyValue<ClassDescriptor> classObjectDescriptor;
@@ -77,7 +76,7 @@ public class DeserializedClassDescriptor extends AbstractClassDescriptor impleme
 
     public DeserializedClassDescriptor(
             @NotNull StorageManager storageManager,
-            @NotNull AnnotationDeserializer annotationResolver,
+            @NotNull Deserializers deserializers,
             @NotNull DescriptorFinder descriptorFinder,
             @NotNull PackageFragmentProvider packageFragmentProvider,
             @NotNull NameResolver nameResolver,
@@ -93,7 +92,7 @@ public class DeserializedClassDescriptor extends AbstractClassDescriptor impleme
         TypeDeserializer notNullTypeDeserializer = new TypeDeserializer(storageManager, null, nameResolver,
                                                                         descriptorFinder, "Deserializer for class " + getName(), NONE);
         DescriptorDeserializer outerDeserializer = DescriptorDeserializer.create(storageManager, notNullTypeDeserializer,
-                                                                                 this, nameResolver, annotationResolver);
+                                                                                 this, nameResolver, deserializers);
         List<TypeParameterDescriptor> typeParameters = new ArrayList<TypeParameterDescriptor>(classProto.getTypeParameterCount());
         this.deserializer = outerDeserializer.createChildDeserializer(this, classProto.getTypeParameterList(), typeParameters);
         this.typeDeserializer = deserializer.getTypeDeserializer();
@@ -114,7 +113,7 @@ public class DeserializedClassDescriptor extends AbstractClassDescriptor impleme
         this.kind = DescriptorDeserializer.classKind(Flags.CLASS_KIND.get(flags));
         this.isInner = Flags.INNER.get(flags);
 
-        this.annotationDeserializer = annotationResolver;
+        this.deserializers = deserializers;
         this.annotations = storageManager.createLazyValue(new Function0<Annotations>() {
             @Override
             public Annotations invoke() {
@@ -192,7 +191,7 @@ public class DeserializedClassDescriptor extends AbstractClassDescriptor impleme
         if (!Flags.HAS_ANNOTATIONS.get(classProto.getFlags())) {
             return Annotations.EMPTY;
         }
-        return annotationDeserializer.loadClassAnnotations(this, classProto);
+        return deserializers.getAnnotationDeserializer().loadClassAnnotations(this, classProto);
     }
 
     @NotNull
@@ -254,7 +253,7 @@ public class DeserializedClassDescriptor extends AbstractClassDescriptor impleme
                 throw new IllegalStateException("Object should have a serialized class object: " + classId);
             }
 
-            return new DeserializedClassDescriptor(storageManager, annotationDeserializer, descriptorFinder, packageFragmentProvider, 
+            return new DeserializedClassDescriptor(storageManager, deserializers, descriptorFinder, packageFragmentProvider,
                                                    deserializer.getNameResolver(), classObjectProto.getData());
         }
 
@@ -262,10 +261,11 @@ public class DeserializedClassDescriptor extends AbstractClassDescriptor impleme
     }
 
     @NotNull
-    private MutableClassDescriptor createEnumClassObject() {
-        MutableClassDescriptor classObject = new MutableClassDescriptor(this, getScopeForMemberLookup(), ClassKind.CLASS_OBJECT,
-                                                                        false, getClassObjectName(getName()));
-        classObject.setSupertypes(Collections.singleton(KotlinBuiltIns.getInstance().getAnyType()));
+    private ClassDescriptorWithResolutionScopes createEnumClassObject() {
+        final MutableClassDescriptor classObject = new MutableClassDescriptor(this, getScopeForMemberLookup(), ClassKind.CLASS_OBJECT,
+                                                                              false, getClassObjectName(getName()));
+        JetType supertype = KotlinBuiltIns.getInstance().getAnyType();
+        classObject.setSupertypes(Collections.singleton(supertype));
         classObject.setModality(Modality.FINAL);
         classObject.setVisibility(DescriptorUtils.getSyntheticClassObjectVisibility());
         classObject.setTypeParameterDescriptors(Collections.<TypeParameterDescriptor>emptyList());
@@ -276,6 +276,34 @@ public class DeserializedClassDescriptor extends AbstractClassDescriptor impleme
         JetType enumArrayType = KotlinBuiltIns.getInstance().getArrayType(enumType);
         classObject.getBuilder().addFunctionDescriptor(DescriptorFactory.createEnumClassObjectValuesMethod(classObject, enumArrayType));
         classObject.getBuilder().addFunctionDescriptor(DescriptorFactory.createEnumClassObjectValueOfMethod(classObject, enumType));
+
+        OverridingUtil.DescriptorSink sink = new OverridingUtil.DescriptorSink() {
+            @Override
+            public void addToScope(@NotNull CallableMemberDescriptor fakeOverride) {
+                OverridingUtil.resolveUnknownVisibilityForMember(fakeOverride, new OverridingUtil.NotInferredVisibilitySink() {
+                    @Override
+                    public void cannotInferVisibility(@NotNull CallableMemberDescriptor descriptor) {
+                        throw new IllegalStateException("Cannot infer visibility for " + descriptor + " in " + classObject);
+                    }
+                });
+                classObject.getBuilder().addFunctionDescriptor((SimpleFunctionDescriptor) fakeOverride);
+            }
+
+            @Override
+            public void conflict(@NotNull CallableMemberDescriptor fromSuper, @NotNull CallableMemberDescriptor fromCurrent) {
+                throw new IllegalStateException("Conflict on enum class object override: " + fromSuper + " vs " + fromCurrent);
+            }
+        };
+
+        JetScope superScope = supertype.getMemberScope();
+
+        for (DeclarationDescriptor descriptor : superScope.getAllDescriptors()) {
+            if (descriptor instanceof FunctionDescriptor) {
+                Name name = descriptor.getName();
+                OverridingUtil.generateOverridesInFunctionGroup(name, superScope.getFunctions(name),
+                                                                Collections.<FunctionDescriptor>emptySet(), classObject, sink);
+            }
+        }
 
         return classObject;
     }
@@ -552,4 +580,3 @@ public class DeserializedClassDescriptor extends AbstractClassDescriptor impleme
         }
     }
 }
-

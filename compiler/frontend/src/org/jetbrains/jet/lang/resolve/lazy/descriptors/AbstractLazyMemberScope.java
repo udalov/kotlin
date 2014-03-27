@@ -19,8 +19,8 @@ package org.jetbrains.jet.lang.resolve.lazy.descriptors;
 import com.google.common.collect.Sets;
 import com.intellij.util.Function;
 import com.intellij.util.containers.ContainerUtil;
-import jet.Function0;
-import jet.Function1;
+import kotlin.Function0;
+import kotlin.Function1;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.*;
@@ -51,7 +51,8 @@ public abstract class AbstractLazyMemberScope<D extends DeclarationDescriptor, D
     private final MemoizedFunctionToNotNull<Name, Set<FunctionDescriptor>> functionDescriptors;
     private final MemoizedFunctionToNotNull<Name, Set<VariableDescriptor>> propertyDescriptors;
 
-    private final NotNullLazyValue<Collection<DeclarationDescriptor>> allDescriptors;
+    private final NotNullLazyValue<Collection<DeclarationDescriptor>> descriptorsFromDeclaredElements;
+    private final NotNullLazyValue<Collection<DeclarationDescriptor>> extraDescriptors;
 
     protected AbstractLazyMemberScope(
             @NotNull ResolveSession resolveSession,
@@ -83,10 +84,16 @@ public abstract class AbstractLazyMemberScope<D extends DeclarationDescriptor, D
             }
         });
 
-        this.allDescriptors = storageManager.createLazyValue(new Function0<Collection<DeclarationDescriptor>>() {
+        this.descriptorsFromDeclaredElements = storageManager.createLazyValue(new Function0<Collection<DeclarationDescriptor>>() {
             @Override
             public Collection<DeclarationDescriptor> invoke() {
-                return computeAllDescriptors();
+                return computeDescriptorsFromDeclaredElements();
+            }
+        });
+        this.extraDescriptors = storageManager.createLazyValue(new Function0<Collection<DeclarationDescriptor>>() {
+            @Override
+            public Collection<DeclarationDescriptor> invoke() {
+                return computeExtraDescriptors();
             }
         });
     }
@@ -199,13 +206,16 @@ public abstract class AbstractLazyMemberScope<D extends DeclarationDescriptor, D
     @NotNull
     @Override
     public Collection<DeclarationDescriptor> getAllDescriptors() {
-        return allDescriptors.invoke();
+        Collection<DeclarationDescriptor> result = new LinkedHashSet<DeclarationDescriptor>(descriptorsFromDeclaredElements.invoke());
+        result.addAll(extraDescriptors.invoke());
+        return result;
     }
 
     @NotNull
-    private Collection<DeclarationDescriptor> computeAllDescriptors() {
-        Collection<DeclarationDescriptor> result = new LinkedHashSet<DeclarationDescriptor>();
-        for (JetDeclaration declaration : declarationProvider.getAllDeclarations()) {
+    private Collection<DeclarationDescriptor> computeDescriptorsFromDeclaredElements() {
+        List<JetDeclaration> declarations = declarationProvider.getAllDeclarations();
+        ArrayList<DeclarationDescriptor> result = new ArrayList<DeclarationDescriptor>(declarations.size());
+        for (JetDeclaration declaration : declarations) {
             if (declaration instanceof JetClassOrObject) {
                 JetClassOrObject classOrObject = (JetClassOrObject) declaration;
                 result.addAll(classDescriptors.invoke(safeNameForLazyResolve(classOrObject.getNameAsName())));
@@ -230,11 +240,12 @@ public abstract class AbstractLazyMemberScope<D extends DeclarationDescriptor, D
                 throw new IllegalArgumentException("Unsupported declaration kind: " + declaration);
             }
         }
-        addExtraDescriptors(result);
+        result.trimToSize();
         return result;
     }
 
-    protected abstract void addExtraDescriptors(@NotNull Collection<DeclarationDescriptor> result);
+    @NotNull
+    protected abstract Collection<DeclarationDescriptor> computeExtraDescriptors();
 
     @NotNull
     @Override

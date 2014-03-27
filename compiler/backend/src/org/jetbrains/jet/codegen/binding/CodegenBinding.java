@@ -20,6 +20,7 @@ import com.intellij.openapi.vfs.VirtualFile;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.asm4.Type;
+import org.jetbrains.jet.codegen.state.GenerationState;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.descriptors.impl.ClassDescriptorImpl;
 import org.jetbrains.jet.lang.psi.*;
@@ -65,7 +66,11 @@ public class CodegenBinding {
     }
 
     public static void initTrace(BindingTrace bindingTrace, Collection<JetFile> files) {
-        CodegenAnnotatingVisitor visitor = new CodegenAnnotatingVisitor(bindingTrace);
+        initTrace(bindingTrace, files, GenerationState.GenerateClassFilter.GENERATE_ALL);
+    }
+
+    public static void initTrace(BindingTrace bindingTrace, Collection<JetFile> files, GenerationState.GenerateClassFilter filter) {
+        CodegenAnnotatingVisitor visitor = new CodegenAnnotatingVisitor(bindingTrace, filter);
         for (JetFile file : allFilesInPackages(bindingTrace.getBindingContext(), files)) {
             file.accept(visitor);
         }
@@ -79,6 +84,7 @@ public class CodegenBinding {
         return Boolean.TRUE.equals(bindingContext.get(ENUM_ENTRY_CLASS_NEED_SUBCLASS, classDescriptor));
     }
 
+    // SCRIPT: Generate asmType for script, move to ScriptingUtil
     @NotNull
     public static Type asmTypeForScriptDescriptor(BindingContext bindingContext, @NotNull ScriptDescriptor scriptDescriptor) {
         ClassDescriptor classDescriptor = bindingContext.get(CLASS_FOR_SCRIPT, scriptDescriptor);
@@ -86,6 +92,7 @@ public class CodegenBinding {
         return asmType(bindingContext, classDescriptor);
     }
 
+    // SCRIPT: Generate asmType for script, move to ScriptingUtil
     @NotNull
     public static Type asmTypeForScriptPsi(BindingContext bindingContext, @NotNull JetScript script) {
         ScriptDescriptor scriptDescriptor = bindingContext.get(SCRIPT, script);
@@ -138,6 +145,7 @@ public class CodegenBinding {
         return asmType(bindingContext, classDescriptor);
     }
 
+    // SCRIPT: register asmType for script descriptor, move to ScriptingUtil
     public static void registerClassNameForScript(
             BindingTrace bindingTrace,
             @NotNull ScriptDescriptor scriptDescriptor,
@@ -197,7 +205,9 @@ public class CodegenBinding {
             closure.setCaptureThis();
         }
 
-        if (enclosing != null) {
+        //TEMPORARY EAT INNER CLASS INFO FOR FUNCTION LITERALS
+        //TODO: we should understand that lambda/closure would be inlined and don't generate inner class record
+        if (enclosing != null && !(element instanceof JetFunctionLiteral)) {
             recordInnerClass(bindingTrace, enclosing, classDescriptor);
         }
     }
@@ -215,6 +225,7 @@ public class CodegenBinding {
         innerClasses.add(inner);
     }
 
+    // SCRIPT: register asmType for script, move to ScriptingUtil
     public static void registerClassNameForScript(
             BindingTrace bindingTrace,
             @NotNull JetScript jetScript,
@@ -232,10 +243,11 @@ public class CodegenBinding {
         // todo: we use Set and add given files but ignoring other scripts because something non-clear kept in binding
         // for scripts especially in case of REPL
 
+        // SCRIPT: collect fq names for files that are not scripts
         HashSet<FqName> names = new HashSet<FqName>();
         for (JetFile file : files) {
             if (!file.isScript()) {
-                names.add(JetPsiUtil.getFQName(file));
+                names.add(file.getPackageFqName());
             }
         }
 
@@ -259,7 +271,7 @@ public class CodegenBinding {
             }
 
             @Override
-            public int compare(JetFile first, JetFile second) {
+            public int compare(@NotNull JetFile first, @NotNull JetFile second) {
                 return path(first).compareTo(path(second));
             }
         });
@@ -315,12 +327,6 @@ public class CodegenBinding {
             }
         }
         return containerInternalName + "$" + klass.getName().getIdentifier();
-    }
-
-    public static boolean isVarCapturedInClosure(BindingContext bindingContext, DeclarationDescriptor descriptor) {
-        if (!(descriptor instanceof VariableDescriptor) || descriptor instanceof PropertyDescriptor) return false;
-        VariableDescriptor variableDescriptor = (VariableDescriptor) descriptor;
-        return bindingContext.get(CAPTURED_IN_CLOSURE, variableDescriptor) != null && variableDescriptor.isVar();
     }
 
     public static boolean hasThis0(BindingContext bindingContext, ClassDescriptor classDescriptor) {

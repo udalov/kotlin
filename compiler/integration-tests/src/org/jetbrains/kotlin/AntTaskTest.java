@@ -86,6 +86,16 @@ public class AntTaskTest extends KotlinIntegrationTestBase {
     }
 
     @Test
+    public void inlineDisabled() throws Exception {
+        doJvmAntTest();
+    }
+
+    @Test
+    public void inlineWrongArg() throws Exception {
+        doAntTest(FAILED);
+    }
+
+    @Test
     public void jvmClasspath() throws Exception {
         doJvmAntTest();
     }
@@ -122,6 +132,16 @@ public class AntTaskTest extends KotlinIntegrationTestBase {
 
     @Test
     public void k2jsWithMain() throws Exception {
+        doJsAntTest();
+    }
+
+    @Test
+    public void k2jsWithMainFQArgs() throws Exception {
+        doJsAntTest();
+    }
+
+    @Test
+    public void k2jsWithMainVarargs() throws Exception {
         doJsAntTest();
     }
 
@@ -196,7 +216,7 @@ public class AntTaskTest extends KotlinIntegrationTestBase {
     }
 
     private static void checkFilePrefixPostfix(@NotNull File file, @Nullable File prefix, @Nullable File postfix) throws IOException {
-        String fileContent = FileUtil.loadFile(file);
+        String fileContent = FileUtil.loadFile(file, true);
 
         String prefixContent = FileUtilsPackage.readTextOrEmpty(prefix);
         assertTrue(fileContent.startsWith(prefixContent));

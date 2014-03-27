@@ -24,14 +24,15 @@ import org.jetbrains.jet.analyzer.AnalyzeExhaust;
 import org.jetbrains.jet.analyzer.AnalyzerFacade;
 import org.jetbrains.jet.context.ContextPackage;
 import org.jetbrains.jet.context.GlobalContextImpl;
+import org.jetbrains.jet.descriptors.serialization.descriptors.MemberFilter;
 import org.jetbrains.jet.di.InjectorForTopDownAnalyzerForObjC;
-import org.jetbrains.jet.lang.PlatformToKotlinClassMap;
 import org.jetbrains.jet.lang.descriptors.DependencyKind;
 import org.jetbrains.jet.lang.descriptors.ModuleDescriptor;
 import org.jetbrains.jet.lang.descriptors.ModuleDescriptorImpl;
 import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.resolve.*;
 import org.jetbrains.jet.lang.resolve.java.AnalyzerFacadeForJVM;
+import org.jetbrains.jet.lang.resolve.java.mapping.JavaToKotlinClassMap;
 import org.jetbrains.jet.lang.resolve.lazy.ResolveSession;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.resolve.objc.builtins.ObjCBuiltIns;
@@ -53,27 +54,29 @@ public enum AnalyzerFacadeForObjC implements AnalyzerFacade {
             @NotNull Predicate<PsiFile> filesToAnalyzeCompletely
     ) {
         List<ImportPath> imports = new ArrayList<ImportPath>();
+        // TODO: kotlin.objc.* or kotlin.jvm.objc.* ?
         imports.add(new ImportPath("jet.objc.*"));
         imports.addAll(AnalyzerFacadeForJVM.DEFAULT_IMPORTS);
 
-        ModuleDescriptorImpl module = new ModuleDescriptorImpl(Name.special("<module>"), imports, PlatformToKotlinClassMap.EMPTY);
+        // TODO: shouldn't depend on Java, create another module for this analyzer facade (ObjC + JVM)
+        ModuleDescriptorImpl module = new ModuleDescriptorImpl(Name.special("<module>"), imports, JavaToKotlinClassMap.getInstance());
 
         GlobalContextImpl global = ContextPackage.GlobalContext();
+        BindingTrace trace = new BindingTraceContext();
+        InjectorForTopDownAnalyzerForObjC injector = new InjectorForTopDownAnalyzerForObjC(
+                project, global, new ObservableBindingTrace(trace), module, MemberFilter.ALWAYS_TRUE
+        );
+
+        module.addFragmentProvider(DependencyKind.SOURCES, injector.getObjCPackageFragmentProvider());
+        module.addFragmentProvider(DependencyKind.BUILT_INS, ObjCBuiltIns.getInstance().getPackageFragmentProvider());
+        module.addFragmentProvider(DependencyKind.BINARIES, injector.getJavaDescriptorResolver().getPackageFragmentProvider());
+
         TopDownAnalysisParameters topDownAnalysisParameters = new TopDownAnalysisParameters(
                 global.getStorageManager(), global.getExceptionTracker(), filesToAnalyzeCompletely, false, false, scriptParameters
         );
 
-        BindingTrace trace = new BindingTraceContext();
-
-        InjectorForTopDownAnalyzerForObjC injector = new InjectorForTopDownAnalyzerForObjC(
-                project, topDownAnalysisParameters,
-                new ObservableBindingTrace(trace), module);
-
         try {
-            module.addFragmentProvider(DependencyKind.SOURCES, injector.getObjCPackageFragmentProvider());
-            module.addFragmentProvider(DependencyKind.BUILT_INS, ObjCBuiltIns.getInstance().getPackageFragmentProvider());
-            module.addFragmentProvider(DependencyKind.BINARIES, injector.getJavaDescriptorResolver().getPackageFragmentProvider());
-            injector.getTopDownAnalyzer().analyzeFiles(files, scriptParameters);
+            injector.getTopDownAnalyzer().analyzeFiles(topDownAnalysisParameters, files);
             return AnalyzeExhaust.success(trace.getBindingContext(), null, module);
         } finally {
             injector.destroy();

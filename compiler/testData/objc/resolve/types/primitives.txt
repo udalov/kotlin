@@ -7,36 +7,36 @@ public trait <metaclass-for-NSObject> {
 }
 
 public open class A : objc.NSObject {
-    invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: jet.Long
+    invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: kotlin.Long
     public open fun f_Class(): jet.objc.ObjCClass
     public open fun f_SEL(): jet.objc.ObjCSelector
-    public open fun f_bool(): jet.Boolean
-    public open fun f_char(): jet.Char
-    public open fun f_double(): jet.Double
-    public open fun f_float(): jet.Float
+    public open fun f_bool(): kotlin.Boolean
+    public open fun f_char(): kotlin.Char
+    public open fun f_double(): kotlin.Double
+    public open fun f_float(): kotlin.Float
     public open fun f_id(): jet.objc.ObjCObject
-    public open fun f_int(): jet.Int
-    public open fun f_long(): jet.Long
-    public open fun f_longdouble(): jet.Any
-    public open fun f_longlong(): jet.Long
-    public open fun f_short(): jet.Short
-    public open fun f_uchar(): jet.Char
-    public open fun f_uint(): jet.Int
-    public open fun f_ulong(): jet.Long
-    public open fun f_ulonglong(): jet.Long
-    public open fun f_ushort(): jet.Short
-    public open fun f_void(): jet.Unit
-    public open fun f_wchar_t(): jet.Int
+    public open fun f_int(): kotlin.Int
+    public open fun f_long(): kotlin.Long
+    public open fun f_longdouble(): kotlin.Any
+    public open fun f_longlong(): kotlin.Long
+    public open fun f_short(): kotlin.Short
+    public open fun f_uchar(): kotlin.Char
+    public open fun f_uint(): kotlin.Int
+    public open fun f_ulong(): kotlin.Long
+    public open fun f_ulonglong(): kotlin.Long
+    public open fun f_ushort(): kotlin.Short
+    public open fun f_void(): kotlin.Unit
+    public open fun f_wchar_t(): kotlin.Int
     
     public class object <class-object-for-A> : jet.objc.ObjCClass, objc.<metaclass-for-A>, objc.NSObject {
-        invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: jet.Long
+        invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: kotlin.Long
     }
 }
 
 public open class NSObject : jet.objc.ObjCObject {
-    invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: jet.Long
+    invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: kotlin.Long
     
     public class object <class-object-for-NSObject> : jet.objc.ObjCClass, objc.<metaclass-for-NSObject>, objc.NSObject {
-        invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: jet.Long
+        invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: kotlin.Long
     }
 }

@@ -30,7 +30,7 @@ public class ObjCMethodDescriptor extends SimpleFunctionDescriptorImpl {
             @NotNull Annotations annotations,
             @NotNull String objcName
     ) {
-        super(containingDeclaration, annotations, transformMethodName(objcName), Kind.DECLARATION);
+        super(containingDeclaration, null, annotations, transformMethodName(objcName), Kind.DECLARATION);
 
         this.objcName = objcName;
     }

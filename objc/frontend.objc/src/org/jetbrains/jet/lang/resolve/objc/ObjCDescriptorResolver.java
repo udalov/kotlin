@@ -16,7 +16,7 @@
 
 package org.jetbrains.jet.lang.resolve.objc;
 
-import jet.Function0;
+import kotlin.Function0;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.descriptors.annotations.Annotations;
@@ -332,6 +332,7 @@ public class ObjCDescriptorResolver {
         Name name = Name.identifier(parameter.getName());
         return new ValueParameterDescriptorImpl(
                 containingFunction,
+                null,
                 index,
                 Annotations.EMPTY,
                 name,

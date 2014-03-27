@@ -7,31 +7,31 @@ public trait <metaclass-for-NSObject> {
 }
 
 public open class A : objc.NSObject {
-    invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: jet.Long
+    invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: kotlin.Long
     public open fun pa(): jet.objc.Pointer<objc.A>
-    public open fun pc(): jet.objc.Pointer<jet.Char>
-    public open fun pd(): jet.objc.Pointer<jet.Double>
-    public open fun pf(): jet.objc.Pointer<jet.Float>
-    public open fun pfun(): jet.objc.Pointer<() -> jet.Unit>
-    public open fun pi(): jet.objc.Pointer<jet.Int>
-    public open fun pj(): jet.objc.Pointer<jet.Long>
-    public open fun pppv(): jet.objc.Pointer<jet.objc.Pointer<jet.objc.Pointer<out jet.Any?>>>
-    public open fun ppv(): jet.objc.Pointer<jet.objc.Pointer<out jet.Any?>>
-    public open fun ps(): jet.objc.Pointer<jet.Short>
-    public open fun pv1(): jet.objc.Pointer<out jet.Any?>
-    public open fun pv2(): jet.objc.Pointer<out jet.Any?>
-    public open fun pv3(): jet.objc.Pointer<out jet.Any?>
-    public open fun pv4(): jet.objc.Pointer<out jet.Any?>
+    public open fun pc(): jet.objc.Pointer<kotlin.Char>
+    public open fun pd(): jet.objc.Pointer<kotlin.Double>
+    public open fun pf(): jet.objc.Pointer<kotlin.Float>
+    public open fun pfun(): jet.objc.Pointer<() -> kotlin.Unit>
+    public open fun pi(): jet.objc.Pointer<kotlin.Int>
+    public open fun pj(): jet.objc.Pointer<kotlin.Long>
+    public open fun pppv(): jet.objc.Pointer<jet.objc.Pointer<jet.objc.Pointer<out kotlin.Any?>>>
+    public open fun ppv(): jet.objc.Pointer<jet.objc.Pointer<out kotlin.Any?>>
+    public open fun ps(): jet.objc.Pointer<kotlin.Short>
+    public open fun pv1(): jet.objc.Pointer<out kotlin.Any?>
+    public open fun pv2(): jet.objc.Pointer<out kotlin.Any?>
+    public open fun pv3(): jet.objc.Pointer<out kotlin.Any?>
+    public open fun pv4(): jet.objc.Pointer<out kotlin.Any?>
     
     public class object <class-object-for-A> : jet.objc.ObjCClass, objc.<metaclass-for-A>, objc.NSObject {
-        invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: jet.Long
+        invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: kotlin.Long
     }
 }
 
 public open class NSObject : jet.objc.ObjCObject {
-    invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: jet.Long
+    invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: kotlin.Long
     
     public class object <class-object-for-NSObject> : jet.objc.ObjCClass, objc.<metaclass-for-NSObject>, objc.NSObject {
-        invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: jet.Long
+        invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: kotlin.Long
     }
 }

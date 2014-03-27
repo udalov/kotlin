@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2013 JetBrains s.r.o.
+ * Copyright 2010-2014 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,10 +23,9 @@ import org.jetbrains.jet.asJava.KotlinLightClassForExplicitDeclaration;
 import org.jetbrains.jet.asJava.KotlinLightClassForPackage;
 import org.jetbrains.jet.lang.psi.JetClassOrObject;
 import org.jetbrains.jet.lang.psi.JetFile;
-import org.jetbrains.jet.lang.psi.JetPsiUtil;
 import org.jetbrains.jet.lang.resolve.name.FqName;
+import org.jetbrains.jet.lang.resolve.name.NamePackage;
 import org.jetbrains.jet.lexer.JetTokens;
-import org.jetbrains.jet.util.QualifiedNamesUtil;
 
 public class JetPsiHeuristicsUtil {
     private JetPsiHeuristicsUtil() {}
@@ -46,9 +45,10 @@ public class JetPsiHeuristicsUtil {
                 // The class is declared private in the targetPackage
                 // It is visible in this package and all of its subpackages
                 JetFile targetFile = (JetFile) classOrObject.getContainingFile();
-                FqName targetPackage = JetPsiUtil.getFQName(targetFile);
-                FqName fromPackage = JetPsiUtil.getFQName(fromFile);
-                return QualifiedNamesUtil.isSubpackageOf(fromPackage, targetPackage);
+                FqName targetPackage = targetFile.getPackageFqName();
+                FqName fromPackage = fromFile.getPackageFqName();
+
+                return NamePackage.isSubpackageOf(fromPackage, targetPackage);
             }
         }
         return member.hasModifierProperty(PsiModifier.PUBLIC) || member.hasModifierProperty(PsiModifier.PROTECTED);

@@ -41,8 +41,8 @@ import org.jetbrains.jet.lang.resolve.java.PackageClassUtils;
 import org.jetbrains.jet.lang.resolve.java.jetAsJava.KotlinLightMethod;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
-import org.jetbrains.jet.utils.UtilsPackage;
 import org.jetbrains.jet.utils.KotlinVfsUtil;
+import org.jetbrains.jet.utils.UtilsPackage;
 
 import java.io.File;
 import java.net.MalformedURLException;
@@ -56,7 +56,7 @@ public class LightClassUtil {
 
     /**
      * Checks whether the given file is loaded from the location where Kotlin's built-in classes are defined.
-     * As of today, this is core/builtins/native/jet directory and files such as Any.kt, Nothing.kt etc.
+     * As of today, this is core/builtins/native/kotlin directory and files such as Any.kt, Nothing.kt etc.
      *
      * Used to skip JetLightClass creation for built-ins, because built-in classes have no Java counterparts
      */
@@ -234,12 +234,9 @@ public class LightClassUtil {
 
         if (parent instanceof JetFile) {
             // top-level declaration
-            FqName fqName = getPackageClassNameForFile((JetFile) parent);
-            if (fqName != null) {
-                Project project = declaration.getProject();
-
-                return JavaElementFinder.getInstance(project).findClass(fqName.asString(), GlobalSearchScope.allScope(project));
-            }
+            FqName fqName = PackageClassUtils.getPackageClassFqName(((JetFile) parent).getPackageFqName());
+            Project project = declaration.getProject();
+            return JavaElementFinder.getInstance(project).findClass(fqName.asString(), GlobalSearchScope.allScope(project));
         }
         else if (parent instanceof JetClassBody) {
             assert parent.getParent() instanceof JetClassOrObject;
@@ -247,12 +244,6 @@ public class LightClassUtil {
         }
 
         return null;
-    }
-
-    @Nullable
-    private static FqName getPackageClassNameForFile(@NotNull JetFile jetFile) {
-        String packageName = jetFile.getPackageName();
-        return packageName == null ? null : PackageClassUtils.getPackageClassFqName(new FqName(packageName));
     }
 
     @NotNull

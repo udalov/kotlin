@@ -22,14 +22,16 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.lang.descriptors.ClassDescriptor;
 import org.jetbrains.jet.lang.descriptors.ClassKind;
 import org.jetbrains.jet.lang.descriptors.PropertyDescriptor;
+import org.jetbrains.jet.lang.descriptors.ReceiverParameterDescriptor;
 import org.jetbrains.jet.lang.psi.JetClassOrObject;
 import org.jetbrains.jet.lang.psi.JetObjectDeclaration;
 import org.jetbrains.jet.lang.psi.JetParameter;
 import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.lang.types.TypeConstructor;
 import org.jetbrains.k2js.translate.context.DefinitionPlace;
+import org.jetbrains.k2js.translate.context.Namer;
 import org.jetbrains.k2js.translate.context.TranslationContext;
-import org.jetbrains.k2js.translate.expression.LiteralFunctionTranslator;
+import org.jetbrains.k2js.translate.expression.ExpressionPackage;
 import org.jetbrains.k2js.translate.general.AbstractTranslator;
 import org.jetbrains.k2js.translate.initializer.ClassInitializerTranslator;
 import org.jetbrains.k2js.translate.utils.JsAstUtils;
@@ -39,9 +41,11 @@ import java.util.*;
 import static org.jetbrains.jet.lang.resolve.DescriptorUtils.*;
 import static org.jetbrains.jet.lang.types.TypeUtils.topologicallySortSuperclassesAndRecordAllInstances;
 import static org.jetbrains.k2js.translate.initializer.InitializerUtils.createClassObjectInitializer;
+import static org.jetbrains.k2js.translate.reference.ReferenceTranslator.translateAsFQReference;
 import static org.jetbrains.k2js.translate.utils.BindingUtils.getClassDescriptor;
 import static org.jetbrains.k2js.translate.utils.BindingUtils.getPropertyDescriptorForConstructorParameter;
 import static org.jetbrains.k2js.translate.utils.JsDescriptorUtils.getContainingClass;
+import static org.jetbrains.k2js.translate.utils.JsDescriptorUtils.getReceiverParameterForDeclaration;
 import static org.jetbrains.k2js.translate.utils.JsDescriptorUtils.getSupertypesWithoutFakes;
 import static org.jetbrains.k2js.translate.utils.PsiUtils.getPrimaryConstructorParameters;
 import static org.jetbrains.k2js.translate.utils.TranslationUtils.simpleReturnFunction;
@@ -62,44 +66,14 @@ public final class ClassTranslator extends AbstractTranslator {
     }
 
     @NotNull
-    public static JsInvocation generateClassCreation(@NotNull JetClassOrObject classDeclaration,
-            @NotNull ClassDescriptor descriptor,
-            @NotNull TranslationContext context) {
-        return new ClassTranslator(classDeclaration, descriptor, context).translate();
-    }
-
-    @NotNull
-    public static JsExpression generateObjectLiteral(
-            @NotNull JetObjectDeclaration objectDeclaration,
-            @NotNull TranslationContext context
-    ) {
+    public static JsExpression generateObjectLiteral(@NotNull JetObjectDeclaration objectDeclaration, @NotNull TranslationContext context) {
         return new ClassTranslator(objectDeclaration, context).translateObjectLiteralExpression();
     }
 
-    @NotNull
-    public static JsExpression generateObjectLiteral(
-            @NotNull JetObjectDeclaration objectDeclaration,
-            @NotNull ClassDescriptor descriptor,
-            @NotNull TranslationContext context
-    ) {
-        return new ClassTranslator(objectDeclaration, descriptor, context).translateObjectLiteralExpression();
-    }
-
-    ClassTranslator(
-            @NotNull JetClassOrObject classDeclaration,
-            @NotNull TranslationContext context
-    ) {
-        this(classDeclaration, getClassDescriptor(context.bindingContext(), classDeclaration), context);
-    }
-
-    ClassTranslator(
-            @NotNull JetClassOrObject classDeclaration,
-            @NotNull ClassDescriptor descriptor,
-            @NotNull TranslationContext context
-    ) {
+    private ClassTranslator(@NotNull JetClassOrObject classDeclaration, @NotNull TranslationContext context) {
         super(context);
-        this.descriptor = descriptor;
         this.classDeclaration = classDeclaration;
+        this.descriptor = getClassDescriptor(context.bindingContext(), classDeclaration);
     }
 
     @NotNull
@@ -108,7 +82,8 @@ public final class ClassTranslator extends AbstractTranslator {
         if (containingClass == null) {
             return translate(context());
         }
-        return LiteralFunctionTranslator.translate(containingClass, context(), classDeclaration, descriptor, this);
+
+        return translateObjectInsideClass(context());
     }
 
     @NotNull
@@ -133,23 +108,20 @@ public final class ClassTranslator extends AbstractTranslator {
 
         boolean isTopLevelDeclaration = context() == declarationContext;
 
-        JsNameRef qualifiedReference;
-        if (!isTopLevelDeclaration) {
-            qualifiedReference = null;
-        }
-        else {
-            JsScope scope = context().getScopeForDescriptor(descriptor);
-            DefinitionPlace definitionPlace;
-            if (descriptor.getKind().isSingleton() || isAnonymousObject(descriptor)) {
-                qualifiedReference = null;
-                definitionPlace = new DefinitionPlace(scope, context().getThisObject(descriptor), properties);
-            }
-            else {
+        JsNameRef qualifiedReference = null;
+        if (isTopLevelDeclaration) {
+            DefinitionPlace definitionPlace = null;
+
+            if (!descriptor.getKind().isSingleton() && !isAnonymousObject(descriptor)) {
                 qualifiedReference = declarationContext.getQualifiedReference(descriptor);
+                JsScope scope = context().getScopeForDescriptor(descriptor);
                 definitionPlace = new DefinitionPlace(scope, qualifiedReference, staticProperties);
             }
+
             declarationContext = declarationContext.newDeclaration(descriptor, definitionPlace);
         }
+
+        declarationContext = fixContextForClassObjectAccessing(declarationContext);
 
         invocationArguments.add(getSuperclassReferences(declarationContext));
         if (!isTrait()) {
@@ -180,6 +152,26 @@ public final class ClassTranslator extends AbstractTranslator {
             invocationArguments.add(new JsObjectLiteral(staticProperties, true));
         }
         return invocationArguments;
+    }
+
+    private TranslationContext fixContextForClassObjectAccessing(TranslationContext declarationContext) {
+        // In Kotlin we can access to class object members without qualifier just by name, but we should translate it to access with FQ name.
+        // So create alias for class object receiver parameter.
+        ClassDescriptor classObjectDescriptor = descriptor.getClassObjectDescriptor();
+        if (classObjectDescriptor != null) {
+            JsExpression referenceToClass = translateAsFQReference(classObjectDescriptor.getContainingDeclaration(), declarationContext);
+            JsExpression classObjectAccessor = Namer.getClassObjectAccessor(referenceToClass);
+            ReceiverParameterDescriptor classObjectReceiver = getReceiverParameterForDeclaration(classObjectDescriptor);
+            declarationContext.aliasingContext().registerAlias(classObjectReceiver, classObjectAccessor);
+        }
+
+        // Overlap alias of class object receiver for accessing from containing class(see previous if block),
+        // because inside class object we should use simple name for access.
+        if (descriptor.getKind() == ClassKind.CLASS_OBJECT) {
+            declarationContext = declarationContext.innerContextWithAliased(descriptor.getThisAsReceiverParameter(), JsLiteral.THIS);
+        }
+
+        return declarationContext;
     }
 
     private void mayBeAddEnumEntry(@NotNull List<JsPropertyInitializer> enumEntryList,
@@ -248,5 +240,15 @@ public final class ClassTranslator extends AbstractTranslator {
                 PropertyTranslator.translateAccessors(descriptor, result, classDeclarationContext);
             }
         }
+    }
+
+    @NotNull
+    private JsExpression translateObjectInsideClass(@NotNull TranslationContext outerClassContext) {
+        JsFunction fun = new JsFunction(outerClassContext.scope(), new JsBlock());
+        TranslationContext funContext = outerClassContext.newFunctionBodyWithUsageTracker(fun, descriptor);
+
+        fun.getBody().getStatements().add(new JsReturn(translate(funContext)));
+
+        return ExpressionPackage.withCapturedParameters(fun, funContext, outerClassContext, descriptor);
     }
 }

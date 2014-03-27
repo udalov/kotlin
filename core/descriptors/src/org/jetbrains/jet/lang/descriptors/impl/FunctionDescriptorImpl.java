@@ -50,22 +50,12 @@ public abstract class FunctionDescriptorImpl extends DeclarationDescriptorNonRoo
 
     protected FunctionDescriptorImpl(
             @NotNull DeclarationDescriptor containingDeclaration,
+            @Nullable FunctionDescriptor original,
             @NotNull Annotations annotations,
             @NotNull Name name,
             @NotNull Kind kind) {
         super(containingDeclaration, annotations, name);
-        this.original = this;
-        this.kind = kind;
-    }
-
-    protected FunctionDescriptorImpl(
-            @NotNull DeclarationDescriptor containingDeclaration,
-            @NotNull FunctionDescriptor original,
-            @NotNull Annotations annotations,
-            @NotNull Name name,
-            @NotNull Kind kind) {
-        super(containingDeclaration, annotations, name);
-        this.original = original;
+        this.original = original == null ? this : original;
         this.kind = kind;
     }
 
@@ -165,6 +155,11 @@ public abstract class FunctionDescriptorImpl extends DeclarationDescriptorNonRoo
     }
 
     @Override
+    public boolean hasStableParameterNames() {
+        return true;
+    }
+
+    @Override
     public JetType getReturnType() {
         return unsubstitutedReturnType;
     }
@@ -185,12 +180,19 @@ public abstract class FunctionDescriptorImpl extends DeclarationDescriptorNonRoo
         if (originalSubstitutor.isEmpty()) {
             return this;
         }
-        return doSubstitute(originalSubstitutor, getContainingDeclaration(), modality, visibility, true, true, getKind());
+        return doSubstitute(originalSubstitutor, getContainingDeclaration(), modality, visibility, getOriginal(), true, getKind());
     }
 
-    protected FunctionDescriptor doSubstitute(TypeSubstitutor originalSubstitutor,
-            DeclarationDescriptor newOwner, Modality newModality, Visibility newVisibility, boolean preserveOriginal, boolean copyOverrides, Kind kind) {
-        FunctionDescriptorImpl substitutedDescriptor = createSubstitutedCopy(newOwner, preserveOriginal, kind);
+    @Nullable
+    protected FunctionDescriptor doSubstitute(@NotNull TypeSubstitutor originalSubstitutor,
+            @NotNull DeclarationDescriptor newOwner,
+            @NotNull Modality newModality,
+            @NotNull Visibility newVisibility,
+            @Nullable FunctionDescriptor original,
+            boolean copyOverrides,
+            @NotNull Kind kind
+    ) {
+        FunctionDescriptorImpl substitutedDescriptor = createSubstitutedCopy(newOwner, original, kind);
 
         List<TypeParameterDescriptor> substitutedTypeParameters = Lists.newArrayList();
         TypeSubstitutor substitutor = DescriptorSubstitutor.substituteTypeParameters(getTypeParameters(), originalSubstitutor, substitutedDescriptor, substitutedTypeParameters);
@@ -238,7 +240,12 @@ public abstract class FunctionDescriptorImpl extends DeclarationDescriptorNonRoo
         return substitutedDescriptor;
     }
 
-    protected abstract FunctionDescriptorImpl createSubstitutedCopy(DeclarationDescriptor newOwner, boolean preserveOriginal, Kind kind);
+    @NotNull
+    protected abstract FunctionDescriptorImpl createSubstitutedCopy(
+            @NotNull DeclarationDescriptor newOwner,
+            @Nullable FunctionDescriptor original,
+            @NotNull Kind kind
+    );
 
     @Override
     public <R, D> R accept(DeclarationDescriptorVisitor<R, D> visitor, D data) {
@@ -258,10 +265,13 @@ public abstract class FunctionDescriptorImpl extends DeclarationDescriptorNonRoo
             result.add(new ValueParameterDescriptorImpl(
                     substitutedDescriptor,
                     unsubstitutedValueParameter,
+                    unsubstitutedValueParameter.getIndex(),
                     unsubstitutedValueParameter.getAnnotations(),
+                    unsubstitutedValueParameter.getName(),
                     substitutedType,
-                    substituteVarargElementType
-            ));
+                    unsubstitutedValueParameter.declaresDefaultValue(),
+                    substituteVarargElementType)
+            );
         }
         return result;
     }

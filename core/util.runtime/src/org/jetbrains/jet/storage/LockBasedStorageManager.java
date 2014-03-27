@@ -16,9 +16,9 @@
 
 package org.jetbrains.jet.storage;
 
-import jet.Function0;
-import jet.Function1;
-import jet.Unit;
+import kotlin.Function0;
+import kotlin.Function1;
+import kotlin.Unit;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.utils.UtilsPackage;
@@ -277,7 +277,7 @@ public class LockBasedStorageManager implements StorageManager {
         @Override
         public T invoke() {
             Object _value = value;
-            if (!(value instanceof NotValue)) return WrappedValues.unescapeThrowable(_value);
+            if (!(_value instanceof NotValue)) return WrappedValues.unescapeThrowable(_value);
 
             lock.lock();
             try {

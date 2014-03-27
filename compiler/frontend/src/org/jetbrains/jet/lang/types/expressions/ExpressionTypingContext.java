@@ -17,16 +17,15 @@
 package org.jetbrains.jet.lang.types.expressions;
 
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.jet.lang.descriptors.FunctionDescriptor;
-import org.jetbrains.jet.lang.psi.Call;
-import org.jetbrains.jet.lang.psi.JetReferenceExpression;
+import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor;
 import org.jetbrains.jet.lang.resolve.BindingTrace;
 import org.jetbrains.jet.lang.resolve.calls.CallResolverExtension;
 import org.jetbrains.jet.lang.resolve.calls.autocasts.DataFlowInfo;
-import org.jetbrains.jet.lang.resolve.calls.context.*;
-import org.jetbrains.jet.lang.resolve.calls.results.OverloadResolutionResults;
+import org.jetbrains.jet.lang.resolve.calls.context.ContextDependency;
+import org.jetbrains.jet.lang.resolve.calls.context.ResolutionContext;
+import org.jetbrains.jet.lang.resolve.calls.context.ResolutionResultsCache;
+import org.jetbrains.jet.lang.resolve.calls.context.ResolutionResultsCacheImpl;
 import org.jetbrains.jet.lang.resolve.constants.CompileTimeConstantChecker;
-import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
 import org.jetbrains.jet.lang.types.JetType;
 
@@ -40,25 +39,22 @@ public class ExpressionTypingContext extends ResolutionContext<ExpressionTypingC
             @NotNull DataFlowInfo dataFlowInfo,
             @NotNull JetType expectedType
     ) {
-        return newContext(expressionTypingServices, trace, scope, dataFlowInfo, expectedType,
+        return newContext(trace, scope, dataFlowInfo, expectedType,
                           ContextDependency.INDEPENDENT, ResolutionResultsCacheImpl.create(), LabelResolver.create(),
                           expressionTypingServices.createExtension(scope, false), false);
     }
 
     @NotNull
-    public static ExpressionTypingContext newContext(
-            @NotNull ExpressionTypingServices expressionTypingServices,
-            @NotNull ResolutionContext resolutionContext
-    ) {
-        return newContext(expressionTypingServices, resolutionContext.trace, resolutionContext.scope, resolutionContext.dataFlowInfo,
-                          resolutionContext.expectedType, resolutionContext.contextDependency,
-                          resolutionContext.resolutionResultsCache, resolutionContext.labelResolver,
-                          resolutionContext.callResolverExtension, resolutionContext.isAnnotationContext);
+    public static ExpressionTypingContext newContext(@NotNull ResolutionContext context) {
+        return new ExpressionTypingContext(
+                context.labelResolver, context.trace, context.scope, context.scope.getContainingDeclaration(),
+                context.dataFlowInfo, context.expectedType, context.contextDependency, context.resolutionResultsCache,
+                context.callResolverExtension, context.isAnnotationContext, context.collectAllCandidates
+        );
     }
 
     @NotNull
     public static ExpressionTypingContext newContext(
-            @NotNull ExpressionTypingServices expressionTypingServices,
             @NotNull BindingTrace trace,
             @NotNull JetScope scope,
             @NotNull DataFlowInfo dataFlowInfo,
@@ -69,31 +65,30 @@ public class ExpressionTypingContext extends ResolutionContext<ExpressionTypingC
             @NotNull CallResolverExtension callResolverExtension,
             boolean isAnnotationContext
     ) {
-        return new ExpressionTypingContext(expressionTypingServices, labelResolver, trace, scope, scope, dataFlowInfo, expectedType,
-                                           contextDependency, resolutionResultsCache, callResolverExtension, isAnnotationContext);
+        return new ExpressionTypingContext(
+                labelResolver, trace, scope, scope.getContainingDeclaration(), dataFlowInfo, expectedType, contextDependency,
+                resolutionResultsCache, callResolverExtension, isAnnotationContext, false);
     }
 
-    public final ExpressionTypingServices expressionTypingServices;
-    public final JetScope scopeForVisibility;
+    public final DeclarationDescriptor containingDeclaration;
     private CompileTimeConstantChecker compileTimeConstantChecker;
 
     private ExpressionTypingContext(
-            @NotNull ExpressionTypingServices expressionTypingServices,
             @NotNull LabelResolver labelResolver,
             @NotNull BindingTrace trace,
             @NotNull JetScope scope,
-            @NotNull JetScope scopeForVisibility,
+            @NotNull DeclarationDescriptor containingDeclaration,
             @NotNull DataFlowInfo dataFlowInfo,
             @NotNull JetType expectedType,
             @NotNull ContextDependency contextDependency,
             @NotNull ResolutionResultsCache resolutionResultsCache,
             @NotNull CallResolverExtension callResolverExtension,
-            boolean isAnnotationContext
+            boolean isAnnotationContext,
+            boolean collectAllCandidates
     ) {
         super(trace, scope, expectedType, dataFlowInfo, contextDependency, resolutionResultsCache, labelResolver, callResolverExtension,
-              isAnnotationContext);
-        this.expressionTypingServices = expressionTypingServices;
-        this.scopeForVisibility = scopeForVisibility;
+              isAnnotationContext, collectAllCandidates);
+        this.containingDeclaration = containingDeclaration;
     }
 
     @Override
@@ -104,11 +99,12 @@ public class ExpressionTypingContext extends ResolutionContext<ExpressionTypingC
             @NotNull JetType expectedType,
             @NotNull ContextDependency contextDependency,
             @NotNull ResolutionResultsCache resolutionResultsCache,
-            @NotNull LabelResolver labelResolver
+            @NotNull LabelResolver labelResolver,
+            boolean collectAllCandidates
     ) {
-        return new ExpressionTypingContext(expressionTypingServices, this.labelResolver, trace, scope, scopeForVisibility, dataFlowInfo,
+        return new ExpressionTypingContext(this.labelResolver, trace, scope, containingDeclaration, dataFlowInfo,
                                            expectedType, contextDependency, resolutionResultsCache, callResolverExtension,
-                                           isAnnotationContext);
+                                           isAnnotationContext, collectAllCandidates);
     }
 
 ///////////// LAZY ACCESSORS
@@ -118,16 +114,5 @@ public class ExpressionTypingContext extends ResolutionContext<ExpressionTypingC
             compileTimeConstantChecker = new CompileTimeConstantChecker(trace, false);
         }
         return compileTimeConstantChecker;
-    }
-
-////////// Call resolution utilities
-
-    @NotNull
-    public OverloadResolutionResults<FunctionDescriptor> resolveCallWithGivenName(@NotNull Call call, @NotNull JetReferenceExpression functionReference, @NotNull Name name) {
-        return expressionTypingServices.getCallResolver().resolveCallWithGivenName(
-                BasicCallResolutionContext.create(this, call, CheckValueArgumentsMode.ENABLED),
-                functionReference,
-                name
-        );
     }
 }

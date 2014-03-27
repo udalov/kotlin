@@ -3,42 +3,42 @@
 <class-object-for-Class>.classObjFunc:SimpleFunctionDescriptor
 <class-object-for-Class>.classObjProp:PropertyDescriptor
 <class-object-for-Class>.this:ReceiverParameterDescriptor
-<class-object-for-Class>:ClassDescriptor
+<class-object-for-Class>:ClassDescriptorWithResolutionScopes
 <class-object-for-NestedClass>.<init>():ConstructorDescriptor
 <class-object-for-NestedClass>.nestedClassObjFunc:SimpleFunctionDescriptor
 <class-object-for-NestedClass>.this:ReceiverParameterDescriptor
-<class-object-for-NestedClass>:ClassDescriptor
+<class-object-for-NestedClass>:ClassDescriptorWithResolutionScopes
 <class-object-for-NestedObject>.<init>():ConstructorDescriptor
 <class-object-for-NestedObject>.this:ReceiverParameterDescriptor
-<class-object-for-NestedObject>:ClassDescriptor
+<class-object-for-NestedObject>:ClassDescriptorWithResolutionScopes
 <class-object-for-Object>.<init>():ConstructorDescriptor
 <class-object-for-Object>.this:ReceiverParameterDescriptor
-<class-object-for-Object>:ClassDescriptor
+<class-object-for-Object>:ClassDescriptorWithResolutionScopes
 <set-?>:ValueParameterDescriptor
 Class.<get-classProp>:PropertyGetterDescriptor
 Class.<init>():ConstructorDescriptor
 Class.classFunc:SimpleFunctionDescriptor
 Class.classProp:PropertyDescriptor
 Class.this:ReceiverParameterDescriptor
-Class:ClassDescriptor
+Class:ClassDescriptorWithResolutionScopes
 NestedClass.<init>():ConstructorDescriptor
 NestedClass.this:ReceiverParameterDescriptor
-NestedClass:ClassDescriptor
+NestedClass:ClassDescriptorWithResolutionScopes
 NestedObject.<init>():ConstructorDescriptor
 NestedObject.nestedFunc:SimpleFunctionDescriptor
 NestedObject.this:ReceiverParameterDescriptor
-NestedObject:ClassDescriptor
+NestedObject:ClassDescriptorWithResolutionScopes
 NestedTrait.nestedTraitFun:SimpleFunctionDescriptor
 NestedTrait.this:ReceiverParameterDescriptor
-NestedTrait:ClassDescriptor
+NestedTrait:ClassDescriptorWithResolutionScopes
 Object.<get-objProp>:PropertyGetterDescriptor
 Object.<init>():ConstructorDescriptor
 Object.objFunc:SimpleFunctionDescriptor
 Object.objProp:PropertyDescriptor
 Object.this:ReceiverParameterDescriptor
-Object:ClassDescriptor
+Object:ClassDescriptorWithResolutionScopes
 Outer.this:ReceiverParameterDescriptor
-Outer:ClassDescriptor
+Outer:ClassDescriptorWithResolutionScopes
 T1:TypeParameterDescriptor
 T2:TypeParameterDescriptor
 T3:TypeParameterDescriptor
@@ -48,15 +48,48 @@ Trait.<get-traitProp>:PropertyGetterDescriptor
 Trait.this:ReceiverParameterDescriptor
 Trait.traitFunc:SimpleFunctionDescriptor
 Trait.traitProp:PropertyDescriptor
-Trait:ClassDescriptor
+Trait:ClassDescriptorWithResolutionScopes
 a:ValueParameterDescriptor
+fake <class-object-for-Class>.equals:DeserializedCallableMemberDescriptor
+fake <class-object-for-Class>.hashCode:DeserializedCallableMemberDescriptor
+fake <class-object-for-Class>.toString:DeserializedCallableMemberDescriptor
+fake <class-object-for-NestedClass>.equals:DeserializedCallableMemberDescriptor
+fake <class-object-for-NestedClass>.hashCode:DeserializedCallableMemberDescriptor
+fake <class-object-for-NestedClass>.toString:DeserializedCallableMemberDescriptor
+fake <class-object-for-NestedObject>.equals:DeserializedCallableMemberDescriptor
+fake <class-object-for-NestedObject>.hashCode:DeserializedCallableMemberDescriptor
 fake <class-object-for-NestedObject>.nestedFunc:SimpleFunctionDescriptor
+fake <class-object-for-NestedObject>.toString:DeserializedCallableMemberDescriptor
 fake <class-object-for-Object>.<get-objProp>:PropertyGetterDescriptor
+fake <class-object-for-Object>.equals:DeserializedCallableMemberDescriptor
+fake <class-object-for-Object>.hashCode:DeserializedCallableMemberDescriptor
 fake <class-object-for-Object>.objFunc:SimpleFunctionDescriptor
 fake <class-object-for-Object>.objProp:PropertyDescriptor
+fake <class-object-for-Object>.toString:DeserializedCallableMemberDescriptor
 fake Class.<get-traitProp>:PropertyGetterDescriptor
+fake Class.equals:DeserializedCallableMemberDescriptor
+fake Class.hashCode:DeserializedCallableMemberDescriptor
+fake Class.toString:DeserializedCallableMemberDescriptor
 fake Class.traitFunc:SimpleFunctionDescriptor
 fake Class.traitProp:PropertyDescriptor
+fake NestedClass.equals:DeserializedCallableMemberDescriptor
+fake NestedClass.hashCode:DeserializedCallableMemberDescriptor
+fake NestedClass.toString:DeserializedCallableMemberDescriptor
+fake NestedObject.equals:DeserializedCallableMemberDescriptor
+fake NestedObject.hashCode:DeserializedCallableMemberDescriptor
+fake NestedObject.toString:DeserializedCallableMemberDescriptor
+fake NestedTrait.equals:DeserializedCallableMemberDescriptor
+fake NestedTrait.hashCode:DeserializedCallableMemberDescriptor
+fake NestedTrait.toString:DeserializedCallableMemberDescriptor
+fake Object.equals:DeserializedCallableMemberDescriptor
+fake Object.hashCode:DeserializedCallableMemberDescriptor
+fake Object.toString:DeserializedCallableMemberDescriptor
+fake Outer.equals:DeserializedCallableMemberDescriptor
+fake Outer.hashCode:DeserializedCallableMemberDescriptor
+fake Outer.toString:DeserializedCallableMemberDescriptor
+fake Trait.equals:DeserializedCallableMemberDescriptor
+fake Trait.hashCode:DeserializedCallableMemberDescriptor
+fake Trait.toString:DeserializedCallableMemberDescriptor
 func.this:ReceiverParameterDescriptor
 innerTest.<get-prop>:PropertyGetterDescriptor
 innerTest.<get-propVar>:PropertyGetterDescriptor
@@ -65,6 +98,17 @@ innerTest.func:SimpleFunctionDescriptor
 innerTest.prop:PropertyDescriptor
 innerTest.propVar:PropertyDescriptor
 innerTest:PackageViewDescriptor
+other:ValueParameterDescriptor
+other:ValueParameterDescriptor
+other:ValueParameterDescriptor
+other:ValueParameterDescriptor
+other:ValueParameterDescriptor
+other:ValueParameterDescriptor
+other:ValueParameterDescriptor
+other:ValueParameterDescriptor
+other:ValueParameterDescriptor
+other:ValueParameterDescriptor
+other:ValueParameterDescriptor
 prop.this:ReceiverParameterDescriptor
 prop.this:ReceiverParameterDescriptor
 test:PackageViewDescriptor

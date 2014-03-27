@@ -32,22 +32,23 @@ public class SimpleFunctionDescriptorImpl extends FunctionDescriptorImpl impleme
 
     private InlineStrategy inlineStrategy;
 
-    public SimpleFunctionDescriptorImpl(
+    protected SimpleFunctionDescriptorImpl(
+            @NotNull DeclarationDescriptor containingDeclaration,
+            @Nullable SimpleFunctionDescriptor original,
+            @NotNull Annotations annotations,
+            @NotNull Name name,
+            @NotNull Kind kind) {
+        super(containingDeclaration, original, annotations, name, kind);
+    }
+
+    @NotNull
+    public static SimpleFunctionDescriptorImpl create(
             @NotNull DeclarationDescriptor containingDeclaration,
             @NotNull Annotations annotations,
             @NotNull Name name,
             @NotNull Kind kind
     ) {
-        super(containingDeclaration, annotations, name, kind);
-    }
-
-    protected SimpleFunctionDescriptorImpl(
-            @NotNull DeclarationDescriptor containingDeclaration,
-            @NotNull SimpleFunctionDescriptor original,
-            @NotNull Annotations annotations,
-            @NotNull Name name,
-            @NotNull Kind kind) {
-        super(containingDeclaration, original, annotations, name, kind);
+        return new SimpleFunctionDescriptorImpl(containingDeclaration, null, annotations, name, kind);
     }
 
 
@@ -74,40 +75,30 @@ public class SimpleFunctionDescriptorImpl extends FunctionDescriptorImpl impleme
         return (SimpleFunctionDescriptor) super.getOriginal();
     }
 
+    @NotNull
     @Override
-    protected FunctionDescriptorImpl createSubstitutedCopy(DeclarationDescriptor newOwner, boolean preserveOriginal, Kind kind) {
-        if (preserveOriginal) {
-            return new SimpleFunctionDescriptorImpl(
-                    newOwner,
-                    getOriginal(),
-                    // TODO : safeSubstitute
-                    getAnnotations(),
-                    getName(),
-                    kind);
-        }
-        else {
-            return new SimpleFunctionDescriptorImpl(
-                    newOwner,
-                    // TODO : safeSubstitute
-                    getAnnotations(),
-                    getName(),
-                    kind);
-        }
+    protected FunctionDescriptorImpl createSubstitutedCopy(
+            @NotNull DeclarationDescriptor newOwner,
+            @Nullable FunctionDescriptor original,
+            @NotNull Kind kind
+    ) {
+        return new SimpleFunctionDescriptorImpl(
+                newOwner,
+                (SimpleFunctionDescriptor) original,
+                // TODO : safeSubstitute
+                getAnnotations(),
+                getName(),
+                kind);
     }
 
     @NotNull
     @Override
     public SimpleFunctionDescriptor copy(DeclarationDescriptor newOwner, Modality modality, Visibility visibility, Kind kind, boolean copyOverrides) {
-        SimpleFunctionDescriptorImpl copy = (SimpleFunctionDescriptorImpl)doSubstitute(TypeSubstitutor.EMPTY, newOwner, modality, visibility, false, copyOverrides, kind);
-        return copy;
-    }
-
-    @Override
-    public boolean isInline() {
-        return getInlineStrategy() != InlineStrategy.NOT_INLINE;
+        return (SimpleFunctionDescriptorImpl)doSubstitute(TypeSubstitutor.EMPTY, newOwner, modality, visibility, null, copyOverrides, kind);
     }
 
     @NotNull
+    @Override
     public InlineStrategy getInlineStrategy() {
         return inlineStrategy;
     }

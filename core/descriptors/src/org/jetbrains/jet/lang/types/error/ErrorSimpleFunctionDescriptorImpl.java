@@ -17,6 +17,7 @@
 package org.jetbrains.jet.lang.types.error;
 
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.descriptors.annotations.Annotations;
 import org.jetbrains.jet.lang.descriptors.impl.FunctionDescriptorImpl;
@@ -30,12 +31,17 @@ public class ErrorSimpleFunctionDescriptorImpl extends SimpleFunctionDescriptorI
     private final ErrorUtils.ErrorScope ownerScope;
 
     public ErrorSimpleFunctionDescriptorImpl(ErrorUtils.ErrorScope ownerScope) {
-        super(ErrorUtils.getErrorClass(), Annotations.EMPTY, Name.special("<ERROR FUNCTION>"), Kind.DECLARATION);
+        super(ErrorUtils.getErrorClass(), null, Annotations.EMPTY, Name.special("<ERROR FUNCTION>"), Kind.DECLARATION);
         this.ownerScope = ownerScope;
     }
 
+    @NotNull
     @Override
-    protected FunctionDescriptorImpl createSubstitutedCopy(DeclarationDescriptor newOwner, boolean preserveOriginal, Kind kind) {
+    protected FunctionDescriptorImpl createSubstitutedCopy(
+            @NotNull DeclarationDescriptor newOwner,
+            @Nullable FunctionDescriptor original,
+            @NotNull Kind kind
+    ) {
         return this;
     }
 

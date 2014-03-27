@@ -40,6 +40,8 @@ import org.jetbrains.jet.lang.psi.JetProperty
 import com.intellij.psi.PsiTypeParameter
 import org.jetbrains.jet.lang.psi.JetClassOrObject
 import com.intellij.psi.impl.light.LightTypeParameterListBuilder
+import com.intellij.psi.search.SearchScope
+import org.jetbrains.jet.utils.*
 
 public class KotlinLightMethodForDeclaration(
         manager: PsiManager, override val delegate: PsiMethod, override val origin: JetDeclaration, containingClass: PsiClass
@@ -50,7 +52,7 @@ public class KotlinLightMethodForDeclaration(
         cacheManager.createCachedValue<PsiParameterList>({
             val parameterBuilder = LightParameterListBuilder(getManager(), JetLanguage.INSTANCE)
 
-            for ((index, parameter) in delegate.getParameterList().getParameters().withIndices()) {
+            for ((index, parameter) in delegate.getParameterList().getParameters().withIndices_tmp()) {
                 parameterBuilder.addParameter(KotlinLightParameter(parameter, index, this))
             }
 
@@ -106,4 +108,6 @@ public class KotlinLightMethodForDeclaration(
     override fun copy(): PsiElement {
         return KotlinLightMethodForDeclaration(getManager()!!, delegate, origin.copy() as JetDeclaration, getContainingClass()!!)
     }
+
+    override fun getUseScope(): SearchScope = origin.getUseScope()
 }

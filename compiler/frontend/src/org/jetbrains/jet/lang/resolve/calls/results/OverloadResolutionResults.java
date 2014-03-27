@@ -17,6 +17,7 @@
 package org.jetbrains.jet.lang.resolve.calls.results;
 
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.CallableDescriptor;
 import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCall;
 
@@ -43,8 +44,12 @@ public interface OverloadResolutionResults<D extends CallableDescriptor> {
         }
     }
 
+    /* All candidates are collected only if ResolutionContext.collectAllCandidates is set to true */
+    @Nullable
+    Collection<ResolvedCall<D>> getAllCandidates();
+
     @NotNull
-    Collection<? extends ResolvedCall<? extends D>> getResultingCalls();
+    Collection<? extends ResolvedCall<D>> getResultingCalls();
 
     @NotNull
     ResolvedCall<D> getResultingCall();

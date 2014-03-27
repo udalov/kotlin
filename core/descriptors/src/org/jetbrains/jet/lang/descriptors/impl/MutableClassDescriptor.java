@@ -22,12 +22,13 @@ import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.resolve.scopes.*;
+import org.jetbrains.jet.lang.types.*;
 
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
-public class MutableClassDescriptor extends MutableClassDescriptorLite {
+public class MutableClassDescriptor extends MutableClassDescriptorLite implements ClassDescriptorWithResolutionScopes {
     private final Set<ConstructorDescriptor> constructors = Sets.newLinkedHashSet();
     private ConstructorDescriptor primaryConstructor;
 
@@ -60,7 +61,12 @@ public class MutableClassDescriptor extends MutableClassDescriptorLite {
         scopeForMemberResolution.addLabeledDeclaration(this);
     }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    @Nullable
+    @Override
+    public MutableClassDescriptor getClassObjectDescriptor() {
+        return (MutableClassDescriptor) super.getClassObjectDescriptor();
+    }
+    ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
     public void setPrimaryConstructor(@NotNull ConstructorDescriptor constructorDescriptor) {
@@ -69,9 +75,12 @@ public class MutableClassDescriptor extends MutableClassDescriptorLite {
 
         constructors.add(constructorDescriptor);
 
-        if (defaultType.isComputed()) {
-            ((ConstructorDescriptorImpl) constructorDescriptor).setReturnType(getDefaultType());
-        }
+        ((ConstructorDescriptorImpl) constructorDescriptor).setReturnType(new DelegatingType() {
+            @Override
+            protected JetType getDelegate() {
+                return getDefaultType();
+            }
+        });
 
         if (constructorDescriptor.isPrimary()) {
             setUpScopeForInitializers(constructorDescriptor);
@@ -107,6 +116,7 @@ public class MutableClassDescriptor extends MutableClassDescriptorLite {
         return properties;
     }
 
+    @Override
     @NotNull
     public Set<CallableMemberDescriptor> getDeclaredCallableMembers() {
         return declaredCallableMembers;
@@ -137,13 +147,15 @@ public class MutableClassDescriptor extends MutableClassDescriptorLite {
         scopeForMemberResolution.setImplicitReceiver(getThisAsReceiverParameter());
     }
 
+    @Override
     @NotNull
-    public JetScope getScopeForSupertypeResolution() {
+    public JetScope getScopeForClassHeaderResolution() {
         return scopeForSupertypeResolution;
     }
 
+    @Override
     @NotNull
-    public JetScope getScopeForMemberResolution() {
+    public JetScope getScopeForMemberDeclarationResolution() {
         return scopeForMemberResolution;
     }
 
@@ -154,8 +166,9 @@ public class MutableClassDescriptor extends MutableClassDescriptorLite {
         return scopeForInitializers;
     }
 
+    @Override
     @NotNull
-    public JetScope getScopeForInitializers() {
+    public JetScope getScopeForInitializerResolution() {
         return getWritableScopeForInitializers();
     }
 

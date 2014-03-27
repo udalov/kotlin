@@ -65,7 +65,7 @@ public abstract class AbstractCheckLocalVariablesTableTest extends TestCaseWithT
 
     protected void doTest(@NotNull String ktFileName) throws Exception {
         ktFile = new File(ktFileName);
-        String text = FileUtil.loadFile(ktFile);
+        String text = FileUtil.loadFile(ktFile, true);
 
         JetFile psiFile = JetTestUtils.createFile(ktFile.getName(), text, jetCoreEnvironment.getProject());
         assert psiFile != null;
@@ -137,7 +137,7 @@ public abstract class AbstractCheckLocalVariablesTableTest extends TestCaseWithT
     private List<LocalVariable> parseExpectations() throws IOException {
         List<String> lines = Files.readLines(ktFile, Charset.forName("utf-8"));
         List<LocalVariable> expectedLocalVariables = new ArrayList<LocalVariable>();
-        for (int i = lines.size() - 3; i < lines.size(); ++i) {
+        for (int i = Math.max(lines.size() - 10, 0); i < lines.size(); ++i) {
             Matcher nameMatcher = namePattern.matcher(lines.get(i));
             if (nameMatcher.matches()) {
                 Matcher typeMatcher = typePattern.matcher(lines.get(i));

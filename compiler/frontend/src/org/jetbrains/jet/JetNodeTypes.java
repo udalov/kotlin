@@ -50,7 +50,7 @@ public interface JetNodeTypes {
     IElementType VALUE_PARAMETER_LIST               = JetStubElementTypes.VALUE_PARAMETER_LIST;
     IElementType VALUE_PARAMETER                    = JetStubElementTypes.VALUE_PARAMETER;
 
-    JetNodeType CLASS_BODY                          = new JetNodeType("CLASS_BODY", JetClassBody.class);
+    IElementType CLASS_BODY                         = JetStubElementTypes.CLASS_BODY;
     JetNodeType IMPORT_LIST                         = new JetNodeType("IMPORT_LIST", JetImportList.class);
     JetNodeType IMPORT_DIRECTIVE                    = new JetNodeType("IMPORT_DIRECTIVE", JetImportDirective.class);
     JetNodeType MODIFIER_LIST                       = new JetNodeType("MODIFIER_LIST", JetModifierList.class);
@@ -108,7 +108,6 @@ public interface JetNodeTypes {
     JetNodeType FOR                       = new JetNodeType("FOR", JetForExpression.class);
     JetNodeType WHILE                     = new JetNodeType("WHILE", JetWhileExpression.class);
     JetNodeType DO_WHILE                  = new JetNodeType("DO_WHILE", JetDoWhileExpression.class);
-    JetNodeType LOOP_PARAMETER            = new JetNodeType("LOOP_PARAMETER", JetParameter.class); // TODO: Do we need separate type?
     JetNodeType LOOP_RANGE                = new JetNodeType("LOOP_RANGE", JetContainerNode.class);
     JetNodeType BODY                      = new JetNodeType("BODY", JetContainerNode.class);
     JetNodeType BLOCK                     = new JetNodeType("BLOCK", JetBlockExpression.class);
@@ -147,6 +146,8 @@ public interface JetNodeTypes {
     JetNodeType WHEN_CONDITION_EXPRESSION = new JetNodeType("WHEN_CONDITION_WITH_EXPRESSION", JetWhenConditionWithExpression.class);
 
     JetNodeType PACKAGE_DIRECTIVE = new JetNodeType("PACKAGE_DIRECTIVE", JetPackageDirective.class);
+
+    // SCRIPT: script node type
     JetNodeType SCRIPT = new JetNodeType("SCRIPT", JetScript.class);
 
     IFileElementType TYPE_CODE_FRAGMENT = new JetTypeCodeFragmentType();

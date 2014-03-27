@@ -39,8 +39,7 @@ import java.util.*;
 
 import static org.jetbrains.jet.lang.descriptors.CallableMemberDescriptor.Kind.*;
 import static org.jetbrains.jet.lang.diagnostics.Errors.AMBIGUOUS_LABEL;
-import static org.jetbrains.jet.lang.resolve.BindingContext.AMBIGUOUS_LABEL_TARGET;
-import static org.jetbrains.jet.lang.resolve.BindingContext.DECLARATION_TO_DESCRIPTOR;
+import static org.jetbrains.jet.lang.resolve.BindingContext.*;
 
 public class BindingContextUtils {
     private BindingContextUtils() {
@@ -236,6 +235,11 @@ public class BindingContextUtils {
         return descriptor;
     }
 
+    public static FunctionDescriptor getEnclosingFunctionDescriptor(@NotNull BindingContext context, @NotNull JetElement element) {
+        JetFunction function = PsiTreeUtil.getParentOfType(element, JetFunction.class);
+        return (FunctionDescriptor)context.get(DECLARATION_TO_DESCRIPTOR, function);
+    }
+
     public static void reportAmbiguousLabel(
             @NotNull BindingTrace trace,
             @NotNull JetSimpleNameExpression targetLabel,
@@ -296,7 +300,7 @@ public class BindingContextUtils {
     ) {
         if (expression instanceof JetCallExpression) {
             JetExpression calleeExpression = ((JetCallExpression) expression).getCalleeExpression();
-            ResolvedCall<? extends CallableDescriptor> resolvedCall = context.get(BindingContext.RESOLVED_CALL, calleeExpression);
+            ResolvedCall<?> resolvedCall = context.get(BindingContext.RESOLVED_CALL, calleeExpression);
             if (resolvedCall instanceof VariableAsFunctionResolvedCall) {
                 return true;
             }
@@ -357,5 +361,11 @@ public class BindingContextUtils {
             result.addAll(getAllOverriddenDeclarations((T) overriddenDeclaration));
         }
         return result;
+    }
+
+    public static boolean isVarCapturedInClosure(BindingContext bindingContext, DeclarationDescriptor descriptor) {
+        if (!(descriptor instanceof VariableDescriptor) || descriptor instanceof PropertyDescriptor) return false;
+        VariableDescriptor variableDescriptor = (VariableDescriptor) descriptor;
+        return bindingContext.get(CAPTURED_IN_CLOSURE, variableDescriptor) != null && variableDescriptor.isVar();
     }
 }

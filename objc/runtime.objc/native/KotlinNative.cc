@@ -132,7 +132,7 @@ class JVMDeclarationsCache {
         doubleClass = findClass("java/lang/Double");
         characterClass = findClass("java/lang/Character");
         booleanClass = findClass("java/lang/Boolean");
-        unitClass = findClass("jet/Unit");
+        unitClass = findClass("kotlin/Unit");
 
         jclass objectClass = findClass("java/lang/Object");
         jclass classClass = findClass("java/lang/Class");
@@ -323,7 +323,7 @@ bool isKotlinFunction(JNIEnv *env, jobject object) {
     // TODO: check for some special annotation or a common superclass of FunctionN instead
     for (unsigned i = 0; i < 23; i++) {
         std::ostringstream className;
-        className << "jet/Function" << i;
+        className << "kotlin/Function" << i;
         std::string nameStr = className.str();
         jclass clazz = env->FindClass(nameStr.c_str());
         if (env->IsInstanceOf(object, clazz)) {
@@ -356,7 +356,7 @@ void coerceJVMToNative(JNIEnv *env, jobject object, void *ret) {
             fprintf(stderr, "Unsupported JVM primitive wrapper type: %s\n", name);
             *(void **) ret = NULL;
         }
-    } else if (!strcmp(name, "jet.Unit")) {
+    } else if (!strcmp(name, "kotlin.Unit")) {
         *(void **) ret = NULL;
     } else if (env->IsInstanceOf(object, cache->pointerClass)) {
         *(long *) ret = env->GetLongField(object, cache->pointerPeerField);
@@ -611,7 +611,7 @@ Type typeFromReflectString(const std::string& name) {
     else if (name == "double") return Type(TYPE_DOUBLE);
     else if (name == "void") return Type(TYPE_VOID);
     else if (name == "interface jet.objc.ObjCClass") return Type(TYPE_CLASS);
-    else if (name.find("interface jet.Function") == 0) {
+    else if (name.find("interface kotlin.Function") == 0) {
         // TODO: support returning closures
         fprintf(stderr, "Returning functions from native code is not supported\n");
         exit(42);

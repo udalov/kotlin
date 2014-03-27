@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2013 JetBrains s.r.o.
+ * Copyright 2010-2014 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ import com.google.common.collect.Lists;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.FqNameUnsafe;
 import org.jetbrains.jet.lang.resolve.name.Name;
-import org.jetbrains.jet.util.QualifiedNamesUtil;
+import org.jetbrains.jet.lang.resolve.name.NamePackage;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -39,48 +39,48 @@ public class FqNameTest {
 
     @Test
     public void pathLevel1() {
-        List<FqName> path = new FqName("com").path();
+        List<FqName> path = new FqName("org").path();
         Assert.assertEquals(2, path.size());
         Assert.assertEquals("", path.get(0).asString());
-        Assert.assertEquals("com", path.get(1).asString());
-        Assert.assertEquals("com", path.get(1).shortName().asString());
+        Assert.assertEquals("org", path.get(1).asString());
+        Assert.assertEquals("org", path.get(1).shortName().asString());
         Assert.assertEquals("", path.get(1).parent().asString());
     }
 
     @Test
     public void pathLevel2() {
-        List<FqName> path = new FqName("com.jetbrains").path();
+        List<FqName> path = new FqName("org.jetbrains").path();
         Assert.assertEquals(3, path.size());
         Assert.assertEquals("", path.get(0).asString());
-        Assert.assertEquals("com", path.get(1).asString());
-        Assert.assertEquals("com", path.get(1).shortName().asString());
+        Assert.assertEquals("org", path.get(1).asString());
+        Assert.assertEquals("org", path.get(1).shortName().asString());
         Assert.assertEquals("", path.get(1).parent().asString());
-        Assert.assertEquals("com.jetbrains", path.get(2).asString());
+        Assert.assertEquals("org.jetbrains", path.get(2).asString());
         Assert.assertEquals("jetbrains", path.get(2).shortName().asString());
-        Assert.assertEquals("com", path.get(2).parent().asString());
+        Assert.assertEquals("org", path.get(2).parent().asString());
     }
 
     @Test
     public void pathLevel3() {
-        List<FqName> path = new FqName("com.jetbrains.jet").path();
+        List<FqName> path = new FqName("org.jetbrains.kotlin").path();
         Assert.assertEquals(4, path.size());
         Assert.assertEquals("", path.get(0).asString());
-        Assert.assertEquals("com", path.get(1).asString());
-        Assert.assertEquals("com", path.get(1).shortName().asString());
+        Assert.assertEquals("org", path.get(1).asString());
+        Assert.assertEquals("org", path.get(1).shortName().asString());
         Assert.assertEquals("", path.get(1).parent().asString());
-        Assert.assertEquals("com.jetbrains", path.get(2).asString());
+        Assert.assertEquals("org.jetbrains", path.get(2).asString());
         Assert.assertEquals("jetbrains", path.get(2).shortName().asString());
-        Assert.assertEquals("com", path.get(2).parent().asString());
-        Assert.assertEquals("com.jetbrains.jet", path.get(3).asString());
-        Assert.assertEquals("jet", path.get(3).shortName().asString());
-        Assert.assertEquals("com.jetbrains", path.get(3).parent().asString());
+        Assert.assertEquals("org", path.get(2).parent().asString());
+        Assert.assertEquals("org.jetbrains.kotlin", path.get(3).asString());
+        Assert.assertEquals("kotlin", path.get(3).shortName().asString());
+        Assert.assertEquals("org.jetbrains", path.get(3).parent().asString());
     }
 
     @Test
     public void pathSegments() {
         Assert.assertEquals(Lists.newArrayList(), new FqName("").pathSegments());
 
-        for (String name : new String[] { "com", "com.jetbrains", "com.jetbrains.jet" }) {
+        for (String name : new String[] { "org", "org.jetbrains", "org.jetbrains.kotlin" }) {
             List<Name> segments = new FqName(name).pathSegments();
             List<String> segmentsStrings = new ArrayList<String>();
             for (Name segment : segments) {
@@ -104,22 +104,22 @@ public class FqNameTest {
 
     @Test
     public void isValidJavaFqName() {
-        Assert.assertTrue(QualifiedNamesUtil.isValidJavaFqName(""));
-        Assert.assertTrue(QualifiedNamesUtil.isValidJavaFqName("a"));
-        Assert.assertTrue(QualifiedNamesUtil.isValidJavaFqName("1"));
-        Assert.assertTrue(QualifiedNamesUtil.isValidJavaFqName("a.a"));
-        Assert.assertTrue(QualifiedNamesUtil.isValidJavaFqName("org.jetbrains"));
-        Assert.assertTrue(QualifiedNamesUtil.isValidJavaFqName("$"));
-        Assert.assertTrue(QualifiedNamesUtil.isValidJavaFqName("org.A$B"));
+        Assert.assertTrue(NamePackage.isValidJavaFqName(""));
+        Assert.assertTrue(NamePackage.isValidJavaFqName("a"));
+        Assert.assertTrue(NamePackage.isValidJavaFqName("1"));
+        Assert.assertTrue(NamePackage.isValidJavaFqName("a.a"));
+        Assert.assertTrue(NamePackage.isValidJavaFqName("org.jetbrains"));
+        Assert.assertTrue(NamePackage.isValidJavaFqName("$"));
+        Assert.assertTrue(NamePackage.isValidJavaFqName("org.A$B"));
 
-        Assert.assertFalse(QualifiedNamesUtil.isValidJavaFqName("."));
-        Assert.assertFalse(QualifiedNamesUtil.isValidJavaFqName(".."));
-        Assert.assertFalse(QualifiedNamesUtil.isValidJavaFqName("a."));
-        Assert.assertFalse(QualifiedNamesUtil.isValidJavaFqName(".a"));
-        Assert.assertFalse(QualifiedNamesUtil.isValidJavaFqName("a..b"));
-        Assert.assertFalse(QualifiedNamesUtil.isValidJavaFqName("a.b.."));
-        Assert.assertFalse(QualifiedNamesUtil.isValidJavaFqName("a.b."));
-        Assert.assertFalse(QualifiedNamesUtil.isValidJavaFqName("a.b...)"));
-        Assert.assertFalse(QualifiedNamesUtil.isValidJavaFqName("a.b.<special>"));
+        Assert.assertFalse(NamePackage.isValidJavaFqName("."));
+        Assert.assertFalse(NamePackage.isValidJavaFqName(".."));
+        Assert.assertFalse(NamePackage.isValidJavaFqName("a."));
+        Assert.assertFalse(NamePackage.isValidJavaFqName(".a"));
+        Assert.assertFalse(NamePackage.isValidJavaFqName("a..b"));
+        Assert.assertFalse(NamePackage.isValidJavaFqName("a.b.."));
+        Assert.assertFalse(NamePackage.isValidJavaFqName("a.b."));
+        Assert.assertFalse(NamePackage.isValidJavaFqName("a.b...)"));
+        Assert.assertFalse(NamePackage.isValidJavaFqName("a.b.<special>"));
     }
 }

@@ -21,6 +21,7 @@ import org.apache.tools.ant.types.Path;
 import org.apache.tools.ant.types.Reference;
 import org.jetbrains.jet.buildtools.core.BytecodeCompiler;
 import org.jetbrains.jet.buildtools.core.Util;
+import org.jetbrains.jet.cli.common.arguments.CompilerArgumentsUtil;
 import org.jetbrains.jet.cli.jvm.compiler.CompileEnvironmentException;
 
 import java.io.File;
@@ -47,6 +48,7 @@ public class BytecodeCompilerTask extends Task {
     private File module;
     private Path compileClasspath;
     private boolean includeRuntime = true;
+    private String inline;
 
     public void setOutput(File output) {
         this.output = output;
@@ -90,6 +92,9 @@ public class BytecodeCompilerTask extends Task {
         this.includeRuntime = includeRuntime;
     }
 
+    public void setInline(String inline) {
+        this.inline = inline;
+    }
 
     /**
      * Set the classpath to be used for this compilation.
@@ -137,6 +142,12 @@ public class BytecodeCompilerTask extends Task {
         String[] classpath = (this.compileClasspath != null ? this.compileClasspath.list() : null);
         String[] externalAnnotationsPath = (this.externalAnnotations != null) ? this.externalAnnotations.list() : null;
 
+        if (!CompilerArgumentsUtil.checkInlineOption(inline)) {
+            throw new CompileEnvironmentException(CompilerArgumentsUtil.getWrongOptionErrorMessage(inline));
+        }
+
+        boolean enableInline = CompilerArgumentsUtil.optionToInlineFlag(inline);
+
         if (this.src != null) {
 
             if ((this.output == null) && (this.jar == null)) {
@@ -149,10 +160,10 @@ public class BytecodeCompilerTask extends Task {
             log(String.format("Compiling [%s] => [%s]", Arrays.toString(source), destination));
 
             if (this.output != null) {
-                compiler.sourcesToDir(source, destination, stdlibPath, classpath, externalAnnotationsPath);
+                compiler.sourcesToDir(source, destination, stdlibPath, classpath, externalAnnotationsPath, enableInline);
             }
             else {
-                compiler.sourcesToJar(source, destination, this.includeRuntime, stdlibPath, classpath, externalAnnotationsPath);
+                compiler.sourcesToJar(source, destination, this.includeRuntime, stdlibPath, classpath, externalAnnotationsPath, enableInline);
             }
         }
         else if (this.module != null) {
@@ -167,7 +178,7 @@ public class BytecodeCompilerTask extends Task {
             log(jarPath != null ? String.format("Compiling [%s] => [%s]", modulePath, jarPath) :
                 String.format("Compiling [%s]", modulePath));
 
-            compiler.moduleToJar(modulePath, jarPath, this.includeRuntime, stdlibPath, classpath, externalAnnotationsPath);
+            compiler.moduleToJar(modulePath, jarPath, this.includeRuntime, stdlibPath, classpath, externalAnnotationsPath, enableInline);
         }
         else {
             throw new CompileEnvironmentException("\"src\" or \"module\" should be specified");

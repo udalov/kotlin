@@ -36,16 +36,13 @@ import java.awt.datatransfer.Transferable
 import com.intellij.codeInsight.CodeInsightSettings
 import com.intellij.codeInsight.editorActions.CopyPastePostProcessor
 import org.jetbrains.jet.plugin.references.JetReference
-import org.jetbrains.jet.lang.resolve.DescriptorUtils
 import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor
-import org.jetbrains.jet.lang.descriptors.ClassDescriptor
 import com.intellij.openapi.util.TextRange
 import java.util.Collections
 import org.jetbrains.jet.lang.psi.JetPsiFactory
 import org.jetbrains.jet.lang.psi.JetSimpleNameExpression
 import com.intellij.psi.util.PsiTreeUtil
 import org.jetbrains.jet.lang.psi.JetCallExpression
-import org.jetbrains.jet.lang.descriptors.ConstructorDescriptor
 import org.jetbrains.jet.lang.types.ErrorUtils
 import org.jetbrains.jet.lang.psi.JetImportDirective
 import org.jetbrains.jet.lang.psi.JetPackageDirective
@@ -58,12 +55,13 @@ import java.awt.datatransfer.UnsupportedFlavorException
 import java.io.IOException
 import com.intellij.openapi.diagnostic.Logger
 import org.jetbrains.jet.lang.psi.JetDotQualifiedExpression
-import org.jetbrains.jet.lang.descriptors.CallableDescriptor
 import org.jetbrains.jet.lang.psi.JetUserType
 import org.jetbrains.jet.lang.psi.JetTypeReference
 import com.intellij.util.containers.ContainerUtil
 import org.jetbrains.jet.lang.diagnostics.DiagnosticUtils
+import org.jetbrains.jet.plugin.imports.*
 import org.jetbrains.jet.lang.descriptors.PackageViewDescriptor
+import org.jetbrains.jet.utils.*
 
 //NOTE: this class is based on CopyPasteReferenceProcessor and JavaCopyPasteReferenceProcessor
 public class KotlinCopyPasteReferenceProcessor() : CopyPastePostProcessor<ReferenceTransferableData?> {
@@ -102,12 +100,19 @@ public class KotlinCopyPasteReferenceProcessor() : CopyPastePostProcessor<Refere
             return null
         }
 
-        val collectedData = zip(startOffsets, endOffsets).toList().flatMap {
-            val (startOffset, endOffset) = it
-            CollectHighlightsUtil.getElementsInRange(file, startOffset, endOffset).flatMap { element ->
-                collectReferenceDataFromElement(element, file, startOffset, startOffsets, endOffsets)
+        val collectedData = try {
+            zip(startOffsets, endOffsets).toList().flatMap {
+                val (startOffset, endOffset) = it
+                CollectHighlightsUtil.getElementsInRange(file, startOffset, endOffset).flatMap { element ->
+                    collectReferenceDataFromElement(element, file, startOffset, startOffsets, endOffsets)
+                }
             }
         }
+        catch (e: Throwable) {
+            LOG.error("Exception in processing references for copy paste in file ${file.getName()}}", e)
+            return null
+        }
+
         if (collectedData.isEmpty()) {
             return null
         }
@@ -127,8 +132,7 @@ public class KotlinCopyPasteReferenceProcessor() : CopyPastePostProcessor<Refere
             if (referencedDeclaration.isInCopiedArea(file, startOffsets, endOffsets)) {
                 return null
             }
-            val isExpressionWithReceiver = element is JetSimpleNameExpression && element.getReceiverExpression() != null
-            if (isExpressionWithReceiver && !referencedDescriptor.isExtension) {
+            if (isInReceiverScope(element, referencedDescriptor)) {
                 return null
             }
             val fqName = referencedDescriptor.importableFqName
@@ -161,21 +165,6 @@ public class KotlinCopyPasteReferenceProcessor() : CopyPastePostProcessor<Refere
             collectedData.addIfNotNull(collectReferenceData(declarations.first(), referencedDescriptor))
         }
         return collectedData
-    }
-
-    private fun DeclarationDescriptor.canBeReferencedViaImport(): Boolean {
-        if (this is PackageViewDescriptor || DescriptorUtils.isTopLevelDeclaration(this)) {
-            return true
-        }
-        val parent = getContainingDeclaration()!!
-        if (parent !is ClassDescriptor || !parent.canBeReferencedViaImport()) {
-            return false
-        }
-        // inner class constructors can't be referenced via import
-        if (this is ConstructorDescriptor && parent.isInner()) {
-            return false
-        }
-        return this is ClassDescriptor || this is ConstructorDescriptor
     }
 
     private fun createReferenceData(element: PsiElement, startOffset: Int, fqName: FqName): ReferenceData {
@@ -259,7 +248,13 @@ public class KotlinCopyPasteReferenceProcessor() : CopyPastePostProcessor<Refere
         if (reference == null) {
             return null
         }
-        val referencedDescriptors = reference.resolveToDescriptors()
+        val referencedDescriptors = try {
+            reference.resolveToDescriptors()
+        }
+        catch (e: Throwable) {
+            LOG.error("Failed to analyze reference (${expression.getText()}) after copy paste", e)
+            return null
+        }
         val referencedFqNames = referencedDescriptors.filterNot { ErrorUtils.isError(it) } .map { it.importableFqName }
         val referencesSame = referencedFqNames any { it == originalReferencedFqName }
         val conflict = referencedFqNames any { it != originalReferencedFqName && (it?.shortName() == originalReferencedFqName.shortName()) }
@@ -305,6 +300,8 @@ public class KotlinCopyPasteReferenceProcessor() : CopyPastePostProcessor<Refere
     }
 
     class object {
+        private val LOG = Logger.getInstance(javaClass<KotlinCopyPasteReferenceProcessor>())
+
         private val IGNORE_REFERENCES_INSIDE: Array<Class<out JetElement>?> = array(
                 javaClass<JetImportDirective>(),
                 javaClass<JetPackageDirective>(),
@@ -314,7 +311,6 @@ public class KotlinCopyPasteReferenceProcessor() : CopyPastePostProcessor<Refere
     }
 
     private object LengthenReferences {
-        private val LOG = Logger.getInstance(javaClass<KotlinCopyPasteReferenceProcessor>())
 
         private fun createQualifiedExpression(project: Project, text: String): JetDotQualifiedExpression {
             val newExpression = JetPsiFactory.createExpression(project, text)
@@ -360,9 +356,9 @@ public class KotlinCopyPasteReferenceProcessor() : CopyPastePostProcessor<Refere
 private val ReferenceData.fqName: FqName
     get() = FqName(qClassName!!)
 
-private fun zip(first: IntArray, second: IntArray): Iterator<Pair<Int, Int>> {
+private fun zip(first: IntArray, second: IntArray): Iterable<Pair<Int, Int>> {
     assert(first.size == second.size)
-    return first.iterator().zip(second.iterator())
+    return first.toList().zip_tmp(second.toList())
 }
 
 private fun PsiElement.isInCopiedArea(fileCopiedFrom: JetFile, startOffsets: IntArray, endOffsets: IntArray): Boolean {
@@ -374,20 +370,5 @@ private fun PsiElement.isInCopiedArea(fileCopiedFrom: JetFile, startOffsets: Int
         range in TextRange(start, end)
     }
 }
-
-private val DeclarationDescriptor.importableFqName: FqName?
-    get() {
-        if (this is ConstructorDescriptor) return getContainingDeclaration().importableFqName
-        val mayBeUnsafe = DescriptorUtils.getFqName(this)
-        return if (mayBeUnsafe.isSafe()) {
-            mayBeUnsafe.toSafe()
-        }
-        else {
-            null
-        }
-    }
-
-private val DeclarationDescriptor.isExtension: Boolean
-    get() = this is CallableDescriptor && getReceiverParameter() != null
 
 private fun <T : Any> MutableCollection<T>.addIfNotNull(el: T?) = ContainerUtil.addIfNotNull(this, el)

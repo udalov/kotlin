@@ -56,6 +56,8 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
+import static org.jetbrains.jet.lang.resolve.DescriptorUtils.unwrapFakeOverride;
+
 public class BuiltInsReferenceResolver extends AbstractProjectComponent {
     private static final File BUILT_INS_COMPILABLE_SRC_DIR = new File("core/builtins/src", KotlinBuiltIns.BUILT_INS_PACKAGE_NAME_STRING);
 
@@ -94,10 +96,10 @@ public class BuiltInsReferenceResolver extends AbstractProjectComponent {
                         Name.special("<fake_module>"), Collections.<ImportPath>emptyList(), PlatformToKotlinClassMap.EMPTY);
                 BindingTraceContext trace = new BindingTraceContext();
                 InjectorForTopDownAnalyzerBasic injector = new InjectorForTopDownAnalyzerBasic(
-                        myProject, topDownAnalysisParameters, trace, module, PlatformToKotlinClassMap.EMPTY);
+                        myProject, topDownAnalysisParameters, trace, module);
 
                 TopDownAnalyzer analyzer = injector.getTopDownAnalyzer();
-                analyzer.analyzeFiles(jetBuiltInsFiles, Collections.<AnalyzerScriptParameter>emptyList());
+                analyzer.analyzeFiles(topDownAnalysisParameters, jetBuiltInsFiles);
 
                 builtinsPackageFragment = analyzer.getPackageFragmentProvider().getOrCreateFragment(KotlinBuiltIns.BUILT_INS_PACKAGE_FQ_NAME);
                 builtInsSources = Sets.newHashSet(jetBuiltInsFiles);
@@ -125,7 +127,7 @@ public class BuiltInsReferenceResolver extends AbstractProjectComponent {
 
         if (ApplicationManager.getApplication().isUnitTestMode()) {
             // In production, the above URL is enough as it contains sources for both native and compilable built-ins
-            // (it's simply "jet" directory in kotlin-plugin.jar)
+            // (it's simply the "kotlin" directory in kotlin-plugin.jar)
             // But in tests, sources of built-ins are not added to the classpath automatically, so we manually specify URLs for both:
             // LightClassUtil.getBuiltInsDirUrl() does so for native built-ins and the code below for compilable built-ins
             try {
@@ -176,6 +178,11 @@ public class BuiltInsReferenceResolver extends AbstractProjectComponent {
 
     @Nullable
     private DeclarationDescriptor findCurrentDescriptorForMember(@NotNull MemberDescriptor originalDescriptor) {
+        if (originalDescriptor instanceof CallableMemberDescriptor &&
+            ((CallableMemberDescriptor) originalDescriptor).getKind() == CallableMemberDescriptor.Kind.FAKE_OVERRIDE) {
+            return findCurrentDescriptorForMember(unwrapFakeOverride((CallableMemberDescriptor) originalDescriptor).getOriginal());
+        }
+
         DeclarationDescriptor containingDeclaration = findCurrentDescriptor(originalDescriptor.getContainingDeclaration());
         JetScope memberScope = getMemberScope(containingDeclaration);
         if (memberScope == null) return null;
@@ -220,10 +227,7 @@ public class BuiltInsReferenceResolver extends AbstractProjectComponent {
             return Collections.emptyList();
         }
 
-        DeclarationDescriptor descriptor = declarationDescriptor;
-
-        descriptor = descriptor.getOriginal();
-        descriptor = findCurrentDescriptor(descriptor);
+        DeclarationDescriptor descriptor = findCurrentDescriptor(declarationDescriptor.getOriginal());
         if (descriptor != null) {
             return BindingContextUtils.descriptorToDeclarations(bindingContext, descriptor);
         }

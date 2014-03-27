@@ -469,4 +469,42 @@ public class DescriptorUtils {
         return isTopLevelDeclaration(descriptor) ||
                containing instanceof ClassDescriptor && isTopLevelOrInnerClass((ClassDescriptor) containing);
     }
+
+    // This method works correctly because every fake override has a declaration among its ancestors, and no fake override is allowed
+    // to have two different declarations among its ancestors, none of which is an ancestor of the other
+    @NotNull
+    public static <D extends CallableMemberDescriptor> D unwrapFakeOverride(@NotNull D descriptor) {
+        while (descriptor.getKind() == CallableMemberDescriptor.Kind.FAKE_OVERRIDE) {
+            Set<? extends CallableMemberDescriptor> overridden = descriptor.getOverriddenDescriptors();
+            if (overridden.isEmpty()) {
+                throw new IllegalStateException("Fake override should have at least one overridden descriptor: " + descriptor);
+            }
+            //noinspection unchecked
+            descriptor = (D) overridden.iterator().next();
+        }
+        return descriptor;
+    }
+
+    public static boolean isPropertyCompileTimeConstant(@NotNull VariableDescriptor descriptor) {
+        if (descriptor.isVar()) {
+            return false;
+        }
+        if (isClassObject(descriptor.getContainingDeclaration()) || isTopLevelDeclaration(descriptor)) {
+            JetType type = descriptor.getType();
+            return KotlinBuiltIns.getInstance().isPrimitiveType(type) || KotlinBuiltIns.getInstance().getStringType().equals(type);
+        }
+        return false;
+    }
+
+    public static boolean shouldRecordInitializerForProperty(@NotNull VariableDescriptor variable, @NotNull JetType type) {
+        if (variable.isVar() || type.isError()) return false;
+
+        if (type instanceof LazyType || type.isNullable()) return true;
+
+        KotlinBuiltIns builtIns = KotlinBuiltIns.getInstance();
+        return builtIns.isPrimitiveType(type) ||
+               builtIns.getStringType().equals(type) ||
+               builtIns.getNumber().getDefaultType().equals(type) ||
+               builtIns.getAnyType().equals(type);
+    }
 }

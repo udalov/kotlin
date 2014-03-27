@@ -17,7 +17,6 @@
 package org.jetbrains.jet.lang.psi;
 
 import com.intellij.lang.ASTNode;
-import com.intellij.psi.stubs.IStubElementType;
 import com.intellij.util.ArrayFactory;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -41,8 +40,8 @@ public class JetTypeParameter extends JetNamedDeclarationStub<PsiJetTypeParamete
         super(node);
     }
 
-    public JetTypeParameter(@NotNull PsiJetTypeParameterStub stub, @NotNull IStubElementType nodeType) {
-        super(stub, nodeType);
+    public JetTypeParameter(@NotNull PsiJetTypeParameterStub stub) {
+        super(stub, JetStubElementTypes.TYPE_PARAMETER);
     }
 
     @Override
@@ -70,11 +69,5 @@ public class JetTypeParameter extends JetNamedDeclarationStub<PsiJetTypeParamete
     @Nullable
     public JetTypeReference getExtendsBound() {
         return (JetTypeReference) findChildByType(JetNodeTypes.TYPE_REFERENCE);
-    }
-
-    @NotNull
-    @Override
-    public IStubElementType getElementType() {
-        return JetStubElementTypes.TYPE_PARAMETER;
     }
 }

@@ -16,7 +16,7 @@
 
 package org.jetbrains.jet.lang.resolve.calls.tasks;
 
-import com.google.common.collect.Sets;
+import com.google.common.collect.Lists;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.CallableDescriptor;
@@ -33,44 +33,51 @@ import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.lang.types.expressions.LabelResolver;
 
 import java.util.Collection;
-import java.util.Set;
 
 /**
  * Stores candidates for call resolution.
  */
 public class ResolutionTask<D extends CallableDescriptor, F extends D> extends CallResolutionContext<ResolutionTask<D, F>> {
     private final Collection<ResolutionCandidate<D>> candidates;
-    private final Set<ResolvedCallWithTrace<F>> resolvedCalls = Sets.newLinkedHashSet();
+    private final Collection<ResolvedCallWithTrace<F>> resolvedCalls;
     private DescriptorCheckStrategy checkingStrategy;
-    public final JetReferenceExpression reference;
     public final TracingStrategy tracing;
 
-    public ResolutionTask(
-            @NotNull Collection<ResolutionCandidate<D>> candidates, @NotNull JetReferenceExpression reference,
-            @NotNull TracingStrategy tracing, BindingTrace trace, JetScope scope, Call call, JetType expectedType,
-            DataFlowInfo dataFlowInfo, ContextDependency contextDependency, CheckValueArgumentsMode checkArguments,
-            ResolutionResultsCache resolutionResultsCache, @NotNull LabelResolver labelResolver,
-            @Nullable MutableDataFlowInfoForArguments dataFlowInfoForArguments, @NotNull CallResolverExtension callResolverExtension,
-            boolean isAnnotationContext
+    private ResolutionTask(
+            @NotNull Collection<ResolutionCandidate<D>> candidates,
+            @NotNull TracingStrategy tracing,
+            @NotNull BindingTrace trace,
+            @NotNull JetScope scope,
+            @NotNull Call call,
+            @NotNull JetType expectedType,
+            @NotNull DataFlowInfo dataFlowInfo,
+            @NotNull ContextDependency contextDependency,
+            @NotNull CheckValueArgumentsMode checkArguments,
+            @NotNull ResolutionResultsCache resolutionResultsCache,
+            @NotNull LabelResolver labelResolver,
+            @Nullable MutableDataFlowInfoForArguments dataFlowInfoForArguments,
+            @NotNull CallResolverExtension callResolverExtension,
+            @NotNull Collection<ResolvedCallWithTrace<F>> resolvedCalls,
+            boolean isAnnotationContext,
+            boolean collectAllCandidates
     ) {
         super(trace, scope, call, expectedType, dataFlowInfo, contextDependency, checkArguments, resolutionResultsCache,
-              labelResolver, dataFlowInfoForArguments, callResolverExtension, isAnnotationContext);
+              labelResolver, dataFlowInfoForArguments, callResolverExtension, isAnnotationContext, collectAllCandidates);
         this.candidates = candidates;
-        this.reference = reference;
+        this.resolvedCalls = resolvedCalls;
         this.tracing = tracing;
     }
 
     public ResolutionTask(
             @NotNull Collection<ResolutionCandidate<D>> candidates,
-            @NotNull JetReferenceExpression reference,
             @NotNull BasicCallResolutionContext context,
-            @Nullable TracingStrategy tracing
+            @NotNull TracingStrategy tracing
     ) {
-        this(candidates, reference, tracing != null ? tracing : TracingStrategyImpl.create(reference, context.call),
+        this(candidates, tracing,
              context.trace, context.scope, context.call,
              context.expectedType, context.dataFlowInfo, context.contextDependency, context.checkArguments,
              context.resolutionResultsCache, context.labelResolver, context.dataFlowInfoForArguments,
-             context.callResolverExtension, context.isAnnotationContext);
+             context.callResolverExtension, Lists.<ResolvedCallWithTrace<F>>newArrayList(), context.isAnnotationContext, context.collectAllCandidates);
     }
 
     public ResolutionTask(
@@ -78,7 +85,7 @@ public class ResolutionTask<D extends CallableDescriptor, F extends D> extends C
             @NotNull JetReferenceExpression reference,
             @NotNull BasicCallResolutionContext context
     ) {
-        this(candidates, reference, context, null);
+        this(candidates, context, TracingStrategyImpl.create(reference, context.call));
     }
 
     @NotNull
@@ -86,8 +93,12 @@ public class ResolutionTask<D extends CallableDescriptor, F extends D> extends C
         return candidates;
     }
 
+    public void addResolvedCall(@NotNull ResolvedCallWithTrace<F> resolvedCall) {
+        resolvedCalls.add(resolvedCall);
+    }
+
     @NotNull
-    public Set<ResolvedCallWithTrace<F>> getResolvedCalls() {
+    public Collection<ResolvedCallWithTrace<F>> getResolvedCalls() {
         return resolvedCalls;
     }
 
@@ -110,19 +121,22 @@ public class ResolutionTask<D extends CallableDescriptor, F extends D> extends C
             @NotNull JetType expectedType,
             @NotNull ContextDependency contextDependency,
             @NotNull ResolutionResultsCache resolutionResultsCache,
-            @NotNull LabelResolver labelResolver
+            @NotNull LabelResolver labelResolver,
+            boolean collectAllCandidates
     ) {
         ResolutionTask<D, F> newTask = new ResolutionTask<D, F>(
-                candidates, reference, tracing, trace, scope, call, expectedType, dataFlowInfo, contextDependency, checkArguments,
-                resolutionResultsCache, labelResolver, dataFlowInfoForArguments, callResolverExtension, isAnnotationContext);
+                candidates, tracing, trace, scope, call, expectedType, dataFlowInfo, contextDependency, checkArguments,
+                resolutionResultsCache, labelResolver, dataFlowInfoForArguments, callResolverExtension, resolvedCalls, isAnnotationContext,
+                collectAllCandidates);
         newTask.setCheckingStrategy(checkingStrategy);
         return newTask;
     }
 
     public ResolutionTask<D, F> replaceCall(@NotNull Call newCall) {
         return new ResolutionTask<D, F>(
-                candidates, reference, tracing, trace, scope, newCall, expectedType, dataFlowInfo, contextDependency, checkArguments,
-                resolutionResultsCache, labelResolver, dataFlowInfoForArguments, callResolverExtension, isAnnotationContext);
+                candidates, tracing, trace, scope, newCall, expectedType, dataFlowInfo, contextDependency, checkArguments,
+                resolutionResultsCache, labelResolver, dataFlowInfoForArguments, callResolverExtension, resolvedCalls,
+                isAnnotationContext, collectAllCandidates);
     }
 
     public interface DescriptorCheckStrategy {

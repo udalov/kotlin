@@ -24,6 +24,7 @@ import org.jetbrains.jet.descriptors.serialization.DescriptorFinder;
 import org.jetbrains.jet.descriptors.serialization.JavaProtoBufUtil;
 import org.jetbrains.jet.descriptors.serialization.descriptors.DeserializedClassDescriptor;
 import org.jetbrains.jet.descriptors.serialization.descriptors.DeserializedPackageMemberScope;
+import org.jetbrains.jet.descriptors.serialization.descriptors.MemberFilter;
 import org.jetbrains.jet.lang.descriptors.ClassDescriptor;
 import org.jetbrains.jet.lang.descriptors.PackageFragmentDescriptor;
 import org.jetbrains.jet.lang.resolve.java.JavaDescriptorResolver;
@@ -43,7 +44,9 @@ import static org.jetbrains.jet.lang.resolve.kotlin.header.KotlinClassHeader.Kin
 import static org.jetbrains.jet.lang.resolve.kotlin.header.KotlinClassHeader.Kind.PACKAGE_FACADE;
 
 public final class DeserializedDescriptorResolver {
-    private AnnotationDescriptorDeserializer annotationDeserializer;
+    private DescriptorDeserializers annotationDeserializer;
+
+    private MemberFilter memberFilter;
 
     private StorageManager storageManager;
 
@@ -69,8 +72,13 @@ public final class DeserializedDescriptorResolver {
     };
 
     @Inject
-    public void setAnnotationDeserializer(AnnotationDescriptorDeserializer annotationDeserializer) {
+    public void setAnnotationDeserializer(DescriptorDeserializers annotationDeserializer) {
         this.annotationDeserializer = annotationDeserializer;
+    }
+
+    @Inject
+    public void setMemberFilter(MemberFilter memberFilter) {
+        this.memberFilter = memberFilter;
     }
 
     @Inject
@@ -108,8 +116,8 @@ public final class DeserializedDescriptorResolver {
     public JetScope createKotlinPackageScope(@NotNull PackageFragmentDescriptor descriptor, @NotNull KotlinJvmBinaryClass kotlinClass) {
         String[] data = readData(kotlinClass, PACKAGE_FACADE);
         if (data != null) {
-            return new DeserializedPackageMemberScope(storageManager, descriptor, annotationDeserializer, javaDescriptorFinder,
-                                                      JavaProtoBufUtil.readPackageDataFrom(data));
+            return new DeserializedPackageMemberScope(storageManager, descriptor, annotationDeserializer,
+                                                      memberFilter, javaDescriptorFinder, JavaProtoBufUtil.readPackageDataFrom(data));
         }
         return null;
     }
@@ -117,8 +125,6 @@ public final class DeserializedDescriptorResolver {
     @Nullable
     private String[] readData(@NotNull KotlinJvmBinaryClass kotlinClass, @NotNull KotlinClassHeader.Kind expectedKind) {
         KotlinClassHeader header = kotlinClass.getClassHeader();
-        if (header == null) return null;
-
         if (header.getKind() == KotlinClassHeader.Kind.INCOMPATIBLE_ABI_VERSION) {
             errorReporter.reportIncompatibleAbiVersion(kotlinClass, header.getVersion());
         }

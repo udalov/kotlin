@@ -19,15 +19,11 @@ package org.jetbrains.jet.lang.resolve.kotlin.header;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.resolve.java.AbiVersionUtil;
-import org.jetbrains.jet.lang.resolve.java.JvmAnnotationNames;
 import org.jetbrains.jet.lang.resolve.java.JvmClassName;
-import org.jetbrains.jet.lang.resolve.kotlin.KotlinJvmBinaryClass;
+import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.Name;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static org.jetbrains.jet.lang.resolve.java.AbiVersionUtil.isAbiVersionCompatible;
 import static org.jetbrains.jet.lang.resolve.java.JvmAnnotationNames.*;
@@ -36,34 +32,25 @@ import static org.jetbrains.jet.lang.resolve.kotlin.KotlinJvmBinaryClass.Annotat
 import static org.jetbrains.jet.lang.resolve.kotlin.header.KotlinClassHeader.Kind.*;
 
 public class ReadKotlinClassHeaderAnnotationVisitor implements AnnotationVisitor {
-
     private static final Map<JvmClassName, KotlinClassHeader.Kind> HEADER_KINDS = new HashMap<JvmClassName, KotlinClassHeader.Kind>();
+
     static {
         HEADER_KINDS.put(JvmClassName.byFqNameWithoutInnerClasses(KOTLIN_CLASS), CLASS);
         HEADER_KINDS.put(JvmClassName.byFqNameWithoutInnerClasses(KOTLIN_PACKAGE), PACKAGE_FACADE);
-        HEADER_KINDS.put(JvmClassName.byFqNameWithoutInnerClasses(KOTLIN_PACKAGE_FRAGMENT), PACKAGE_FRAGMENT);
-        HEADER_KINDS.put(JvmClassName.byFqNameWithoutInnerClasses(KOTLIN_TRAIT_IMPL), TRAIT_IMPL);
-        //noinspection deprecation
-        HEADER_KINDS.put(JvmClassName.byFqNameWithoutInnerClasses(OLD_JET_CLASS_ANNOTATION), INCOMPATIBLE_ABI_VERSION);
-        //noinspection deprecation
-        HEADER_KINDS.put(JvmClassName.byFqNameWithoutInnerClasses(OLD_JET_PACKAGE_CLASS_ANNOTATION), INCOMPATIBLE_ABI_VERSION);
+        HEADER_KINDS.put(KotlinSyntheticClass.CLASS_NAME, SYNTHETIC_CLASS);
+
+        @SuppressWarnings("deprecation")
+        List<FqName> incompatible = Arrays.asList(OLD_JET_CLASS_ANNOTATION, OLD_JET_PACKAGE_CLASS_ANNOTATION, OLD_KOTLIN_CLASS,
+                                                  OLD_KOTLIN_PACKAGE, OLD_KOTLIN_PACKAGE_FRAGMENT, OLD_KOTLIN_TRAIT_IMPL);
+        for (FqName fqName : incompatible) {
+            HEADER_KINDS.put(JvmClassName.byFqNameWithoutInnerClasses(fqName), INCOMPATIBLE_ABI_VERSION);
+        }
     }
 
     private int version = AbiVersionUtil.INVALID_VERSION;
-    @Nullable
     private String[] annotationData = null;
-    @Nullable
     private KotlinClassHeader.Kind headerKind = null;
-
-    private ReadKotlinClassHeaderAnnotationVisitor() {
-    }
-
-    @Nullable
-    public static KotlinClassHeader read(@NotNull KotlinJvmBinaryClass kotlinClass) {
-        ReadKotlinClassHeaderAnnotationVisitor visitor = new ReadKotlinClassHeaderAnnotationVisitor();
-        kotlinClass.loadClassAnnotations(visitor);
-        return visitor.createHeader();
-    }
+    private KotlinSyntheticClass.Kind syntheticClassKind = null;
 
     @Nullable
     public KotlinClassHeader createHeader() {
@@ -72,7 +59,7 @@ public class ReadKotlinClassHeaderAnnotationVisitor implements AnnotationVisitor
         }
 
         if (!AbiVersionUtil.isAbiVersionCompatible(version)) {
-            return new KotlinClassHeader(INCOMPATIBLE_ABI_VERSION, version, null);
+            return new KotlinClassHeader(INCOMPATIBLE_ABI_VERSION, version, null, null);
         }
 
         if ((headerKind == CLASS || headerKind == PACKAGE_FACADE) && annotationData == null) {
@@ -80,16 +67,17 @@ public class ReadKotlinClassHeaderAnnotationVisitor implements AnnotationVisitor
             // We tell the outside world that there's really no annotation at all
             return null;
         }
-        return new KotlinClassHeader(headerKind, version, annotationData);
+
+        return new KotlinClassHeader(headerKind, version, annotationData, syntheticClassKind);
     }
 
     @Nullable
     @Override
-    public AnnotationArgumentVisitor visitAnnotation(@NotNull JvmClassName annotationClassName) {
-        KotlinClassHeader.Kind newKind = HEADER_KINDS.get(annotationClassName);
+    public AnnotationArgumentVisitor visitAnnotation(@NotNull JvmClassName annotation) {
+        KotlinClassHeader.Kind newKind = HEADER_KINDS.get(annotation);
         if (newKind == null) return null;
 
-        if (this.headerKind != null) {
+        if (headerKind != null) {
             // Ignore all Kotlin annotations except the first found
             return null;
         }
@@ -97,10 +85,10 @@ public class ReadKotlinClassHeaderAnnotationVisitor implements AnnotationVisitor
         headerKind = newKind;
 
         if (newKind == CLASS || newKind == PACKAGE_FACADE) {
-            return kotlinClassOrPackageVisitor(annotationClassName);
+            return kotlinClassOrPackageVisitor(annotation);
         }
-        else if (newKind == PACKAGE_FRAGMENT || newKind == TRAIT_IMPL) {
-            return annotationWithAbiVersionVisitor(annotationClassName);
+        else if (newKind == SYNTHETIC_CLASS) {
+            return syntheticClassAnnotationVisitor();
         }
 
         return null;
@@ -126,7 +114,7 @@ public class ReadKotlinClassHeaderAnnotationVisitor implements AnnotationVisitor
             @Override
             @Nullable
             public AnnotationArgumentVisitor visitArray(@NotNull Name name) {
-                if (name.asString().equals(JvmAnnotationNames.DATA_FIELD_NAME)) {
+                if (name.asString().equals(DATA_FIELD_NAME)) {
                     return stringArrayVisitor();
                 }
                 else if (isAbiVersionCompatible(version)) {
@@ -174,22 +162,32 @@ public class ReadKotlinClassHeaderAnnotationVisitor implements AnnotationVisitor
     }
 
     @NotNull
-    private AnnotationArgumentVisitor annotationWithAbiVersionVisitor(@NotNull final JvmClassName annotationClassName) {
+    private AnnotationArgumentVisitor syntheticClassAnnotationVisitor() {
         return new AnnotationArgumentVisitor() {
             @Override
             public void visit(@Nullable Name name, @Nullable Object value) {
-                visitIntValueForSupportedAnnotation(name, value, annotationClassName);
+                visitIntValueForSupportedAnnotation(name, value, KotlinSyntheticClass.CLASS_NAME);
             }
 
             @Override
             public void visitEnum(@NotNull Name name, @NotNull JvmClassName enumClassName, @NotNull Name enumEntryName) {
-                unexpectedArgument(name, annotationClassName);
+                if (enumClassName.getInternalName().equals(KotlinSyntheticClass.KIND_INTERNAL_NAME) &&
+                    name.equals(KotlinSyntheticClass.KIND_FIELD_NAME)) {
+                    // Don't call KotlinSyntheticClass.Kind.valueOf() here, because it will throw an exception if there's no such value,
+                    // but we don't want to fail if we're loading the header with an _incompatible_ ABI version
+                    syntheticClassKind = KotlinSyntheticClass.Kind.valueOfOrNull(enumEntryName.asString());
+                    if (syntheticClassKind != null) return;
+                }
+                if (isAbiVersionCompatible(version)) {
+                    throw new IllegalStateException("Unexpected enum entry for synthetic class annotation: " +
+                                                    name + "=" + enumClassName + "." + enumEntryName);
+                }
             }
 
             @Nullable
             @Override
             public AnnotationArgumentVisitor visitArray(@NotNull Name name) {
-                return unexpectedArgument(name, annotationClassName);
+                return unexpectedArgument(name, KotlinSyntheticClass.CLASS_NAME);
             }
 
             @Override
@@ -199,7 +197,7 @@ public class ReadKotlinClassHeaderAnnotationVisitor implements AnnotationVisitor
     }
 
     private void visitIntValueForSupportedAnnotation(@Nullable Name name, @Nullable Object value, @NotNull JvmClassName className) {
-        if (name != null && name.asString().equals(JvmAnnotationNames.ABI_VERSION_FIELD_NAME)) {
+        if (name != null && name.asString().equals(ABI_VERSION_FIELD_NAME)) {
             version = value == null ? AbiVersionUtil.INVALID_VERSION : (Integer) value;
         }
         else {

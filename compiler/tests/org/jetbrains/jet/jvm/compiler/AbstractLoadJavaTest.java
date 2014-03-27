@@ -32,6 +32,7 @@ import org.jetbrains.jet.cli.jvm.compiler.JetCoreEnvironment;
 import org.jetbrains.jet.config.CommonConfigurationKeys;
 import org.jetbrains.jet.config.CompilerConfiguration;
 import org.jetbrains.jet.descriptors.serialization.descriptors.DeserializedClassDescriptor;
+import org.jetbrains.jet.descriptors.serialization.descriptors.MemberFilter;
 import org.jetbrains.jet.di.InjectorForTopDownAnalyzerForJvm;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.resolve.*;
@@ -140,22 +141,24 @@ public abstract class AbstractLoadJavaTest extends TestCaseWithTmpdir {
         BindingTrace trace = support.getTrace();
         ModuleDescriptorImpl module = support.getModule();
 
+        TopDownAnalysisParameters parameters = new TopDownAnalysisParameters(
+                new LockBasedStorageManager(),
+                new ExceptionTracker(), // dummy
+                Predicates.<PsiFile>alwaysFalse(),
+                false,
+                false,
+                Collections.<AnalyzerScriptParameter>emptyList()
+        );
         InjectorForTopDownAnalyzerForJvm injectorForAnalyzer = new InjectorForTopDownAnalyzerForJvm(
                 environment.getProject(),
-                new TopDownAnalysisParameters(
-                        new LockBasedStorageManager(),
-                        new ExceptionTracker(), // dummy
-                        Predicates.<PsiFile>alwaysFalse(),
-                        false,
-                        false,
-                        Collections.<AnalyzerScriptParameter>emptyList()
-                ),
+                parameters,
                 trace,
-                module);
+                module,
+                MemberFilter.ALWAYS_TRUE);
 
         module.addFragmentProvider(DependencyKind.BINARIES, injectorForAnalyzer.getJavaDescriptorResolver().getPackageFragmentProvider());
 
-        injectorForAnalyzer.getTopDownAnalyzer().analyzeFiles(environment.getSourceFiles(), Collections.<AnalyzerScriptParameter>emptyList());
+        injectorForAnalyzer.getTopDownAnalyzer().analyzeFiles(parameters, environment.getSourceFiles());
 
         PackageViewDescriptor packageView = module.getPackage(TEST_PACKAGE_FQNAME);
         assert packageView != null : "Test package not found";
@@ -185,7 +188,7 @@ public abstract class AbstractLoadJavaTest extends TestCaseWithTmpdir {
         assertTrue(compiledDir.mkdir());
 
         List<File> srcFiles = JetTestUtils.createTestFiles(
-                new File(javaFileName).getName(), FileUtil.loadFile(new File(javaFileName)),
+                new File(javaFileName).getName(), FileUtil.loadFile(new File(javaFileName), true),
                 new JetTestUtils.TestFileFactory<File>() {
                     @Override
                     public File create(String fileName, String text, Map<String, String> directives) {

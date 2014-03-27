@@ -17,9 +17,11 @@
 package org.jetbrains.jet.lang.resolve.calls.model;
 
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.CallableDescriptor;
 import org.jetbrains.jet.lang.descriptors.TypeParameterDescriptor;
 import org.jetbrains.jet.lang.descriptors.ValueParameterDescriptor;
+import org.jetbrains.jet.lang.psi.Call;
 import org.jetbrains.jet.lang.resolve.calls.tasks.ExplicitReceiverKind;
 import org.jetbrains.jet.lang.resolve.scopes.receivers.ReceiverValue;
 import org.jetbrains.jet.lang.types.JetType;
@@ -32,6 +34,12 @@ public abstract class DelegatingResolvedCall<D extends CallableDescriptor> imple
 
     public DelegatingResolvedCall(@NotNull ResolvedCall<? extends D> resolvedCall) {
         this.resolvedCall = resolvedCall;
+    }
+
+    @NotNull
+    @Override
+    public Call getCall() {
+        return resolvedCall.getCall();
     }
 
     @NotNull
@@ -70,7 +78,7 @@ public abstract class DelegatingResolvedCall<D extends CallableDescriptor> imple
         return resolvedCall.getValueArguments();
     }
 
-    @NotNull
+    @Nullable
     @Override
     public List<ResolvedValueArgument> getValueArgumentsByIndex() {
         return resolvedCall.getValueArgumentsByIndex();

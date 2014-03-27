@@ -32,7 +32,7 @@ import org.jetbrains.jet.lang.diagnostics.DiagnosticFactory;
 import org.jetbrains.jet.lang.diagnostics.Errors;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.*;
-import org.jetbrains.jet.lang.resolve.calls.autocasts.DataFlowInfo;
+import org.jetbrains.jet.lang.resolve.calls.CallResolver;
 import org.jetbrains.jet.lang.resolve.calls.inference.ConstraintPosition;
 import org.jetbrains.jet.lang.resolve.calls.inference.ConstraintSystem;
 import org.jetbrains.jet.lang.resolve.calls.inference.ConstraintSystemImpl;
@@ -61,7 +61,12 @@ import static org.jetbrains.jet.lang.types.TypeUtils.noExpectedType;
 
 public class ExpressionTypingUtils {
 
-    private ExpressionTypingUtils() {
+    private final ExpressionTypingServices expressionTypingServices;
+    private final CallResolver callResolver;
+
+    public ExpressionTypingUtils(@NotNull ExpressionTypingServices expressionTypingServices, @NotNull CallResolver resolver) {
+        this.expressionTypingServices = expressionTypingServices;
+        callResolver = resolver;
     }
 
     @Nullable
@@ -148,13 +153,13 @@ public class ExpressionTypingUtils {
             return false;
         }
 
-        ResolvedCall<? extends CallableDescriptor> call = context.get(BindingContext.RESOLVED_CALL, callExpression.getCalleeExpression());
-        if (call == null) {
+        ResolvedCall<?> resolvedCall = context.get(BindingContext.RESOLVED_CALL, callExpression.getCalleeExpression());
+        if (resolvedCall == null) {
             return false;
         }
 
-        CallableDescriptor callable = call.getResultingDescriptor();
-        if (callable instanceof SimpleFunctionDescriptor && ((SimpleFunctionDescriptor) callable).isInline()) {
+        CallableDescriptor callable = resolvedCall.getResultingDescriptor();
+        if (callable instanceof SimpleFunctionDescriptor && ((SimpleFunctionDescriptor) callable).getInlineStrategy().isInline()) {
             DeclarationDescriptor scopeContainerParent = scopeContainer.getContainingDeclaration();
             assert scopeContainerParent != null : "parent is null for " + scopeContainer;
             return scopeContainerParent == variableParent || isCapturedInInline(context, scopeContainerParent, variableParent);
@@ -196,20 +201,6 @@ public class ExpressionTypingUtils {
                 }
             }
         }
-    }
-
-    public static boolean isVariableIterable(@NotNull ExpressionTypingServices expressionTypingServices,
-            @NotNull Project project, @NotNull VariableDescriptor variableDescriptor, @NotNull JetScope scope) {
-        JetExpression expression = JetPsiFactory.createExpression(project, "fake");
-        ExpressionReceiver expressionReceiver = new ExpressionReceiver(expression, variableDescriptor.getType());
-        ExpressionTypingContext context = ExpressionTypingContext.newContext(
-                expressionTypingServices,
-                new BindingTraceContext(),
-                scope,
-                DataFlowInfo.EMPTY,
-                TypeUtils.NO_EXPECTED_TYPE
-        );
-        return ControlStructureTypingVisitor.checkIterableConvention(expressionReceiver, context) != null;
     }
 
     /**
@@ -318,7 +309,7 @@ public class ExpressionTypingUtils {
     }
 
     @NotNull
-    public static OverloadResolutionResults<FunctionDescriptor> resolveFakeCall(
+    public OverloadResolutionResults<FunctionDescriptor> resolveFakeCall(
             @NotNull ExpressionTypingContext context,
             @NotNull ReceiverValue receiver,
             @NotNull Name name,
@@ -328,7 +319,7 @@ public class ExpressionTypingUtils {
                                                                                        name);
         List<JetExpression> fakeArguments = Lists.newArrayList();
         for (JetType type : argumentTypes) {
-            fakeArguments.add(createFakeExpressionOfType(context.expressionTypingServices.getProject(), traceWithFakeArgumentInfo,
+            fakeArguments.add(createFakeExpressionOfType(expressionTypingServices.getProject(), traceWithFakeArgumentInfo,
                                                          "fakeArgument" + fakeArguments.size(), type));
         }
         return makeAndResolveFakeCall(receiver, context.replaceBindingTrace(traceWithFakeArgumentInfo), fakeArguments, name).getSecond();
@@ -347,7 +338,7 @@ public class ExpressionTypingUtils {
     }
 
     @NotNull
-    public static OverloadResolutionResults<FunctionDescriptor> resolveFakeCall(
+    public OverloadResolutionResults<FunctionDescriptor> resolveFakeCall(
             @NotNull ExpressionTypingContext context,
             @NotNull ReceiverValue receiver,
             @NotNull Name name
@@ -356,7 +347,7 @@ public class ExpressionTypingUtils {
     }
 
     @NotNull
-    public static OverloadResolutionResults<FunctionDescriptor> resolveFakeCall(
+    public OverloadResolutionResults<FunctionDescriptor> resolveFakeCall(
             @NotNull ReceiverValue receiver,
             @NotNull ExpressionTypingContext context,
             @NotNull List<JetExpression> valueArguments,
@@ -366,17 +357,17 @@ public class ExpressionTypingUtils {
     }
 
     @NotNull
-    public static Pair<Call, OverloadResolutionResults<FunctionDescriptor>> makeAndResolveFakeCall(
+    public Pair<Call, OverloadResolutionResults<FunctionDescriptor>> makeAndResolveFakeCall(
             @NotNull ReceiverValue receiver,
             @NotNull ExpressionTypingContext context,
             @NotNull List<JetExpression> valueArguments,
             @NotNull Name name
     ) {
-        final JetReferenceExpression fake = JetPsiFactory.createSimpleName(context.expressionTypingServices.getProject(), "fake");
+        final JetReferenceExpression fake = JetPsiFactory.createSimpleName(expressionTypingServices.getProject(), "fake");
         TemporaryBindingTrace fakeTrace = TemporaryBindingTrace.create(context.trace, "trace to resolve fake call for", name);
         Call call = CallMaker.makeCallWithExpressions(fake, receiver, null, fake, valueArguments);
         OverloadResolutionResults<FunctionDescriptor> results =
-                context.replaceBindingTrace(fakeTrace).resolveCallWithGivenName(call, fake, name);
+                callResolver.resolveCallWithGivenName(context.replaceBindingTrace(fakeTrace), call, fake, name);
         if (results.isSuccess()) {
             fakeTrace.commit(new TraceEntryFilter() {
                 @Override
@@ -389,7 +380,7 @@ public class ExpressionTypingUtils {
         return Pair.create(call, results);
     }
 
-    public static void defineLocalVariablesFromMultiDeclaration(
+    public void defineLocalVariablesFromMultiDeclaration(
             @NotNull WritableScope writableScope,
             @NotNull JetMultiDeclaration multiDeclaration,
             @NotNull ReceiverValue receiver,
@@ -425,7 +416,7 @@ public class ExpressionTypingUtils {
             if (componentType == null) {
                 componentType = ErrorUtils.createErrorType(componentName + "() return type");
             }
-            VariableDescriptor variableDescriptor = context.expressionTypingServices.getDescriptorResolver().
+            VariableDescriptor variableDescriptor = expressionTypingServices.getDescriptorResolver().
                 resolveLocalVariableDescriptorWithType(writableScope, entry, componentType, context.trace);
 
             VariableDescriptor olderVariable = writableScope.getLocalVariable(variableDescriptor.getName());
@@ -445,10 +436,10 @@ public class ExpressionTypingUtils {
     }
 
     @NotNull
-    private static JetType getExpectedTypeForComponent(ExpressionTypingContext context, JetMultiDeclarationEntry entry) {
+    private JetType getExpectedTypeForComponent(ExpressionTypingContext context, JetMultiDeclarationEntry entry) {
         JetTypeReference entryTypeRef = entry.getTypeRef();
         if (entryTypeRef != null) {
-            return context.expressionTypingServices.getTypeResolver().resolveType(context.scope, entryTypeRef, context.trace, true);
+            return expressionTypingServices.getTypeResolver().resolveType(context.scope, entryTypeRef, context.trace, true);
         }
         else {
             return TypeUtils.NO_EXPECTED_TYPE;

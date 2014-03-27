@@ -16,7 +16,9 @@
 
 package org.jetbrains.jet.plugin.k2jsrun;
 
-import com.intellij.ide.browsers.BrowsersConfiguration;
+    import com.intellij.ide.browsers.BrowserFamily;
+import com.intellij.ide.browsers.WebBrowser;
+import com.intellij.ide.browsers.WebBrowserManager;
 import com.intellij.openapi.fileChooser.FileChooserDescriptor;
 import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory;
 import com.intellij.openapi.fileTypes.StdFileTypes;
@@ -25,13 +27,13 @@ import com.intellij.openapi.options.SettingsEditor;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.roots.ProjectRootManager;
 import com.intellij.openapi.ui.TextFieldWithBrowseButton;
+import com.intellij.ui.JBColor;
 import com.intellij.ui.ListCellRendererWrapper;
 import org.jetbrains.annotations.NotNull;
 
 import javax.swing.*;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
-import java.awt.*;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
 import java.io.File;
@@ -67,8 +69,8 @@ public final class K2JSRunConfigurationEditor extends SettingsEditor<K2JSRunConf
         K2JSConfigurationSettings settings = configuration.settings();
         settings.setPageToOpenFilePath(toSystemIndependentName(htmlChooseFile.getText()));
         Object item = browserComboBox.getSelectedItem();
-        if (item instanceof BrowsersConfiguration.BrowserFamily) {
-            settings.setBrowserFamily((BrowsersConfiguration.BrowserFamily)item);
+        if (item instanceof BrowserFamily) {
+            settings.setBrowserFamily((BrowserFamily) item);
         }
         settings.setGeneratedFilePath(toSystemIndependentName(generatedChooseFile.getText()));
         settings.setShouldOpenInBrowserAfterTranslation(openInBrowserCheckBox.isSelected());
@@ -92,26 +94,26 @@ public final class K2JSRunConfigurationEditor extends SettingsEditor<K2JSRunConf
         final JTextField textField = generatedChooseFile.getTextField();
         textField.getDocument().addDocumentListener(new DocumentListener() {
             @Override
-            public void insertUpdate(DocumentEvent e) {
+            public void insertUpdate(@NotNull DocumentEvent e) {
                 onChange();
             }
 
             @Override
-            public void removeUpdate(DocumentEvent e) {
+            public void removeUpdate(@NotNull DocumentEvent e) {
                 onChange();
             }
 
             @Override
-            public void changedUpdate(DocumentEvent e) {
+            public void changedUpdate(@NotNull DocumentEvent e) {
                 onChange();
             }
 
             private void onChange() {
                 File file = new File(generatedChooseFile.getText());
                 if (!file.isDirectory()) {
-                    textField.setForeground(Color.RED);
+                    textField.setForeground(JBColor.red);
                 } else {
-                    textField.setForeground(Color.BLACK);
+                    textField.setForeground(JBColor.foreground());
                 }
             }
         });
@@ -120,7 +122,7 @@ public final class K2JSRunConfigurationEditor extends SettingsEditor<K2JSRunConf
     private void setUpShowInBrowserCheckBox() {
         openInBrowserCheckBox.addItemListener(new ItemListener() {
             @Override
-            public void itemStateChanged(ItemEvent e) {
+            public void itemStateChanged(@NotNull ItemEvent e) {
                 boolean selected = openInBrowserCheckBox.isSelected();
                 htmlChooseFile.setEnabled(selected);
                 browserComboBox.setEnabled(selected);
@@ -137,12 +139,12 @@ public final class K2JSRunConfigurationEditor extends SettingsEditor<K2JSRunConf
     }
 
     private void setUpBrowserCombobox() {
-        for (BrowsersConfiguration.BrowserFamily family : BrowsersConfiguration.getInstance().getActiveBrowsers()) {
-            browserComboBox.addItem(family);
+        for (WebBrowser browser : WebBrowserManager.getInstance().getActiveBrowsers()) {
+            browserComboBox.addItem(browser.getFamily());
         }
-        browserComboBox.setRenderer(new ListCellRendererWrapper<BrowsersConfiguration.BrowserFamily>() {
+        browserComboBox.setRenderer(new ListCellRendererWrapper<BrowserFamily>() {
             @Override
-            public void customize(JList list, BrowsersConfiguration.BrowserFamily family, int index, boolean selected, boolean hasFocus) {
+            public void customize(JList list, BrowserFamily family, int index, boolean selected, boolean hasFocus) {
                 if (family != null) {
                     setText(family.getName());
                     setIcon(family.getIcon());

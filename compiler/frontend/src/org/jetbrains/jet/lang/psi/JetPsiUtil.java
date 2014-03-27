@@ -21,7 +21,10 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.Lists;
 import com.intellij.lang.ASTNode;
 import com.intellij.openapi.util.Condition;
-import com.intellij.psi.*;
+import com.intellij.psi.PsiComment;
+import com.intellij.psi.PsiElement;
+import com.intellij.psi.PsiFile;
+import com.intellij.psi.PsiWhiteSpace;
 import com.intellij.psi.impl.CheckUtil;
 import com.intellij.psi.impl.source.codeStyle.CodeEditUtil;
 import com.intellij.psi.tree.IElementType;
@@ -33,6 +36,7 @@ import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.JetNodeTypes;
 import org.jetbrains.jet.kdoc.psi.api.KDocElement;
 import org.jetbrains.jet.lang.parsing.JetExpressionParsing;
+import org.jetbrains.jet.lang.psi.psiUtil.PsiUtilPackage;
 import org.jetbrains.jet.lang.resolve.ImportPath;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.FqNameUnsafe;
@@ -43,7 +47,10 @@ import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 import org.jetbrains.jet.lexer.JetToken;
 import org.jetbrains.jet.lexer.JetTokens;
 
-import java.util.*;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 public class JetPsiUtil {
     private JetPsiUtil() {
@@ -183,63 +190,6 @@ public class JetPsiUtil {
         else {
             return unquoteIdentifier(quoted);
         }
-    }
-
-    @NotNull
-    public static FqName getFQName(@NotNull JetFile file) {
-        JetPackageDirective directive = file.getPackageDirective();
-        return directive != null ? directive.getFqName() : FqName.ROOT;
-    }
-
-    @Nullable
-    public static FqNameUnsafe getUnsafeFQName(@NotNull JetNamedDeclaration namedDeclaration) {
-        FqName fqName = getFQName(namedDeclaration);
-        return fqName != null ? fqName.toUnsafe() : null;
-    }
-
-    @Nullable
-    public static FqName getFQName(@NotNull JetNamedDeclaration namedDeclaration) {
-        Name name = namedDeclaration.getNameAsName();
-        if (name == null) {
-            return null;
-        }
-
-        PsiElement parent = namedDeclaration.getParent();
-        if (parent instanceof JetClassBody) {
-            // One nesting to JetClassBody doesn't affect to qualified name
-            parent = parent.getParent();
-        }
-
-        FqName firstPart = null;
-        if (parent instanceof JetFile) {
-            firstPart = getFQName((JetFile) parent);
-        }
-        else if (parent instanceof JetNamedFunction || parent instanceof JetClass) {
-            firstPart = getFQName((JetNamedDeclaration) parent);
-        }
-        else if (namedDeclaration instanceof JetParameter) {
-            JetClass constructorClass = getClassIfParameterIsProperty((JetParameter) namedDeclaration);
-            if (constructorClass != null) {
-                firstPart = getFQName(constructorClass);
-            }
-        }
-        else if (parent instanceof JetObjectDeclaration) {
-            if (parent.getParent() instanceof JetClassObject) {
-                JetClassOrObject classOrObject = PsiTreeUtil.getParentOfType(parent, JetClassOrObject.class);
-                if (classOrObject != null) {
-                    firstPart = getFQName(classOrObject);
-                }
-            }
-            else {
-                firstPart = getFQName((JetNamedDeclaration) parent);
-            }
-        }
-
-        if (firstPart == null) {
-            return null;
-        }
-
-        return firstPart.child(name);
     }
 
     /** @return <code>null</code> iff the tye has syntactic errors */
@@ -398,31 +348,14 @@ public class JetPsiUtil {
 
     @Nullable
     public static JetSimpleNameExpression getLastReference(@NotNull JetExpression importedReference) {
-        if (importedReference instanceof JetDotQualifiedExpression) {
-            JetExpression selectorExpression = ((JetDotQualifiedExpression) importedReference).getSelectorExpression();
-            return (selectorExpression instanceof JetSimpleNameExpression) ? (JetSimpleNameExpression) selectorExpression : null;
-        }
-        if (importedReference instanceof JetSimpleNameExpression) {
-            return (JetSimpleNameExpression) importedReference;
-        }
-        return null;
+        JetElement selector = PsiUtilPackage.getQualifiedElementSelector(importedReference);
+        return selector instanceof JetSimpleNameExpression ? (JetSimpleNameExpression) selector : null;
     }
 
     public static boolean isSelectorInQualified(@NotNull JetSimpleNameExpression nameExpression) {
-        PsiElement nameExpressionParent = nameExpression.getParent();
-
-        if (nameExpressionParent instanceof JetUserType) {
-            assert ((JetUserType) nameExpressionParent).getReferenceExpression() == nameExpression;
-            return ((JetUserType) nameExpressionParent).getQualifier() != null;
-        }
-
-        JetExpression selector = nameExpression;
-        if (nameExpressionParent instanceof JetCallExpression && ((JetCallExpression) nameExpressionParent).getCalleeExpression() == nameExpression) {
-            selector = (JetCallExpression) nameExpressionParent;
-        }
-
-        PsiElement selectorParent = selector.getParent();
-        return selectorParent instanceof JetQualifiedExpression && (((JetQualifiedExpression) selectorParent).getSelectorExpression() == selector);
+        JetElement qualifiedElement = PsiUtilPackage.getQualifiedElement(nameExpression);
+        return qualifiedElement instanceof JetQualifiedExpression
+               || ((qualifiedElement instanceof JetUserType) && ((JetUserType) qualifiedElement).getQualifier() != null);
     }
 
     public static boolean isLHSOfDot(@NotNull JetExpression expression) {
@@ -445,21 +378,12 @@ public class JetPsiUtil {
         return callOperationNode != null && callOperationNode.getElementType() == JetTokens.SAFE_ACCESS;
     }
 
-    public static boolean isFunctionLiteralWithoutDeclaredParameterTypes(@Nullable JetExpression expression) {
-        if (!(expression instanceof JetFunctionLiteralExpression)) return false;
-        JetFunctionLiteralExpression functionLiteral = (JetFunctionLiteralExpression) expression;
-        for (JetParameter parameter : functionLiteral.getValueParameters()) {
-            if (parameter.getTypeReference() != null) {
-                return false;
-            }
-        }
-        return true;
-    }
-
+    // SCRIPT: is declaration in script?
     public static boolean isScriptDeclaration(@NotNull JetDeclaration namedDeclaration) {
         return getScript(namedDeclaration) != null;
     }
 
+    // SCRIPT: get script from top-level declaration
     @Nullable
     public static JetScript getScript(@NotNull JetDeclaration namedDeclaration) {
         PsiElement parent = namedDeclaration.getParent();
@@ -671,6 +595,8 @@ public class JetPsiUtil {
             return false;
         }
 
+        if (parentExpression instanceof JetPackageDirective) return false;
+
         if (parentExpression instanceof JetWhenExpression || innerExpression instanceof JetWhenExpression) {
             return false;
         }
@@ -836,7 +762,7 @@ public class JetPsiUtil {
 
         final List<JetElement> results = Lists.newArrayList();
 
-        ((JetElement) root).accept(
+        root.accept(
                 new JetVisitorVoid() {
                     @Override
                     public void visitJetElement(@NotNull JetElement element) {
@@ -904,21 +830,6 @@ public class JetPsiUtil {
             return e;
         }
         return null;
-    }
-
-    public static NavigatablePsiElement getPackageReference(@NotNull JetFile file, int partIndex) {
-        JetPackageDirective directive = file.getPackageDirective();
-        if (directive == null) {
-            throw new IllegalArgumentException("Should be called only for files with package directive: " + file);
-        }
-
-        List<JetSimpleNameExpression> names = directive.getPackageNames();
-        if (!(0 <= partIndex && partIndex < names.size())) {
-            throw new IndexOutOfBoundsException(String.format("%s index for file with directive %s is out of range", partIndex,
-                                                              directive.getText()));
-        }
-
-        return names.get(partIndex);
     }
 
     // Delete given element and all the elements separating it from the neighboring elements of the same class
@@ -1041,5 +952,10 @@ public class JetPsiUtil {
                 "JetOperationExpression should have operation token of type JetToken: " +
                 expression;
         return (JetToken) elementType;
+    }
+
+    public static boolean isLabelIdentifierExpression(PsiElement element) {
+        return element instanceof JetSimpleNameExpression &&
+               ((JetSimpleNameExpression) element).getReferencedNameElementType() == JetTokens.LABEL_IDENTIFIER;
     }
 }

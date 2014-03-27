@@ -55,10 +55,14 @@ import static org.jetbrains.jet.lang.resolve.BindingContext.CALL;
 import static org.jetbrains.jet.lang.resolve.BindingContext.RESOLVED_CALL;
 
 public class ControlStructureTypingUtils {
-    private ControlStructureTypingUtils() {
+
+    private final ExpressionTypingServices expressionTypingServices;
+
+    public ControlStructureTypingUtils(@NotNull ExpressionTypingServices expressionTypingServices) {
+        this.expressionTypingServices = expressionTypingServices;
     }
 
-    /*package*/ static ResolvedCall<FunctionDescriptor> resolveSpecialConstructionAsCall(
+    /*package*/ ResolvedCall<FunctionDescriptor> resolveSpecialConstructionAsCall(
             @NotNull Call call,
             @NotNull String constructionName,
             @NotNull List<String> argumentNames,
@@ -68,13 +72,11 @@ public class ControlStructureTypingUtils {
     ) {
         SimpleFunctionDescriptorImpl function = createFunctionDescriptorForSpecialConstruction(
                 constructionName.toUpperCase(), argumentNames, isArgumentNullable);
-        JetReferenceExpression reference = JetPsiFactory.createSimpleName(
-                context.expressionTypingServices.getProject(), "fake" + constructionName + "Call");
         TracingStrategy tracing = createTracingForSpecialConstruction(call, constructionName);
-        ResolutionCandidate<CallableDescriptor> resolutionCandidate = ResolutionCandidate.<CallableDescriptor>create(function, null);
-        CallResolver callResolver = context.expressionTypingServices.getCallResolver();
+        ResolutionCandidate<CallableDescriptor> resolutionCandidate = ResolutionCandidate.<CallableDescriptor>create(call, function, null);
+        CallResolver callResolver = expressionTypingServices.getCallResolver();
         OverloadResolutionResults<FunctionDescriptor> results = callResolver.resolveCallWithKnownCandidate(
-                call, tracing, reference, context, resolutionCandidate, dataFlowInfoForArguments);
+                call, tracing, context, resolutionCandidate, dataFlowInfoForArguments);
         assert results.isSingleResult() : "Not single result after resolving one known candidate";
         return results.getResultingCall();
     }
@@ -88,7 +90,7 @@ public class ControlStructureTypingUtils {
 
         Name specialFunctionName = Name.identifierNoValidate("<SPECIAL-FUNCTION-FOR-" + constructionName + "-RESOLVE>");
 
-        SimpleFunctionDescriptorImpl function = new SimpleFunctionDescriptorImpl(
+        SimpleFunctionDescriptorImpl function = SimpleFunctionDescriptorImpl.create(
                 ErrorUtils.getErrorModule(),//todo hack to avoid returning true in 'isError(DeclarationDescriptor)'
                 Annotations.EMPTY, specialFunctionName, CallableMemberDescriptor.Kind.DECLARATION);
 
@@ -104,7 +106,7 @@ public class ControlStructureTypingUtils {
         for (int i = 0; i < argumentNames.size(); i++) {
             JetType argumentType = isArgumentNullable.get(i) ? nullableType : type;
             ValueParameterDescriptorImpl valueParameter = new ValueParameterDescriptorImpl(
-                    function, i, Annotations.EMPTY, Name.identifier(argumentNames.get(i)), argumentType, false, null);
+                    function, null, i, Annotations.EMPTY, Name.identifier(argumentNames.get(i)), argumentType, false, null);
             valueParameters.add(valueParameter);
         }
         function.initialize(
@@ -238,6 +240,7 @@ public class ControlStructureTypingUtils {
         };
     }
 
+    @NotNull
     /*package*/ static TracingStrategy createTracingForSpecialConstruction(
             final @NotNull Call call,
             final @NotNull String constructionName

@@ -19,21 +19,17 @@ package org.jetbrains.jet.plugin.caches;
 import com.intellij.navigation.GotoClassContributor;
 import com.intellij.navigation.NavigationItem;
 import com.intellij.openapi.project.Project;
-import com.intellij.psi.PsiClass;
 import com.intellij.psi.search.GlobalSearchScope;
-import com.intellij.psi.search.PsiShortNamesCache;
 import com.intellij.util.ArrayUtil;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.jet.lang.psi.JetClass;
 import org.jetbrains.jet.lang.psi.JetClassOrObject;
+import org.jetbrains.jet.lang.psi.JetEnumEntry;
 import org.jetbrains.jet.lang.psi.JetNamedDeclaration;
-import org.jetbrains.jet.lang.psi.JetPsiUtil;
 import org.jetbrains.jet.lang.resolve.name.FqName;
-import org.jetbrains.jet.plugin.stubindex.JetShortClassNameIndex;
+import org.jetbrains.jet.plugin.stubindex.JetClassShortNameIndex;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.List;
 
 public class JetGotoClassContributor implements GotoClassContributor {
@@ -41,7 +37,7 @@ public class JetGotoClassContributor implements GotoClassContributor {
     public String getQualifiedName(NavigationItem item) {
         if (item instanceof JetNamedDeclaration) {
             JetNamedDeclaration jetClass = (JetNamedDeclaration) item;
-            FqName name = JetPsiUtil.getFQName(jetClass);
+            FqName name = jetClass.getFqName();
             if (name != null) {
                 return name.asString();
             }
@@ -58,37 +54,22 @@ public class JetGotoClassContributor implements GotoClassContributor {
     @NotNull
     @Override
     public String[] getNames(Project project, boolean includeNonProjectItems) {
-        return ArrayUtil.toObjectArray(JetShortClassNameIndex.getInstance().getAllKeys(project), String.class);
+        return ArrayUtil.toObjectArray(JetClassShortNameIndex.getInstance().getAllKeys(project), String.class);
     }
 
     @NotNull
     @Override
     public NavigationItem[] getItemsByName(String name, String pattern, Project project, boolean includeNonProjectItems) {
         GlobalSearchScope scope = includeNonProjectItems ? GlobalSearchScope.allScope(project) : GlobalSearchScope.projectScope(project);
-        Collection<JetClassOrObject> classesOrObjects = JetShortClassNameIndex.getInstance().get(name, project, scope);
+        Collection<JetClassOrObject> classesOrObjects = JetClassShortNameIndex.getInstance().get(name, project, scope);
 
         if (classesOrObjects.isEmpty()) {
             return NavigationItem.EMPTY_NAVIGATION_ITEM_ARRAY;
         }
 
-        PsiClass[] classes = PsiShortNamesCache.getInstance(project).getClassesByName(name, scope);
-        Collection<String> javaQualifiedNames = new HashSet<String>();
-        for (PsiClass aClass : classes) {
-            String qualifiedName = aClass.getQualifiedName();
-            if (qualifiedName != null) {
-                javaQualifiedNames.add(qualifiedName);
-            }
-        }
-
         List<NavigationItem> items = new ArrayList<NavigationItem>();
         for (JetClassOrObject classOrObject : classesOrObjects) {
-            FqName fqName = JetPsiUtil.getFQName(classOrObject);
-            if (fqName == null || javaQualifiedNames.contains(fqName.toString())) {
-                // Elements will be added by Java class contributor
-                continue;
-            }
-
-            if (classOrObject instanceof JetClass) {
+            if (classOrObject != null && !(classOrObject instanceof JetEnumEntry)) {
                 items.add(classOrObject);
             }
         }

@@ -7,10 +7,10 @@ public trait <metaclass-for-Derived> : objc.<metaclass-for-Base> {
 }
 
 public trait Base {
-    public open fun someBaseMethod(): jet.Unit
+    public open fun someBaseMethod(): kotlin.Unit
 }
 
 public trait Derived : objc.Base {
-    public open override /*1*/ /*fake_override*/ fun someBaseMethod(): jet.Unit
-    public open fun someDerivedMethod(): jet.Unit
+    public open override /*1*/ /*fake_override*/ fun someBaseMethod(): kotlin.Unit
+    public open fun someDerivedMethod(): kotlin.Unit
 }

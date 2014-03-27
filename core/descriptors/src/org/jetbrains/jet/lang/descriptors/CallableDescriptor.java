@@ -16,6 +16,7 @@
 
 package org.jetbrains.jet.lang.descriptors;
 
+import jet.runtime.typeinfo.KotlinSignature;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.types.JetType;
@@ -50,6 +51,10 @@ public interface CallableDescriptor extends DeclarationDescriptorWithVisibility,
     @NotNull
     List<ValueParameterDescriptor> getValueParameters();
 
+    boolean hasStableParameterNames();
+
+    // Workaround for KT-4609 Wildcard types (super/extends) shouldn't be loaded as nullable
+    @KotlinSignature("fun getOverriddenDescriptors(): Set<out CallableDescriptor>")
     @NotNull
     Set<? extends CallableDescriptor> getOverriddenDescriptors();
 }

@@ -30,6 +30,7 @@ import org.jetbrains.jet.lang.psi.JetPsiUtil;
 import org.jetbrains.jet.lang.psi.psiUtil.PsiUtilPackage;
 import org.jetbrains.jet.lang.psi.stubs.PsiJetObjectStub;
 import org.jetbrains.jet.lang.psi.stubs.impl.PsiJetObjectStubImpl;
+import org.jetbrains.jet.lang.resolve.lazy.ResolveSessionUtils;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 
 import java.io.IOException;
@@ -58,10 +59,9 @@ public class JetObjectElementType extends JetStubElementType<PsiJetObjectStub, J
     @Override
     public PsiJetObjectStub createStub(@NotNull JetObjectDeclaration psi, StubElement parentStub) {
         String name = psi.getName();
-        FqName fqName = psi.getFqName();
+        FqName fqName = ResolveSessionUtils.safeFqNameForLazyResolve(psi);
         List<String> superNames = PsiUtilPackage.getSuperNames(psi);
         return new PsiJetObjectStubImpl(
-                JetStubElementTypes.OBJECT_DECLARATION,
                 parentStub,
                 name,
                 fqName,
@@ -107,9 +107,7 @@ public class JetObjectElementType extends JetStubElementType<PsiJetObjectStub, J
             superNames[i] = dataStream.readName();
         }
 
-        return new PsiJetObjectStubImpl(
-                JetStubElementTypes.OBJECT_DECLARATION, parentStub, name, fqName, superNames, isTopLevel, isClassObject, isLocal
-        );
+        return new PsiJetObjectStubImpl(parentStub, name, fqName, superNames, isTopLevel, isClassObject, isLocal);
     }
 
     @Override

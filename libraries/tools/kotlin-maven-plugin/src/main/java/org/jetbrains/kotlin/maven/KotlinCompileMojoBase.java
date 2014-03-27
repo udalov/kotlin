@@ -33,6 +33,7 @@ import org.jetbrains.jet.cli.common.messages.CompilerMessageLocation;
 import org.jetbrains.jet.cli.common.messages.CompilerMessageSeverity;
 import org.jetbrains.jet.cli.common.messages.MessageCollector;
 import org.jetbrains.jet.cli.jvm.K2JVMCompiler;
+import org.jetbrains.jet.cli.common.arguments.CompilerArgumentsUtil;
 
 import java.io.File;
 import java.io.IOException;
@@ -149,6 +150,13 @@ public abstract class KotlinCompileMojoBase extends AbstractMojo {
      */
     public String testModule;
 
+    /**
+     * Switch method inlining on/off: possible values are "on" and "off".
+     *
+     * @parameter
+     */
+    public String inline;
+
     @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
         getLog().info("Kotlin Compiler version " + KotlinVersion.VERSION);
@@ -198,7 +206,7 @@ public abstract class KotlinCompileMojoBase extends AbstractMojo {
             }
         };
 
-        final ExitCode exitCode = compiler.exec(messageCollector, arguments);
+        final ExitCode exitCode = executeCompiler(compiler, arguments, messageCollector);
 
         switch (exitCode) {
             case COMPILATION_ERROR:
@@ -250,6 +258,15 @@ public abstract class KotlinCompileMojoBase extends AbstractMojo {
         return new K2JVMCompilerArguments();
     }
 
+    @NotNull
+    protected ExitCode executeCompiler(
+            @NotNull CLICompiler compiler,
+            @NotNull CommonCompilerArguments arguments,
+            @NotNull MessageCollector messageCollector
+    ) {
+        return compiler.exec(messageCollector, arguments);
+    }
+
     /**
      * Derived classes can register custom plugins or configurations
      */
@@ -295,6 +312,11 @@ public abstract class KotlinCompileMojoBase extends AbstractMojo {
         arguments.noJdkAnnotations = true;
         arguments.annotations = getFullAnnotationsPath(log, annotationPaths);
         log.info("Using kotlin annotations from " + arguments.annotations);
+        arguments.inline = inline;
+        if (!CompilerArgumentsUtil.checkInlineOption(arguments.inline)) {
+            throw new MojoExecutionException(CompilerArgumentsUtil.getWrongOptionErrorMessage(arguments.inline));
+        }
+        log.info("Method inlining is " + CompilerArgumentsUtil.optionToInlineFlag(arguments.inline));
     }
 
     protected String getFullAnnotationsPath(Log log, List<String> annotations) {

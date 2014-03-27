@@ -1,12 +1,12 @@
 package objc
 
 public trait <metaclass-for-Base> {
-    public open fun baseMethod(): jet.Unit
+    public open fun baseMethod(): kotlin.Unit
 }
 
 public trait <metaclass-for-Derived> : objc.<metaclass-for-Base> {
-    public open override /*1*/ /*fake_override*/ fun baseMethod(): jet.Unit
-    public open fun derivedMethod(): jet.Unit
+    public open override /*1*/ /*fake_override*/ fun baseMethod(): kotlin.Unit
+    public open fun derivedMethod(): kotlin.Unit
 }
 
 public trait Base {

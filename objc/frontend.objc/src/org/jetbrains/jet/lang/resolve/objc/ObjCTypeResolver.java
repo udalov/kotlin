@@ -17,7 +17,7 @@
 package org.jetbrains.jet.lang.resolve.objc;
 
 import com.intellij.util.containers.ContainerUtil;
-import jet.Function0;
+import kotlin.Function0;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.lang.descriptors.PackageFragmentDescriptor;
 import org.jetbrains.jet.lang.descriptors.annotations.Annotations;

@@ -51,12 +51,36 @@ public class JetJavaFacadeTest extends JetLightCodeInsightFixtureTestCase {
         doTestWrapMethod(false);
     }
 
+    public void testObjectSubclassing() {
+        doTestWrapMethod(true);
+    }
+
     public void testDoNotWrapFunInAnonymousObject() {
         doTestWrapMethod(false);
     }
 
     public void testWrapFunInClassWithoutBody() {
         doTestWrapMethod(true);
+    }
+
+    public void testLocalClassSubclass() {
+        doTestWrapClass();
+    }
+
+    public void testClassWithObjectLiteralInClassObjectField() {
+        doTestWrapClass();
+    }
+
+    public void testClassWithObjectLiteralInConstructorProperty() {
+        doTestWrapClass();
+    }
+
+    public void testClassWithObjectLiteralInFun() {
+        doTestWrapClass();
+    }
+
+    public void testClassWithObjectLiteralInField() {
+        doTestWrapClass();
     }
 
     public void testWrapFunInClassObject() {
@@ -137,19 +161,6 @@ public class JetJavaFacadeTest extends JetLightCodeInsightFixtureTestCase {
 
     public void testWrapFunctionParameter() {
         doTestWrapParameter(false, false);
-    }
-
-    public void testEa38770() {
-        myFixture.configureByFile(fileName());
-
-        PsiReference reference = myFixture.getFile().findReferenceAt(myFixture.getCaretOffset());
-        assertNotNull(reference);
-        PsiElement element = reference.resolve();
-        assertNotNull(element);
-        assertInstanceOf(element, JetNamedFunction.class);
-        JetNamedFunction toString = (JetNamedFunction) element;
-
-        assertNull("There should be no wrapper for built-in function", LightClassUtil.getLightClassMethod(toString));
     }
 
     public void testInnerClass() throws Exception {

@@ -30,6 +30,7 @@ import org.jetbrains.jet.lang.psi.JetClass;
 import org.jetbrains.jet.lang.psi.JetModifierList;
 import org.jetbrains.jet.lang.psi.JetModifierListOwner;
 import org.jetbrains.jet.lang.resolve.BindingContext;
+import org.jetbrains.jet.lang.resolve.DescriptorUtils;
 import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCall;
 import org.jetbrains.jet.lang.resolve.constants.*;
 import org.jetbrains.jet.lang.resolve.constants.StringValue;
@@ -45,6 +46,8 @@ import java.util.*;
 import static org.jetbrains.jet.lang.resolve.BindingContextUtils.descriptorToDeclaration;
 
 public abstract class AnnotationCodegen {
+    public static final FqName VOLATILE_FQ_NAME = new FqName("kotlin.volatile");
+
     private static final AnnotationVisitor NO_ANNOTATION_VISITOR = new AnnotationVisitor(Opcodes.ASM4) {};
 
     private final JetTypeMapper typeMapper;
@@ -83,8 +86,7 @@ public abstract class AnnotationCodegen {
 
         List<JetAnnotationEntry> annotationEntries = modifierList.getAnnotationEntries();
         for (JetAnnotationEntry annotationEntry : annotationEntries) {
-            ResolvedCall<? extends CallableDescriptor> resolvedCall =
-                    bindingContext.get(BindingContext.RESOLVED_CALL, annotationEntry.getCalleeExpression());
+            ResolvedCall<?> resolvedCall = bindingContext.get(BindingContext.RESOLVED_CALL, annotationEntry.getCalleeExpression());
             if (resolvedCall == null) continue; // Skipping annotations if they are not resolved. Needed for JetLightClass generation
 
             AnnotationDescriptor annotationDescriptor = bindingContext.get(BindingContext.ANNOTATION, annotationEntry);
@@ -149,7 +151,7 @@ public abstract class AnnotationCodegen {
 
     private static boolean isVolatile(@NotNull AnnotationDescriptor annotationDescriptor) {
         ClassifierDescriptor classDescriptor = annotationDescriptor.getType().getConstructor().getDeclarationDescriptor();
-        return KotlinBuiltIns.getInstance().getVolatileAnnotationClass().equals(classDescriptor);
+        return classDescriptor != null && DescriptorUtils.getFqName(classDescriptor).equals(VOLATILE_FQ_NAME.toUnsafe());
     }
 
     public void generateAnnotationDefaultValue(@NotNull CompileTimeConstant value, @NotNull JetType expectedType) {

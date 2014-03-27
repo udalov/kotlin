@@ -17,10 +17,12 @@
 package org.jetbrains.jet.lang.resolve.calls.model;
 
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.FunctionDescriptor;
 import org.jetbrains.jet.lang.descriptors.TypeParameterDescriptor;
 import org.jetbrains.jet.lang.descriptors.ValueParameterDescriptor;
 import org.jetbrains.jet.lang.descriptors.VariableDescriptor;
+import org.jetbrains.jet.lang.psi.Call;
 import org.jetbrains.jet.lang.resolve.DelegatingBindingTrace;
 import org.jetbrains.jet.lang.resolve.calls.tasks.ExplicitReceiverKind;
 import org.jetbrains.jet.lang.resolve.calls.results.ResolutionStatus;
@@ -48,6 +50,12 @@ public class VariableAsFunctionResolvedCall implements ResolvedCallWithTrace<Fun
     @NotNull
     public ResolvedCallWithTrace<VariableDescriptor> getVariableCall() {
         return variableCall;
+    }
+
+    @NotNull
+    @Override
+    public Call getCall() {
+        return variableCall.getCall();
     }
 
     @NotNull
@@ -86,7 +94,7 @@ public class VariableAsFunctionResolvedCall implements ResolvedCallWithTrace<Fun
         return functionCall.getValueArguments();
     }
 
-    @NotNull
+    @Nullable
     @Override
     public List<ResolvedValueArgument> getValueArgumentsByIndex() {
         return functionCall.getValueArgumentsByIndex();

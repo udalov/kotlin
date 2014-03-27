@@ -33,7 +33,7 @@ class PreconditionsTest() {
 
     test fun failingRequireWithLazyMessage() {
         val error = failsWith(javaClass<IllegalArgumentException>()) {
-            require(false) {"Hello"}
+            require(false) { "Hello" }
         }
         assertEquals("Hello", error.getMessage())
     }
@@ -66,7 +66,7 @@ class PreconditionsTest() {
 
     test fun failingCheckWithLazyMessage() {
         val error = failsWith(javaClass<IllegalStateException>()) {
-            check(false) {"Hello"}
+            check(false) { "Hello" }
         }
         assertEquals("Hello", error.getMessage())
     }
@@ -97,50 +97,49 @@ class PreconditionsTest() {
         }
     }
 
-// TODO: uncomment when KT-1540 is resolved.
-//    test fun passingAssert() {
-//        assert(true)
-//        var called = false
-//        assert(true) { called = true; "some message" }
-//
-//        assertFalse(called)
-//    }
-//
-//
-//    test fun failingAssert() {
-//        val error = fails {
-//            assert(false)
-//        }
-//        if(error is IllegalStateException) {
-//            assertNull(error.getMessage())
-//        } else {
-//            fail("Invalid exception type: "+error)
-//        }
-//    }
-//
-//    test fun passingAssertWithMessage() {
-//        assert(true, "Hello")
-//    }
-//
-//    test fun failingAssertWithMessage() {
-//        val error = fails {
-//            assert(false, "Hello")
-//        }
-//        if(error is IllegalStateException) {
-//            assertEquals("Hello", error.getMessage())
-//        } else {
-//            fail("Invalid exception type: "+error)
-//        }
-//    }
-//
-//    test fun failingAssertWithLazyMessage() {
-//        val error = fails {
-//            assert(false) {"Hello"}
-//        }
-//        if(error is IllegalStateException) {
-//            assertEquals("Hello", error.getMessage())
-//        } else {
-//            fail("Invalid exception type: "+error)
-//        }
-//    }
+    test fun passingAssert() {
+        assert(true)
+        var called = false
+        assert(true) { called = true; "some message" }
+
+        assertFalse(called)
+    }
+
+
+    test fun failingAssert() {
+        val error = fails {
+            assert(false)
+        }
+        if (error is AssertionError) {
+            assertEquals("Assertion failed", error.getMessage())
+        } else {
+            fail("Invalid exception type: " + error)
+        }
+    }
+
+    test fun passingAssertWithMessage() {
+        assert(true, "Hello")
+    }
+
+    test fun failingAssertWithMessage() {
+        val error = fails {
+            assert(false, "Hello")
+        }
+        if (error is AssertionError) {
+            assertEquals("Hello", error.getMessage())
+        } else {
+            fail("Invalid exception type: " + error)
+        }
+    }
+
+    test fun failingAssertWithLazyMessage() {
+        val error = fails {
+            assert(false) { "Hello" }
+        }
+        if (error is AssertionError) {
+            assertEquals("Hello", error.getMessage())
+        } else {
+            fail("Invalid exception type: " + error)
+        }
+    }
 }

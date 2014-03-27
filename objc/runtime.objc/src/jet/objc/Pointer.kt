@@ -61,7 +61,7 @@ public open class Pointer<T> internal(open val peer: Long) {
 
     public fun release(): Unit = Native.free(peer)
 
-    public fun toString(): String = "[Pointer %016x]".format(peer)
-    public fun hashCode(): Int = (peer xor (peer ushr 32)).toInt()
-    public fun equals(o: Any?): Boolean = o is Pointer<*> && o.peer == peer
+    override fun toString(): String = "[Pointer %016x]".format(peer)
+    override fun hashCode(): Int = (peer xor (peer ushr 32)).toInt()
+    override fun equals(other: Any?): Boolean = other is Pointer<*> && other.peer == peer
 }

@@ -40,7 +40,6 @@ import org.jetbrains.jet.lang.resolve.lazy.AbstractLazyResolveDescriptorRenderer
 import org.jetbrains.jet.lang.resolve.lazy.AbstractLazyResolveTest
 import org.jetbrains.jet.lang.resolve.lazy.AbstractLazyResolveRecursiveComparingTest
 import org.jetbrains.jet.modules.xml.AbstractModuleXmlParserTest
-import org.jetbrains.jet.descriptors.serialization.AbstractDescriptorSerializationTest
 import org.jetbrains.jet.jvm.compiler.AbstractWriteSignatureTest
 import org.jetbrains.jet.cli.AbstractKotlincExecutableTest
 import org.jetbrains.jet.cfg.AbstractControlFlowTest
@@ -96,6 +95,15 @@ import org.jetbrains.jet.plugin.intentions.AbstractIntentionTest
 import org.jetbrains.jet.checkers.AbstractJetDiagnosticsTestWithStdLib
 import org.jetbrains.jet.plugin.codeInsight.AbstractInsertImportOnPasteTest
 import org.jetbrains.jet.resolve.AbstractReferenceToJavaWithWrongFileStructureTest
+import org.jetbrains.jet.plugin.navigation.AbstractKotlinGotoTest
+import org.jetbrains.jet.plugin.AbstractExpressionSelectionTest
+import org.jetbrains.jet.plugin.refactoring.move.AbstractJetMoveTest
+import org.jetbrains.jet.cfg.AbstractDataFlowTest
+import org.jetbrains.jet.plugin.libraries.AbstractDecompiledTextTest
+import org.jetbrains.jet.plugin.imports.AbstractOptimizeImportsTest
+import org.jetbrains.jet.plugin.debugger.AbstractSmartStepIntoTest
+import org.jetbrains.jet.plugin.stubs.AbstractStubBuilderTest
+import org.jetbrains.jet.plugin.codeInsight.AbstractJetInspectionTest
 
 fun main(args: Array<String>) {
     System.setProperty("java.awt.headless", "true")
@@ -104,7 +112,7 @@ fun main(args: Array<String>) {
 
         testClass(javaClass<AbstractJetDiagnosticsTest>()) {
             model("diagnostics/tests")
-            model("diagnostics/tests/script", extension = "ktscript")
+            model("diagnostics/tests/script", extension = "kts")
             model("codegen/box/functions/tailRecursion")
         }
 
@@ -132,6 +140,14 @@ fun main(args: Array<String>) {
 
         testClass(javaClass<AbstractBlackBoxCodegenTest>()) {
             model("codegen/box")
+        }
+
+        testClass(javaClass<AbstractBlackBoxCodegenTest>(), "BlackBoxInlineCodegenTestGenerated") {
+            model("codegen/boxInline", extension = null, recursive = false, testMethod = "doTestMultiFile")
+        }
+
+        testClass(javaClass<AbstractCompileKotlinAgainstKotlinTest>(), "CompileKotlinAgainstInlineKotlinTestGenerated") {
+            model("codegen/boxInline", extension = null, recursive = false, testMethod = "doBoxTest")
         }
 
         testClass(javaClass<AbstractBlackBoxCodegenTest>(), "BlackBoxMultiFileCodegenTestGenerated") {
@@ -212,17 +228,6 @@ fun main(args: Array<String>) {
             model("modules.xml", extension = "xml")
         }
 
-        testClass(javaClass<AbstractDescriptorSerializationTest>()) {
-            model("loadJava/compiledKotlin/class")
-            model("loadJava/compiledKotlin/classFun")
-            model("loadJava/compiledKotlin/classObject")
-            model("loadJava/compiledKotlin/constructor")
-            model("loadJava/compiledKotlin/fun")
-            model("loadJava/compiledKotlin/prop")
-            model("loadJava/compiledKotlin/type")
-            model("loadJava/compiledKotlin/visibility")
-        }
-
         testClass(javaClass<AbstractWriteSignatureTest>()) {
             model("writeSignature")
         }
@@ -234,6 +239,10 @@ fun main(args: Array<String>) {
 
         testClass(javaClass<AbstractControlFlowTest>()) {
             model("cfg")
+        }
+
+        testClass(javaClass<AbstractDataFlowTest>()) {
+            model("cfg-variables")
         }
 
         testClass(javaClass<AbstractAnnotationParameterTest>()) {
@@ -275,6 +284,10 @@ fun main(args: Array<String>) {
             model("intentions/convertToExpressionBody", pattern = "^before(\\w+)\\.kt$")
         }
 
+        testClass(javaClass<AbstractIntentionTest>(), "ConvertToBlockBodyTestGenerated") {
+            model("intentions/convertToBlockBody", pattern = "^before(\\w+)\\.kt$")
+        }
+
         testClass(javaClass<AbstractJSBasicCompletionTest>()) {
             model("completion/basic/common")
             model("completion/basic/js")
@@ -305,6 +318,11 @@ fun main(args: Array<String>) {
             model("navigation/gotoSuper", extension = "test")
         }
 
+        testClass(javaClass<AbstractKotlinGotoTest>()) {
+            model("navigation/gotoClass", testMethod = "doClassTest")
+            model("navigation/gotoSymbol", testMethod = "doSymbolTest")
+        }
+
         testClass(javaClass<AbstractQuickFixMultiFileTest>()) {
             model("quickfix", pattern = """^(\w+)\.before\.Main\.kt$""", testMethod = "doTestWithExtraFile")
         }
@@ -332,6 +350,10 @@ fun main(args: Array<String>) {
         }
 
         testClass(javaClass<AbstractCodeTransformationTest>()) {
+            model("intentions/branched/elvisToIfThen", testMethod = "doTestElvisToIfThen")
+            model("intentions/branched/ifThenToElvis", testMethod = "doTestIfThenToElvis")
+            model("intentions/branched/safeAccessToIfThen", testMethod = "doTestSafeAccessToIfThen")
+            model("intentions/branched/ifThenToSafeAccess", testMethod = "doTestIfThenToSafeAccess")
             model("intentions/branched/folding/ifToAssignment", testMethod = "doTestFoldIfToAssignment")
             model("intentions/branched/folding/ifToReturn", testMethod = "doTestFoldIfToReturn")
             model("intentions/branched/folding/ifToReturnAsymmetrically", testMethod = "doTestFoldIfToReturnAsymmetrically")
@@ -355,6 +377,28 @@ fun main(args: Array<String>) {
             model("intentions/reconstructedType", testMethod = "doTestReconstructType")
             model("intentions/removeUnnecessaryParentheses", testMethod = "doTestRemoveUnnecessaryParentheses")
             model("intentions/replaceWithDotQualifiedMethodCall", testMethod = "doTestReplaceWithDotQualifiedMethodCall")
+            model("intentions/replaceWithInfixFunctionCall", testMethod = "doTestReplaceWithInfixFunctionCall")
+            model("intentions/removeCurlyBracesFromTemplate", testMethod = "doTestRemoveCurlyFromTemplate")
+            model("intentions/insertCurlyBracestsToTemplate", testMethod = "doTestInsertCurlyToTemplate")
+            model("intentions/moveLambdaInsideParentheses", testMethod = "doTestMoveLambdaInsideParentheses")
+            model("intentions/moveLambdaOutsideParentheses", testMethod = "doTestMoveLambdaOutsideParentheses")
+            model("intentions/replaceExplicitFunctionLiteralParamWithIt", testMethod = "doTestReplaceExplicitFunctionLiteralParamWithIt")
+            model("intentions/replaceItWithExplicitFunctionLiteralParam", testMethod = "doTestReplaceItWithExplicitFunctionLiteralParam")
+            model("intentions/removeBraces", testMethod = "doTestRemoveBraces")
+            model("intentions/addBraces", testMethod = "doTestAddBraces")
+            model("intentions/attributeCallReplacements/replaceGetIntention", testMethod = "doTestReplaceGetIntention")
+            model("intentions/attributeCallReplacements/replaceContainsIntention", testMethod = "doTestReplaceContainsIntention")
+            model("intentions/attributeCallReplacements/replaceBinaryInfixIntention", testMethod = "doTestReplaceBinaryInfixIntention")
+            model("intentions/attributeCallReplacements/replaceUnaryPrefixIntention", testMethod = "doTestReplaceUnaryPrefixIntention")
+            model("intentions/attributeCallReplacements/replaceInvokeIntention", testMethod = "doTestReplaceInvokeIntention")
+            model("intentions/simplifyNegatedBinaryExpressionIntention", testMethod = "doTestSimplifyNegatedBinaryExpressionIntention")
+        }
+
+        testClass(javaClass<AbstractJetInspectionTest>()) {
+            model("codeInsight/inspections", extension = null, recursive = false)
+            model("intentions/convertNegatedBooleanSequence", testMethod="doTestConvertNegatedBooleanSequence")
+            model("intentions/convertNegatedExpressionWithDemorgansLaw", testMethod = "doTestConvertNegatedExpressionWithDemorgansLaw")
+            model("intentions/swapBinaryExpression", testMethod = "doTestSwapBinaryExpression")
         }
 
         testClass(javaClass<AbstractHierarchyTest>()) {
@@ -430,6 +474,10 @@ fun main(args: Array<String>) {
             model("findUsages/java", pattern = """^(.+)\.0\.java$""")
         }
 
+        testClass(javaClass<AbstractJetMoveTest>()) {
+            model("refactoring/move", extension = "test", singleClass = true)
+        }
+
         testClass(javaClass<AbstractCompletionWeigherTest>()) {
             model("completion/weighers", pattern = """^([^\.]+)\.kt$""")
         }
@@ -441,8 +489,8 @@ fun main(args: Array<String>) {
         }
 
         testClass(javaClass<AbstractJetFormatterTest>()) {
-            model("formatter", pattern = """^([^\.]+)\.after.kt$""")
-            model("formatter", pattern = """^([^\.]+)\.after.inv.kt$""",
+            model("formatter", pattern = """^([^\.]+)\.after\.kt.*$""")
+            model("formatter", pattern = """^([^\.]+)\.after\.inv\.kt.*$""",
                   testMethod = "doTestInverted", testClassName = "FormatterInverted")
         }
 
@@ -485,6 +533,26 @@ fun main(args: Array<String>) {
 
         testClass(javaClass<AbstractSmartSelectionTest>()) {
             model("smartSelection", testMethod = "doTestSmartSelection", pattern = """^([^\.]+)\.kt$""")
+        }
+
+        testClass(javaClass<AbstractExpressionSelectionTest>()) {
+            model("expressionSelection", testMethod = "doTestExpressionSelection", pattern = """^([^\.]+)\.kt$""")
+        }
+
+        testClass(javaClass<AbstractDecompiledTextTest>()) {
+            model("libraries/decompiledText", pattern = """^([^\.]+)$""")
+        }
+
+        testClass(javaClass<AbstractOptimizeImportsTest>()) {
+            model("editor/optimizeImports", extension = null, recursive = false)
+        }
+
+        testClass(javaClass<AbstractSmartStepIntoTest>()) {
+            model("debugger/smartStepInto")
+        }
+
+        testClass(javaClass<AbstractStubBuilderTest>()) {
+            model("stubs", extension = "kt")
         }
     }
 

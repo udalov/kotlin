@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2013 JetBrains s.r.o.
+ * Copyright 2010-2014 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,18 +18,18 @@ package org.jetbrains.jet.cli.jvm.compiler;
 
 import com.google.common.base.Predicates;
 import com.intellij.openapi.Disposable;
-import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Disposer;
 import com.intellij.psi.PsiFile;
-import jet.Function0;
-import jet.modules.AllModules;
-import jet.modules.Module;
+import kotlin.Function0;
+import kotlin.modules.AllModules;
+import kotlin.modules.Module;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.analyzer.AnalyzeExhaust;
 import org.jetbrains.jet.cli.common.CLIConfigurationKeys;
 import org.jetbrains.jet.cli.common.CompilerPlugin;
 import org.jetbrains.jet.cli.common.CompilerPluginContext;
+import org.jetbrains.jet.cli.common.arguments.CompilerArgumentsUtil;
 import org.jetbrains.jet.cli.common.messages.AnalyzerWithCompilerReport;
 import org.jetbrains.jet.cli.common.messages.MessageCollector;
 import org.jetbrains.jet.cli.common.output.OutputDirector;
@@ -42,14 +42,12 @@ import org.jetbrains.jet.config.CommonConfigurationKeys;
 import org.jetbrains.jet.config.CompilerConfiguration;
 import org.jetbrains.jet.lang.descriptors.ModuleDescriptorImpl;
 import org.jetbrains.jet.lang.psi.JetFile;
-import org.jetbrains.jet.lang.psi.JetPsiUtil;
 import org.jetbrains.jet.lang.resolve.BindingTrace;
 import org.jetbrains.jet.lang.resolve.ScriptNameUtil;
 import org.jetbrains.jet.lang.resolve.java.AnalyzerFacadeForJVM;
 import org.jetbrains.jet.lang.resolve.java.PackageClassUtils;
 import org.jetbrains.jet.lang.resolve.name.FqName;
-import org.jetbrains.jet.lang.types.lang.InlineUtil;
-import org.jetbrains.jet.plugin.JetMainDetector;
+import org.jetbrains.jet.plugin.MainFunctionDetector;
 import org.jetbrains.jet.utils.KotlinPaths;
 
 import java.io.File;
@@ -162,15 +160,16 @@ public class KotlinToJVMBytecodeCompiler {
     }
 
     @Nullable
-    private static FqName findMainClass(@NotNull List<JetFile> files) {
+    private static FqName findMainClass(@NotNull GenerationState generationState, @NotNull List<JetFile> files) {
+        MainFunctionDetector mainFunctionDetector = new MainFunctionDetector(generationState.getBindingContext());
         FqName mainClass = null;
         for (JetFile file : files) {
-            if (JetMainDetector.hasMain(file.getDeclarations())) {
+            if (mainFunctionDetector.hasMain(file.getDeclarations())) {
                 if (mainClass != null) {
                     // more than one main
                     return null;
                 }
-                FqName fqName = JetPsiUtil.getFQName(file);
+                FqName fqName = file.getPackageFqName();
                 mainClass = PackageClassUtils.getPackageClassFqName(fqName);
             }
         }
@@ -184,12 +183,12 @@ public class KotlinToJVMBytecodeCompiler {
             boolean includeRuntime
     ) {
 
-        FqName mainClass = findMainClass(environment.getSourceFiles());
-
         GenerationState generationState = analyzeAndGenerate(environment);
         if (generationState == null) {
             return false;
         }
+
+        FqName mainClass = findMainClass(generationState, environment.getSourceFiles());
 
         try {
             OutputDirector outputDirector = outputDir != null ? new SingleDirectoryDirector(outputDir) : null;
@@ -227,7 +226,7 @@ public class KotlinToJVMBytecodeCompiler {
             return null;
         }
 
-        GeneratedClassLoader classLoader = null;
+        GeneratedClassLoader classLoader;
         try {
             classLoader = new GeneratedClassLoader(state.getFactory(),
                                                    new URLClassLoader(new URL[] {
@@ -236,16 +235,11 @@ public class KotlinToJVMBytecodeCompiler {
                                                    }, AllModules.class.getClassLoader())
             );
 
-            return classLoader.loadClass(ScriptNameUtil.classNameForScript(environment.getSourceFiles().get(0)));
+            FqName nameForScript = ScriptNameUtil.classNameForScript(environment.getSourceFiles().get(0));
+            return classLoader.loadClass(nameForScript.asString());
         }
         catch (Exception e) {
             throw new RuntimeException("Failed to evaluate script: " + e, e);
-        }
-        finally {
-            if (classLoader != null) {
-                classLoader.dispose();
-            }
-            state.destroy();
         }
     }
 
@@ -281,32 +275,35 @@ public class KotlinToJVMBytecodeCompiler {
                                 environment.getConfiguration().getList(JVMConfigurationKeys.SCRIPT_PARAMETERS),
                                 Predicates.<PsiFile>alwaysTrue(),
                                 false,
-                                sharedModule
-                        );
+                                sharedModule,
+                                new CliSourcesMemberFilter(environment));
                     }
                 }, environment.getSourceFiles()
         );
 
-        return analyzerWithCompilerReport.hasErrors() ? null : analyzerWithCompilerReport.getAnalyzeExhaust();
+        AnalyzeExhaust exhaust = analyzerWithCompilerReport.getAnalyzeExhaust();
+        assert exhaust != null : "AnalyzeExhaust should be non-null, compiling: " + environment.getSourceFiles();
+
+        CompilerPluginContext context = new CompilerPluginContext(environment.getProject(), exhaust.getBindingContext(),
+                                                                  environment.getSourceFiles());
+        for (CompilerPlugin plugin : environment.getConfiguration().getList(CLIConfigurationKeys.COMPILER_PLUGINS)) {
+            plugin.processFiles(context);
+        }
+
+        return analyzerWithCompilerReport.hasErrors() ? null : exhaust;
     }
 
     @NotNull
     private static GenerationState generate(@NotNull JetCoreEnvironment environment, @NotNull AnalyzeExhaust exhaust) {
-        Project project = environment.getProject();
         CompilerConfiguration configuration = environment.getConfiguration();
         GenerationState generationState = new GenerationState(
-                project, ClassBuilderFactories.BINARIES, Progress.DEAF, exhaust.getBindingContext(), environment.getSourceFiles(),
+                environment.getProject(), ClassBuilderFactories.BINARIES, Progress.DEAF, exhaust.getBindingContext(), environment.getSourceFiles(),
                 configuration.get(JVMConfigurationKeys.GENERATE_NOT_NULL_ASSERTIONS, false),
                 configuration.get(JVMConfigurationKeys.GENERATE_NOT_NULL_PARAMETER_ASSERTIONS, false),
-                /*generateDeclaredClasses = */true,
-                configuration.get(JVMConfigurationKeys.ENABLE_INLINE, InlineUtil.DEFAULT_INLINE_FLAG)
+                GenerationState.GenerateClassFilter.GENERATE_ALL,
+                configuration.get(JVMConfigurationKeys.ENABLE_INLINE, CompilerArgumentsUtil.DEFAULT_INLINE_FLAG)
         );
         KotlinCodegenFacade.compileCorrectFiles(generationState, CompilationErrorHandler.THROW_EXCEPTION);
-
-        CompilerPluginContext context = new CompilerPluginContext(project, exhaust.getBindingContext(), environment.getSourceFiles());
-        for (CompilerPlugin plugin : configuration.getList(CLIConfigurationKeys.COMPILER_PLUGINS)) {
-            plugin.processFiles(context);
-        }
         return generationState;
     }
 }

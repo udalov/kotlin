@@ -32,6 +32,7 @@ import org.jetbrains.annotations.Nullable;
 import org.jetbrains.asm4.Type;
 import org.jetbrains.jet.OutputFile;
 import org.jetbrains.jet.analyzer.AnalyzeExhaust;
+import org.jetbrains.jet.cli.common.arguments.CompilerArgumentsUtil;
 import org.jetbrains.jet.cli.common.messages.AnalyzerWithCompilerReport;
 import org.jetbrains.jet.cli.common.messages.MessageCollector;
 import org.jetbrains.jet.cli.common.messages.MessageCollectorToString;
@@ -42,12 +43,13 @@ import org.jetbrains.jet.codegen.CompilationErrorHandler;
 import org.jetbrains.jet.codegen.KotlinCodegenFacade;
 import org.jetbrains.jet.codegen.state.GenerationState;
 import org.jetbrains.jet.config.CompilerConfiguration;
+import org.jetbrains.jet.descriptors.serialization.descriptors.MemberFilter;
 import org.jetbrains.jet.di.InjectorForTopDownAnalyzerForJvm;
 import org.jetbrains.jet.lang.descriptors.ModuleDescriptorImpl;
 import org.jetbrains.jet.lang.descriptors.ScriptDescriptor;
 import org.jetbrains.jet.lang.descriptors.impl.PackageLikeBuilderDummy;
+import org.jetbrains.jet.lang.parsing.JetParserDefinition;
 import org.jetbrains.jet.lang.psi.JetFile;
-import org.jetbrains.jet.lang.psi.JetPsiUtil;
 import org.jetbrains.jet.lang.psi.JetScript;
 import org.jetbrains.jet.lang.resolve.*;
 import org.jetbrains.jet.lang.resolve.java.AnalyzerFacadeForJVM;
@@ -56,7 +58,6 @@ import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
 import org.jetbrains.jet.lang.resolve.scopes.WritableScope;
 import org.jetbrains.jet.lang.resolve.scopes.WritableScopeImpl;
-import org.jetbrains.jet.lang.types.lang.InlineUtil;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 import org.jetbrains.jet.plugin.JetLanguage;
 import org.jetbrains.jet.storage.ExceptionTracker;
@@ -75,9 +76,7 @@ import java.util.List;
 
 import static org.jetbrains.jet.codegen.AsmUtil.asmTypeByFqNameWithoutInnerClasses;
 import static org.jetbrains.jet.codegen.binding.CodegenBinding.registerClassNameForScript;
-import static org.jetbrains.jet.lang.descriptors.DependencyKind.BINARIES;
-import static org.jetbrains.jet.lang.descriptors.DependencyKind.BUILT_INS;
-import static org.jetbrains.jet.lang.descriptors.DependencyKind.SOURCES;
+import static org.jetbrains.jet.lang.descriptors.DependencyKind.*;
 
 public class ReplInterpreter {
 
@@ -90,6 +89,8 @@ public class ReplInterpreter {
 
     @NotNull
     private final InjectorForTopDownAnalyzerForJvm injector;
+    @NotNull
+    private final TopDownAnalysisContext topDownAnalysisContext;
     @NotNull
     private final JetCoreEnvironment jetCoreEnvironment;
     @NotNull
@@ -109,7 +110,8 @@ public class ReplInterpreter {
                 false,
                 true,
                 Collections.<AnalyzerScriptParameter>emptyList());
-        injector = new InjectorForTopDownAnalyzerForJvm(project, topDownAnalysisParameters, trace, module);
+        injector = new InjectorForTopDownAnalyzerForJvm(project, topDownAnalysisParameters, trace, module, MemberFilter.ALWAYS_TRUE);
+        topDownAnalysisContext = new TopDownAnalysisContext(topDownAnalysisParameters);
         module.addFragmentProvider(SOURCES, injector.getTopDownAnalyzer().getPackageFragmentProvider());
         module.addFragmentProvider(BUILT_INS, KotlinBuiltIns.getInstance().getBuiltInsModule().getPackageFragmentProvider());
         module.addFragmentProvider(BINARIES, injector.getJavaDescriptorResolver().getPackageFragmentProvider());
@@ -207,7 +209,7 @@ public class ReplInterpreter {
         }
         fullText.append(line);
 
-        LightVirtualFile virtualFile = new LightVirtualFile("line" + lineNumber + ".ktscript", JetLanguage.INSTANCE, fullText.toString());
+        LightVirtualFile virtualFile = new LightVirtualFile("line" + lineNumber + JetParserDefinition.STD_SCRIPT_EXT, JetLanguage.INSTANCE, fullText.toString());
         virtualFile.setCharset(CharsetToolkit.UTF8_CHARSET);
         JetFile psiFile = (JetFile) ((PsiFileFactoryImpl) PsiFileFactory.getInstance(jetCoreEnvironment.getProject())).trySetupPsiForFile(virtualFile, JetLanguage.INSTANCE, true, false);
 
@@ -227,7 +229,7 @@ public class ReplInterpreter {
             return LineResult.error(errorCollector.getString());
         }
 
-        injector.getTopDownAnalyzer().prepareForTheNextReplLine();
+        injector.getTopDownAnalyzer().prepareForTheNextReplLine(topDownAnalysisContext);
         trace.clearDiagnostics();
 
         psiFile.getScript().putUserData(ScriptHeaderResolver.PRIORITY_KEY, lineNumber);
@@ -245,7 +247,7 @@ public class ReplInterpreter {
 
         BindingContext bindingContext = AnalyzeExhaust.success(trace.getBindingContext(), module).getBindingContext();
         GenerationState generationState = new GenerationState(psiFile.getProject(), ClassBuilderFactories.BINARIES,
-                                                              bindingContext, Collections.singletonList(psiFile), InlineUtil.DEFAULT_INLINE_FLAG);
+                                                              bindingContext, Collections.singletonList(psiFile), CompilerArgumentsUtil.DEFAULT_INLINE_FLAG);
 
         compileScript(psiFile.getScript(), scriptClassType, earlierScripts, generationState,
                       CompilationErrorHandler.THROW_EXCEPTION);
@@ -307,14 +309,15 @@ public class ReplInterpreter {
 
         // dummy builder is used because "root" is module descriptor,
         // packages added to module explicitly in
-        injector.getTopDownAnalyzer().doProcess(scope, new PackageLikeBuilderDummy(), Collections.singletonList(psiFile));
+        injector.getTopDownAnalyzer().doProcess(topDownAnalysisContext,
+                                                scope, new PackageLikeBuilderDummy(), Collections.singletonList(psiFile));
 
         boolean hasErrors = AnalyzerWithCompilerReport.reportDiagnostics(trace.getBindingContext(), messageCollector);
         if (hasErrors) {
             return null;
         }
 
-        ScriptDescriptor scriptDescriptor = injector.getTopDownAnalysisContext().getScripts().get(psiFile.getScript());
+        ScriptDescriptor scriptDescriptor = topDownAnalysisContext.getScripts().get(psiFile.getScript());
         lastLineScope = trace.get(BindingContext.SCRIPT_SCOPE, scriptDescriptor);
         if (lastLineScope == null) {
             throw new IllegalStateException("last line scope is not initialized");
@@ -358,7 +361,7 @@ public class ReplInterpreter {
         state.beforeCompile();
         KotlinCodegenFacade.generatePackage(
                 state,
-                JetPsiUtil.getFQName((JetFile) script.getContainingFile()),
+                ((JetFile) script.getContainingFile()).getPackageFqName(),
                 Collections.singleton((JetFile) script.getContainingFile()),
                 errorHandler);
     }

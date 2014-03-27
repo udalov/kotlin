@@ -1,12 +1,11 @@
 package kotlin.modules
 
-import java.util.*
-import jet.modules.*
+import java.util.ArrayList
 
-public fun module(name: String, outputDir: String, callback:  ModuleBuilder.() -> Unit) {
+public fun module(name: String, outputDir: String, callback: ModuleBuilder.() -> Unit) {
     val builder = ModuleBuilder(name, outputDir)
     builder.callback()
-    AllModules.modules.get()?.add(builder)
+    AllModules.get()?.add(builder)
 }
 
 class SourcesBuilder(val parent: ModuleBuilder) {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2013 JetBrains s.r.o.
+ * Copyright 2010-2014 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,7 @@
 
 package org.jetbrains.jet.lang.resolve.lazy.declarations;
 
-import com.intellij.psi.NavigatablePsiElement;
-import jet.Function0;
+import kotlin.Function0;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.lang.psi.JetDeclaration;
 import org.jetbrains.jet.lang.psi.JetFile;
@@ -32,7 +31,7 @@ public class FileBasedPackageMemberDeclarationProvider extends AbstractPsiBasedD
     private final FqName fqName;
     private final FileBasedDeclarationProviderFactory factory;
     private final Collection<JetFile> packageFiles;
-    private final NotNullLazyValue<Collection<FqName>> allDeclaredPackages;
+    private final NotNullLazyValue<Collection<FqName>> allDeclaredSubPackages;
 
 
     /*package*/ FileBasedPackageMemberDeclarationProvider(
@@ -45,7 +44,7 @@ public class FileBasedPackageMemberDeclarationProvider extends AbstractPsiBasedD
         this.fqName = _fqName;
         this.factory = _factory;
         this.packageFiles = packageFiles;
-        this.allDeclaredPackages = storageManager.createLazyValue(new Function0<Collection<FqName>>() {
+        this.allDeclaredSubPackages = storageManager.createLazyValue(new Function0<Collection<FqName>>() {
             @Override
             public Collection<FqName> invoke() {
                 return factory.getAllDeclaredSubPackagesOf(fqName);
@@ -57,21 +56,22 @@ public class FileBasedPackageMemberDeclarationProvider extends AbstractPsiBasedD
     protected void doCreateIndex(@NotNull Index index) {
         for (JetFile file : packageFiles) {
             for (JetDeclaration declaration : file.getDeclarations()) {
-                assert fqName.asString().equals(file.getPackageName()) : "Files declaration utils contains file with invalid package";
+                assert fqName.equals(file.getPackageFqName()) : "Files declaration utils contains file with invalid package";
                 index.putToIndex(declaration);
             }
         }
     }
 
+    @NotNull
     @Override
-    public Collection<FqName> getAllDeclaredPackages() {
-        return allDeclaredPackages.invoke();
+    public Collection<FqName> getAllDeclaredSubPackages() {
+        return allDeclaredSubPackages.invoke();
     }
 
     @NotNull
     @Override
-    public Collection<NavigatablePsiElement> getPackageDeclarations(FqName fqName) {
-        return factory.getPackageDeclarations(fqName);
+    public Collection<JetFile> getPackageFiles() {
+        return packageFiles;
     }
 
     @Override

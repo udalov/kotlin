@@ -10,14 +10,14 @@ public trait <metaclass-for-Q> {
 }
 
 public trait Derived : objc.P, objc.Q {
-    public open override /*1*/ /*fake_override*/ fun p(): jet.Unit
-    public open override /*1*/ /*fake_override*/ fun q(): jet.Unit
+    public open override /*1*/ /*fake_override*/ fun p(): kotlin.Unit
+    public open override /*1*/ /*fake_override*/ fun q(): kotlin.Unit
 }
 
 public trait P {
-    public open fun p(): jet.Unit
+    public open fun p(): kotlin.Unit
 }
 
 public trait Q {
-    public open fun q(): jet.Unit
+    public open fun q(): kotlin.Unit
 }

@@ -37,7 +37,7 @@ public class DescriptorFactory {
 
     private static class DefaultConstructorDescriptor extends ConstructorDescriptorImpl {
         public DefaultConstructorDescriptor(@NotNull ClassDescriptor containingClass) {
-            super(containingClass, Annotations.EMPTY, true);
+            super(containingClass, null, Annotations.EMPTY, true, Kind.DECLARATION);
             initialize(Collections.<TypeParameterDescriptor>emptyList(), Collections.<ValueParameterDescriptor>emptyList(),
                        getDefaultConstructorVisibility(containingClass), true);
         }
@@ -53,10 +53,10 @@ public class DescriptorFactory {
 
     @NotNull
     public static PropertySetterDescriptorImpl createSetter(@NotNull PropertyDescriptor propertyDescriptor, boolean isDefault) {
-        PropertySetterDescriptorImpl setterDescriptor = new PropertySetterDescriptorImpl(
-                propertyDescriptor, Annotations.EMPTY, propertyDescriptor.getModality(),
-                propertyDescriptor.getVisibility(),
-                !isDefault, isDefault, CallableMemberDescriptor.Kind.DECLARATION);
+        PropertySetterDescriptorImpl setterDescriptor =
+                new PropertySetterDescriptorImpl(propertyDescriptor, Annotations.EMPTY, propertyDescriptor.getModality(),
+                                                 propertyDescriptor.getVisibility(), !isDefault, isDefault,
+                                                 CallableMemberDescriptor.Kind.DECLARATION, null);
         setterDescriptor.initializeDefault();
         return setterDescriptor;
     }
@@ -68,10 +68,9 @@ public class DescriptorFactory {
 
     @NotNull
     public static PropertyGetterDescriptorImpl createGetter(@NotNull PropertyDescriptor propertyDescriptor, boolean isDefault) {
-        return new PropertyGetterDescriptorImpl(
-                propertyDescriptor, Annotations.EMPTY, propertyDescriptor.getModality(),
-                propertyDescriptor.getVisibility(),
-                !isDefault, isDefault, CallableMemberDescriptor.Kind.DECLARATION);
+        return new PropertyGetterDescriptorImpl(propertyDescriptor, Annotations.EMPTY, propertyDescriptor.getModality(),
+                                                propertyDescriptor.getVisibility(), !isDefault, isDefault,
+                                                CallableMemberDescriptor.Kind.DECLARATION, null);
     }
 
     @NotNull
@@ -89,8 +88,8 @@ public class DescriptorFactory {
             @NotNull JetType returnType
     ) {
         SimpleFunctionDescriptorImpl values =
-                new SimpleFunctionDescriptorImpl(classObject, Annotations.EMPTY, VALUES_METHOD_NAME,
-                                                 CallableMemberDescriptor.Kind.SYNTHESIZED);
+                SimpleFunctionDescriptorImpl.create(classObject, Annotations.EMPTY, VALUES_METHOD_NAME,
+                                                    CallableMemberDescriptor.Kind.SYNTHESIZED);
         return values.initialize(null, classObject.getThisAsReceiverParameter(), Collections.<TypeParameterDescriptor>emptyList(),
                                  Collections.<ValueParameterDescriptor>emptyList(),
                                  returnType, Modality.FINAL,
@@ -103,10 +102,11 @@ public class DescriptorFactory {
             @NotNull JetType returnType
     ) {
         SimpleFunctionDescriptorImpl values =
-                new SimpleFunctionDescriptorImpl(classObject, Annotations.EMPTY, VALUE_OF_METHOD_NAME,
-                                                 CallableMemberDescriptor.Kind.SYNTHESIZED);
+                SimpleFunctionDescriptorImpl.create(classObject, Annotations.EMPTY, VALUE_OF_METHOD_NAME,
+                                                    CallableMemberDescriptor.Kind.SYNTHESIZED);
         ValueParameterDescriptor parameterDescriptor = new ValueParameterDescriptorImpl(
                 values,
+                null,
                 0,
                 Annotations.EMPTY,
                 Name.identifier("value"),

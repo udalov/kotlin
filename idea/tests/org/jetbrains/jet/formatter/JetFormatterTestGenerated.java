@@ -36,7 +36,7 @@ public class JetFormatterTestGenerated extends AbstractJetFormatterTest {
     @InnerTestClasses({Formatter.ModifierList.class})
     public static class Formatter extends AbstractJetFormatterTest {
         public void testAllFilesPresentInFormatter() throws Exception {
-            JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), "org.jetbrains.jet.generators.tests.TestsPackage", new File("idea/testData/formatter"), Pattern.compile("^([^\\.]+)\\.after.kt$"), true);
+            JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), "org.jetbrains.jet.generators.tests.TestsPackage", new File("idea/testData/formatter"), Pattern.compile("^([^\\.]+)\\.after\\.kt.*$"), true);
         }
         
         @TestMetadata("BlockFor.after.kt")
@@ -174,6 +174,11 @@ public class JetFormatterTestGenerated extends AbstractJetFormatterTest {
             doTest("idea/testData/formatter/LambdaArrow.after.kt");
         }
         
+        @TestMetadata("LoopParameterWithExplicitType.after.kt")
+        public void testLoopParameterWithExplicitType() throws Exception {
+            doTest("idea/testData/formatter/LoopParameterWithExplicitType.after.kt");
+        }
+        
         @TestMetadata("MultilineFunctionLiteral.after.kt")
         public void testMultilineFunctionLiteral() throws Exception {
             doTest("idea/testData/formatter/MultilineFunctionLiteral.after.kt");
@@ -212,6 +217,11 @@ public class JetFormatterTestGenerated extends AbstractJetFormatterTest {
         @TestMetadata("SaveSpacesInDocComments.after.kt")
         public void testSaveSpacesInDocComments() throws Exception {
             doTest("idea/testData/formatter/SaveSpacesInDocComments.after.kt");
+        }
+        
+        @TestMetadata("Script.after.kts")
+        public void testScript() throws Exception {
+            doTest("idea/testData/formatter/Script.after.kts");
         }
         
         @TestMetadata("SingleLineFunctionLiteral.after.kt")
@@ -292,7 +302,7 @@ public class JetFormatterTestGenerated extends AbstractJetFormatterTest {
         @TestMetadata("idea/testData/formatter/modifierList")
         public static class ModifierList extends AbstractJetFormatterTest {
             public void testAllFilesPresentInModifierList() throws Exception {
-                JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), "org.jetbrains.jet.generators.tests.TestsPackage", new File("idea/testData/formatter/modifierList"), Pattern.compile("^([^\\.]+)\\.after.kt$"), true);
+                JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), "org.jetbrains.jet.generators.tests.TestsPackage", new File("idea/testData/formatter/modifierList"), Pattern.compile("^([^\\.]+)\\.after\\.kt.*$"), true);
             }
             
             @TestMetadata("funAnnotationBeforeAnnotation.after.kt")
@@ -389,7 +399,7 @@ public class JetFormatterTestGenerated extends AbstractJetFormatterTest {
     @InnerTestClasses({})
     public static class FormatterInverted extends AbstractJetFormatterTest {
         public void testAllFilesPresentInFormatterInverted() throws Exception {
-            JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), "org.jetbrains.jet.generators.tests.TestsPackage", new File("idea/testData/formatter"), Pattern.compile("^([^\\.]+)\\.after.inv.kt$"), true);
+            JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), "org.jetbrains.jet.generators.tests.TestsPackage", new File("idea/testData/formatter"), Pattern.compile("^([^\\.]+)\\.after\\.inv\\.kt.*$"), true);
         }
         
         @TestMetadata("CatchFinallyOnNewLine.after.inv.kt")

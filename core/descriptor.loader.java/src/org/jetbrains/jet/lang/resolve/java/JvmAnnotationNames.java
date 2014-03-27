@@ -16,32 +16,99 @@
 
 package org.jetbrains.jet.lang.resolve.java;
 
-import jet.KotlinClass;
-import jet.KotlinPackage;
-import jet.KotlinPackageFragment;
-import jet.KotlinTraitImpl;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.resolve.name.FqName;
+import org.jetbrains.jet.lang.resolve.name.Name;
 
-import static org.jetbrains.jet.lang.resolve.java.resolver.DescriptorResolverUtils.fqNameByClass;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
 
 public final class JvmAnnotationNames {
-    public static final FqName KOTLIN_CLASS = fqNameByClass(KotlinClass.class);
+    public static final FqName KOTLIN_CLASS = new FqName("kotlin.jvm.internal.KotlinClass");
+    public static final FqName KOTLIN_PACKAGE = new FqName("kotlin.jvm.internal.KotlinPackage");
 
-    public static final FqName KOTLIN_PACKAGE = fqNameByClass(KotlinPackage.class);
-
-    public static final FqName KOTLIN_PACKAGE_FRAGMENT = fqNameByClass(KotlinPackageFragment.class);
-
-    public static final FqName KOTLIN_TRAIT_IMPL = fqNameByClass(KotlinTraitImpl.class);
+    public static final FqName KOTLIN_SIGNATURE = new FqName("kotlin.jvm.KotlinSignature");
+    public static final FqName OLD_KOTLIN_SIGNATURE = new FqName("jet.runtime.typeinfo.KotlinSignature");
 
     public static final String ABI_VERSION_FIELD_NAME = "abiVersion";
-
     public static final String DATA_FIELD_NAME = "data";
+    public static final Name DEFAULT_ANNOTATION_MEMBER_NAME = Name.identifier("value");
+
+    public static final FqName JETBRAINS_NOT_NULL_ANNOTATION = new FqName("org.jetbrains.annotations.NotNull");
+    public static final FqName JETBRAINS_NULLABLE_ANNOTATION = new FqName("org.jetbrains.annotations.Nullable");
+    public static final FqName JETBRAINS_MUTABLE_ANNOTATION = new FqName("org.jetbrains.annotations.Mutable");
+    public static final FqName JETBRAINS_READONLY_ANNOTATION = new FqName("org.jetbrains.annotations.ReadOnly");
+
+    public static class KotlinSyntheticClass {
+        public static final JvmClassName CLASS_NAME = JvmClassName.byInternalName("kotlin/jvm/internal/KotlinSyntheticClass");
+        public static final String KIND_INTERNAL_NAME = "kotlin/jvm/internal/KotlinSyntheticClass$Kind";
+
+        public static final Name KIND_FIELD_NAME = Name.identifier("kind");
+
+        /**
+         * This enum duplicates {@link kotlin.jvm.internal.KotlinSyntheticClass.Kind}, because this code can't depend on "runtime.jvm".
+         * Both places should be updated simultaneously
+         */
+        public enum Kind {
+            PACKAGE_PART,
+            TRAIT_IMPL,
+            SAM_WRAPPER,
+            SAM_LAMBDA,
+            CALLABLE_REFERENCE_WRAPPER,
+            LOCAL_FUNCTION,
+            ANONYMOUS_FUNCTION,
+            LOCAL_CLASS,
+            ANONYMOUS_OBJECT,
+            ;
+
+            @Nullable
+            public static Kind valueOfOrNull(@NotNull String name) {
+                try {
+                    return valueOf(name);
+                }
+                catch (IllegalArgumentException e) {
+                    return null;
+                }
+            }
+        }
+
+        private KotlinSyntheticClass() {
+        }
+    }
 
     @Deprecated
     public static final FqName OLD_JET_CLASS_ANNOTATION = new FqName("jet.runtime.typeinfo.JetClass");
-
     @Deprecated
     public static final FqName OLD_JET_PACKAGE_CLASS_ANNOTATION = new FqName("jet.runtime.typeinfo.JetPackageClass");
+    @Deprecated
+    public static final FqName OLD_JET_VALUE_PARAMETER_ANNOTATION = new FqName("jet.runtime.typeinfo.JetValueParameter");
+    @Deprecated
+    public static final FqName OLD_KOTLIN_CLASS = new FqName("jet.KotlinClass");
+    @Deprecated
+    public static final FqName OLD_KOTLIN_PACKAGE = new FqName("jet.KotlinPackage");
+    @Deprecated
+    public static final FqName OLD_KOTLIN_PACKAGE_FRAGMENT = new FqName("jet.KotlinPackageFragment");
+    @Deprecated
+    public static final FqName OLD_KOTLIN_TRAIT_IMPL = new FqName("jet.KotlinTraitImpl");
+
+    private static final Set<JvmClassName> SPECIAL_ANNOTATIONS = new HashSet<JvmClassName>();
+    static {
+        for (FqName fqName : Arrays.asList(KOTLIN_CLASS, KOTLIN_PACKAGE, KOTLIN_SIGNATURE, JETBRAINS_NOT_NULL_ANNOTATION,
+                                           JETBRAINS_NULLABLE_ANNOTATION)) {
+            SPECIAL_ANNOTATIONS.add(JvmClassName.byFqNameWithoutInnerClasses(fqName));
+        }
+        SPECIAL_ANNOTATIONS.add(KotlinSyntheticClass.CLASS_NAME);
+    }
+
+    public static boolean isSpecialAnnotation(@NotNull FqName fqName) {
+        return isSpecialAnnotation(JvmClassName.byFqNameWithoutInnerClasses(fqName));
+    }
+
+    public static boolean isSpecialAnnotation(@NotNull JvmClassName name) {
+        return SPECIAL_ANNOTATIONS.contains(name) || name.getInternalName().startsWith("jet/runtime/typeinfo/");
+    }
 
     private JvmAnnotationNames() {
     }

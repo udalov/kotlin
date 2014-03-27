@@ -17,6 +17,7 @@
 package org.jetbrains.jet.lang.resolve.extension;
 
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.diagnostics.Errors;
 import org.jetbrains.jet.lang.psi.*;
@@ -40,7 +41,7 @@ public class InlineAnalyzerExtension implements FunctionAnalyzerExtension.Analyz
     public void process(
             @NotNull final FunctionDescriptor descriptor, @NotNull JetNamedFunction function, @NotNull final BindingTrace trace
     ) {
-        assert descriptor instanceof SimpleFunctionDescriptor && ((SimpleFunctionDescriptor) descriptor).isInline() :
+        assert descriptor instanceof SimpleFunctionDescriptor && ((SimpleFunctionDescriptor) descriptor).getInlineStrategy().isInline() :
                 "This method should be invoced on inline function: " + descriptor;
 
         checkDefaults(descriptor, function, trace);
@@ -130,18 +131,20 @@ public class InlineAnalyzerExtension implements FunctionAnalyzerExtension.Analyz
         }
     }
 
-    private static boolean checkInlinableParameter(
+    public static boolean checkInlinableParameter(
             @NotNull CallableDescriptor parameter,
             @NotNull JetElement expression,
-            @NotNull FunctionDescriptor functionDescriptor,
-            @NotNull BindingTrace trace
+            @NotNull CallableDescriptor functionDescriptor,
+            @Nullable BindingTrace trace
     ) {
         KotlinBuiltIns builtIns = KotlinBuiltIns.getInstance();
         JetType type = parameter.getReturnType();
         if (type != null && builtIns.isExactFunctionOrExtensionFunctionType(type)) {
             if (!InlineUtil.hasNoinlineAnnotation(parameter)) {
                 if (type.isNullable()) {
-                    trace.report(Errors.NULLABLE_INLINE_PARAMETER.on(expression, expression, functionDescriptor));
+                    if (trace != null) {
+                        trace.report(Errors.NULLABLE_INLINE_PARAMETER.on(expression, expression, functionDescriptor));
+                    }
                 }
                 else {
                     return true;

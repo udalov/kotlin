@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2013 JetBrains s.r.o.
+ * Copyright 2010-2014 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,40 +22,36 @@ import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.*;
 import com.intellij.psi.impl.java.stubs.index.JavaAnnotationIndex;
 import com.intellij.psi.search.GlobalSearchScope;
-import jet.KotlinClass;
-import jet.KotlinPackage;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.descriptors.serialization.*;
 import org.jetbrains.jet.lang.descriptors.ClassKind;
 import org.jetbrains.jet.lang.resolve.java.JavaResolverPsiUtils;
+import org.jetbrains.jet.lang.resolve.kotlin.KotlinBinaryClassCache;
 import org.jetbrains.jet.lang.resolve.kotlin.KotlinJvmBinaryClass;
-import org.jetbrains.jet.lang.resolve.kotlin.VirtualFileFinder;
-import org.jetbrains.jet.lang.resolve.kotlin.header.KotlinClassHeader;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.Name;
-import org.jetbrains.jet.util.QualifiedNamesUtil;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Set;
 
+import static org.jetbrains.jet.lang.resolve.java.JvmAnnotationNames.KOTLIN_CLASS;
+import static org.jetbrains.jet.lang.resolve.java.JvmAnnotationNames.KOTLIN_PACKAGE;
+
 /**
- * Number of helper methods for searching jet element prototypes in java. Methods use java indices for search.
+ * Number of helper methods for searching kotlin element prototypes in java. Methods use java indices for search.
  */
 public class JetFromJavaDescriptorHelper {
 
     private JetFromJavaDescriptorHelper() {
     }
 
-    /**
-     * Get java equivalents for jet top level classes.
-     */
     static Collection<PsiClass> getClassesForKotlinPackages(Project project, GlobalSearchScope scope) {
         /* Will iterate through short name caches
            Kotlin packages from jar a class files will be collected from java cache
            Kotlin package classes from sources will be collected with JetShortNamesCache.getClassesByName */
-        return getClassesByAnnotation(KotlinPackage.class.getSimpleName(), project, scope);
+        return getClassesByAnnotation(KOTLIN_PACKAGE.shortName().asString(), project, scope);
     }
 
     /**
@@ -78,14 +74,11 @@ public class JetFromJavaDescriptorHelper {
     static Collection<PsiClass> getCompiledClassesForTopLevelObjects(Project project, GlobalSearchScope scope) {
         Set<PsiClass> jetObjectClasses = Sets.newHashSet();
 
-        Collection<PsiClass> classesByAnnotation = getClassesByAnnotation(KotlinClass.class.getSimpleName(), project, scope);
+        Collection<PsiClass> classesByAnnotation = getClassesByAnnotation(KOTLIN_CLASS.shortName().asString(), project, scope);
 
         for (PsiClass psiClass : classesByAnnotation) {
             ClassKind kind = getCompiledClassKind(psiClass);
-            if (kind == null) {
-                continue;
-            }
-            if (psiClass.getContainingClass() == null && kind == ClassKind.OBJECT) {
+            if (kind == ClassKind.OBJECT && psiClass.getContainingClass() == null) {
                 jetObjectClasses.add(psiClass);
             }
         }
@@ -117,10 +110,9 @@ public class JetFromJavaDescriptorHelper {
     private static String[] getAnnotationDataForKotlinClass(@NotNull PsiClass psiClass) {
         VirtualFile virtualFile = getVirtualFileForPsiClass(psiClass);
         if (virtualFile != null) {
-            KotlinJvmBinaryClass kotlinClass = VirtualFileFinder.SERVICE.getInstance(psiClass.getProject()).createKotlinClass(virtualFile);
-            KotlinClassHeader header = kotlinClass.getClassHeader();
-            if (header != null) {
-                return header.getAnnotationData();
+            KotlinJvmBinaryClass kotlinClass = KotlinBinaryClassCache.getKotlinBinaryClass(virtualFile);
+            if (kotlinClass != null) {
+                return kotlinClass.getClassHeader().getAnnotationData();
             }
         }
         return null;
@@ -145,8 +137,7 @@ public class JetFromJavaDescriptorHelper {
             FqName classFQN = new FqName(qualifiedName);
 
             if (JavaResolverPsiUtils.isCompiledKotlinPackageClass(containingClass)) {
-                FqName classParentFQN = QualifiedNamesUtil.withoutLastSegment(classFQN);
-                return QualifiedNamesUtil.combine(classParentFQN, Name.identifier(method.getName()));
+                return classFQN.parent().child(Name.identifier(method.getName()));
             }
         }
 
@@ -176,7 +167,7 @@ public class JetFromJavaDescriptorHelper {
             boolean shouldBeExtension
     ) {
         Collection<FqName> result = Sets.newHashSet();
-        Collection<PsiClass> packageClasses = getClassesByAnnotation(KotlinPackage.class.getSimpleName(), project, scope);
+        Collection<PsiClass> packageClasses = getClassesByAnnotation(KOTLIN_PACKAGE.shortName().asString(), project, scope);
         for (PsiClass psiClass : packageClasses) {
             String qualifiedName = psiClass.getQualifiedName();
             if (qualifiedName == null) {

@@ -23,12 +23,13 @@ import org.jetbrains.jet.descriptors.serialization.NameSerializationUtil;
 import org.jetbrains.jet.descriptors.serialization.PackageData;
 import org.jetbrains.jet.descriptors.serialization.ProtoBuf;
 import org.jetbrains.jet.descriptors.serialization.descriptors.DeserializedPackageMemberScope;
-import org.jetbrains.jet.lang.descriptors.*;
-import org.jetbrains.jet.lang.descriptors.annotations.Annotations;
-import org.jetbrains.jet.lang.descriptors.impl.DeclarationDescriptorImpl;
+import org.jetbrains.jet.descriptors.serialization.descriptors.MemberFilter;
+import org.jetbrains.jet.lang.descriptors.ModuleDescriptor;
+import org.jetbrains.jet.lang.descriptors.PackageFragmentDescriptor;
+import org.jetbrains.jet.lang.descriptors.PackageFragmentDescriptorImpl;
+import org.jetbrains.jet.lang.descriptors.PackageFragmentProvider;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
-import org.jetbrains.jet.lang.types.TypeSubstitutor;
 import org.jetbrains.jet.lang.types.lang.BuiltInsSerializationUtil;
 import org.jetbrains.jet.storage.LockBasedStorageManager;
 import org.jetbrains.jet.utils.UtilsPackage;
@@ -39,14 +40,12 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
-/* package */ class ObjCBuiltInsPackageFragment extends DeclarationDescriptorImpl implements PackageFragmentDescriptor {
-    private final ModuleDescriptor module;
+/* package */ class ObjCBuiltInsPackageFragment extends PackageFragmentDescriptorImpl implements PackageFragmentDescriptor {
     private final PackageFragmentProvider provider;
     private final JetScope scope;
 
     public ObjCBuiltInsPackageFragment(@NotNull ModuleDescriptor module) {
-        super(Annotations.EMPTY, ObjCBuiltIns.FQ_NAME.shortName());
-        this.module = module;
+        super(module, ObjCBuiltIns.FQ_NAME);
         this.provider = new ObjCBuiltInsPackageFragmentProvider();
 
         NameResolver nameResolver;
@@ -67,8 +66,8 @@ import java.util.List;
             throw UtilsPackage.rethrow(e);
         }
 
-        this.scope = new DeserializedPackageMemberScope(LockBasedStorageManager.NO_LOCKS, this, ObjCBuiltInsAnnotationDeserializer.INSTANCE,
-                                                        new ObjCBuiltInsFinder(provider, nameResolver),
+        this.scope = new DeserializedPackageMemberScope(LockBasedStorageManager.NO_LOCKS, this, ObjCBuiltInsDeserializers.INSTANCE,
+                                                        MemberFilter.ALWAYS_TRUE, new ObjCBuiltInsFinder(provider, nameResolver),
                                                         new PackageData(nameResolver, packageProto));
     }
 
@@ -90,29 +89,6 @@ import java.util.List;
     @Override
     public JetScope getMemberScope() {
         return scope;
-    }
-
-    @NotNull
-    @Override
-    public ModuleDescriptor getContainingDeclaration() {
-        return module;
-    }
-
-    @Nullable
-    @Override
-    public DeclarationDescriptor substitute(@NotNull TypeSubstitutor substitutor) {
-        return this;
-    }
-
-    @Override
-    public <R, D> R accept(DeclarationDescriptorVisitor<R, D> visitor, D data) {
-        return visitor.visitPackageFragmentDescriptor(this, data);
-    }
-
-    @NotNull
-    @Override
-    public FqName getFqName() {
-        return ObjCBuiltIns.FQ_NAME;
     }
 
     @NotNull

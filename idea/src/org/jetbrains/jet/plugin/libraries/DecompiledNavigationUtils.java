@@ -19,6 +19,8 @@ package org.jetbrains.jet.plugin.libraries;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.VirtualFile;
+import com.intellij.psi.PsiFile;
+import com.intellij.psi.PsiManager;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.*;
@@ -27,8 +29,6 @@ import org.jetbrains.jet.lang.resolve.DescriptorUtils;
 import org.jetbrains.jet.lang.resolve.java.PackageClassUtils;
 import org.jetbrains.jet.lang.resolve.kotlin.VirtualFileFinder;
 import org.jetbrains.jet.lang.resolve.name.FqName;
-
-import java.util.Set;
 
 import static org.jetbrains.jet.lang.resolve.DescriptorUtils.getFqName;
 import static org.jetbrains.jet.lang.resolve.DescriptorUtils.getFqNameSafe;
@@ -57,10 +57,13 @@ public final class DecompiledNavigationUtils {
         DeclarationDescriptor effectiveReferencedDescriptor = getEffectiveReferencedDescriptor(referencedDescriptor);
         VirtualFile virtualFile = findVirtualFileContainingDescriptor(project, effectiveReferencedDescriptor);
 
-        if (virtualFile == null || !DecompiledUtils.isKotlinCompiledFile(project, virtualFile)) return null;
+        if (virtualFile == null || !LibrariesPackage.isKotlinCompiledFile(virtualFile)) return null;
 
-        JetDecompiledData data = JetDecompiledData.getDecompiledData(virtualFile, project);
-        JetDeclaration jetDeclaration = data.getDeclarationForDescriptor(effectiveReferencedDescriptor);
+        PsiFile psiFile = PsiManager.getInstance(project).findFile(virtualFile);
+        if (!(psiFile instanceof JetClsFile)) {
+            return null;
+        }
+        JetDeclaration jetDeclaration = ((JetClsFile) psiFile).getDeclarationForDescriptor(effectiveReferencedDescriptor);
         if (jetDeclaration != null) {
             return jetDeclaration;
         }
@@ -72,18 +75,11 @@ public final class DecompiledNavigationUtils {
 
     //TODO: should be done via some generic mechanism
     @NotNull
-    private static DeclarationDescriptor getEffectiveReferencedDescriptor(@NotNull DeclarationDescriptor referencedDescriptor) {
-        if (referencedDescriptor instanceof CallableMemberDescriptor) {
-            CallableMemberDescriptor callableMemberDescriptor = (CallableMemberDescriptor) referencedDescriptor;
-            CallableMemberDescriptor.Kind kind = callableMemberDescriptor.getKind();
-            if (kind == CallableMemberDescriptor.Kind.FAKE_OVERRIDE) {
-                Set<? extends CallableMemberDescriptor> overriddenDescriptors =
-                        callableMemberDescriptor.getOverriddenDescriptors();
-                //TODO: several descriptors
-                return getEffectiveReferencedDescriptor(overriddenDescriptors.iterator().next());
-            }
+    private static DeclarationDescriptor getEffectiveReferencedDescriptor(@NotNull DeclarationDescriptor descriptor) {
+        if (descriptor instanceof CallableMemberDescriptor) {
+            return DescriptorUtils.unwrapFakeOverride((CallableMemberDescriptor) descriptor);
         }
-        return referencedDescriptor;
+        return descriptor;
     }
 
 
@@ -100,7 +96,7 @@ public final class DecompiledNavigationUtils {
             return null;
         }
         VirtualFileFinder fileFinder = VirtualFileFinder.SERVICE.getInstance(project);
-        VirtualFile virtualFile = fileFinder.findVirtualFile(containerFqName);
+        VirtualFile virtualFile = fileFinder.findVirtualFileWithHeader(containerFqName);
         if (virtualFile == null) {
             return null;
         }
@@ -116,8 +112,7 @@ public final class DecompiledNavigationUtils {
             return PackageClassUtils.getPackageClassFqName(((PackageFragmentDescriptor) containerDescriptor).getFqName());
         }
         if (containerDescriptor instanceof ClassDescriptor) {
-            ClassKind classKind = ((ClassDescriptor) containerDescriptor).getKind();
-            if (classKind == ClassKind.CLASS_OBJECT || classKind == ClassKind.ENUM_ENTRY
+            if (containerDescriptor.getContainingDeclaration() instanceof ClassDescriptor
                 || DescriptorUtils.isLocal(containerDescriptor.getContainingDeclaration(), containerDescriptor)) {
                 return getContainerFqName(containerDescriptor.getContainingDeclaration());
             }

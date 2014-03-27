@@ -18,8 +18,8 @@ package org.jetbrains.jet.lang.resolve.lazy;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import jet.Function0;
-import jet.Function1;
+import kotlin.Function0;
+import kotlin.Function1;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.TestOnly;
@@ -28,6 +28,7 @@ import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.psi.JetImportDirective;
 import org.jetbrains.jet.lang.resolve.BindingTrace;
 import org.jetbrains.jet.lang.resolve.Importer;
+import org.jetbrains.jet.lang.resolve.ImportsResolver;
 import org.jetbrains.jet.lang.resolve.JetModuleUtil;
 import org.jetbrains.jet.lang.resolve.name.LabelName;
 import org.jetbrains.jet.lang.resolve.name.Name;
@@ -42,7 +43,7 @@ import java.util.Set;
 
 import static org.jetbrains.jet.lang.resolve.QualifiedExpressionResolver.LookupMode;
 
-public class LazyImportScope implements JetScope {
+public class LazyImportScope implements JetScope, LazyEntity {
     private final ResolveSession resolveSession;
     private final PackageViewDescriptor packageDescriptor;
     private final ImportsProvider importsProvider;
@@ -53,10 +54,12 @@ public class LazyImportScope implements JetScope {
     private static class ImportResolveStatus {
         private final LookupMode lookupMode;
         private final JetScope scope;
+        private final Collection<? extends DeclarationDescriptor> descriptors;
 
-        ImportResolveStatus(LookupMode lookupMode, JetScope scope) {
+        ImportResolveStatus(LookupMode lookupMode, JetScope scope, Collection<? extends DeclarationDescriptor> descriptors) {
             this.lookupMode = lookupMode;
             this.scope = scope;
+            this.descriptors = descriptors;
         }
     }
 
@@ -92,8 +95,9 @@ public class LazyImportScope implements JetScope {
                     Importer.StandardImporter importer = new Importer.StandardImporter(directiveImportScope);
                     directiveUnderResolve = directive;
 
+                    Collection<? extends DeclarationDescriptor> descriptors;
                     try {
-                        resolveSession.getQualifiedExpressionResolver().processImportReference(
+                        descriptors = resolveSession.getQualifiedExpressionResolver().processImportReference(
                                 directive,
                                 rootScope,
                                 packageDescriptor.getMemberScope(),
@@ -101,13 +105,21 @@ public class LazyImportScope implements JetScope {
                                 traceForImportResolve,
                                 resolveSession.getModuleDescriptor(),
                                 mode);
+                        if (mode == LookupMode.EVERYTHING) {
+                            ImportsResolver.checkPlatformTypesMappedToKotlin(
+                                    packageDescriptor.getModule(),
+                                    traceForImportResolve,
+                                    directive,
+                                    descriptors
+                            );
+                        }
                     }
                     finally {
                         directiveUnderResolve = null;
                         directiveImportScope.changeLockLevel(WritableScope.LockLevel.READING);
                     }
 
-                    importResolveStatus = new ImportResolveStatus(mode, directiveImportScope);
+                    importResolveStatus = new ImportResolveStatus(mode, directiveImportScope, descriptors);
                     return directiveImportScope;
                 }
             });
@@ -156,6 +168,18 @@ public class LazyImportScope implements JetScope {
                 traceForImportResolve,
                 debugName,
                 packageDescriptor.getFqName().isRoot());
+    }
+
+    @Override
+    public void forceResolveAllContents() {
+        for (JetImportDirective importDirective : importsProvider.getAllImports()) {
+            getImportScope(importDirective, LookupMode.EVERYTHING);
+
+            ImportResolveStatus status = importedScopesProvider.invoke(importDirective).importResolveStatus;
+            if (status != null && !status.descriptors.isEmpty()) {
+                ImportsResolver.reportUselessImport(importDirective, this, status.descriptors, traceForImportResolve);
+            }
+        }
     }
 
     @Nullable

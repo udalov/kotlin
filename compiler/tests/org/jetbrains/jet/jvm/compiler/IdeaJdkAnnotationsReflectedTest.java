@@ -30,7 +30,7 @@ import org.jetbrains.jet.JetTestUtils;
 import org.jetbrains.jet.TestJdkKind;
 import org.jetbrains.jet.cli.jvm.compiler.CoreExternalAnnotationsManager;
 import org.jetbrains.jet.cli.jvm.compiler.JetCoreEnvironment;
-import org.jetbrains.jet.lang.resolve.java.kotlinSignature.SignaturesUtil;
+import org.jetbrains.jet.lang.resolve.java.JvmAnnotationNames;
 import org.jetbrains.jet.lang.resolve.lazy.KotlinTestWithEnvironment;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 
@@ -49,7 +49,7 @@ public class IdeaJdkAnnotationsReflectedTest extends KotlinTestWithEnvironment {
     @Override
     protected void setUp() throws Exception {
         super.setUp();
-        kotlinAnnotationsRoot = VirtualFileManager.getInstance().findFileByUrl("file://jdk-annotations");
+        kotlinAnnotationsRoot = VirtualFileManager.getInstance().findFileByUrl("jar://dependencies/annotations/kotlin-jdk-annotations.jar!/");
         ideaAnnotationsRoot = VirtualFileManager.getInstance().findFileByUrl("jar://ideaSDK/lib/jdkAnnotations.jar!/");
     }
 
@@ -78,6 +78,9 @@ public class IdeaJdkAnnotationsReflectedTest extends KotlinTestWithEnvironment {
         for (FqName classFqName : JdkAnnotationsValidityTest.getAffectedClasses("jar://ideaSDK/lib/jdkAnnotations.jar!/")) {
             if (new FqName("org.jdom").equals(classFqName.parent())) continue; // filter unrelated jdom annotations
             if (new FqName("java.util.concurrent.TransferQueue").equals(classFqName)) continue; // filter JDK7-specific class
+            if (new FqName("java.util.Objects").equals(classFqName)) continue; // filter JDK7-specific class
+            if (new FqName("java.nio.file.Files").equals(classFqName)) continue; // filter JDK7-specific class
+            if (new FqName("java.nio.file.Paths").equals(classFqName)) continue; // filter JDK7-specific class
             // the following idea annotation is incorrect
             // <item name="java.io.StringWriter void write(java.lang.String) 0">
             // <annotation name="org.jetbrains.annotations.NotNull" />
@@ -163,9 +166,9 @@ public class IdeaJdkAnnotationsReflectedTest extends KotlinTestWithEnvironment {
     }
 
     private enum AnnotationsKind {
-        KOTLIN_SIGNATURE(SignaturesUtil.KOTLIN_SIGNATURE.asString()),
+        KOTLIN_SIGNATURE(JvmAnnotationNames.KOTLIN_SIGNATURE.asString(), JvmAnnotationNames.OLD_KOTLIN_SIGNATURE.asString()),
         NOT_NULL(AnnotationUtil.NOT_NULL),
-        ANY(AnnotationUtil.NOT_NULL, SignaturesUtil.KOTLIN_SIGNATURE.asString());
+        ANY(AnnotationUtil.NOT_NULL, JvmAnnotationNames.KOTLIN_SIGNATURE.asString(), JvmAnnotationNames.OLD_KOTLIN_SIGNATURE.asString());
 
         public final String[] annotationNames;
 

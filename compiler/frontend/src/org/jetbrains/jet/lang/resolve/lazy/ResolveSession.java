@@ -16,17 +16,18 @@
 
 package org.jetbrains.jet.lang.resolve.lazy;
 
-import com.google.common.base.Predicate;
-import com.google.common.base.Predicates;
 import com.google.common.collect.Lists;
 import com.intellij.openapi.project.Project;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.util.Function;
 import com.intellij.util.containers.ContainerUtil;
-import jet.Function0;
+import kotlin.Function0;
+import kotlin.Function1;
+import kotlin.KotlinPackage;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.annotations.ReadOnly;
 import org.jetbrains.jet.context.GlobalContextImpl;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.psi.*;
@@ -37,7 +38,6 @@ import org.jetbrains.jet.lang.resolve.lazy.declarations.PackageMemberDeclaration
 import org.jetbrains.jet.lang.resolve.lazy.descriptors.LazyClassDescriptor;
 import org.jetbrains.jet.lang.resolve.lazy.descriptors.LazyPackageDescriptor;
 import org.jetbrains.jet.lang.resolve.name.FqName;
-import org.jetbrains.jet.lang.resolve.name.FqNameUnsafe;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.resolve.name.SpecialNames;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
@@ -69,8 +69,6 @@ public class ResolveSession implements KotlinCodeAnalyzer {
 
     private final BindingTrace trace;
     private final DeclarationProviderFactory declarationProviderFactory;
-
-    private final Predicate<FqNameUnsafe> specialClasses;
 
     private final Function<FqName, Name> classifierAliases;
 
@@ -131,7 +129,6 @@ public class ResolveSession implements KotlinCodeAnalyzer {
         this.module = rootDescriptor;
 
         this.classifierAliases = NO_ALIASES;
-        this.specialClasses = Predicates.alwaysFalse();
 
         this.packages = storageManager.createMemoizedFunctionWithNullableValues(new MemoizedFunctionToNullable<FqName, LazyPackageDescriptor>() {
             @Nullable
@@ -157,7 +154,7 @@ public class ResolveSession implements KotlinCodeAnalyzer {
                 if (packageDescriptor == null) {
                     return Collections.emptyList();
                 }
-                return packageDescriptor.getDeclarationProvider().getAllDeclaredPackages();
+                return packageDescriptor.getDeclarationProvider().getAllDeclaredSubPackages();
             }
         };
 
@@ -187,10 +184,7 @@ public class ResolveSession implements KotlinCodeAnalyzer {
         return new LazyPackageDescriptor(module, fqName, this, provider);
     }
 
-    public boolean isClassSpecial(@NotNull FqNameUnsafe fqName) {
-        return specialClasses.apply(fqName);
-    }
-
+    @NotNull
     @Override
     public ModuleDescriptor getModuleDescriptor() {
         return module;
@@ -206,6 +200,24 @@ public class ResolveSession implements KotlinCodeAnalyzer {
     //@Override
     public ExceptionTracker getExceptionTracker() {
         return exceptionTracker;
+    }
+
+    @NotNull
+    @ReadOnly
+    public Collection<ClassDescriptor> getTopLevelClassDescriptors(@NotNull FqName fqName) {
+        if (fqName.isRoot()) return Collections.emptyList();
+
+        PackageMemberDeclarationProvider provider = declarationProviderFactory.getPackageMemberDeclarationProvider(fqName.parent());
+        if (provider == null) return Collections.emptyList();
+
+        return KotlinPackage.map(
+                provider.getClassOrObjectDeclarations(fqName.shortName()),
+                new Function1<JetClassOrObject, ClassDescriptor>() {
+                    @Override
+                    public ClassDescriptor invoke(JetClassOrObject classOrObject) {
+                        return getClassDescriptor(classOrObject);
+                    }
+                });
     }
 
     @Override

@@ -24,6 +24,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.asm4.Type;
 import org.jetbrains.jet.codegen.SamCodegenUtil;
+import org.jetbrains.jet.codegen.state.GenerationState;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.descriptors.impl.ClassDescriptorImpl;
 import org.jetbrains.jet.lang.psi.*;
@@ -53,7 +54,8 @@ import static org.jetbrains.jet.lexer.JetTokens.*;
 
 class CodegenAnnotatingVisitor extends JetVisitorVoid {
     private static final TokenSet BINARY_OPERATIONS = TokenSet.orSet(
-            AUGMENTED_ASSIGNMENTS, TokenSet.create(PLUS, MINUS, MUL, DIV, PERC, RANGE, LT, GT, LTEQ, GTEQ, IDENTIFIER));
+            AUGMENTED_ASSIGNMENTS,
+            TokenSet.create(PLUS, MINUS, MUL, DIV, PERC, RANGE, LT, GT, LTEQ, GTEQ, IDENTIFIER));
 
     private static class ClassDescriptorWithState {
 
@@ -82,11 +84,15 @@ class CodegenAnnotatingVisitor extends JetVisitorVoid {
 
     private final Stack<ClassDescriptorWithState> classStack = new Stack<ClassDescriptorWithState>();
     private final Stack<String> nameStack = new Stack<String>();
+
     private final BindingTrace bindingTrace;
     private final BindingContext bindingContext;
 
-    public CodegenAnnotatingVisitor(BindingTrace bindingTrace) {
+    private final GenerationState.GenerateClassFilter filter;
+
+    public CodegenAnnotatingVisitor(BindingTrace bindingTrace, GenerationState.GenerateClassFilter filter) {
         this.bindingTrace = bindingTrace;
+        this.filter = filter;
         this.bindingContext = bindingTrace.getBindingContext();
     }
 
@@ -135,6 +141,7 @@ class CodegenAnnotatingVisitor extends JetVisitorVoid {
     @Override
     public void visitJetFile(@NotNull JetFile file) {
         if (file.isScript()) {
+            // SCRIPT: should be replaced with VisitScript override
             //noinspection ConstantConditions
             ClassDescriptor classDescriptor = bindingContext.get(CLASS_FOR_SCRIPT, bindingContext.get(SCRIPT, file.getScript()));
             pushClassDescriptor(classDescriptor);
@@ -142,7 +149,7 @@ class CodegenAnnotatingVisitor extends JetVisitorVoid {
             nameStack.push(asmTypeForScriptPsi(bindingContext, file.getScript()).getInternalName());
         }
         else {
-            nameStack.push(JvmClassName.byFqNameWithoutInnerClasses(JetPsiUtil.getFQName(file)).getInternalName());
+            nameStack.push(JvmClassName.byFqNameWithoutInnerClasses(file.getPackageFqName()).getInternalName());
         }
         file.acceptChildren(this);
         nameStack.pop();
@@ -192,6 +199,8 @@ class CodegenAnnotatingVisitor extends JetVisitorVoid {
             super.visitObjectDeclaration(declaration);
         }
         else {
+            if (!filter.shouldProcess(declaration)) return;
+
             ClassDescriptor classDescriptor = bindingContext.get(CLASS, declaration);
             // working around a problem with shallow analysis
             if (classDescriptor == null) return;
@@ -209,6 +218,8 @@ class CodegenAnnotatingVisitor extends JetVisitorVoid {
 
     @Override
     public void visitClass(@NotNull JetClass klass) {
+        if (!filter.shouldProcess(klass)) return;
+
         ClassDescriptor classDescriptor = bindingContext.get(CLASS, klass);
         // working around a problem with shallow analysis
         if (classDescriptor == null) return;
@@ -304,8 +315,7 @@ class CodegenAnnotatingVisitor extends JetVisitorVoid {
         // working around a problem with shallow analysis
         if (functionDescriptor == null) return;
 
-        ResolvedCall<? extends CallableDescriptor> referencedFunction =
-                bindingContext.get(RESOLVED_CALL, expression.getCallableReference());
+        ResolvedCall<?> referencedFunction = bindingContext.get(RESOLVED_CALL, expression.getCallableReference());
         if (referencedFunction == null) return;
         JetType superType = getSuperTypeForClosure((FunctionDescriptor) referencedFunction.getResultingDescriptor(), true);
 
@@ -396,7 +406,7 @@ class CodegenAnnotatingVisitor extends JetVisitorVoid {
     @Override
     public void visitCallExpression(@NotNull JetCallExpression expression) {
         super.visitCallExpression(expression);
-        ResolvedCall<? extends CallableDescriptor> call = bindingContext.get(BindingContext.RESOLVED_CALL, expression.getCalleeExpression());
+        ResolvedCall<?> call = bindingContext.get(BindingContext.RESOLVED_CALL, expression.getCalleeExpression());
         if (call == null) {
             return;
         }
@@ -411,6 +421,9 @@ class CodegenAnnotatingVisitor extends JetVisitorVoid {
             return;
         }
         List<ResolvedValueArgument> valueArguments = call.getValueArgumentsByIndex();
+        if (valueArguments == null) {
+            throw new IllegalStateException("Failed to arrange value arguments by index: " + descriptor);
+        }
         for (ValueParameterDescriptor valueParameter : original.getValueParameters()) {
             JavaClassDescriptor samInterface = getInterfaceIfSamType(valueParameter.getType());
             if (samInterface == null) {

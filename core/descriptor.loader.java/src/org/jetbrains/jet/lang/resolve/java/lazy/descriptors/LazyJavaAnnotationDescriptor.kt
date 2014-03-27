@@ -1,3 +1,19 @@
+/*
+ * Copyright 2010-2014 JetBrains s.r.o.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.jetbrains.jet.lang.resolve.java.lazy.descriptors
 
 import org.jetbrains.jet.lang.descriptors.annotations.AnnotationDescriptor
@@ -13,7 +29,7 @@ import org.jetbrains.jet.lang.resolve.name.FqName
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns
 import org.jetbrains.jet.lang.descriptors.ClassDescriptor
 import org.jetbrains.jet.lang.descriptors.VariableDescriptor
-import org.jetbrains.jet.lang.resolve.java.AnnotationLoadingUtil.*
+import org.jetbrains.jet.lang.resolve.java.JvmAnnotationNames.*
 import org.jetbrains.jet.lang.resolve.java.JvmAnnotationNames
 import org.jetbrains.jet.lang.resolve.java.resolver.DescriptorResolverUtils
 import org.jetbrains.jet.lang.resolve.DescriptorUtils
@@ -32,8 +48,6 @@ import org.jetbrains.jet.lang.resolve.java.lazy.types.toAttributes
 import org.jetbrains.jet.renderer.DescriptorRenderer
 import org.jetbrains.jet.lang.resolve.java.mapping.JavaToKotlinClassMap
 import org.jetbrains.jet.lang.types.TypeUtils
-import org.jetbrains.jet.lang.resolve.java.resolver.resolveCompileTimeConstantValue
-import org.jetbrains.jet.lang.resolve.java.AnnotationLoadingUtil
 
 private object DEPRECATED_IN_JAVA : JavaLiteralAnnotationArgument {
     override fun getName(): Name? = null
@@ -58,7 +72,7 @@ class LazyJavaAnnotationDescriptor(
 
     private val _nameToArgument = c.storageManager.createLazyValue {
         var arguments: Collection<JavaAnnotationArgument> = javaAnnotation.getArguments()
-        if (arguments.isEmpty() && _fqName() == JavaToKotlinClassMap.JAVA_LANG_DEPRECATED) {
+        if (arguments.isEmpty() && _fqName()?.asString() == "java.lang.Deprecated") {
             arguments = listOf(DEPRECATED_IN_JAVA)
         }
         arguments.valuesToMap { a -> a.getName() }
@@ -94,7 +108,7 @@ class LazyJavaAnnotationDescriptor(
 
     private fun resolveAnnotationArgument(argument: JavaAnnotationArgument?): CompileTimeConstant<*>? {
         return when (argument) {
-            is JavaLiteralAnnotationArgument -> resolveCompileTimeConstantValue(argument.getValue(), true, null)
+            is JavaLiteralAnnotationArgument -> createCompileTimeConstant(argument.getValue(), true, false, null)
             is JavaReferenceAnnotationArgument -> resolveFromReference(argument.resolve())
             is JavaArrayAnnotationArgument -> resolveFromArray(argument.getName() ?: DEFAULT_ANNOTATION_MEMBER_NAME, argument.getElements())
             is JavaAnnotationAsAnnotationArgument -> resolveFromAnnotation(argument.getAnnotation())
@@ -107,7 +121,7 @@ class LazyJavaAnnotationDescriptor(
         val fqName = javaAnnotation.getFqName()
         if (fqName == null) return null
 
-        if (AnnotationLoadingUtil.isSpecialAnnotation(fqName)) {
+        if (JvmAnnotationNames.isSpecialAnnotation(fqName)) {
             return null
         }
 
@@ -146,7 +160,7 @@ class LazyJavaAnnotationDescriptor(
     private fun resolveFromJavaClassObjectType(javaType: JavaType): CompileTimeConstant<*>? {
         // Class type is never nullable in 'Foo.class' in Java
         val `type` = TypeUtils.makeNotNullable(c.typeResolver.transformJavaType(javaType, TypeUsage.MEMBER_SIGNATURE_INVARIANT.toAttributes()))
-        val jlClass = c.javaClassResolver.resolveClassByFqName(JL_CLASS_FQ_NAME)
+        val jlClass = c.javaClassResolver.resolveClassByFqName(FqName("java.lang.Class"))
         if (jlClass == null) return null
 
         val arguments = listOf(TypeProjectionImpl(`type`))

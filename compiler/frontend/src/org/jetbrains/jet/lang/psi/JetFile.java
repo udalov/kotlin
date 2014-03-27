@@ -21,19 +21,22 @@ import com.intellij.lang.ASTNode;
 import com.intellij.lang.FileASTNode;
 import com.intellij.openapi.fileTypes.FileType;
 import com.intellij.psi.FileViewProvider;
+import com.intellij.psi.PsiClass;
+import com.intellij.psi.PsiClassOwner;
 import com.intellij.psi.PsiElementVisitor;
 import com.intellij.psi.util.PsiTreeUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.JetNodeTypes;
 import org.jetbrains.jet.lang.psi.stubs.PsiJetFileStub;
+import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.plugin.JetFileType;
 import org.jetbrains.jet.plugin.JetLanguage;
 
 import java.util.Collections;
 import java.util.List;
 
-public class JetFile extends PsiFileBase implements JetDeclarationContainer, JetElement {
+public class JetFile extends PsiFileBase implements JetDeclarationContainer, JetElement, PsiClassOwner {
 
     private final boolean isCompiled;
 
@@ -89,24 +92,44 @@ public class JetFile extends PsiFileBase implements JetDeclarationContainer, Jet
         return null;
     }
 
-    // scripts have no package directive
+    // scripts have no package directive, all other files must have package directives
     @Nullable
     public JetPackageDirective getPackageDirective() {
         ASTNode ast = getNode().findChildByType(JetNodeTypes.PACKAGE_DIRECTIVE);
         return ast != null ? (JetPackageDirective) ast.getPsi() : null;
     }
 
-    @Nullable
+    @Deprecated // getPackageFqName should be used instead
+    @Override
+    @NotNull
     public String getPackageName() {
-        PsiJetFileStub stub = (PsiJetFileStub) getStub();
-        if (stub != null) {
-            return stub.getPackageName();
-        }
-
-        JetPackageDirective directive = getPackageDirective();
-        return directive != null ? directive.getQualifiedName() : null;
+        return getPackageFqName().asString();
     }
 
+    @NotNull
+    public FqName getPackageFqName() {
+        PsiJetFileStub stub = (PsiJetFileStub) getStub();
+        if (stub != null) {
+            return stub.getPackageFqName();
+        }
+
+        JetPackageDirective packageDirective = getPackageDirective();
+        if (packageDirective == null) {
+            return FqName.ROOT;
+        }
+        return packageDirective.getFqName();
+    }
+
+    @NotNull
+    @Override
+    public PsiClass[] getClasses() {
+        return PsiClass.EMPTY_ARRAY;
+    }
+
+    @Override
+    public void setPackageName(String packageName) { }
+
+    // SCRIPT: find script in file
     @Nullable
     public JetScript getScript() {
         return PsiTreeUtil.getChildOfType(this, JetScript.class);

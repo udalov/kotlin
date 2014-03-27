@@ -21,7 +21,7 @@ public abstract class ObjCObject protected(private val pointer: Long) {
         public val NIL: Nil = Nil.INSTANCE
     }
 
-    public fun toString(): String = "[ObjCObject %s %016x]".format(javaClass.getName(), pointer)
-    public fun hashCode(): Int = (pointer xor (pointer ushr 32)).toInt()
-    public fun equals(o: Any?): Boolean = o is ObjCObject && o.pointer == pointer
+    override fun toString(): String = "[ObjCObject %s %016x]".format(javaClass.getName(), pointer)
+    override fun hashCode(): Int = (pointer xor (pointer ushr 32)).toInt()
+    override fun equals(other: Any?): Boolean = other is ObjCObject && other.pointer == pointer
 }

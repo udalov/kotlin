@@ -27,6 +27,7 @@ import org.jetbrains.asm4.commons.InstructionAdapter;
 import org.jetbrains.asm4.commons.Method;
 import org.jetbrains.jet.codegen.state.JetTypeMapper;
 import org.jetbrains.jet.lang.descriptors.*;
+import org.jetbrains.jet.lang.resolve.DescriptorUtils;
 import org.jetbrains.jet.lang.resolve.java.JvmAbi;
 import org.jetbrains.jet.lang.resolve.objc.ObjCMethodDescriptor;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
@@ -274,14 +275,14 @@ public class ObjCClassCodegen {
 
     @NotNull
     private static ClassDescriptor getDeclaringClassOfMethod(@NotNull FunctionDescriptor method) {
-        DeclarationDescriptor declaration = CodegenUtil.unwrapFakeOverride(method).getContainingDeclaration();
+        DeclarationDescriptor declaration = DescriptorUtils.unwrapFakeOverride(method).getContainingDeclaration();
         assert declaration instanceof ClassDescriptor : "Obj-C method isn't declared in a class: " + method;
         return (ClassDescriptor) declaration;
     }
 
     @NotNull
     private static String getObjCMethodName(@NotNull FunctionDescriptor method) {
-        FunctionDescriptor unwrapped = CodegenUtil.unwrapFakeOverride(method);
+        FunctionDescriptor unwrapped = DescriptorUtils.unwrapFakeOverride(method);
         assert unwrapped instanceof ObjCMethodDescriptor : "Obj-C method original is not an Obj-C method: " + method + ", " + unwrapped;
         return ((ObjCMethodDescriptor) unwrapped).getObjCName();
     }

@@ -18,7 +18,6 @@ package jet.objc;
 
 import java.io.File;
 import java.io.InputStream;
-import java.util.MissingResourceException;
 
 import static kotlin.io.IoPackage.readBytes;
 import static kotlin.io.IoPackage.writeBytes;
@@ -43,7 +42,7 @@ public class Native {
             }
         }
         catch (Throwable e) {
-            throw new MissingResourceException("KotlinNative library not loaded", Native.class.getName(), KOTLIN_NATIVE_LIBRARY_PATH);
+            throw new IllegalStateException("KotlinNative library couldn't be loaded from " + KOTLIN_NATIVE_LIBRARY_PATH, e);
         }
     }
 

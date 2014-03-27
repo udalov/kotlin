@@ -23,6 +23,7 @@ import org.jetbrains.jet.lang.descriptors.TypeParameterDescriptor;
 import org.jetbrains.jet.lang.descriptors.impl.AbstractLazyTypeParameterDescriptor;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.BindingContext;
+import org.jetbrains.jet.lang.resolve.DescriptorResolver;
 import org.jetbrains.jet.lang.resolve.lazy.ForceResolveUtil;
 import org.jetbrains.jet.lang.resolve.lazy.LazyEntity;
 import org.jetbrains.jet.lang.resolve.lazy.ResolveSession;
@@ -64,7 +65,7 @@ public class LazyTypeParameterDescriptor extends AbstractLazyTypeParameterDescri
 
         JetTypeParameter jetTypeParameter = this.jetTypeParameter;
 
-        resolveUpperBoundsFromWhereClause(upperBounds, false);
+        resolveUpperBoundsFromWhereClause(upperBounds);
 
         JetTypeReference extendsBound = jetTypeParameter.getExtendsBound();
         if (extendsBound != null) {
@@ -78,20 +79,24 @@ public class LazyTypeParameterDescriptor extends AbstractLazyTypeParameterDescri
         return upperBounds;
     }
 
-    private void resolveUpperBoundsFromWhereClause(Set<JetType> upperBounds, boolean forClassObject) {
+    private void resolveUpperBoundsFromWhereClause(Set<JetType> upperBounds) {
         JetClassOrObject classOrObject = PsiTreeUtil.getParentOfType(jetTypeParameter, JetClassOrObject.class);
         if (classOrObject instanceof JetClass) {
             JetClass jetClass = (JetClass) classOrObject;
             for (JetTypeConstraint jetTypeConstraint : jetClass.getTypeConstraints()) {
-                if (jetTypeConstraint.isClassObjectContraint() != forClassObject) continue;
+                DescriptorResolver.reportUnsupportedClassObjectConstraint(resolveSession.getTrace(), jetTypeConstraint);
 
                 JetSimpleNameExpression constrainedParameterName = jetTypeConstraint.getSubjectTypeParameterName();
                 if (constrainedParameterName != null) {
                     if (getName().equals(constrainedParameterName.getReferencedNameAsName())) {
+                        resolveSession.getTrace().record(BindingContext.REFERENCE_TARGET, constrainedParameterName, this);
 
                         JetTypeReference boundTypeReference = jetTypeConstraint.getBoundTypeReference();
                         if (boundTypeReference != null) {
-                            upperBounds.add(resolveBoundType(boundTypeReference));
+                            JetType boundType = resolveBoundType(boundTypeReference);
+                            if (!jetTypeConstraint.isClassObjectConstraint()) {
+                                upperBounds.add(boundType);
+                            }
                         }
                     }
                 }
@@ -115,15 +120,15 @@ public class LazyTypeParameterDescriptor extends AbstractLazyTypeParameterDescri
     @Override
     public void forceResolveAllContents() {
         ForceResolveUtil.forceResolveAllContents(getAnnotations());
-        getClassObjectType();
+        ForceResolveUtil.forceResolveAllContents(getClassObjectType());
         getContainingDeclaration();
         getDefaultType();
         getIndex();
-        getLowerBounds();
+        ForceResolveUtil.forceResolveAllContents(getLowerBounds());
         getLowerBoundsAsType();
         getOriginal();
-        getTypeConstructor();
-        getUpperBounds();
+        ForceResolveUtil.forceResolveAllContents(getTypeConstructor());
+        ForceResolveUtil.forceResolveAllContents(getUpperBounds());
         getUpperBoundsAsType();
         getVariance();
     }

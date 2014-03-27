@@ -17,8 +17,9 @@
 package org.jetbrains.jet.lang.psi;
 
 import com.intellij.lang.ASTNode;
+import com.intellij.navigation.ItemPresentation;
+import com.intellij.navigation.ItemPresentationProviders;
 import com.intellij.psi.PsiElement;
-import com.intellij.psi.stubs.IStubElementType;
 import com.intellij.util.IncorrectOperationException;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
@@ -42,12 +43,6 @@ public class JetObjectDeclaration extends JetNamedDeclarationStub<PsiJetObjectSt
         super(stub, JetStubElementTypes.OBJECT_DECLARATION);
     }
 
-    @NotNull
-    @Override
-    public IStubElementType getElementType() {
-        return JetStubElementTypes.OBJECT_DECLARATION;
-    }
-
     @Override
     public String getName() {
         PsiJetObjectStub stub = getStub();
@@ -57,19 +52,6 @@ public class JetObjectDeclaration extends JetNamedDeclarationStub<PsiJetObjectSt
 
         JetObjectDeclarationName nameAsDeclaration = getNameAsDeclaration();
         return nameAsDeclaration == null ? null : nameAsDeclaration.getName();
-    }
-
-    /**
-     * Could be null for anonymous objects and object declared inside functions
-     * @return
-     */
-    public FqName getFqName() {
-        PsiJetObjectStub stub = getStub();
-        if (stub != null) {
-            return stub.getFqName();
-        }
-
-        return JetPsiUtil.getFQName(this);
     }
 
     public boolean isTopLevel() {
@@ -181,8 +163,8 @@ public class JetObjectDeclaration extends JetNamedDeclarationStub<PsiJetObjectSt
         JetPsiUtil.deleteClass(this);
     }
 
-    //@Override
-    //public ItemPresentation getPresentation() {
-    //    return ItemPresentationProviders.getItemPresentation(this);
-    //}
+    @Override
+    public ItemPresentation getPresentation() {
+        return ItemPresentationProviders.getItemPresentation(this);
+    }
 }

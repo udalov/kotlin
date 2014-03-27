@@ -43,7 +43,7 @@ public class AccessorForPropertyDescriptor extends PropertyDescriptorImpl {
             @NotNull DeclarationDescriptor containingDeclaration,
             int index
     ) {
-        super(containingDeclaration, Annotations.EMPTY, Modality.FINAL, Visibilities.LOCAL,
+        super(containingDeclaration, null, Annotations.EMPTY, Modality.FINAL, Visibilities.LOCAL,
               original.isVar(), Name.identifier(original.getName() + "$b$" + index),
               Kind.DECLARATION);
 
@@ -55,16 +55,14 @@ public class AccessorForPropertyDescriptor extends PropertyDescriptorImpl {
         public Getter(AccessorForPropertyDescriptor property) {
             super(property, Annotations.EMPTY, Modality.FINAL, Visibilities.LOCAL,
                   false,
-                  false, Kind.DECLARATION);
+                  false, Kind.DECLARATION, null);
             initialize(property.getType());
         }
     }
 
     public static class Setter extends PropertySetterDescriptorImpl {
         public Setter(AccessorForPropertyDescriptor property) {
-            super(property, Annotations.EMPTY, Modality.FINAL, Visibilities.LOCAL,
-                  false,
-                  false, Kind.DECLARATION);
+            super(property, Annotations.EMPTY, Modality.FINAL, Visibilities.LOCAL, false, false, Kind.DECLARATION, null);
             initializeDefault();
         }
     }

@@ -27,8 +27,10 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.codegen.binding.CalculatedClosure;
 import org.jetbrains.jet.codegen.context.CodegenContext;
+import org.jetbrains.jet.codegen.context.MethodContext;
 import org.jetbrains.jet.codegen.context.PackageContext;
 import org.jetbrains.jet.codegen.state.JetTypeMapper;
+import org.jetbrains.jet.config.IncrementalCompilation;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.descriptors.annotations.Annotated;
 import org.jetbrains.jet.lang.descriptors.annotations.AnnotationDescriptor;
@@ -37,7 +39,9 @@ import org.jetbrains.jet.lang.descriptors.impl.SimpleFunctionDescriptorImpl;
 import org.jetbrains.jet.lang.descriptors.impl.TypeParameterDescriptorImpl;
 import org.jetbrains.jet.lang.resolve.DescriptorUtils;
 import org.jetbrains.jet.lang.resolve.calls.CallResolverUtil;
-import org.jetbrains.jet.lang.resolve.constants.*;
+import org.jetbrains.jet.lang.resolve.constants.ArrayValue;
+import org.jetbrains.jet.lang.resolve.constants.CompileTimeConstant;
+import org.jetbrains.jet.lang.resolve.constants.JavaClassValue;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.types.JetType;
@@ -70,12 +74,13 @@ public class CodegenUtil {
 
     public static SimpleFunctionDescriptor createInvoke(FunctionDescriptor fd) {
         int arity = fd.getValueParameters().size();
-        SimpleFunctionDescriptorImpl invokeDescriptor = new SimpleFunctionDescriptorImpl(
+        SimpleFunctionDescriptorImpl invokeDescriptor = SimpleFunctionDescriptorImpl.create(
                 fd.getExpectedThisObject() != null
                 ? KotlinBuiltIns.getInstance().getExtensionFunction(arity) : KotlinBuiltIns.getInstance().getFunction(arity),
                 Annotations.EMPTY,
                 Name.identifier("invoke"),
-                CallableMemberDescriptor.Kind.DECLARATION);
+                CallableMemberDescriptor.Kind.DECLARATION
+        );
 
         invokeDescriptor.initialize(DescriptorUtils.getReceiverParameterType(fd.getReceiverParameter()),
                                     fd.getExpectedThisObject(),
@@ -104,15 +109,6 @@ public class CodegenUtil {
             }
         }
         return KotlinBuiltIns.getInstance().getAnyType();
-    }
-
-    @NotNull
-    public static <T extends CallableMemberDescriptor> T unwrapFakeOverride(T member) {
-        while (member.getKind() == CallableMemberDescriptor.Kind.FAKE_OVERRIDE) {
-            //noinspection unchecked
-            member = (T) member.getOverriddenDescriptors().iterator().next();
-        }
-        return member;
     }
 
     @Nullable
@@ -161,8 +157,28 @@ public class CodegenUtil {
 
         return !isFakeOverride && !isDelegate &&
                (((context.hasThisDescriptor() && containingDeclaration == context.getThisDescriptor()) ||
-                 (context.getParentContext() instanceof PackageContext && context.getParentContext().getContextDescriptor() == containingDeclaration))
+                 (context.getParentContext() instanceof PackageContext
+                  && isSamePackageInSameModule(context.getParentContext().getContextDescriptor(), containingDeclaration)))
                 && context.getContextKind() != OwnerKind.TRAIT_IMPL);
+    }
+
+    private static boolean isSamePackageInSameModule(
+            @NotNull DeclarationDescriptor owner1,
+            @NotNull DeclarationDescriptor owner2
+    ) {
+        if (owner1 instanceof PackageFragmentDescriptor && owner2 instanceof PackageFragmentDescriptor) {
+            PackageFragmentDescriptor fragment1 = (PackageFragmentDescriptor) owner1;
+            PackageFragmentDescriptor fragment2 = (PackageFragmentDescriptor) owner2;
+
+            if (!IncrementalCompilation.ENABLED) {
+                return fragment1 == fragment2;
+            }
+
+            // backing field should be used directly within same module of same package
+            // TODO calls from other modules/libraries should use facade: KT-4590
+            return fragment1.getFqName().equals(fragment2.getFqName()) && DescriptorUtils.areInSameModule(fragment1, fragment2);
+        }
+        return false;
     }
 
     public static boolean isCallInsideSameModuleAsDeclared(CallableMemberDescriptor declarationDescriptor, CodegenContext context) {
@@ -200,7 +216,16 @@ public class CodegenUtil {
         return false;
     }
 
-    public static boolean couldUseDirectAccessToProperty(@NotNull PropertyDescriptor propertyDescriptor, boolean forGetter, boolean isInsideClass, boolean isDelegated) {
+    public static boolean couldUseDirectAccessToProperty(
+            @NotNull PropertyDescriptor propertyDescriptor,
+            boolean forGetter,
+            boolean isInsideClass,
+            boolean isDelegated,
+            MethodContext context
+    ) {
+        if (context.isInlineFunction()) {
+            return false;
+        }
         PropertyAccessorDescriptor accessorDescriptor = forGetter ? propertyDescriptor.getGetter() : propertyDescriptor.getSetter();
         boolean isExtensionProperty = propertyDescriptor.getReceiverParameter() != null;
         boolean specialTypeProperty = isDelegated ||

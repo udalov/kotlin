@@ -28,6 +28,7 @@ import org.jetbrains.asm4.commons.Method;
 import org.jetbrains.jet.codegen.binding.CalculatedClosure;
 import org.jetbrains.jet.codegen.context.CodegenContext;
 import org.jetbrains.jet.codegen.context.LocalLookup;
+import org.jetbrains.jet.codegen.context.MethodContext;
 import org.jetbrains.jet.codegen.signature.BothSignatureWriter;
 import org.jetbrains.jet.codegen.signature.JvmMethodSignature;
 import org.jetbrains.jet.codegen.state.GenerationState;
@@ -41,13 +42,13 @@ import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 
 import static org.jetbrains.asm4.Opcodes.*;
 import static org.jetbrains.jet.codegen.AsmUtil.*;
 import static org.jetbrains.jet.codegen.CodegenUtil.isConst;
 import static org.jetbrains.jet.codegen.binding.CodegenBinding.*;
+import static org.jetbrains.jet.lang.resolve.java.JvmAnnotationNames.KotlinSyntheticClass;
 
 public class ClosureCodegen extends ParentCodegenAwareImpl {
     private final PsiElement fun;
@@ -58,6 +59,8 @@ public class ClosureCodegen extends ParentCodegenAwareImpl {
     private final FunctionGenerationStrategy strategy;
     private final CalculatedClosure closure;
     private final Type asmType;
+    private final int visibilityFlag;
+    private final KotlinSyntheticClass.Kind syntheticClassKind;
 
     private Method constructor;
 
@@ -67,7 +70,8 @@ public class ClosureCodegen extends ParentCodegenAwareImpl {
             @NotNull FunctionDescriptor funDescriptor,
             @Nullable ClassDescriptor samInterface,
             @NotNull Type closureSuperClass,
-            @NotNull CodegenContext context,
+            @NotNull CodegenContext parentContext,
+            @NotNull KotlinSyntheticClass.Kind syntheticClassKind,
             @NotNull LocalLookup localLookup,
             @NotNull FunctionGenerationStrategy strategy,
             @Nullable MemberCodegen parentCodegen
@@ -78,7 +82,8 @@ public class ClosureCodegen extends ParentCodegenAwareImpl {
         this.funDescriptor = funDescriptor;
         this.samInterface = samInterface;
         this.superClass = closureSuperClass;
-        this.context = context.intoClosure(funDescriptor, localLookup, typeMapper);
+        this.context = parentContext.intoClosure(funDescriptor, localLookup, typeMapper);
+        this.syntheticClassKind = syntheticClassKind;
         this.strategy = strategy;
 
         ClassDescriptor classDescriptor = anonymousClassForFunction(bindingContext, funDescriptor);
@@ -86,6 +91,13 @@ public class ClosureCodegen extends ParentCodegenAwareImpl {
         assert closure != null : "Closure must be calculated for class: " + classDescriptor;
 
         this.asmType = asmTypeForAnonymousClass(bindingContext, funDescriptor);
+
+        //TODO: We should write header on lambda class and filter all completions by header
+        if (parentContext instanceof MethodContext) {
+            visibilityFlag = ((MethodContext) parentContext).isInlineFunction() ? ACC_PUBLIC : NO_FLAG_PACKAGE_PRIVATE;
+        } else {
+            visibilityFlag = NO_FLAG_PACKAGE_PRIVATE;
+        }
     }
 
     public void gen() {
@@ -105,13 +117,15 @@ public class ClosureCodegen extends ParentCodegenAwareImpl {
 
         cv.defineClass(fun,
                        V1_6,
-                       ACC_FINAL | ACC_SUPER,
+                       ACC_FINAL | ACC_SUPER | visibilityFlag,
                        asmType.getInternalName(),
                        getGenericSignature(),
                        superClass.getInternalName(),
                        superInterfaces
         );
         cv.visitSource(fun.getContainingFile().getName(), null);
+
+        writeKotlinSyntheticClassAnnotation(cv, syntheticClassKind);
 
         JvmMethodSignature jvmMethodSignature = typeMapper.mapSignature(funDescriptor).replaceName(interfaceFunction.getName().toString());
         generateBridge(cv, typeMapper.mapSignature(interfaceFunction).getAsmMethod(), jvmMethodSignature.getAsmMethod());
@@ -145,7 +159,7 @@ public class ClosureCodegen extends ParentCodegenAwareImpl {
             v.anew(asmType);
             v.dup();
 
-            codegen.pushClosureOnStack(closure, false);
+            codegen.pushClosureOnStack(closure, false, codegen.defaulCallGenerator);
             v.invokespecial(asmType.getInternalName(), "<init>", constructor.getDescriptor());
         }
         return StackValue.onStack(asmType);
@@ -207,10 +221,21 @@ public class ClosureCodegen extends ParentCodegenAwareImpl {
     private Method generateConstructor(@NotNull ClassBuilder cv) {
         List<FieldInfo> args = calculateConstructorParameters(typeMapper, closure, asmType);
 
+        return generateConstructor(cv, args, fun, superClass, state, visibilityFlag);
+    }
+
+    public static Method generateConstructor(
+            @NotNull ClassBuilder cv,
+            @NotNull List<FieldInfo> args,
+            @Nullable PsiElement fun,
+            @NotNull Type superClass,
+            @NotNull GenerationState state,
+            int flags
+    ) {
         Type[] argTypes = fieldListToTypeArray(args);
 
         Method constructor = new Method("<init>", Type.VOID_TYPE, argTypes);
-        MethodVisitor mv = cv.newMethod(fun, NO_FLAG_PACKAGE_PRIVATE, "<init>", constructor.getDescriptor(), null,
+        MethodVisitor mv = cv.newMethod(fun, flags, "<init>", constructor.getDescriptor(), null,
                                         ArrayUtil.EMPTY_STRING_ARRAY);
         if (state.getClassBuilderMode() == ClassBuilderMode.FULL) {
             mv.visitCode();
@@ -294,7 +319,7 @@ public class ClosureCodegen extends ParentCodegenAwareImpl {
         return signature;
     }
 
-    private static FunctionDescriptor getInvokeFunction(FunctionDescriptor funDescriptor) {
+    public static FunctionDescriptor getInvokeFunction(FunctionDescriptor funDescriptor) {
         int paramCount = funDescriptor.getValueParameters().size();
         KotlinBuiltIns builtIns = KotlinBuiltIns.getInstance();
         ClassDescriptor funClass = funDescriptor.getReceiverParameter() == null

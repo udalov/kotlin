@@ -16,9 +16,10 @@
 
 package org.jetbrains.jet.lang.resolve.kotlin;
 
+import com.intellij.openapi.diagnostic.Logger;
+import com.intellij.openapi.util.Pair;
 import com.intellij.openapi.util.Ref;
 import com.intellij.openapi.vfs.VirtualFile;
-import jet.Function0;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.asm4.ClassReader;
@@ -29,39 +30,75 @@ import org.jetbrains.jet.lang.resolve.java.JvmClassName;
 import org.jetbrains.jet.lang.resolve.kotlin.header.KotlinClassHeader;
 import org.jetbrains.jet.lang.resolve.kotlin.header.ReadKotlinClassHeaderAnnotationVisitor;
 import org.jetbrains.jet.lang.resolve.name.Name;
-import org.jetbrains.jet.storage.NotNullLazyValue;
-import org.jetbrains.jet.storage.NullableLazyValue;
-import org.jetbrains.jet.storage.StorageManager;
 import org.jetbrains.jet.utils.UtilsPackage;
-
-import java.io.IOException;
 
 import static org.jetbrains.asm4.ClassReader.*;
 import static org.jetbrains.asm4.Opcodes.ASM4;
 
 public class VirtualFileKotlinClass implements KotlinJvmBinaryClass {
-    private final VirtualFile file;
-    private final NotNullLazyValue<JvmClassName> className;
-    private final NullableLazyValue<KotlinClassHeader> classHeader;
+    private final static Logger LOG = Logger.getInstance(VirtualFileKotlinClass.class);
 
-    public VirtualFileKotlinClass(@NotNull StorageManager storageManager, @NotNull VirtualFile file) {
+    private final VirtualFile file;
+    private final JvmClassName className;
+    private final KotlinClassHeader classHeader;
+
+    private VirtualFileKotlinClass(@NotNull VirtualFile file, @NotNull JvmClassName className, @NotNull KotlinClassHeader classHeader) {
         this.file = file;
-        this.className = storageManager.createLazyValue(
-                new Function0<JvmClassName>() {
-                    @Override
-                    public JvmClassName invoke() {
-                        return computeClassName();
-                    }
-                }
-        );
-        this.classHeader = storageManager.createNullableLazyValue(
-                new Function0<KotlinClassHeader>() {
-                    @Override
-                    public KotlinClassHeader invoke() {
-                        return ReadKotlinClassHeaderAnnotationVisitor.read(VirtualFileKotlinClass.this);
-                    }
-                }
-        );
+        this.className = className;
+        this.classHeader = classHeader;
+    }
+
+    @Nullable
+    private static Pair<JvmClassName, KotlinClassHeader> readClassNameAndHeader(@NotNull byte[] fileContents) {
+        final ReadKotlinClassHeaderAnnotationVisitor readHeaderVisitor = new ReadKotlinClassHeaderAnnotationVisitor();
+        final Ref<JvmClassName> classNameRef = Ref.create();
+        new ClassReader(fileContents).accept(new ClassVisitor(ASM4) {
+            @Override
+            public void visit(int version, int access, String name, String signature, String superName, String[] interfaces) {
+                classNameRef.set(JvmClassName.byInternalName(name));
+            }
+
+            @Override
+            public org.jetbrains.asm4.AnnotationVisitor visitAnnotation(String desc, boolean visible) {
+                return convertAnnotationVisitor(readHeaderVisitor, desc);
+            }
+
+            @Override
+            public void visitEnd() {
+                readHeaderVisitor.visitEnd();
+            }
+        }, SKIP_CODE | SKIP_DEBUG | SKIP_FRAMES);
+
+        JvmClassName className = classNameRef.get();
+        if (className == null) return null;
+
+        KotlinClassHeader header = readHeaderVisitor.createHeader();
+        if (header == null) return null;
+
+        return Pair.create(className, header);
+    }
+
+    @Nullable
+    /* package */ static VirtualFileKotlinClass create(@NotNull VirtualFile file) {
+        try {
+            byte[] fileContents = file.contentsToByteArray();
+            Pair<JvmClassName, KotlinClassHeader> nameAndHeader = readClassNameAndHeader(fileContents);
+            if (nameAndHeader == null) {
+                return null;
+            }
+
+            return new VirtualFileKotlinClass(file, nameAndHeader.first, nameAndHeader.second);
+        }
+        catch (Throwable e) {
+            LOG.warn(renderFileReadingErrorMessage(file), e);
+            return null;
+        }
+    }
+
+    @Nullable
+    public static KotlinClassHeader readClassHeader(@NotNull byte[] fileContents) {
+        Pair<JvmClassName, KotlinClassHeader> pair = readClassNameAndHeader(fileContents);
+        return pair == null ? null : pair.second;
     }
 
     @NotNull
@@ -70,31 +107,15 @@ public class VirtualFileKotlinClass implements KotlinJvmBinaryClass {
     }
 
     @NotNull
-    private JvmClassName computeClassName() {
-        final Ref<JvmClassName> classNameRef = Ref.create();
-        try {
-            new ClassReader(file.contentsToByteArray()).accept(new ClassVisitor(ASM4) {
-                @Override
-                public void visit(int version, int access, String name, String signature, String superName, String[] interfaces) {
-                    classNameRef.set(JvmClassName.byInternalName(name));
-                }
-            }, SKIP_CODE | SKIP_DEBUG | SKIP_FRAMES);
-        }
-        catch (IOException e) {
-            throw UtilsPackage.rethrow(e);
-        }
-        return classNameRef.get();
+    @Override
+    public JvmClassName getClassName() {
+        return className;
     }
 
     @NotNull
     @Override
-    public JvmClassName getClassName() {
-        return className.invoke();
-    }
-
-    @Override
     public KotlinClassHeader getClassHeader() {
-        return classHeader.invoke();
+        return classHeader;
     }
 
     @Override
@@ -112,7 +133,8 @@ public class VirtualFileKotlinClass implements KotlinJvmBinaryClass {
                 }
             }, SKIP_CODE | SKIP_DEBUG | SKIP_FRAMES);
         }
-        catch (IOException e) {
+        catch (Throwable e) {
+            LOG.error(renderFileReadingErrorMessage(file), e);
             throw UtilsPackage.rethrow(e);
         }
     }
@@ -150,12 +172,12 @@ public class VirtualFileKotlinClass implements KotlinJvmBinaryClass {
     }
 
     @Override
-    public void loadMemberAnnotations(@NotNull final MemberVisitor memberVisitor) {
+    public void visitMembers(@NotNull final MemberVisitor memberVisitor) {
         try {
             new ClassReader(file.contentsToByteArray()).accept(new ClassVisitor(ASM4) {
                 @Override
                 public FieldVisitor visitField(int access, String name, String desc, String signature, Object value) {
-                    final AnnotationVisitor v = memberVisitor.visitField(Name.guess(name), desc);
+                    final AnnotationVisitor v = memberVisitor.visitField(Name.guess(name), desc, value);
                     if (v == null) return null;
 
                     return new FieldVisitor(ASM4) {
@@ -196,7 +218,8 @@ public class VirtualFileKotlinClass implements KotlinJvmBinaryClass {
                 }
             }, SKIP_CODE | SKIP_DEBUG | SKIP_FRAMES);
         }
-        catch (IOException e) {
+        catch (Throwable e) {
+            LOG.error(renderFileReadingErrorMessage(file), e);
             throw UtilsPackage.rethrow(e);
         }
     }
@@ -205,6 +228,13 @@ public class VirtualFileKotlinClass implements KotlinJvmBinaryClass {
     private static JvmClassName classNameFromAsmDesc(@NotNull String desc) {
         assert desc.startsWith("L") && desc.endsWith(";") : "Not a JVM descriptor: " + desc;
         return JvmClassName.byInternalName(desc.substring(1, desc.length() - 1));
+    }
+
+    @NotNull
+    private static String renderFileReadingErrorMessage(@NotNull VirtualFile file) {
+        return "Could not read file: " + file.getPath() + "\n"
+               + "Size in bytes: " + file.getLength() + "\n"
+               + "File type: " + file.getFileType().getName();
     }
 
     @Override

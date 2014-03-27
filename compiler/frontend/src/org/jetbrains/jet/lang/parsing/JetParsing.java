@@ -50,7 +50,8 @@ public class JetParsing extends AbstractJetParsing {
     private static final TokenSet IMPORT_RECOVERY_SET = TokenSet.create(AS_KEYWORD, DOT, EOL_OR_SEMICOLON);
     /*package*/ static final TokenSet TYPE_REF_FIRST = TokenSet.create(LBRACKET, IDENTIFIER, FUN_KEYWORD, LPAR, CAPITALIZED_THIS_KEYWORD, HASH);
     private static final TokenSet RECEIVER_TYPE_TERMINATORS = TokenSet.create(DOT, SAFE_ACCESS);
-    private static final TokenSet VALUE_PARAMETER_FIRST = TokenSet.orSet(TokenSet.create(IDENTIFIER, LBRACKET), MODIFIER_KEYWORDS);
+    private static final TokenSet VALUE_PARAMETER_FIRST =
+            TokenSet.orSet(TokenSet.create(IDENTIFIER, LBRACKET, VAL_KEYWORD, VAR_KEYWORD), MODIFIER_KEYWORDS);
 
     static JetParsing createForTopLevel(SemanticWhitespaceAwarePsiBuilder builder) {
         JetParsing jetParsing = new JetParsing(builder);
@@ -185,6 +186,8 @@ public class JetParsing extends AbstractJetParsing {
 
     /* SimpleName{"."} */
     private void parsePackageName() {
+        PsiBuilder.Marker qualifiedExpression = mark();
+        boolean simpleName = true;
         while (true) {
             if (myBuilder.newlineBeforeCurrentToken()) {
                 errorWithRecovery("Package name must be a '.'-separated identifier list placed on a single line", PACKAGE_NAME_RECOVERY_SET);
@@ -199,13 +202,21 @@ public class JetParsing extends AbstractJetParsing {
                 nsName.drop();
             }
 
+            if (!simpleName) {
+                PsiBuilder.Marker precedingMarker = qualifiedExpression.precede();
+                qualifiedExpression.done(DOT_QUALIFIED_EXPRESSION);
+                qualifiedExpression = precedingMarker;
+            }
+
             if (at(DOT)) {
+                simpleName = false;
                 advance(); // DOT
             }
             else {
                 break;
             }
         }
+        qualifiedExpression.drop();
     }
 
     /*
@@ -520,7 +531,7 @@ public class JetParsing extends AbstractJetParsing {
 
     /*
      * enumClassBody
-     *   : "{" enumEntry* "}"
+     *   : "{" (enumEntry | memberDeclaration)* "}"
      *   ;
      */
     private void parseEnumClassBody() {
@@ -590,7 +601,7 @@ public class JetParsing extends AbstractJetParsing {
 
     /*
      * classBody
-     *   : ("{" memberDeclaration "}")?
+     *   : ("{" memberDeclaration* "}")?
      *   ;
      */
     /*package*/ void parseClassBody() {

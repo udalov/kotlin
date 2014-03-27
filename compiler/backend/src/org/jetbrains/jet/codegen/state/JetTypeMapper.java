@@ -29,18 +29,19 @@ import org.jetbrains.jet.codegen.signature.BothSignatureWriter;
 import org.jetbrains.jet.codegen.signature.JvmMethodParameterKind;
 import org.jetbrains.jet.codegen.signature.JvmMethodParameterSignature;
 import org.jetbrains.jet.codegen.signature.JvmMethodSignature;
+import org.jetbrains.jet.config.IncrementalCompilation;
+import org.jetbrains.jet.descriptors.serialization.descriptors.DeserializedCallableMemberDescriptor;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.descriptors.impl.AnonymousFunctionDescriptor;
-import org.jetbrains.jet.lang.psi.*;
+import org.jetbrains.jet.lang.psi.JetDelegatorToSuperCall;
+import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.BindingContextUtils;
 import org.jetbrains.jet.lang.resolve.BindingTrace;
 import org.jetbrains.jet.lang.resolve.DescriptorUtils;
-import org.jetbrains.jet.lang.resolve.calls.util.ExpressionAsFunctionDescriptor;
 import org.jetbrains.jet.lang.resolve.java.AsmTypeConstants;
 import org.jetbrains.jet.lang.resolve.java.JvmAbi;
 import org.jetbrains.jet.lang.resolve.java.PackageClassUtils;
-import org.jetbrains.jet.lang.resolve.java.descriptor.JavaClassDescriptor;
 import org.jetbrains.jet.lang.resolve.java.descriptor.JavaClassStaticsPackageFragmentDescriptor;
 import org.jetbrains.jet.lang.resolve.java.mapping.KotlinToJavaTypesMap;
 import org.jetbrains.jet.lang.resolve.name.FqNameUnsafe;
@@ -54,10 +55,9 @@ import static org.jetbrains.asm4.Opcodes.*;
 import static org.jetbrains.jet.codegen.AsmUtil.boxType;
 import static org.jetbrains.jet.codegen.AsmUtil.getTraitImplThisParameterType;
 import static org.jetbrains.jet.codegen.CodegenUtil.*;
-import static org.jetbrains.jet.codegen.FunctionTypesUtil.getFunctionTraitClassName;
 import static org.jetbrains.jet.codegen.binding.CodegenBinding.*;
-import static org.jetbrains.jet.lang.resolve.DescriptorUtils.isAnnotationClass;
-import static org.jetbrains.jet.lang.resolve.DescriptorUtils.isAnonymousObject;
+import static org.jetbrains.jet.lang.resolve.BindingContextUtils.isVarCapturedInClosure;
+import static org.jetbrains.jet.lang.resolve.DescriptorUtils.*;
 import static org.jetbrains.jet.lang.resolve.java.AsmTypeConstants.OBJECT_TYPE;
 
 public class JetTypeMapper extends BindingTraceAware {
@@ -75,15 +75,15 @@ public class JetTypeMapper extends BindingTraceAware {
          */
         IMPL,
         /**
-         * jet.Int is mapped to I
+         * kotlin.Int is mapped to I
          */
         VALUE,
         /**
-         * jet.Int is mapped to Ljava/lang/Integer;
+         * kotlin.Int is mapped to Ljava/lang/Integer;
          */
         TYPE_PARAMETER,
         /**
-         * jet.Int is mapped to Ljava/lang/Integer;
+         * kotlin.Int is mapped to Ljava/lang/Integer;
          * No projections allowed in immediate arguments
          */
         SUPER_TYPE
@@ -128,13 +128,18 @@ public class JetTypeMapper extends BindingTraceAware {
         }
 
         // It's not a package created for Java class statics
-        JetFile file = BindingContextUtils.getContainingFile(bindingContext, descriptor);
-        if (insideModule && file != null) {
-            return PackageCodegen.getPackagePartInternalName(file);
+        if (insideModule) {
+            JetFile file = BindingContextUtils.getContainingFile(bindingContext, descriptor);
+            if (file != null) {
+                return PackageCodegen.getPackagePartInternalName(file);
+            }
+            if (descriptor instanceof DeserializedCallableMemberDescriptor && IncrementalCompilation.ENABLED) {
+                //
+                // TODO calls from other modules/libraries should use facade: KT-4590
+                return PackageCodegen.getPackagePartInternalName((DeserializedCallableMemberDescriptor) descriptor);
+            }
         }
-        else {
-            return PackageClassUtils.getPackageClassFqName(packageFragment.getFqName()).asString().replace('.', '/');
-        }
+        return PackageClassUtils.getPackageClassFqName(packageFragment.getFqName()).asString().replace('.', '/');
     }
 
     @NotNull
@@ -413,14 +418,7 @@ public class JetTypeMapper extends BindingTraceAware {
         Type thisClass;
         Type calleeType = null;
 
-        if (isLocalNamedFun(functionDescriptor) || functionDescriptor instanceof ExpressionAsFunctionDescriptor) {
-            if (functionDescriptor instanceof ExpressionAsFunctionDescriptor) {
-                JetExpression expression = JetPsiUtil.deparenthesize(((ExpressionAsFunctionDescriptor) functionDescriptor).getExpression());
-                if (expression instanceof JetFunctionLiteralExpression) {
-                    expression = ((JetFunctionLiteralExpression) expression).getFunctionLiteral();
-                }
-                functionDescriptor = bindingContext.get(BindingContext.FUNCTION, expression);
-            }
+        if (isLocalNamedFun(functionDescriptor)) {
             functionDescriptor = functionDescriptor.getOriginal();
 
             owner = asmTypeForAnonymousClass(bindingContext, functionDescriptor);
@@ -553,9 +551,7 @@ public class JetTypeMapper extends BindingTraceAware {
                 return PropertyCodegen.setterName(property.getName());
             }
         }
-        else if (isLocalNamedFun(descriptor) ||
-                 descriptor instanceof AnonymousFunctionDescriptor ||
-                 descriptor instanceof ExpressionAsFunctionDescriptor) {
+        else if (isLocalNamedFun(descriptor) || descriptor instanceof AnonymousFunctionDescriptor) {
             return "invoke";
         }
         else {
@@ -843,21 +839,6 @@ public class JetTypeMapper extends BindingTraceAware {
             return StackValue.sharedTypeForType(mapType(outType));
         }
         return null;
-    }
-
-    @NotNull
-    public CallableMethod mapToFunctionInvokeCallableMethod(@NotNull FunctionDescriptor fd) {
-        JvmMethodSignature signature = erasedInvokeSignature(fd);
-        Type owner = getFunctionTraitClassName(fd);
-        Type receiverParameterType;
-        ReceiverParameterDescriptor receiverParameter = fd.getOriginal().getReceiverParameter();
-        if (receiverParameter != null) {
-            receiverParameterType = mapType(receiverParameter.getType());
-        }
-        else {
-            receiverParameterType = null;
-        }
-        return new CallableMethod(owner, null, null, signature, INVOKEINTERFACE, owner, receiverParameterType, owner);
     }
 
     @NotNull

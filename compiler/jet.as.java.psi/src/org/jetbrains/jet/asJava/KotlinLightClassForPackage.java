@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2013 JetBrains s.r.o.
+ * Copyright 2010-2014 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,13 +42,13 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
-public class KotlinLightClassForPackage extends KotlinWrappingLightClass implements KotlinLightClass, JetJavaMirrorMarker {
+public class KotlinLightClassForPackage extends KotlinWrappingLightClass implements JetJavaMirrorMarker {
     private final FqName packageFqName;
     private final FqName packageClassFqName; // derived from packageFqName
     private final GlobalSearchScope searchScope;
     private final Collection<JetFile> files;
     private final int hashCode;
-    private final CachedValue<LightClassStubWithData> javaFileStub;
+    private final CachedValue<KotlinPackageLightClassData> lightClassDataCache;
     private final PsiModifierList modifierList;
     private final LightEmptyImplementsList implementsList;
 
@@ -67,9 +67,9 @@ public class KotlinLightClassForPackage extends KotlinWrappingLightClass impleme
         assert !files.isEmpty() : "No files for package " + packageFqName;
         this.files = Sets.newHashSet(files); // needed for hashCode
         this.hashCode = computeHashCode();
-        KotlinJavaFileStubProvider stubProvider =
+        KotlinJavaFileStubProvider<KotlinPackageLightClassData> stubProvider =
                 KotlinJavaFileStubProvider.createForPackageClass(getProject(), packageFqName, searchScope);
-        this.javaFileStub = CachedValuesManager.getManager(getProject()).createCachedValue(stubProvider, /*trackValue = */false);
+        this.lightClassDataCache = CachedValuesManager.getManager(getProject()).createCachedValue(stubProvider, /*trackValue = */false);
     }
 
     @Nullable
@@ -272,7 +272,7 @@ public class KotlinLightClassForPackage extends KotlinWrappingLightClass impleme
     @NotNull
     @Override
     public PsiClass getDelegate() {
-        PsiClass psiClass = LightClassUtil.findClass(packageClassFqName, javaFileStub.getValue().getJavaFileStub());
+        PsiClass psiClass = LightClassUtil.findClass(packageClassFqName, lightClassDataCache.getValue().getJavaFileStub());
         if (psiClass == null) {
             throw new IllegalStateException("Package class was not found " + packageFqName);
         }

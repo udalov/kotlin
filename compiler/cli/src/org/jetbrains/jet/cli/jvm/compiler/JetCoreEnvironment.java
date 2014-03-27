@@ -35,6 +35,7 @@ import com.intellij.psi.PsiDocumentManager;
 import com.intellij.psi.PsiElementFinder;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiManager;
+import com.intellij.psi.compiled.ClassFileDecompilers;
 import com.intellij.psi.impl.compiled.ClsCustomNavigationPolicy;
 import com.intellij.psi.impl.file.impl.JavaFileManager;
 import org.jetbrains.annotations.NotNull;
@@ -54,7 +55,10 @@ import org.jetbrains.jet.lang.parsing.JetParserDefinition;
 import org.jetbrains.jet.lang.parsing.JetScriptDefinitionProvider;
 import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.resolve.java.JetFilesProvider;
+import org.jetbrains.jet.lang.resolve.kotlin.KotlinBinaryClassCache;
 import org.jetbrains.jet.lang.resolve.kotlin.VirtualFileFinder;
+import org.jetbrains.jet.lang.resolve.lazy.declarations.CliDeclarationProviderFactoryService;
+import org.jetbrains.jet.lang.resolve.lazy.declarations.DeclarationProviderFactoryService;
 import org.jetbrains.jet.plugin.JetFileType;
 import org.jetbrains.jet.utils.PathUtil;
 
@@ -73,7 +77,10 @@ public class JetCoreEnvironment {
     private static int ourProjectCount = 0;
 
     @NotNull
-    public static JetCoreEnvironment createForProduction(@NotNull Disposable parentDisposable, @NotNull CompilerConfiguration configuration) {
+    public static JetCoreEnvironment createForProduction(
+            @NotNull Disposable parentDisposable,
+            @NotNull CompilerConfiguration configuration
+    ) {
         // JPS may run many instances of the compiler in parallel (there's an option for compiling independent modules in parallel in IntelliJ)
         // All projects share the same ApplicationEnvironment, and when the last project is disposed, the ApplicationEnvironment is disposed as well
         Disposer.register(parentDisposable, new Disposable() {
@@ -86,7 +93,8 @@ public class JetCoreEnvironment {
                 }
             }
         });
-        JetCoreEnvironment environment = new JetCoreEnvironment(parentDisposable, getOrCreateApplicationEnvironmentForProduction(), configuration);
+        JetCoreEnvironment environment =
+                new JetCoreEnvironment(parentDisposable, getOrCreateApplicationEnvironmentForProduction(), configuration);
         synchronized (APPLICATION_LOCK) {
             ourProjectCount++;
         }
@@ -136,13 +144,15 @@ public class JetCoreEnvironment {
         applicationEnvironment.registerFileType(PlainTextFileType.INSTANCE, "xml");
 
         applicationEnvironment.registerFileType(JetFileType.INSTANCE, "kt");
-        applicationEnvironment.registerFileType(JetFileType.INSTANCE, "kts");
         applicationEnvironment.registerFileType(JetFileType.INSTANCE, "ktm");
-        applicationEnvironment.registerFileType(JetFileType.INSTANCE, JetParserDefinition.KTSCRIPT_FILE_SUFFIX); // should be renamed to kts
+        applicationEnvironment.registerFileType(JetFileType.INSTANCE, JetParserDefinition.STD_SCRIPT_SUFFIX); // should be renamed to kts
         applicationEnvironment.registerParserDefinition(new JavaParserDefinition());
         applicationEnvironment.registerParserDefinition(new JetParserDefinition());
 
         applicationEnvironment.getApplication().registerService(OperationModeProvider.class, new CompilerModeProvider());
+        applicationEnvironment.getApplication().registerService(KotlinBinaryClassCache.class, new KotlinBinaryClassCache());
+        applicationEnvironment.getApplication().registerService(DeclarationProviderFactoryService.class,
+                                                                new CliDeclarationProviderFactoryService());
 
         return applicationEnvironment;
     }
@@ -178,9 +188,11 @@ public class JetCoreEnvironment {
                 .getExtensionPoint(PsiElementFinder.EP_NAME)
                 .registerExtension(new JavaElementFinder(project, cliLightClassGenerationSupport));
 
-        // This extension point should be registered in JavaCoreApplicationEnvironment
+        // This extension points should be registered in JavaCoreApplicationEnvironment
         CoreApplicationEnvironment.registerExtensionPoint(Extensions.getRootArea(), ClsCustomNavigationPolicy.EP_NAME,
                                                           ClsCustomNavigationPolicy.class);
+        CoreApplicationEnvironment.registerExtensionPoint(Extensions.getRootArea(), ClassFileDecompilers.EP_NAME,
+                                                          ClassFileDecompilers.Decompiler.class);
 
         annotationsManager = new CoreExternalAnnotationsManager(project.getComponent(PsiManager.class));
         project.registerService(ExternalAnnotationsManager.class, annotationsManager);
@@ -289,6 +301,7 @@ public class JetCoreEnvironment {
         }
     }
 
+    @NotNull
     public List<JetFile> getSourceFiles() {
         return sourceFiles;
     }

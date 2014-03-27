@@ -16,7 +16,7 @@
 
 package org.jetbrains.jet.lang.resolve.objc;
 
-import jet.Function0;
+import kotlin.Function0;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.lang.descriptors.ClassifierDescriptor;
 import org.jetbrains.jet.lang.descriptors.PackageFragmentDescriptor;

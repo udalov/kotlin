@@ -49,7 +49,7 @@ public abstract class AbstractList<E>() : AbstractCollection<E>(), MutableList<E
 
     override fun equals(other: Any?): Boolean = js.noImpl
 
-    fun toString(): String = js.noImpl
+    override fun toString(): String = js.noImpl
 }
 
 library
@@ -67,7 +67,7 @@ public open class LinkedList<E>() : AbstractList<E>() {
 }
 
 library
-public open class HashSet<E>() : AbstractCollection<E>(), MutableSet<E> {
+public open class HashSet<E>(capacity: Int = 0) : AbstractCollection<E>(), MutableSet<E> {
 }
 
 library

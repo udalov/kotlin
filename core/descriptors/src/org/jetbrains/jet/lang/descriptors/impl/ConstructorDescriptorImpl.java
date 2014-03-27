@@ -19,7 +19,6 @@ package org.jetbrains.jet.lang.descriptors.impl;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.*;
-import org.jetbrains.jet.lang.descriptors.annotations.AnnotationDescriptor;
 import org.jetbrains.jet.lang.descriptors.annotations.Annotations;
 import org.jetbrains.jet.lang.resolve.DescriptorUtils;
 import org.jetbrains.jet.lang.resolve.name.Name;
@@ -32,30 +31,38 @@ import static org.jetbrains.jet.lang.descriptors.ReceiverParameterDescriptor.NO_
 
 public class ConstructorDescriptorImpl extends FunctionDescriptorImpl implements ConstructorDescriptor {
 
-    private final boolean isPrimary;
+    protected final boolean isPrimary;
 
     private static final Name NAME = Name.special("<init>");
 
-    public ConstructorDescriptorImpl(@NotNull ClassDescriptor containingDeclaration, @NotNull Annotations annotations, boolean isPrimary) {
-        this(containingDeclaration, annotations, isPrimary, Kind.DECLARATION);
-    }
-
-    public ConstructorDescriptorImpl(@NotNull ClassDescriptor containingDeclaration, @NotNull Annotations annotations, boolean isPrimary, Kind kind) {
-        super(containingDeclaration, annotations, NAME, kind);
+    protected ConstructorDescriptorImpl(
+            @NotNull ClassDescriptor containingDeclaration,
+            @Nullable ConstructorDescriptor original,
+            @NotNull Annotations annotations,
+            boolean isPrimary,
+            @NotNull Kind kind
+    ) {
+        super(containingDeclaration, original, annotations, NAME, kind);
         this.isPrimary = isPrimary;
     }
 
-    public ConstructorDescriptorImpl(@NotNull ClassDescriptor containingDeclaration, @NotNull ConstructorDescriptor original, @NotNull Annotations annotations, boolean isPrimary) {
-        super(containingDeclaration, original, annotations, NAME, Kind.DECLARATION);
-        this.isPrimary = isPrimary;
+    @NotNull
+    public static ConstructorDescriptorImpl create(
+            @NotNull ClassDescriptor containingDeclaration,
+            @NotNull Annotations annotations,
+            boolean isPrimary
+    ) {
+        return new ConstructorDescriptorImpl(containingDeclaration, null, annotations, isPrimary, Kind.DECLARATION);
     }
 
-    public ConstructorDescriptorImpl initialize(@NotNull List<TypeParameterDescriptor> typeParameters, @NotNull List<ValueParameterDescriptor> unsubstitutedValueParameters, Visibility visibility) {
-        return initialize(typeParameters, unsubstitutedValueParameters, visibility, false);
-    }
-
-    public ConstructorDescriptorImpl initialize(@NotNull List<TypeParameterDescriptor> typeParameters, @NotNull List<ValueParameterDescriptor> unsubstitutedValueParameters, Visibility visibility, boolean isStatic) {
-        super.initialize(null, isStatic ? NO_RECEIVER_PARAMETER : getExpectedThisObject(getContainingDeclaration()), typeParameters, unsubstitutedValueParameters, null, Modality.FINAL, visibility);
+    public ConstructorDescriptorImpl initialize(
+            @NotNull List<TypeParameterDescriptor> typeParameters,
+            @NotNull List<ValueParameterDescriptor> unsubstitutedValueParameters,
+            @NotNull Visibility visibility,
+            boolean isStatic
+    ) {
+        super.initialize(null, isStatic ? NO_RECEIVER_PARAMETER : getExpectedThisObject(getContainingDeclaration()), typeParameters,
+                         unsubstitutedValueParameters, null, Modality.FINAL, visibility);
         return this;
     }
 
@@ -98,19 +105,26 @@ public class ConstructorDescriptorImpl extends FunctionDescriptorImpl implements
         throw new UnsupportedOperationException("Constructors cannot override anything");
     }
 
+    @NotNull
     @Override
-    protected FunctionDescriptorImpl createSubstitutedCopy(DeclarationDescriptor newOwner, boolean preserveOriginal, Kind kind) {
+    protected FunctionDescriptorImpl createSubstitutedCopy(
+            @NotNull DeclarationDescriptor newOwner,
+            @Nullable FunctionDescriptor original,
+            @NotNull Kind kind
+    ) {
         if (kind != Kind.DECLARATION) {
             throw new IllegalStateException("Attempt at creating a constructor that is not a declaration: \n" +
                                             "copy from: " + this + "\n" +
                                             "newOwner: " + newOwner + "\n" +
                                             "kind: " + kind);
         }
+        assert original != null : "Attempt to create copy of constructor without preserving original: " + this;
         return new ConstructorDescriptorImpl(
                 (ClassDescriptor) newOwner,
                 this,
                 Annotations.EMPTY, // TODO
-                isPrimary);
+                isPrimary,
+                Kind.DECLARATION);
     }
 
     @NotNull

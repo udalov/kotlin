@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2013 JetBrains s.r.o.
+ * Copyright 2010-2014 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,8 @@ import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.descriptors.annotations.Annotations;
 import org.jetbrains.jet.lang.descriptors.impl.DeclarationDescriptorImpl;
+import org.jetbrains.jet.lang.psi.JetFile;
+import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.lazy.ForceResolveUtil;
 import org.jetbrains.jet.lang.resolve.lazy.LazyEntity;
 import org.jetbrains.jet.lang.resolve.lazy.ResolveSession;
@@ -29,11 +31,9 @@ import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
 import org.jetbrains.jet.lang.types.TypeSubstitutor;
 
-public class LazyPackageDescriptor extends DeclarationDescriptorImpl implements LazyEntity, PackageFragmentDescriptor {
+public class LazyPackageDescriptor extends PackageFragmentDescriptorImpl implements LazyEntity {
     private final ResolveSession resolveSession;
-    private final ModuleDescriptor module;
     private final JetScope memberScope;
-    private final FqName fqName;
     private final PackageMemberDeclarationProvider declarationProvider;
 
     public LazyPackageDescriptor(
@@ -42,42 +42,21 @@ public class LazyPackageDescriptor extends DeclarationDescriptorImpl implements 
             @NotNull ResolveSession resolveSession,
             @NotNull PackageMemberDeclarationProvider declarationProvider
     ) {
-        super(Annotations.EMPTY, fqName.shortNameOrSpecial());
+        super(module, fqName);
         this.resolveSession = resolveSession;
-        this.module = module;
-        this.fqName = fqName;
         this.declarationProvider = declarationProvider;
 
         this.memberScope = new LazyPackageMemberScope(resolveSession, declarationProvider, this);
+
+        for (JetFile file : declarationProvider.getPackageFiles()) {
+            this.resolveSession.getTrace().record(BindingContext.FILE_TO_PACKAGE_FRAGMENT, file, this);
+        }
     }
 
     @NotNull
     @Override
     public JetScope getMemberScope() {
         return memberScope;
-    }
-
-    @NotNull
-    @Override
-    public ModuleDescriptor getContainingDeclaration() {
-        return module;
-    }
-
-    @Nullable
-    @Override
-    public DeclarationDescriptor substitute(@NotNull TypeSubstitutor substitutor) {
-        return this;
-    }
-
-    @Override
-    public <R, D> R accept(DeclarationDescriptorVisitor<R, D> visitor, D data) {
-        return visitor.visitPackageFragmentDescriptor(this, data);
-    }
-
-    @NotNull
-    @Override
-    public FqName getFqName() {
-        return fqName;
     }
 
     @Override

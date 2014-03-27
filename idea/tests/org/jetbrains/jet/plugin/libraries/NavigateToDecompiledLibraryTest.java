@@ -19,6 +19,7 @@ package org.jetbrains.jet.plugin.libraries;
 import com.google.common.collect.Maps;
 import com.intellij.openapi.editor.Document;
 import com.intellij.openapi.fileEditor.FileDocumentManager;
+import com.intellij.openapi.module.Module;
 import com.intellij.openapi.roots.LibraryOrderEntry;
 import com.intellij.openapi.roots.ModuleRootManager;
 import com.intellij.openapi.roots.OrderEntry;
@@ -26,6 +27,9 @@ import com.intellij.openapi.roots.OrderRootType;
 import com.intellij.openapi.util.TextRange;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.openapi.vfs.VirtualFile;
+import com.intellij.psi.PsiFile;
+import com.intellij.psi.PsiManager;
+import com.intellij.psi.impl.compiled.ClsFileImpl;
 import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.testFramework.LightProjectDescriptor;
 import org.jetbrains.annotations.NotNull;
@@ -35,8 +39,6 @@ import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.plugin.JdkAndMockLibraryProjectDescriptor;
 
 import java.util.Map;
-
-import static org.jetbrains.jet.plugin.libraries.JetDecompiledData.getDecompiledData;
 
 public class NavigateToDecompiledLibraryTest extends AbstractNavigateToLibraryTest {
     private VirtualFile classFile;
@@ -86,10 +88,16 @@ public class NavigateToDecompiledLibraryTest extends AbstractNavigateToLibraryTe
     }
 
     private void doTest() {
-        classFile = getClassFile();
-        JetDecompiledData decompiledData = JetDecompiledData.getDecompiledData(classFile, getProject());
-        Map<String, JetDeclaration> map = getRenderedDescriptorToKotlinPsiMap(decompiledData.getFile(),
-                                                    getDecompiledData(classFile, getProject()) .getRenderedDescriptorsToRanges());
+        classFile = getClassFile(PACKAGE, getTestName(false), myModule);
+        PsiFile clsFileForClassFile = PsiManager.getInstance(getProject()).findFile(classFile);
+        assertNotNull(clsFileForClassFile);
+        assertTrue("Expecting kotlin class file, was: " + clsFileForClassFile.getClass(), clsFileForClassFile instanceof JetClsFile);
+        PsiFile decompiledPsiFile = ((ClsFileImpl) clsFileForClassFile).getDecompiledPsiFile();
+        assertNotNull(decompiledPsiFile);
+        assertTrue("Expecting decompiled Kotlin file, was: " + decompiledPsiFile.getClass(), decompiledPsiFile instanceof JetFile);
+        Map<String, JetDeclaration> map = getRenderedDescriptorToKotlinPsiMap(
+                (JetFile) decompiledPsiFile, ((JetClsFile) clsFileForClassFile).getRenderedDescriptorsToRange()
+        );
         String decompiledTextWithMarks = getDecompiledTextWithMarks(map);
 
         assertSameLinesWithFile(TEST_DATA_PATH + "/decompiled/" + getTestName(false) + ".kt", decompiledTextWithMarks);
@@ -123,27 +131,6 @@ public class NavigateToDecompiledLibraryTest extends AbstractNavigateToLibraryTe
         return document.getText();
     }
 
-    @Nullable
-    private LibraryOrderEntry findOurTestLibrary() {
-        for (OrderEntry orderEntry : ModuleRootManager.getInstance(myModule).getOrderEntries()) {
-            if (orderEntry instanceof LibraryOrderEntry) {
-                return (LibraryOrderEntry) orderEntry;
-            }
-        }
-        return null;
-    }
-
-    private VirtualFile getClassFile() {
-        LibraryOrderEntry library = findOurTestLibrary();
-        assertNotNull(library);
-
-        VirtualFile packageDir = library.getFiles(OrderRootType.CLASSES)[0].findFileByRelativePath(PACKAGE.replace(".", "/"));
-        assertNotNull(packageDir);
-        VirtualFile classFile = packageDir.findChild(getTestName(false) + ".class");
-        assertNotNull(classFile);
-        return classFile;
-    }
-
     @NotNull
     private static Map<String, JetDeclaration> getRenderedDescriptorToKotlinPsiMap(
             @NotNull JetFile file, @NotNull Map<String, TextRange> renderedDescriptorsToRanges
@@ -165,5 +152,35 @@ public class NavigateToDecompiledLibraryTest extends AbstractNavigateToLibraryTe
     @Override
     protected LightProjectDescriptor getProjectDescriptor() {
         return new JdkAndMockLibraryProjectDescriptor(TEST_DATA_PATH + "/library", false);
+    }
+
+    @NotNull
+    /*package*/ static VirtualFile getClassFile(
+            @NotNull String packageName,
+            @NotNull String className,
+            @NotNull Module module
+    ) {
+        VirtualFile root = findTestLibraryRoot(module);
+        assertNotNull(root);
+        VirtualFile packageDir = root.findFileByRelativePath(packageName.replace(".", "/"));
+        assertNotNull(packageDir);
+        VirtualFile classFile = packageDir.findChild(className + ".class");
+        assertNotNull(classFile);
+        return classFile;
+    }
+
+    @Nullable
+    /*package*/ static VirtualFile findTestLibraryRoot(@NotNull Module module) {
+        for (OrderEntry orderEntry : ModuleRootManager.getInstance(module).getOrderEntries()) {
+            if (orderEntry instanceof LibraryOrderEntry) {
+                return findTestLibraryRoot((LibraryOrderEntry) orderEntry);
+            }
+        }
+        return null;
+    }
+
+    @NotNull
+    private static VirtualFile findTestLibraryRoot(@NotNull LibraryOrderEntry library) {
+        return library.getFiles(OrderRootType.CLASSES)[0];
     }
 }

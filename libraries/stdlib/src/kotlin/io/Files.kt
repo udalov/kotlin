@@ -23,31 +23,31 @@ public fun File.recurse(block: (File) -> Unit): Unit {
 /**
  * Returns this if the file is a directory or the parent if its a file inside a directory
  */
-inline val File.directory: File
+val File.directory: File
 get() = if (this.isDirectory()) this else this.getParentFile()!!
 
 /**
  * Returns the canonical path of the file
  */
-inline val File.canonicalPath: String
+val File.canonicalPath: String
 get() = getCanonicalPath()
 
 /**
  * Returns the file name or "" for an empty name
  */
-inline val File.name: String
+val File.name: String
 get() = getName()
 
 /**
  * Returns the file path or "" for an empty name
  */
-inline val File.path: String
+val File.path: String
 get() = getPath()
 
 /**
  * Returns true if the file ends with the given extension
  */
-inline val File.extension: String
+val File.extension: String
 get() {
     val text = this.name
     val idx = text.lastIndexOf('.')
@@ -92,21 +92,21 @@ public fun File.reader(): FileReader = FileReader(this)
  * This method is not recommended on huge files.
  */
 public fun File.readBytes(): ByteArray {
-    return FileInputStream(this).use<FileInputStream,ByteArray>{ it.readBytes(this.length().toInt()) }
+    return FileInputStream(this).use { it.readBytes(this.length().toInt()) }
 }
 
 /**
  * Writes the bytes as the contents of the file
  */
 public fun File.writeBytes(data: ByteArray): Unit {
-    return FileOutputStream(this).use<FileOutputStream,Unit>{ it.write(data) }
+    return FileOutputStream(this).use { it.write(data) }
 }
 
 /**
  * Appends bytes to the contents of the file.
  */
 public fun File.appendBytes(data: ByteArray): Unit {
-   return FileOutputStream(this, true).use<FileOutputStream, Unit>{ it.write(data) }
+   return FileOutputStream(this, true).use { it.write(data) }
 }
 
 /**

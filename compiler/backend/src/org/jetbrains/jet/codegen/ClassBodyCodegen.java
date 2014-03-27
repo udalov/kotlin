@@ -35,14 +35,12 @@ import java.util.List;
 import static org.jetbrains.asm4.Opcodes.ACC_STATIC;
 import static org.jetbrains.asm4.Opcodes.RETURN;
 import static org.jetbrains.jet.codegen.binding.CodegenBinding.enumEntryNeedSubclass;
-import static org.jetbrains.jet.lang.resolve.DescriptorUtils.isTopLevelOrInnerClass;
 
 public abstract class ClassBodyCodegen extends MemberCodegen {
     protected final JetClassOrObject myClass;
     protected final OwnerKind kind;
     protected final ClassDescriptor descriptor;
     protected final ClassBuilder v;
-    protected final ClassContext context;
 
     private MethodVisitor clInitMethod;
 
@@ -55,10 +53,9 @@ public abstract class ClassBodyCodegen extends MemberCodegen {
             @NotNull GenerationState state,
             @Nullable MemberCodegen parentCodegen
     ) {
-        super(state, parentCodegen);
+        super(state, parentCodegen, context, v);
         descriptor = state.getBindingContext().get(BindingContext.CLASS, aClass);
         myClass = aClass;
-        this.context = context;
         this.kind = context.getContextKind();
         this.v = v;
     }
@@ -72,9 +69,7 @@ public abstract class ClassBodyCodegen extends MemberCodegen {
 
         generateStaticInitializer();
 
-        if (state.getClassBuilderMode() == ClassBuilderMode.FULL && isTopLevelOrInnerClass(descriptor)) {
-            generateKotlinAnnotation();
-        }
+        generateKotlinAnnotation();
     }
 
     protected abstract void generateDeclaration();
@@ -113,17 +108,17 @@ public abstract class ClassBodyCodegen extends MemberCodegen {
 
     protected void generateDeclaration(PropertyCodegen propertyCodegen, JetDeclaration declaration) {
         if (declaration instanceof JetProperty || declaration instanceof JetNamedFunction) {
-            genFunctionOrProperty(context, (JetTypeParameterListOwner) declaration, v);
+            genFunctionOrProperty((JetTypeParameterListOwner) declaration, v);
         }
         else if (declaration instanceof JetClassOrObject) {
             if (declaration instanceof JetEnumEntry && !enumEntryNeedSubclass(state.getBindingContext(), (JetEnumEntry) declaration)) {
                 return;
             }
 
-            genClassOrObject(context, (JetClassOrObject) declaration);
+            genClassOrObject((JetClassOrObject) declaration);
         }
         else if (declaration instanceof JetClassObject) {
-            genClassOrObject(context, ((JetClassObject) declaration).getObjectDeclaration());
+            genClassOrObject(((JetClassObject) declaration).getObjectDeclaration());
         }
     }
 
@@ -179,9 +174,9 @@ public abstract class ClassBodyCodegen extends MemberCodegen {
             MethodVisitor method = createOrGetClInitMethod();
             method.visitCode();
             SimpleFunctionDescriptorImpl clInit =
-                    new SimpleFunctionDescriptorImpl(descriptor, Annotations.EMPTY,
-                                                     Name.special("<clinit>"),
-                                                     CallableMemberDescriptor.Kind.SYNTHESIZED);
+                    SimpleFunctionDescriptorImpl.create(descriptor, Annotations.EMPTY,
+                                                        Name.special("<clinit>"),
+                                                        CallableMemberDescriptor.Kind.SYNTHESIZED);
             clInit.initialize(null, null, Collections.<TypeParameterDescriptor>emptyList(),
                               Collections.<ValueParameterDescriptor>emptyList(), null, null, Visibilities.PRIVATE);
 

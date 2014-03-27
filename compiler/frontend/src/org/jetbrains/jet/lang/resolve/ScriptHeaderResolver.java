@@ -46,6 +46,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+// SCRIPT: Resolve declarations in scripts
 public class ScriptHeaderResolver {
 
     public static final Key<Integer> PRIORITY_KEY = Key.create(JetScript.class.getName() + ".priority");
@@ -55,11 +56,7 @@ public class ScriptHeaderResolver {
     @NotNull
     private DependencyClassByQualifiedNameResolver dependencyClassByQualifiedNameResolver;
     @NotNull
-    private TopDownAnalysisContext context;
-    @NotNull
     private BindingTrace trace;
-    @NotNull
-    private TopDownAnalysisParameters topDownAnalysisParameters;
 
     @Inject
     public void setPackageFragmentProvider(@NotNull MutablePackageFragmentProvider packageFragmentProvider) {
@@ -72,18 +69,8 @@ public class ScriptHeaderResolver {
     }
 
     @Inject
-    public void setContext(@NotNull TopDownAnalysisContext context) {
-        this.context = context;
-    }
-
-    @Inject
     public void setTrace(@NotNull BindingTrace trace) {
         this.trace = trace;
-    }
-
-    @Inject
-    public void setTopDownAnalysisParameters(@NotNull TopDownAnalysisParameters topDownAnalysisParameters) {
-        this.topDownAnalysisParameters = topDownAnalysisParameters;
     }
 
 
@@ -113,13 +100,12 @@ public class ScriptHeaderResolver {
             int index,
             @NotNull ScriptDescriptor script) {
         JetType type = resolveTypeName(scriptParameter.getType());
-        return new ValueParameterDescriptorImpl(script, index, Annotations.EMPTY, scriptParameter.getName(), type, false, null);
+        return new ValueParameterDescriptorImpl(script, null, index, Annotations.EMPTY, scriptParameter.getName(), type, false, null);
     }
 
-    public void processScriptHierarchy(@NotNull JetScript script, @NotNull JetScope outerScope) {
+    public void processScriptHierarchy(@NotNull TopDownAnalysisContext c, @NotNull JetScript script, @NotNull JetScope outerScope) {
         JetFile file = (JetFile) script.getContainingFile();
-        JetPackageDirective packageDirective = file.getPackageDirective();
-        FqName fqName = packageDirective != null ? new FqName(packageDirective.getQualifiedName()) : FqName.ROOT;
+        FqName fqName = file.getPackageFqName();
         PackageFragmentDescriptor ns = packageFragmentProvider.getOrCreateFragment(fqName);
 
         Integer priority = script.getUserData(PRIORITY_KEY);
@@ -127,7 +113,8 @@ public class ScriptHeaderResolver {
             priority = 0;
         }
 
-        Name className = new FqName(ScriptNameUtil.classNameForScript((JetFile) script.getContainingFile()).replace('/', '.')).shortName();
+        FqName nameForScript = ScriptNameUtil.classNameForScript((JetFile) script.getContainingFile());
+        Name className = nameForScript.shortName();
         ScriptDescriptor scriptDescriptor = new ScriptDescriptor(ns, priority, outerScope, className);
 
         //WriteThroughScope scriptScope = new WriteThroughScope(
@@ -135,19 +122,19 @@ public class ScriptHeaderResolver {
         WritableScopeImpl scriptScope = new WritableScopeImpl(outerScope, scriptDescriptor, RedeclarationHandler.DO_NOTHING, "script");
         scriptScope.changeLockLevel(WritableScope.LockLevel.BOTH);
 
-        context.getScriptScopes().put(script, scriptScope);
-        context.getScripts().put(script, scriptDescriptor);
+        c.getScriptScopes().put(script, scriptScope);
+        c.getScripts().put(script, scriptDescriptor);
 
         trace.record(BindingContext.SCRIPT, script, scriptDescriptor);
 
         ((WritableScope)outerScope).addClassifierDescriptor(scriptDescriptor.getClassDescriptor());
     }
 
-    public void resolveScriptDeclarations() {
-        for (Map.Entry<JetScript, ScriptDescriptor> e : context.getScripts().entrySet()) {
+    public void resolveScriptDeclarations(@NotNull TopDownAnalysisContext c) {
+        for (Map.Entry<JetScript, ScriptDescriptor> e : c.getScripts().entrySet()) {
             JetScript declaration = e.getKey();
             ScriptDescriptor descriptor = e.getValue();
-            WritableScope scope = context.getScriptScopes().get(declaration);
+            WritableScope scope = c.getScriptScopes().get(declaration);
 
             List<ValueParameterDescriptor> valueParameters = Lists.newArrayList();
 
@@ -159,7 +146,7 @@ public class ScriptHeaderResolver {
             int index = 0;
             List<AnalyzerScriptParameter> scriptParameters = !scriptDefinition.getScriptParameters().isEmpty()
                                                        ? scriptDefinition.getScriptParameters()
-                                                       : topDownAnalysisParameters.getScriptParameters();
+                                                       : c.getTopDownAnalysisParameters().getScriptParameters();
 
             for (AnalyzerScriptParameter scriptParameter : scriptParameters) {
                 ValueParameterDescriptor parameter = resolveScriptParameter(scriptParameter, index, descriptor);

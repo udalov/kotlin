@@ -16,7 +16,8 @@
 
 package org.jetbrains.jet.plugin.k2jsrun;
 
-import com.intellij.ide.browsers.BrowsersConfiguration;
+import com.intellij.ide.browsers.BrowserFamily;
+import com.intellij.ide.browsers.WebBrowserManager;
 import com.intellij.openapi.project.Project;
 import org.jetbrains.annotations.NotNull;
 
@@ -31,7 +32,7 @@ public final class K2JSConfigurationSettings {
     private boolean shouldOpenInBrowserAfterTranslation = false;
 
     @NotNull
-    private BrowsersConfiguration.BrowserFamily browserFamily = BrowsersConfiguration.getInstance().getActiveBrowsers().get(0);
+    private BrowserFamily browserFamily = WebBrowserManager.getInstance().getActiveBrowsers().get(0).getFamily();
 
     public K2JSConfigurationSettings(@NotNull Project project) {
         String basePath = project.getBasePath();
@@ -43,11 +44,11 @@ public final class K2JSConfigurationSettings {
     }
 
     @NotNull
-    public BrowsersConfiguration.BrowserFamily getBrowserFamily() {
+    public BrowserFamily getBrowserFamily() {
         return browserFamily;
     }
 
-    public void setBrowserFamily(@NotNull BrowsersConfiguration.BrowserFamily browserFamily) {
+    public void setBrowserFamily(@NotNull BrowserFamily browserFamily) {
         this.browserFamily = browserFamily;
     }
 

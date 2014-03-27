@@ -19,13 +19,8 @@ package org.jetbrains.jet.plugin.intentions
 import com.intellij.codeInsight.intention.impl.BaseIntentionAction
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.project.Project
-import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
-import com.intellij.util.IncorrectOperationException
-import jet.Function1
-import org.jetbrains.annotations.Nullable
 import org.jetbrains.jet.lang.psi.JetElement
-import org.jetbrains.jet.lang.psi.JetFile
 import org.jetbrains.jet.plugin.JetBundle
 import org.jetbrains.jet.lang.psi.psiUtil.getParentByTypesAndPredicate
 
@@ -34,12 +29,13 @@ public abstract class JetSelfTargetingIntention<T: JetElement>(val key: String, 
         setText(JetBundle.message(key))
     }
 
-    protected abstract fun isApplicableTo(element: T): Boolean
-    protected abstract fun applyTo(element: T, editor: Editor)
+    abstract fun isApplicableTo(element: T): Boolean
+    open fun isApplicableTo(element: T, editor: Editor): Boolean = isApplicableTo(element)
+    abstract fun applyTo(element: T, editor: Editor)
 
-    private fun getTarget(editor: Editor, file: PsiFile): T? {
+    protected fun getTarget(editor: Editor, file: PsiFile): T? {
         val offset = editor.getCaretModel().getOffset()
-        return file.findElementAt(offset)?.getParentByTypesAndPredicate(false, elementType) { element -> isApplicableTo(element) }
+        return file.findElementAt(offset)?.getParentByTypesAndPredicate(false, elementType) { element -> isApplicableTo(element, editor) }
     }
 
     public override fun getFamilyName(): String {

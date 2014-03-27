@@ -22,6 +22,7 @@ import com.intellij.openapi.util.Pair;
 import com.intellij.psi.tree.IElementType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.asm4.AnnotationVisitor;
 import org.jetbrains.asm4.Label;
 import org.jetbrains.asm4.MethodVisitor;
 import org.jetbrains.asm4.Type;
@@ -32,16 +33,14 @@ import org.jetbrains.jet.codegen.state.JetTypeMapper;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.resolve.DescriptorUtils;
 import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCall;
-import org.jetbrains.jet.lang.resolve.java.AsmTypeConstants;
-import org.jetbrains.jet.lang.resolve.java.JavaVisibilities;
-import org.jetbrains.jet.lang.resolve.java.JvmClassName;
-import org.jetbrains.jet.lang.resolve.java.JvmPrimitiveType;
+import org.jetbrains.jet.lang.resolve.java.*;
 import org.jetbrains.jet.lang.resolve.java.descriptor.JavaCallableMemberDescriptor;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 import org.jetbrains.jet.lexer.JetTokens;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -50,6 +49,8 @@ import static org.jetbrains.asm4.Opcodes.*;
 import static org.jetbrains.jet.codegen.CodegenUtil.*;
 import static org.jetbrains.jet.lang.resolve.DescriptorUtils.*;
 import static org.jetbrains.jet.lang.resolve.java.AsmTypeConstants.JAVA_STRING_TYPE;
+import static org.jetbrains.jet.lang.resolve.java.JvmAnnotationNames.ABI_VERSION_FIELD_NAME;
+import static org.jetbrains.jet.lang.resolve.java.JvmAnnotationNames.KotlinSyntheticClass;
 import static org.jetbrains.jet.lang.resolve.java.mapping.PrimitiveTypesUtil.asmTypeForPrimitive;
 
 public class AsmUtil {
@@ -292,7 +293,7 @@ public class AsmUtil {
                    : sort == Type.BYTE || sort == Type.SHORT ? Type.INT_TYPE : type;
     }
 
-    public static void genThrow(MethodVisitor mv, String exception, String message) {
+    public static void genThrow(@NotNull MethodVisitor mv, @NotNull String exception, @NotNull String message) {
         InstructionAdapter iv = new InstructionAdapter(mv);
         iv.anew(Type.getObjectType(exception));
         iv.dup();
@@ -301,31 +302,37 @@ public class AsmUtil {
         iv.athrow();
     }
 
-    public static void genMethodThrow(MethodVisitor mv, String exception, String message) {
-        mv.visitCode();
-        genThrow(mv, exception, message);
-        mv.visitMaxs(-1, -1);
-        mv.visitEnd();
-    }
-
     public static void genClosureFields(CalculatedClosure closure, ClassBuilder v, JetTypeMapper typeMapper) {
+        List<Pair<String, Type>> allFields = new ArrayList<Pair<String, Type>>();
+
         ClassifierDescriptor captureThis = closure.getCaptureThis();
-        int access = NO_FLAG_PACKAGE_PRIVATE | ACC_SYNTHETIC | ACC_FINAL;
         if (captureThis != null) {
-            v.newField(null, access, CAPTURED_THIS_FIELD, typeMapper.mapType(captureThis).getDescriptor(), null,
-                       null);
+            allFields.add(Pair.create(CAPTURED_THIS_FIELD, typeMapper.mapType(captureThis)));
         }
 
         JetType captureReceiverType = closure.getCaptureReceiverType();
         if (captureReceiverType != null) {
-            v.newField(null, access, CAPTURED_RECEIVER_FIELD, typeMapper.mapType(captureReceiverType).getDescriptor(),
-                       null, null);
+            allFields.add(Pair.create(CAPTURED_RECEIVER_FIELD, typeMapper.mapType(captureReceiverType)));
         }
 
-        List<Pair<String, Type>> fields = closure.getRecordedFields();
-        for (Pair<String, Type> field : fields) {
-            v.newField(null, access, field.first, field.second.getDescriptor(), null, null);
+        allFields.addAll(closure.getRecordedFields());
+        genClosureFields(allFields, v);
+    }
+
+    public static void genClosureFields(List<Pair<String, Type>> allFields, ClassBuilder builder) {
+        //noinspection PointlessBitwiseExpression
+        int access = NO_FLAG_PACKAGE_PRIVATE | ACC_SYNTHETIC | ACC_FINAL;
+        for (Pair<String, Type> field : allFields) {
+            builder.newField(null, access, field.first, field.second.getDescriptor(), null, null);
         }
+    }
+
+    public static List<FieldInfo> transformCapturedParams(List<Pair<String, Type>> allFields, Type owner) {
+        List<FieldInfo> result = new ArrayList<FieldInfo>();
+        for (Pair<String, Type> field : allFields) {
+            result.add(FieldInfo.createForHiddenField(owner, field.second, field.first));
+        }
+        return result;
     }
 
     public static int genAssignInstanceFieldFromParam(FieldInfo info, int index, InstructionAdapter iv) {
@@ -419,7 +426,7 @@ public class AsmUtil {
                 return StackValue.cmp(opToken, leftType);
             }
             else {
-                v.invokestatic("jet/runtime/Intrinsics", "areEqual", "(Ljava/lang/Object;Ljava/lang/Object;)Z");
+                v.invokestatic("kotlin/jvm/internal/Intrinsics", "areEqual", "(Ljava/lang/Object;Ljava/lang/Object;)Z");
 
                 if (opToken == JetTokens.EXCLEQ || opToken == JetTokens.EXCLEQEQEQ) {
                     genInvertBoolean(v);
@@ -495,7 +502,7 @@ public class AsmUtil {
             if (asmType.getSort() == Type.OBJECT || asmType.getSort() == Type.ARRAY) {
                 v.load(index, asmType);
                 v.visitLdcInsn(parameter.getName().asString());
-                v.invokestatic("jet/runtime/Intrinsics", "checkParameterIsNotNull", "(Ljava/lang/Object;Ljava/lang/String;)V");
+                v.invokestatic("kotlin/jvm/internal/Intrinsics", "checkParameterIsNotNull", "(Ljava/lang/Object;Ljava/lang/String;)V");
             }
         }
     }
@@ -537,7 +544,7 @@ public class AsmUtil {
             v.dup();
             v.visitLdcInsn(descriptor.getContainingDeclaration().getName().asString());
             v.visitLdcInsn(descriptor.getName().asString());
-            v.invokestatic("jet/runtime/Intrinsics", assertMethodToCall, "(Ljava/lang/Object;Ljava/lang/String;Ljava/lang/String;)V");
+            v.invokestatic("kotlin/jvm/internal/Intrinsics", assertMethodToCall, "(Ljava/lang/Object;Ljava/lang/String;Ljava/lang/String;)V");
         }
     }
 
@@ -655,6 +662,15 @@ public class AsmUtil {
         else {
             v.dup();
         }
+    }
+
+    public static void writeKotlinSyntheticClassAnnotation(@NotNull ClassBuilder v, @NotNull KotlinSyntheticClass.Kind kind) {
+        AnnotationVisitor av = v.newAnnotation(Type.getObjectType(KotlinSyntheticClass.CLASS_NAME.getInternalName()).getDescriptor(), true);
+        av.visit(ABI_VERSION_FIELD_NAME, JvmAbi.VERSION);
+        av.visitEnum(KotlinSyntheticClass.KIND_FIELD_NAME.asString(),
+                     Type.getObjectType(KotlinSyntheticClass.KIND_INTERNAL_NAME).getDescriptor(),
+                     kind.toString());
+        av.visitEnd();
     }
 
     @NotNull

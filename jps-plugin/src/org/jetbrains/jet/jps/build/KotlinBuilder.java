@@ -16,9 +16,13 @@
 
 package org.jetbrains.jet.jps.build;
 
+import com.google.common.collect.Maps;
+import com.intellij.openapi.util.Key;
+import com.intellij.openapi.util.io.FileUtil;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.util.Function;
 import com.intellij.util.containers.ContainerUtil;
+import gnu.trove.THashSet;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.cli.common.KotlinVersion;
 import org.jetbrains.jet.cli.common.arguments.CommonCompilerArguments;
@@ -32,6 +36,7 @@ import org.jetbrains.jet.compiler.runner.CompilerEnvironment;
 import org.jetbrains.jet.compiler.runner.CompilerRunnerConstants;
 import org.jetbrains.jet.compiler.runner.OutputItemsCollectorImpl;
 import org.jetbrains.jet.compiler.runner.SimpleOutputItem;
+import org.jetbrains.jet.config.IncrementalCompilation;
 import org.jetbrains.jet.jps.JpsKotlinCompilerSettings;
 import org.jetbrains.jet.utils.PathUtil;
 import org.jetbrains.jps.ModuleChunk;
@@ -46,6 +51,7 @@ import org.jetbrains.jps.model.JpsProject;
 import org.jetbrains.jps.model.module.JpsModule;
 
 import java.io.File;
+import java.io.FileFilter;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -58,8 +64,9 @@ import static org.jetbrains.jet.compiler.runner.KotlinCompilerRunner.runK2JsComp
 import static org.jetbrains.jet.compiler.runner.KotlinCompilerRunner.runK2JvmCompiler;
 
 public class KotlinBuilder extends ModuleLevelBuilder {
+    private static final Key<Set<File>> ALL_COMPILED_FILES_KEY = Key.create("_all_kotlin_compiled_files_");
 
-    private static final String KOTLIN_BUILDER_NAME = "Kotlin Builder";
+    public static final String KOTLIN_BUILDER_NAME = "Kotlin Builder";
     private static final List<String> COMPILABLE_FILE_EXTENSIONS = Collections.singletonList("kt");
 
     private static final Function<JpsModule,String> MODULE_NAME = new Function<JpsModule, String>() {
@@ -122,6 +129,8 @@ public class KotlinBuilder extends ModuleLevelBuilder {
         CommonCompilerArguments commonArguments = JpsKotlinCompilerSettings.getCommonCompilerArguments(project);
         CompilerSettings compilerSettings = JpsKotlinCompilerSettings.getCompilerSettings(project);
 
+        final Set<File> allCompiledFiles = getAllCompiledFilesContainer(context);
+
         if (JpsUtils.isJsKotlinModule(representativeTarget)) {
             if (chunk.getModules().size() > 1) {
                 // We do not support circular dependencies, but if they are present, we do our best should not break the build,
@@ -134,7 +143,7 @@ public class KotlinBuilder extends ModuleLevelBuilder {
                 return ExitCode.NOTHING_DONE;
             }
 
-            List<File> sourceFiles = KotlinSourceFileCollector.getAllKotlinSourceFiles(representativeTarget);
+            Collection<File> sourceFiles = KotlinSourceFileCollector.getAllKotlinSourceFiles(representativeTarget);
             //List<File> sourceFiles = KotlinSourceFileCollector.getDirtySourceFiles(dirtyFilesHolder);
 
             if (sourceFiles.isEmpty()) {
@@ -157,7 +166,11 @@ public class KotlinBuilder extends ModuleLevelBuilder {
                         NO_LOCATION);
             }
 
-            File moduleFile = KotlinBuilderModuleScriptGenerator.generateModuleDescription(context, chunk);
+            List<File> filesToCompile = KotlinSourceFileCollector.getDirtySourceFiles(dirtyFilesHolder);
+            filesToCompile.removeAll(allCompiledFiles);
+            allCompiledFiles.addAll(filesToCompile);
+
+            File moduleFile = KotlinBuilderModuleScriptGenerator.generateModuleDescription(context, chunk, filesToCompile);
             if (moduleFile == null) {
                 // No Kotlin sources found
                 return ExitCode.NOTHING_DONE;
@@ -180,6 +193,12 @@ public class KotlinBuilder extends ModuleLevelBuilder {
         }
 
         for (SimpleOutputItem outputItem : outputItemCollector.getOutputs()) {
+            if (IncrementalCompilation.ENABLED) {
+                // TODO this is a hack: we don't remove
+                if (outputItem.getOutputFile().getName().endsWith("Package.class")) {
+                    continue;
+                }
+            }
             BuildTarget<?> target = null;
             Collection<File> sourceFiles = outputItem.getSourceFiles();
             if (sourceFiles != null && !sourceFiles.isEmpty()) {
@@ -189,16 +208,38 @@ public class KotlinBuilder extends ModuleLevelBuilder {
                 messageCollector.report(EXCEPTION, "KotlinBuilder: outputItem.sourceFiles is null or empty, outputItem = " + outputItem, NO_LOCATION);
             }
 
-            outputConsumer.registerOutputFile(target != null ? target : representativeTarget, outputItem.getOutputFile(), paths(sourceFiles));
+            outputConsumer.registerOutputFile(target != null ? target : representativeTarget, outputItem.getOutputFile(),
+                                              paths(sourceFiles));
         }
 
-        return ExitCode.OK;
+        if (IncrementalCompilation.ENABLED) {
+            // TODO should mark dependencies as dirty, as well
+            FSOperations.markDirty(context, chunk, new FileFilter() {
+                @Override
+                public boolean accept(@NotNull File file) {
+                    return !allCompiledFiles.contains(file);
+                }
+            });
+            return ExitCode.ADDITIONAL_PASS_REQUIRED;
+        }
+        else {
+            return ExitCode.OK;
+        }
+    }
+
+    private static Set<File> getAllCompiledFilesContainer(CompileContext context) {
+        Set<File> allCompiledFiles = ALL_COMPILED_FILES_KEY.get(context);
+        if (allCompiledFiles == null) {
+            allCompiledFiles = new THashSet<File>(FileUtil.FILE_HASHING_STRATEGY);
+            ALL_COMPILED_FILES_KEY.set(context, allCompiledFiles);
+        }
+        return allCompiledFiles;
     }
 
     private static boolean hasKotlinFiles(@NotNull ModuleChunk chunk) {
         boolean hasKotlinFiles = false;
         for (ModuleBuildTarget target : chunk.getTargets()) {
-            List<File> sourceFiles = KotlinSourceFileCollector.getAllKotlinSourceFiles(target);
+            Collection<File> sourceFiles = KotlinSourceFileCollector.getAllKotlinSourceFiles(target);
             if (!sourceFiles.isEmpty()) {
                 hasKotlinFiles = true;
                 break;

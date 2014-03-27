@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2013 JetBrains s.r.o.
+ * Copyright 2010-2014 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,16 +16,20 @@
 
 package org.jetbrains.jet.lang.resolve.lazy.declarations;
 
-import com.intellij.psi.NavigatablePsiElement;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.ReadOnly;
+import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 
 import java.util.Collection;
 
 public interface PackageMemberDeclarationProvider extends DeclarationProvider {
 
-    Collection<FqName> getAllDeclaredPackages();
-
+    @ReadOnly
     @NotNull
-    Collection<NavigatablePsiElement> getPackageDeclarations(FqName fqName);
+    Collection<FqName> getAllDeclaredSubPackages();
+
+    @ReadOnly
+    @NotNull
+    Collection<JetFile> getPackageFiles();
 }

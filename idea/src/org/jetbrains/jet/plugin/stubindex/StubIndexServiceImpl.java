@@ -29,15 +29,14 @@ public class StubIndexServiceImpl implements StubIndexService {
 
     @Override
     public void indexFile(PsiJetFileStub stub, IndexSink sink) {
-        String packageName = stub.getPackageName();
-        FqName fqName = new FqName(packageName == null ? "" : packageName);
+        FqName packageFqName = stub.getPackageFqName();
 
         while (true) {
-            sink.occurrence(JetAllPackagesIndex.getInstance().getKey(), fqName.asString());
-            if (fqName.isRoot()) {
+            sink.occurrence(JetAllPackagesIndex.getInstance().getKey(), packageFqName.asString());
+            if (packageFqName.isRoot()) {
                 return;
             }
-            fqName = fqName.parent();
+            packageFqName = packageFqName.parent();
         }
     }
 
@@ -45,7 +44,7 @@ public class StubIndexServiceImpl implements StubIndexService {
     public void indexClass(PsiJetClassStub stub, IndexSink sink) {
         String name = stub.getName();
         if (name != null) {
-            sink.occurrence(JetShortClassNameIndex.getInstance().getKey(), name);
+            sink.occurrence(JetClassShortNameIndex.getInstance().getKey(), name);
         }
 
         FqName fqn = stub.getFqName();
@@ -63,22 +62,23 @@ public class StubIndexServiceImpl implements StubIndexService {
         FqName fqName = stub.getFqName();
 
         if (stub.isClassObject()) {
-            StubElement parentStub = stub.getParentStub();
-            assert parentStub instanceof PsiJetStubWithFqName<?> : "Something but a class/object is a parent to class object stub: " + parentStub;
+            StubElement parentClassStub = stub.getParentStub().getParentStub();
+            assert parentClassStub instanceof PsiJetStubWithFqName<?>
+                    : "Something but a class/object is a parent to class object stub: " + parentClassStub;
 
             name = JvmAbi.CLASS_OBJECT_CLASS_NAME;
 
-            FqName parentFqName = ((PsiJetStubWithFqName<?>) parentStub).getFqName();
+            FqName parentFqName = ((PsiJetStubWithFqName<?>) parentClassStub).getFqName();
             if (parentFqName != null) {
                 fqName = parentFqName.child(Name.identifier(name));
             }
         }
 
         if (name != null) {
-            sink.occurrence(JetShortClassNameIndex.getInstance().getKey(), name);
+            sink.occurrence(JetClassShortNameIndex.getInstance().getKey(), name);
 
             if (stub.isTopLevel()) {
-                sink.occurrence(JetTopLevelShortObjectNameIndex.getInstance().getKey(), name);
+                sink.occurrence(JetTopLevelObjectShortNameIndex.getInstance().getKey(), name);
             }
         }
 
@@ -100,10 +100,8 @@ public class StubIndexServiceImpl implements StubIndexService {
         StubElement parentStub = stub.getParentStub();
         if (parentStub instanceof PsiJetFileStub) {
             PsiJetFileStub jetFileStub = (PsiJetFileStub) parentStub;
-            String packageName = jetFileStub.getPackageName();
-            if (packageName != null) {
-                sink.occurrence(JetClassByPackageIndex.getInstance().getKey(), packageName);
-            }
+            FqName packageFqName = jetFileStub.getPackageFqName();
+            sink.occurrence(JetClassByPackageIndex.getInstance().getKey(), packageFqName.asString());
         }
     }
 
@@ -114,19 +112,18 @@ public class StubIndexServiceImpl implements StubIndexService {
             if (stub.isTopLevel()) {
                 // Collection only top level functions as only they are expected in completion without explicit import
                 if (!stub.isExtension()) {
-                    sink.occurrence(JetShortFunctionNameIndex.getInstance().getKey(), name);
+                    sink.occurrence(JetTopLevelNonExtensionFunctionShortNameIndex.getInstance().getKey(), name);
                 }
                 else {
-                    sink.occurrence(JetExtensionFunctionNameIndex.getInstance().getKey(), name);
-                }
-
-                FqName topFQName = stub.getTopFQName();
-                if (topFQName != null) {
-                    sink.occurrence(JetTopLevelFunctionsFqnNameIndex.getInstance().getKey(), topFQName.asString());
+                    sink.occurrence(JetTopLevelExtensionFunctionShortNameIndex.getInstance().getKey(), name);
                 }
             }
-
-            sink.occurrence(JetAllShortFunctionNameIndex.getInstance().getKey(), name);
+            sink.occurrence(JetFunctionShortNameIndex.getInstance().getKey(), name);
+        }
+        // can have special fq name in case of syntactically incorrect function with no name
+        FqName topFQName = stub.getFqName();
+        if (topFQName != null) {
+            sink.occurrence(JetTopLevelFunctionsFqnNameIndex.getInstance().getKey(), topFQName.asString());
         }
     }
 
@@ -134,14 +131,14 @@ public class StubIndexServiceImpl implements StubIndexService {
     public void indexProperty(PsiJetPropertyStub stub, IndexSink sink) {
         String propertyName = stub.getName();
         if (propertyName != null) {
-            if (stub.isTopLevel()) {
-                FqName topFQName = stub.getTopFQName();
-                if (topFQName != null) {
-                    sink.occurrence(JetTopLevelPropertiesFqnNameIndex.getInstance().getKey(), topFQName.asString());
-                }
+            sink.occurrence(JetPropertyShortNameIndex.getInstance().getKey(), propertyName);
+        }
+        // can have special fq name in case of syntactically incorrect function with no name
+        if (stub.isTopLevel()) {
+            FqName topFQName = stub.getFqName();
+            if (topFQName != null) {
+                sink.occurrence(JetTopLevelPropertiesFqnNameIndex.getInstance().getKey(), topFQName.asString());
             }
-
-            sink.occurrence(JetShortPropertiesNameIndex.getInstance().getKey(), propertyName);
         }
     }
 

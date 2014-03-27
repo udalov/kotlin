@@ -19,7 +19,6 @@ package org.jetbrains.jet.lang.psi;
 import com.intellij.lang.ASTNode;
 import com.intellij.navigation.ItemPresentation;
 import com.intellij.navigation.ItemPresentationProviders;
-import com.intellij.psi.stubs.IStubElementType;
 import com.intellij.util.ArrayFactory;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -42,14 +41,8 @@ public class JetParameter extends JetNamedDeclarationStub<PsiJetParameterStub> {
         super(node);
     }
 
-    public JetParameter(@NotNull PsiJetParameterStub stub, @NotNull IStubElementType nodeType) {
-        super(stub, nodeType);
-    }
-
-    @NotNull
-    @Override
-    public IStubElementType getElementType() {
-        return JetStubElementTypes.VALUE_PARAMETER;
+    public JetParameter(@NotNull PsiJetParameterStub stub) {
+        super(stub, JetStubElementTypes.VALUE_PARAMETER);
     }
 
     @Override
@@ -107,5 +100,9 @@ public class JetParameter extends JetNamedDeclarationStub<PsiJetParameterStub> {
     @Override
     public ItemPresentation getPresentation() {
         return ItemPresentationProviders.getItemPresentation(this);
+    }
+
+    public boolean isLoopParameter() {
+        return getParent() instanceof JetForExpression;
     }
 }

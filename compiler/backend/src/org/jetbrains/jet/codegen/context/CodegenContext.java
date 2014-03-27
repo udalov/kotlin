@@ -16,7 +16,7 @@
 
 package org.jetbrains.jet.codegen.context;
 
-import jet.Function0;
+import kotlin.Function0;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.asm4.Type;
@@ -159,8 +159,8 @@ public abstract class CodegenContext<T extends DeclarationDescriptor> {
     }
 
     @NotNull
-    public FieldOwnerContext intoPackagePart(@NotNull PackageFragmentDescriptor descriptor) {
-        return new PackageContext(descriptor, this);
+    public PackageContext intoPackagePart(@NotNull PackageFragmentDescriptor descriptor, Type packagePartType) {
+        return new PackageContext(descriptor, this, packagePartType);
     }
 
     @NotNull
@@ -180,19 +180,24 @@ public abstract class CodegenContext<T extends DeclarationDescriptor> {
 
     @NotNull
     public MethodContext intoFunction(FunctionDescriptor descriptor) {
-        return new MethodContext(descriptor, getContextKind(), this, null);
+        return new MethodContext(descriptor, getContextKind(), this, null, false);
+    }
+
+    public MethodContext intoInlinedLambda(FunctionDescriptor descriptor) {
+        return new MethodContext(descriptor, getContextKind(), this, null, true);
     }
 
     @NotNull
     public ConstructorContext intoConstructor(@Nullable ConstructorDescriptor descriptor, @Nullable MutableClosure closure) {
         if (descriptor == null) {
-            descriptor = new ConstructorDescriptorImpl(getThisDescriptor(), Annotations.EMPTY, true)
+            descriptor = ConstructorDescriptorImpl.create(getThisDescriptor(), Annotations.EMPTY, true)
                     .initialize(Collections.<TypeParameterDescriptor>emptyList(), Collections.<ValueParameterDescriptor>emptyList(),
-                                Visibilities.PUBLIC);
+                                Visibilities.PUBLIC, false);
         }
         return new ConstructorContext(descriptor, getContextKind(), this, closure);
     }
 
+    // SCRIPT: generate into script, move to ScriptingUtil
     @NotNull
     public ScriptContext intoScript(@NotNull ScriptDescriptor script, @NotNull ClassDescriptor classDescriptor) {
         return new ScriptContext(script, classDescriptor, OwnerKind.IMPLEMENTATION, this, closure);

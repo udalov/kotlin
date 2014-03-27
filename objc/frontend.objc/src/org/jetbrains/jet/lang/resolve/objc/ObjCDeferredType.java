@@ -16,7 +16,7 @@
 
 package org.jetbrains.jet.lang.resolve.objc;
 
-import jet.Function0;
+import kotlin.Function0;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.lang.descriptors.annotations.Annotations;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
@@ -30,6 +30,7 @@ import org.jetbrains.jet.util.ReenteringLazyValueComputationException;
 import java.util.List;
 
 /** Copied from org.jetbrains.jet.lang.types.DeferredType */
+// TODO: use DelegatingType
 public class ObjCDeferredType implements JetType {
     private final NotNullLazyValue<JetType> lazyValue;
 

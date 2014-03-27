@@ -25,7 +25,7 @@ import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 public class EnumValue extends CompileTimeConstant<ClassDescriptor> {
 
     public EnumValue(@NotNull ClassDescriptor value) {
-        super(value, true, false);
+        super(value, true);
     }
 
     @NotNull
@@ -34,6 +34,14 @@ public class EnumValue extends CompileTimeConstant<ClassDescriptor> {
         JetType type = value.getClassObjectType();
         assert type != null : "Enum entry should have a class object: " + value;
         return type;
+    }
+
+    @NotNull
+    @Override
+    public ClassDescriptor getValue() {
+        ClassDescriptor value = super.getValue();
+        assert value != null : "Guaranteed by constructor";
+        return value;
     }
 
     @Override

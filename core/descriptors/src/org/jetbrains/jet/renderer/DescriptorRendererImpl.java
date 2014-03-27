@@ -36,6 +36,7 @@ import org.jetbrains.jet.lang.resolve.name.FqNameBase;
 import org.jetbrains.jet.lang.resolve.name.FqNameUnsafe;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.types.*;
+import org.jetbrains.jet.lang.types.error.MissingDependencyErrorClass;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 
 import java.util.*;
@@ -54,19 +55,21 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
     private final boolean normalizedVisibilities;
     private final boolean showInternalKeyword;
     private final boolean prettyFunctionTypes;
+
     @NotNull
     private final OverrideRenderingPolicy overrideRenderingPolicy;
     @NotNull
     private final ValueParametersHandler handler;
     @NotNull
     private final TextFormat textFormat;
+    private final boolean includePropertyConstant;
     @NotNull
     private final Set<FqName> excludedAnnotationClasses;
 
     /* package */ DescriptorRendererImpl(
             boolean shortNames,
             boolean withDefinedIn,
-            Set<DescriptorRenderer.Modifier> modifiers,
+            Set<Modifier> modifiers,
             boolean startFromName,
             boolean debugMode,
             boolean classWithPrimaryConstructor,
@@ -78,7 +81,8 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
             @NotNull OverrideRenderingPolicy overrideRenderingPolicy,
             @NotNull ValueParametersHandler handler,
             @NotNull TextFormat textFormat,
-            @NotNull Collection<FqName> excludedAnnotationClasses
+            @NotNull Collection<FqName> excludedAnnotationClasses,
+            boolean includePropertyConstant
     ) {
         this.shortNames = shortNames;
         this.withDefinedIn = withDefinedIn;
@@ -93,6 +97,7 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
         this.overrideRenderingPolicy = overrideRenderingPolicy;
         this.debugMode = debugMode;
         this.textFormat = textFormat;
+        this.includePropertyConstant = includePropertyConstant;
         this.excludedAnnotationClasses = Sets.newHashSet(excludedAnnotationClasses);
         this.prettyFunctionTypes = prettyFunctionTypes;
     }
@@ -179,6 +184,9 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
 
     @NotNull
     private String renderClassName(@NotNull ClassDescriptor klass) {
+        if (klass instanceof MissingDependencyErrorClass) {
+            return ((MissingDependencyErrorClass) klass).getFullFqName().asString();
+        }
         if (ErrorUtils.isError(klass)) {
             return klass.getTypeConstructor().toString();
         }
@@ -658,6 +666,8 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
         renderName(variable, builder);
         builder.append(": ").append(escape(renderType(typeToRender)));
 
+        renderInitializer(variable, builder);
+
         if (verbose && varargElementType != null) {
             builder.append(" /*").append(escape(renderType(realType))).append("*/");
         }
@@ -683,9 +693,19 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
         renderName(property, builder);
         builder.append(": ").append(escape(renderType(property.getType())));
 
+        renderInitializer(property, builder);
+
         renderWhereSuffix(property.getTypeParameters(), builder);
     }
 
+    private void renderInitializer(@NotNull VariableDescriptor variable, @NotNull StringBuilder builder) {
+        if (includePropertyConstant) {
+            CompileTimeConstant<?> initializer = variable.getCompileTimeInitializer();
+            if (initializer != null) {
+                builder.append(" = ").append(escape(renderConstant(initializer)));
+            }
+        }
+    }
 
     /* CLASSES */
     private void renderClass(@NotNull ClassDescriptor klass, @NotNull StringBuilder builder) {

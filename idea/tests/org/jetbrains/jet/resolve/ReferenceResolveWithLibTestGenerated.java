@@ -61,9 +61,24 @@ public class ReferenceResolveWithLibTestGenerated extends AbstractReferenceResol
         doTest("idea/testData/resolve/referenceWithLib/iteratorWithTypeParameter.kt");
     }
     
+    @TestMetadata("multiDeclarationWithTypeParameters.kt")
+    public void testMultiDeclarationWithTypeParameters() throws Exception {
+        doTest("idea/testData/resolve/referenceWithLib/multiDeclarationWithTypeParameters.kt");
+    }
+    
+    @TestMetadata("nestedClassFromLib.kt")
+    public void testNestedClassFromLib() throws Exception {
+        doTest("idea/testData/resolve/referenceWithLib/nestedClassFromLib.kt");
+    }
+    
     @TestMetadata("packageOfLibDeclaration.kt")
     public void testPackageOfLibDeclaration() throws Exception {
         doTest("idea/testData/resolve/referenceWithLib/packageOfLibDeclaration.kt");
+    }
+    
+    @TestMetadata("referenceToRootJavaClassFromLib.kt")
+    public void testReferenceToRootJavaClassFromLib() throws Exception {
+        doTest("idea/testData/resolve/referenceWithLib/referenceToRootJavaClassFromLib.kt");
     }
     
     @TestMetadata("sameNameInLib.kt")

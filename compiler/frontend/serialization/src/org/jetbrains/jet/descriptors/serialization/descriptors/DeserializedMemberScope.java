@@ -16,8 +16,8 @@
 
 package org.jetbrains.jet.descriptors.serialization.descriptors;
 
-import jet.Function0;
-import jet.Function1;
+import kotlin.Function0;
+import kotlin.Function1;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.descriptors.serialization.DescriptorDeserializer;
@@ -60,11 +60,11 @@ public abstract class DeserializedMemberScope implements JetScope {
     private final MemoizedFunctionToNotNull<Name, Collection<VariableDescriptor>> properties;
     private final NotNullLazyValue<Collection<DeclarationDescriptor>> allDescriptors;
 
-    public DeserializedMemberScope(
+    protected DeserializedMemberScope(
             @NotNull StorageManager storageManager,
             @NotNull DeclarationDescriptor containingDeclaration,
             @NotNull DescriptorDeserializer deserializer,
-            @NotNull List<ProtoBuf.Callable> membersList
+            @NotNull Collection<ProtoBuf.Callable> membersList
     ) {
         this.containingDeclaration = containingDeclaration;
         this.deserializer = deserializer;
@@ -186,7 +186,7 @@ public abstract class DeserializedMemberScope implements JetScope {
     @NotNull
     @Override
     public Collection<DeclarationDescriptor> getDeclarationsByLabel(@NotNull LabelName labelName) {
-        throw new UnsupportedOperationException("Should not be called");
+        return Collections.emptyList();
     }
 
     private Collection<DeclarationDescriptor> computeAllDescriptors() {

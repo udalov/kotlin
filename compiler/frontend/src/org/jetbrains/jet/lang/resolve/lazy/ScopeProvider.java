@@ -19,8 +19,8 @@ package org.jetbrains.jet.lang.resolve.lazy;
 import com.google.common.collect.Lists;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.util.PsiTreeUtil;
-import jet.Function0;
-import jet.Function1;
+import kotlin.Function0;
+import kotlin.Function1;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.lang.descriptors.PackageViewDescriptor;
 import org.jetbrains.jet.lang.psi.*;
@@ -40,17 +40,17 @@ import java.util.List;
 public class ScopeProvider {
     private final ResolveSession resolveSession;
 
-    private final MemoizedFunctionToNotNull<JetFile, JetScope> fileScopes;
+    private final MemoizedFunctionToNotNull<JetFile, LazyImportScope> explicitImportScopes;
 
     private final NotNullLazyValue<JetScope> defaultImportsScope;
 
     public ScopeProvider(@NotNull ResolveSession resolveSession) {
         this.resolveSession = resolveSession;
 
-        this.fileScopes = resolveSession.getStorageManager().createWeaklyRetainedMemoizedFunction(new Function1<JetFile, JetScope>() {
+        this.explicitImportScopes = resolveSession.getStorageManager().createMemoizedFunction(new Function1<JetFile, LazyImportScope>() {
             @Override
-            public JetScope invoke(@NotNull JetFile file) {
-                return createFileScope(file);
+            public LazyImportScope invoke(@NotNull JetFile file) {
+                return createExplicitImportScope(file);
             }
         });
 
@@ -62,28 +62,28 @@ public class ScopeProvider {
         });
     }
 
-    @NotNull
-    public JetScope getFileScope(JetFile file) {
-        return fileScopes.invoke(file);
-    }
-
-    @NotNull
-    private JetScope createFileScope(@NotNull JetFile file) {
-        PackageViewDescriptor packageDescriptor = getFilePackageDescriptor(file);
-
-        JetScope importsScope = LazyImportScope.createImportScopeForFile(
+    private LazyImportScope createExplicitImportScope(@NotNull JetFile file) {
+        return LazyImportScope.createImportScopeForFile(
                 resolveSession,
-                packageDescriptor,
+                getFilePackageDescriptor(file),
                 file,
                 resolveSession.getTrace(),
                 "Lazy Imports Scope for file " + file.getName());
+    }
 
-        return new ChainedScope(resolveSession.getPackageFragment(JetPsiUtil.getFQName(file)),
+    @NotNull
+    public JetScope getFileScope(@NotNull JetFile file) {
+        return new ChainedScope(resolveSession.getPackageFragment(file.getPackageFqName()),
                                 "File scope: " + file.getName(),
-                                packageDescriptor.getMemberScope(),
+                                getFilePackageDescriptor(file).getMemberScope(),
                                 JetModuleUtil.getSubpackagesOfRootScope(resolveSession.getModuleDescriptor()),
-                                importsScope,
+                                explicitImportScopes.invoke(file),
                                 defaultImportsScope.invoke());
+    }
+
+    @NotNull
+    public LazyImportScope getExplicitImportsScopeForFile(@NotNull JetFile file) {
+        return explicitImportScopes.invoke(file);
     }
 
     private JetScope createScopeWithDefaultImports() {
@@ -108,12 +108,7 @@ public class ScopeProvider {
 
     @NotNull
     private PackageViewDescriptor getFilePackageDescriptor(JetFile file) {
-        JetPackageDirective directive = file.getPackageDirective();
-        if (directive == null) {
-            throw new IllegalArgumentException("Scripts are not supported: " + file.getName());
-        }
-
-        FqName fqName = new FqName(directive.getQualifiedName());
+        FqName fqName = file.getPackageFqName();
         PackageViewDescriptor packageDescriptor = resolveSession.getModuleDescriptor().getPackage(fqName);
 
         if (packageDescriptor == null) {
@@ -131,6 +126,11 @@ public class ScopeProvider {
                 "For JetDeclaration element getParentOfType() should return itself.";
 
         JetDeclaration parentDeclaration = PsiTreeUtil.getParentOfType(jetDeclaration, JetDeclaration.class);
+
+        if (jetDeclaration instanceof JetPropertyAccessor) {
+            parentDeclaration = PsiTreeUtil.getParentOfType(parentDeclaration, JetDeclaration.class);
+        }
+
         if (parentDeclaration == null) {
             return getFileScope((JetFile) elementOfDeclaration.getContainingFile());
         }
@@ -139,7 +139,7 @@ public class ScopeProvider {
             JetClassOrObject classOrObject = (JetClassOrObject) parentDeclaration;
             LazyClassDescriptor classDescriptor = (LazyClassDescriptor) resolveSession.getClassDescriptor(classOrObject);
             if (jetDeclaration instanceof JetClassInitializer || jetDeclaration instanceof JetProperty) {
-                return classDescriptor.getScopeForPropertyInitializerResolution();
+                return classDescriptor.getScopeForInitializerResolution();
             }
             return classDescriptor.getScopeForMemberDeclarationResolution();
         }

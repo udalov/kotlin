@@ -19,7 +19,6 @@ package org.jetbrains.jet.codegen;
 import com.google.common.collect.Lists;
 import com.intellij.util.ArrayUtil;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.asm4.AnnotationVisitor;
 import org.jetbrains.asm4.MethodVisitor;
 import org.jetbrains.asm4.Type;
 import org.jetbrains.jet.codegen.context.FieldOwnerContext;
@@ -29,15 +28,14 @@ import org.jetbrains.jet.lang.descriptors.annotations.Annotations;
 import org.jetbrains.jet.lang.descriptors.impl.SimpleFunctionDescriptorImpl;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.BindingContext;
-import org.jetbrains.jet.lang.resolve.java.JvmAbi;
-import org.jetbrains.jet.lang.resolve.java.JvmAnnotationNames;
 import org.jetbrains.jet.lang.resolve.name.Name;
 
 import java.util.Collections;
 import java.util.List;
 
 import static org.jetbrains.asm4.Opcodes.*;
-import static org.jetbrains.jet.codegen.AsmUtil.asmDescByFqNameWithoutInnerClasses;
+import static org.jetbrains.jet.codegen.AsmUtil.writeKotlinSyntheticClassAnnotation;
+import static org.jetbrains.jet.lang.resolve.java.JvmAnnotationNames.KotlinSyntheticClass;
 
 public class PackagePartCodegen extends MemberCodegen {
 
@@ -58,13 +56,13 @@ public class PackagePartCodegen extends MemberCodegen {
             @NotNull FieldOwnerContext context,
             @NotNull GenerationState state
     ) {
-        super(state, null);
+        super(state, null, context, v);
         this.v = v;
         this.jetFile = jetFile;
         this.packagePartName = packagePartName;
         this.context = context;
         descriptor = state.getBindingContext().get(BindingContext.FILE_TO_PACKAGE_FRAGMENT, jetFile);
-        assert descriptor != null : "No package fragment found for jetFile " + jetFile + " declared package: " + jetFile.getPackageName();
+        assert descriptor != null : "No package fragment found for jetFile " + jetFile + " declared package: " + jetFile.getPackageFqName();
     }
 
     public void generate() {
@@ -77,11 +75,11 @@ public class PackagePartCodegen extends MemberCodegen {
         );
         v.visitSource(jetFile.getName(), null);
 
-        writeKotlinPackageFragmentAnnotation();
+        writeKotlinSyntheticClassAnnotation(v, KotlinSyntheticClass.Kind.PACKAGE_PART);
 
         for (JetDeclaration declaration : jetFile.getDeclarations()) {
             if (declaration instanceof JetNamedFunction || declaration instanceof JetProperty) {
-                genFunctionOrProperty(context, (JetTypeParameterListOwner) declaration, v);
+                genFunctionOrProperty((JetTypeParameterListOwner) declaration, v);
             }
         }
 
@@ -89,13 +87,6 @@ public class PackagePartCodegen extends MemberCodegen {
 
         v.done();
     }
-
-    private void writeKotlinPackageFragmentAnnotation() {
-        AnnotationVisitor av = v.newAnnotation(asmDescByFqNameWithoutInnerClasses(JvmAnnotationNames.KOTLIN_PACKAGE_FRAGMENT), true);
-        av.visit(JvmAnnotationNames.ABI_VERSION_FIELD_NAME, JvmAbi.VERSION);
-        av.visitEnd();
-    }
-
 
     private void generateStaticInitializers() {
         List<JetProperty> properties = collectPropertiesToInitialize();
@@ -108,9 +99,9 @@ public class PackagePartCodegen extends MemberCodegen {
             FrameMap frameMap = new FrameMap();
 
             SimpleFunctionDescriptorImpl clInit =
-                    new SimpleFunctionDescriptorImpl(this.descriptor, Annotations.EMPTY,
-                                                     Name.special("<clinit>"),
-                                                     CallableMemberDescriptor.Kind.SYNTHESIZED);
+                    SimpleFunctionDescriptorImpl.create(this.descriptor, Annotations.EMPTY,
+                                                        Name.special("<clinit>"),
+                                                        CallableMemberDescriptor.Kind.SYNTHESIZED);
             clInit.initialize(null, null, Collections.<TypeParameterDescriptor>emptyList(),
                               Collections.<ValueParameterDescriptor>emptyList(), null, null, Visibilities.PRIVATE);
 

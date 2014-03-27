@@ -16,45 +16,47 @@
 
 package org.jetbrains.jet.lang.psi.stubs.impl;
 
-import com.intellij.psi.stubs.IStubElementType;
 import com.intellij.psi.stubs.StubBase;
 import com.intellij.psi.stubs.StubElement;
 import com.intellij.util.io.StringRef;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.psi.JetProperty;
 import org.jetbrains.jet.lang.psi.stubs.PsiJetPropertyStub;
+import org.jetbrains.jet.lang.psi.stubs.elements.JetStubElementTypes;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 
 public class PsiJetPropertyStubImpl extends StubBase<JetProperty> implements PsiJetPropertyStub {
     private final StringRef name;
     private final boolean isVar;
     private final boolean isTopLevel;
-    private final FqName topFQName;
+    private final FqName fqName;
     private final StringRef typeText;
     private final StringRef inferenceBodyText;
 
-    public PsiJetPropertyStubImpl(IStubElementType elementType, StubElement parent, StringRef name,
-            boolean isVar, boolean isTopLevel, @Nullable FqName topFQName, StringRef typeText, StringRef inferenceBodyText) {
-        super(parent, elementType);
+    public PsiJetPropertyStubImpl(
+            StubElement parent, StringRef name,
+            boolean isVar, boolean isTopLevel, @Nullable FqName fqName, StringRef typeText, StringRef inferenceBodyText
+    ) {
+        super(parent, JetStubElementTypes.PROPERTY);
 
-        if (isTopLevel && topFQName == null) {
-            throw new IllegalArgumentException("topFQName shouldn't be null for top level properties");
+        if (isTopLevel && fqName == null) {
+            throw new IllegalArgumentException("fqName shouldn't be null for top level properties");
         }
 
         this.name = name;
         this.isVar = isVar;
         this.isTopLevel = isTopLevel;
-        this.topFQName = topFQName;
+        this.fqName = fqName;
         this.typeText = typeText;
         this.inferenceBodyText = inferenceBodyText;
     }
 
-    public PsiJetPropertyStubImpl(IStubElementType elementType, StubElement parent, String name,
-            boolean isVal, boolean isTopLevel, @Nullable FqName topFQName,
+    public PsiJetPropertyStubImpl(StubElement parent, String name,
+            boolean isVar, boolean isTopLevel, @Nullable FqName topFQName,
             String typeText, String inferenceBodyText
     ) {
-        this(elementType, parent, StringRef.fromString(name),
-             isVal, isTopLevel, topFQName, StringRef.fromString(typeText), StringRef.fromString(inferenceBodyText));
+        this(parent, StringRef.fromString(name),
+             isVar, isTopLevel, topFQName, StringRef.fromString(typeText), StringRef.fromString(inferenceBodyText));
     }
 
     @Override
@@ -69,8 +71,8 @@ public class PsiJetPropertyStubImpl extends StubBase<JetProperty> implements Psi
 
     @Nullable
     @Override
-    public FqName getTopFQName() {
-        return topFQName;
+    public FqName getFqName() {
+        return fqName;
     }
 
     @Override
@@ -97,8 +99,8 @@ public class PsiJetPropertyStubImpl extends StubBase<JetProperty> implements Psi
         builder.append(isVar() ? "var " : "val ");
 
         if (isTopLevel()) {
-            assert topFQName != null;
-            builder.append("top ").append("topFQName=").append(topFQName.toString()).append(" ");
+            assert fqName != null;
+            builder.append("top ").append("fqName=").append(fqName.toString()).append(" ");
         }
 
         builder.append("name=").append(getName());

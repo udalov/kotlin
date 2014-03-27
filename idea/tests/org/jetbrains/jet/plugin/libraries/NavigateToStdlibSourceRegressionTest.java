@@ -27,7 +27,6 @@ import com.intellij.testFramework.LightPlatformTestCase;
 import com.intellij.testFramework.LightProjectDescriptor;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.lang.psi.JetClass;
-import org.jetbrains.jet.lang.psi.JetPsiUtil;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.plugin.ProjectDescriptorWithStdlibSources;
 
@@ -44,19 +43,19 @@ public class NavigateToStdlibSourceRegressionTest extends NavigateToLibraryRegre
     }
 
     public void testJavaClass() throws IOException {
-        doNavigationInSourcesTest("libraries/stdlib/src/kotlin/Iterators.kt", "Collections", "java.util.Collections");
+        doNavigationInSourcesTest("libraries/stdlib/src/kotlin/collections/Maps.kt", "Collections", "java.util.Collections");
     }
 
     public void testKotlinClass() throws IOException {
-        doNavigationInSourcesTest("libraries/stdlib/src/kotlin/Iterators.kt", "FunctionIterator", "kotlin.FunctionIterator");
+        doNavigationInSourcesTest("libraries/stdlib/src/kotlin/collections/Stream.kt", "AbstractIterator", "kotlin.support.AbstractIterator");
     }
 
     public void testClassWithJavaAnalog() throws IOException {
-        doNavigationInSourcesTest("libraries/stdlib/src/kotlin/Iterators.kt", "Iterator", "jet.Iterator");
+        doNavigationInSourcesTest("libraries/stdlib/src/kotlin/collections/AbstractIterator.kt", "Iterator", "kotlin.Iterator");
     }
 
     public void testNavigationInKotlinBuiltIns() throws IOException {
-        doNavigationInSourcesTest("libraries/stdlib/src/generated/_Arrays.kt", "Array", "jet.Array");
+        doNavigationInSourcesTest("libraries/stdlib/src/generated/_Arrays.kt", "Array", "kotlin.Array");
     }
 
     private void doNavigationInSourcesTest(@NotNull String path, @NotNull String element, @NotNull String expectedFqName) throws IOException {
@@ -69,6 +68,10 @@ public class NavigateToStdlibSourceRegressionTest extends NavigateToLibraryRegre
         PsiFile psiFile = getPsiFileForFileFromSources(file);
         String text = psiFile.getText();
         int index = text.indexOf(element);
+        assertNotSame(-1, "Cannot find text '" + element + "' in file " + path);
+        while (Character.isLetter(text.charAt(index - 1))) {
+            index = text.indexOf(element, index + 1);
+        }
         PsiReference ref = psiFile.findReferenceAt(index);
         assertNotNull("Cannot find reference at " + index + ",  " +
                       text.substring(index - 20, index) + "<caret>" + text.substring(index, index + 20), ref);
@@ -91,7 +94,7 @@ public class NavigateToStdlibSourceRegressionTest extends NavigateToLibraryRegre
             assertEquals(expectedName, ((PsiClass) element).getQualifiedName());
         }
         else if (element instanceof JetClass) {
-            FqName name = JetPsiUtil.getFQName((JetClass) element);
+            FqName name = ((JetClass) element).getFqName();
             assert name != null;
             assertEquals(expectedName, name.asString());
         }

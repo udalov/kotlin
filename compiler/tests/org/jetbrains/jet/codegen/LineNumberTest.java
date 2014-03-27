@@ -77,7 +77,7 @@ public class LineNumberTest extends TestCaseWithTmpdir {
 
         String text;
         try {
-            text = FileUtil.loadFile(file);
+            text = FileUtil.loadFile(file, true);
         }
         catch (IOException e) {
             throw UtilsPackage.rethrow(e);
@@ -290,6 +290,10 @@ public class LineNumberTest extends TestCaseWithTmpdir {
     }
 
     public void testWhile() {
+        doTest();
+    }
+
+    public void testInlineSimpleCall() {
         doTest();
     }
 

@@ -33,10 +33,26 @@ public class CompilerSmokeTest extends KotlinIntegrationTestBase {
     }
 
     @Test
+    public void compileAndRunHelloAppFQMain() throws Exception {
+        String jar = tmpdir.getTmpDir().getAbsolutePath() + File.separator + "hello.jar";
+
+        assertEquals("compilation failed", 0, runCompiler("hello.compile", "-src", "hello.kt", "-jar", jar));
+        runJava("hello.run", "-cp", jar, "Hello.HelloPackage");
+    }
+
+    @Test
+    public void compileAndRunHelloAppVarargMain() throws Exception {
+        String jar = tmpdir.getTmpDir().getAbsolutePath() + File.separator + "hello.jar";
+
+        assertEquals("compilation failed", 0, runCompiler("hello.compile", "-src", "hello.kt", "-jar", jar));
+        runJava("hello.run", "-cp", jar, "Hello.HelloPackage");
+    }
+
+    @Test
     public void compileAndRunModule() throws Exception {
         String jar = tmpdir.getTmpDir().getAbsolutePath() + File.separator + "smoke.jar";
 
-        assertEquals("compilation failed", 0, runCompiler("Smoke.compile", "-module", "Smoke.kts", "-jar", jar));
+        assertEquals("compilation failed", 0, runCompiler("Smoke.compile", "-module", "Smoke.ktm", "-jar", jar));
         runJava("Smoke.run", "-cp", jar + File.pathSeparator + getKotlinRuntimePath(), "Smoke.SmokePackage", "1", "2", "3");
     }
 

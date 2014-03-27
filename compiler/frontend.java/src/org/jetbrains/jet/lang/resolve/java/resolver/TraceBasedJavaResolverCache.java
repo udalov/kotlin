@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2013 JetBrains s.r.o.
+ * Copyright 2010-2014 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -59,18 +59,6 @@ public class TraceBasedJavaResolverCache implements JavaResolverCache {
 
     @Nullable
     @Override
-    public SimpleFunctionDescriptor getMethod(@NotNull JavaMethod method) {
-        return trace.get(FUNCTION, ((JavaMethodImpl) method).getPsi());
-    }
-
-    @Nullable
-    @Override
-    public ConstructorDescriptor getConstructor(@NotNull JavaElement constructor) {
-        return trace.get(CONSTRUCTOR, ((JavaElementImpl) constructor).getPsi());
-    }
-
-    @Nullable
-    @Override
     public ClassDescriptor getClass(@NotNull JavaClass javaClass) {
         return trace.get(CLASS, ((JavaClassImpl) javaClass).getPsi());
     }
@@ -89,20 +77,6 @@ public class TraceBasedJavaResolverCache implements JavaResolverCache {
     public void recordField(@NotNull JavaField field, @NotNull PropertyDescriptor descriptor) {
         PsiField psiField = ((JavaFieldImpl) field).getPsi();
         trace.record(VARIABLE, psiField, descriptor);
-
-        if (!descriptor.isVar()) {
-            PsiExpression initializer = psiField.getInitializer();
-            Object evaluatedExpression = JavaConstantExpressionEvaluator.computeConstantExpression(initializer, false);
-            if (evaluatedExpression != null) {
-                CompileTimeConstant<?> constant =
-                        ResolverPackage.resolveCompileTimeConstantValue(evaluatedExpression,
-                                                                        CompileTimeConstantUtils.isPropertyCompileTimeConstant(descriptor),
-                                                                        descriptor.getType());
-                if (constant != null) {
-                    trace.record(COMPILE_TIME_INITIALIZER, descriptor, constant);
-                }
-            }
-        }
     }
 
     @Override

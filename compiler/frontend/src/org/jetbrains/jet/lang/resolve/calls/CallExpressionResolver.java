@@ -39,6 +39,7 @@ import org.jetbrains.jet.lang.resolve.calls.results.OverloadResolutionResultsImp
 import org.jetbrains.jet.lang.resolve.calls.results.OverloadResolutionResultsUtil;
 import org.jetbrains.jet.lang.resolve.calls.util.CallMaker;
 import org.jetbrains.jet.lang.resolve.constants.CompileTimeConstant;
+import org.jetbrains.jet.lang.resolve.constants.IntegerValueConstant;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.resolve.scopes.ChainedScope;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
@@ -144,7 +145,7 @@ public class CallExpressionResolver {
         if (!(classifier instanceof ClassDescriptor)) return;
         ClassDescriptor classObject = ((ClassDescriptor) classifier).getClassObjectDescriptor();
         assert classObject != null : "This check should be done only for classes with class objects: " + classifier;
-        DeclarationDescriptor from = context.scopeForVisibility.getContainingDeclaration();
+        DeclarationDescriptor from = context.containingDeclaration;
         if (!Visibilities.isVisible(classObject, from)) {
             context.trace.report(INVISIBLE_MEMBER.on(expression, classObject, classObject.getVisibility(), from));
         }
@@ -226,13 +227,13 @@ public class CallExpressionResolver {
     }
 
     @Nullable
-    public ResolvedCallWithTrace<FunctionDescriptor> getResolvedCallForFunction(
+    public ResolvedCall<FunctionDescriptor> getResolvedCallForFunction(
             @NotNull Call call, @NotNull JetExpression callExpression,
             @NotNull ResolutionContext context, @NotNull CheckValueArgumentsMode checkArguments,
             @NotNull boolean[] result
     ) {
         CallResolver callResolver = expressionTypingServices.getCallResolver();
-        OverloadResolutionResultsImpl<FunctionDescriptor> results = callResolver.resolveFunctionCall(
+        OverloadResolutionResults<FunctionDescriptor> results = callResolver.resolveFunctionCall(
                 BasicCallResolutionContext.create(context, call, checkArguments));
         if (!results.isNothing()) {
             checkSuper(call.getExplicitReceiver(), results, context.trace, callExpression);
@@ -342,7 +343,7 @@ public class CallExpressionResolver {
 
         TemporaryTraceAndCache temporaryForFunction = TemporaryTraceAndCache.create(
                 context, "trace to resolve as function call", callExpression);
-        ResolvedCallWithTrace<FunctionDescriptor> resolvedCall = getResolvedCallForFunction(
+        ResolvedCall<FunctionDescriptor> resolvedCall = getResolvedCallForFunction(
                 call, callExpression, context.replaceTraceAndCache(temporaryForFunction),
                 CheckValueArgumentsMode.ENABLED, result);
         if (result[0]) {
@@ -398,8 +399,12 @@ public class CallExpressionResolver {
         return false;
     }
 
-    private void checkSuper(@NotNull ReceiverValue receiverValue, @NotNull OverloadResolutionResults<? extends CallableDescriptor> results,
-            @NotNull BindingTrace trace, @NotNull JetExpression expression) {
+    private static void checkSuper(
+            @NotNull ReceiverValue receiverValue,
+            @NotNull OverloadResolutionResults<?> results,
+            @NotNull BindingTrace trace,
+            @NotNull JetExpression expression
+    ) {
         if (!results.isSingleResult()) return;
         if (!(receiverValue instanceof ExpressionReceiver)) return;
         JetExpression receiver = ((ExpressionReceiver) receiverValue).getExpression();
@@ -466,9 +471,9 @@ public class CallExpressionResolver {
         }
 
         CompileTimeConstant<?> value = ConstantExpressionEvaluator.object$.evaluate(expression, context.trace, context.expectedType);
-            if (value != null && value.isPure()) {
-                return BasicExpressionTypingVisitor.createCompileTimeConstantTypeInfo(value, expression, context);
-            }
+        if (value instanceof IntegerValueConstant && ((IntegerValueConstant) value).isPure()) {
+            return BasicExpressionTypingVisitor.createCompileTimeConstantTypeInfo(value, expression, context);
+        }
 
         JetTypeInfo typeInfo = JetTypeInfo.create(selectorReturnType, selectorReturnTypeInfo.getDataFlowInfo());
         if (context.contextDependency == INDEPENDENT) {

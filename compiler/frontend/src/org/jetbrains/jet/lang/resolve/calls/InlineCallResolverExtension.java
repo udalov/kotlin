@@ -50,7 +50,7 @@ public class InlineCallResolverExtension implements CallResolverExtension {
     private final boolean isEffectivelyPublicApiFunction;
 
     public InlineCallResolverExtension(@NotNull SimpleFunctionDescriptor descriptor) {
-        assert descriptor.isInline() : "This extension should be created only for inline functions but not " + descriptor;
+        assert descriptor.getInlineStrategy().isInline() : "This extension should be created only for inline functions but not " + descriptor;
         this.descriptor = descriptor;
         this.isEffectivelyPublicApiFunction = isEffectivelyPublicApi(descriptor);
 
@@ -70,9 +70,7 @@ public class InlineCallResolverExtension implements CallResolverExtension {
     }
 
     @Override
-    public <F extends CallableDescriptor> void run(
-            @NotNull ResolvedCall<F> resolvedCall, @NotNull BasicCallResolutionContext context
-    ) {
+    public <F extends CallableDescriptor> void run(@NotNull ResolvedCall<F> resolvedCall, @NotNull BasicCallResolutionContext context) {
         JetExpression expression = context.call.getCalleeExpression();
         if (expression == null) {
             return;
@@ -186,7 +184,7 @@ public class InlineCallResolverExtension implements CallResolverExtension {
             @NotNull BasicCallResolutionContext context,
             @NotNull JetExpression expression
     ) {
-        ResolvedCall<? extends CallableDescriptor> thisCall = context.trace.get(BindingContext.RESOLVED_CALL, expression);
+        ResolvedCall<?> thisCall = context.trace.get(BindingContext.RESOLVED_CALL, expression);
         return thisCall != null ? thisCall.getResultingDescriptor() : null;
     }
 
@@ -232,7 +230,7 @@ public class InlineCallResolverExtension implements CallResolverExtension {
 
         return isInvoke ||
                //or inline extension
-               ((SimpleFunctionDescriptor) descriptor).isInline();
+               ((SimpleFunctionDescriptor) descriptor).getInlineStrategy().isInline();
     }
 
     private void checkVisibility(@NotNull CallableDescriptor declarationDescriptor, @NotNull JetElement expression, @NotNull BasicCallResolutionContext context){
