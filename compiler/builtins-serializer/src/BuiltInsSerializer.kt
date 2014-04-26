@@ -71,7 +71,8 @@ public class BuiltInsSerializer(val out: PrintStream?) {
 
         val project = environment.getProject()
 
-        val session = AnalyzerFacadeForJVM.createLazyResolveSession(project, files, BindingTraceContext(), false)
+        val session = AnalyzerFacadeForJVM.createLazyResolveSession(project, files, BindingTraceContext(),
+                                                                    System.getProperty("include.previous.builtins") == "true")
         val module = session.getModuleDescriptor()
 
         // We don't use FileUtil because it spawns JNA initialization, which fails because we don't have (and don't want to have) its

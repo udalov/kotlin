@@ -543,15 +543,14 @@
       <java classname="org.jetbrains.jet.utils.builtinsSerializer.BuiltinsSerializerPackage" failonerror="true" fork="true">
         <classpath>
           <path refid="classpath"/>
-          <pathelement location="${bootstrap.compiler.home}/lib/kotlin-compiler.jar"/>
+          <pathelement location="${kotlin-home}/lib/kotlin-compiler.jar"/>
         </classpath>
         <assertions>
           <enable/>
         </assertions>
         <arg value="${output}/objc-builtins"/>
         <arg value="objc/runtime.objc/src"/>
-        <!-- Without this line references to Kotlin built-in types in objc-builtins are not resolved -->
-        <arg value="core/builtins/native"/>
+        <sysproperty key="include.previous.builtins" value="true"/>
       </java>
       <delete>
         <fileset dir="${output}/objc-builtins/jet" includes="*.kotlin_*"/>

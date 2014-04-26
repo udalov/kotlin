@@ -56,7 +56,6 @@ public class ObjCTestUtil {
     }
 
     @NotNull
-    @SuppressWarnings("IOResourceOpenedButNotSafelyClosed")
     public static String runProcess(@NotNull String command) {
         try {
             Process process = Runtime.getRuntime().exec(command);
