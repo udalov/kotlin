@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2013 JetBrains s.r.o.
+ * Copyright 2010-2014 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,6 +28,7 @@ import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.types.*;
 import org.jetbrains.jet.lang.types.checker.JetTypeChecker;
 import org.jetbrains.jet.lexer.JetKeywordToken;
+import org.jetbrains.jet.lexer.JetModifierKeywordToken;
 import org.jetbrains.jet.lexer.JetTokens;
 
 import javax.inject.Inject;
@@ -61,7 +62,7 @@ public class DeclarationsChecker {
             checkModifiersAndAnnotationsInPackageDirective(file);
         }
 
-        Map<JetClassOrObject, ClassDescriptorWithResolutionScopes> classes = bodiesResolveContext.getClasses();
+        Map<JetClassOrObject, ClassDescriptorWithResolutionScopes> classes = bodiesResolveContext.getDeclaredClasses();
         for (Map.Entry<JetClassOrObject, ClassDescriptorWithResolutionScopes> entry : classes.entrySet()) {
             JetClassOrObject classOrObject = entry.getKey();
             ClassDescriptorWithResolutionScopes classDescriptor = entry.getValue();
@@ -72,7 +73,7 @@ public class DeclarationsChecker {
 
             if (classOrObject instanceof JetClass) {
                 JetClass jetClass = (JetClass) classOrObject;
-                checkClass(jetClass, classDescriptor);
+                checkClass(bodiesResolveContext, jetClass, classDescriptor);
                 descriptorResolver.checkNamesInConstraints(
                         jetClass, classDescriptor, classDescriptor.getScopeForClassHeaderResolution(), trace);
             }
@@ -133,7 +134,7 @@ public class DeclarationsChecker {
         }
 
         for (ASTNode node : modifierList.getModifierNodes()) {
-            trace.report(ILLEGAL_MODIFIER.on(node.getPsi(), (JetKeywordToken) node.getElementType()));
+            trace.report(ILLEGAL_MODIFIER.on(node.getPsi(), (JetModifierKeywordToken) node.getElementType()));
         }
     }
 
@@ -254,9 +255,9 @@ public class DeclarationsChecker {
         reportErrorIfHasIllegalModifier(declaration);
     }
 
-    private void checkClass(JetClass aClass, ClassDescriptorWithResolutionScopes classDescriptor) {
+    private void checkClass(BodiesResolveContext c, JetClass aClass, ClassDescriptorWithResolutionScopes classDescriptor) {
         checkOpenMembers(classDescriptor);
-        if (TopDownAnalyzer.LAZY) {
+        if (c.getTopDownAnalysisParameters().isLazyTopDownAnalysis()) {
             checkTypeParameters(aClass);
         }
         if (aClass.isTrait()) {
@@ -505,7 +506,7 @@ public class DeclarationsChecker {
         PropertyGetterDescriptor getterDescriptor = propertyDescriptor.getGetter();
         JetModifierList getterModifierList = getter != null ? getter.getModifierList() : null;
         if (getterModifierList != null && getterDescriptor != null) {
-            Map<JetKeywordToken, ASTNode> nodes = ModifiersChecker.getNodesCorrespondingToModifiers(getterModifierList, Sets
+            Map<JetModifierKeywordToken, ASTNode> nodes = ModifiersChecker.getNodesCorrespondingToModifiers(getterModifierList, Sets
                     .newHashSet(JetTokens.PUBLIC_KEYWORD, JetTokens.PROTECTED_KEYWORD, JetTokens.PRIVATE_KEYWORD,
                                 JetTokens.INTERNAL_KEYWORD));
             if (getterDescriptor.getVisibility() != propertyDescriptor.getVisibility()) {

@@ -104,6 +104,13 @@ import org.jetbrains.jet.plugin.imports.AbstractOptimizeImportsTest
 import org.jetbrains.jet.plugin.debugger.AbstractSmartStepIntoTest
 import org.jetbrains.jet.plugin.stubs.AbstractStubBuilderTest
 import org.jetbrains.jet.plugin.codeInsight.AbstractJetInspectionTest
+import org.jetbrains.jet.plugin.debugger.AbstractKotlinSteppingTest
+import org.jetbrains.jet.completion.AbstractMultiFileJvmBasicCompletionTest
+import org.jetbrains.jet.plugin.refactoring.introduce.introduceVariable.AbstractJetExtractionTest
+import org.jetbrains.jet.plugin.debugger.evaluate.AbstractKotlinEvaluateExpressionTest
+import org.jetbrains.jet.plugin.debugger.evaluate.AbstractSelectExpressionForDebuggerTest
+import org.jetbrains.jet.plugin.debugger.evaluate.AbstractCodeFragmentCompletionTest
+import org.jetbrains.jet.plugin.debugger.evaluate.AbstractCodeFragmentHighlightingTest
 
 fun main(args: Array<String>) {
     System.setProperty("java.awt.headless", "true")
@@ -133,7 +140,7 @@ fun main(args: Array<String>) {
         }
 
         testClass(javaClass<AbstractJetParsingTest>()) {
-            model("psi", testMethod = "doParsingTest")
+            model("psi", testMethod = "doParsingTest", pattern = "^(.*)\\.kts?$")
         }
 
         GenerateRangesCodegenTestData.main(array<String>())
@@ -143,11 +150,11 @@ fun main(args: Array<String>) {
         }
 
         testClass(javaClass<AbstractBlackBoxCodegenTest>(), "BlackBoxInlineCodegenTestGenerated") {
-            model("codegen/boxInline", extension = null, recursive = false, testMethod = "doTestMultiFile")
+            model("codegen/boxInline", extension = null, recursive = false, testMethod = "doTestMultiFileWithInlineCheck")
         }
 
         testClass(javaClass<AbstractCompileKotlinAgainstKotlinTest>(), "CompileKotlinAgainstInlineKotlinTestGenerated") {
-            model("codegen/boxInline", extension = null, recursive = false, testMethod = "doBoxTest")
+            model("codegen/boxInline", extension = null, recursive = false, testMethod = "doBoxTestWithInlineCheck")
         }
 
         testClass(javaClass<AbstractBlackBoxCodegenTest>(), "BlackBoxMultiFileCodegenTestGenerated") {
@@ -252,6 +259,7 @@ fun main(args: Array<String>) {
         testClass(javaClass<AbstractEvaluateExpressionTest>()) {
             model("evaluate/constant", testMethod = "doConstantTest")
             model("evaluate/isPure", testMethod = "doIsPureTest")
+            model("evaluate/usesVariableAsConstant", testMethod = "doUsesVariableAsConstantTest")
         }
     }
 
@@ -270,6 +278,10 @@ fun main(args: Array<String>) {
             model("checker/regression")
             model("checker/rendering")
             model("checker/infos", testMethod = "doTestWithInfos")
+        }
+
+        testClass(javaClass<AbstractCodeFragmentHighlightingTest>()) {
+            model("checker/codeFragments", extension = "kt")
         }
 
         testClass(javaClass<AbstractJetJsCheckerTest>()) {
@@ -314,6 +326,10 @@ fun main(args: Array<String>) {
             model("completion/handlers/smart")
         }
 
+        testClass(javaClass<AbstractCodeFragmentCompletionTest>()) {
+            model("completion/basic/codeFragments", extension = "kt")
+        }
+
         testClass(javaClass<AbstractGotoSuperTest>()) {
             model("navigation/gotoSuper", extension = "test")
         }
@@ -350,6 +366,8 @@ fun main(args: Array<String>) {
         }
 
         testClass(javaClass<AbstractCodeTransformationTest>()) {
+            model("intentions/branched/doubleBangToIfThen", testMethod = "doTestDoubleBangToIfThen")
+            model("intentions/branched/ifThenToDoubleBang", testMethod = "doTestIfThenToDoubleBang")
             model("intentions/branched/elvisToIfThen", testMethod = "doTestElvisToIfThen")
             model("intentions/branched/ifThenToElvis", testMethod = "doTestIfThenToElvis")
             model("intentions/branched/safeAccessToIfThen", testMethod = "doTestSafeAccessToIfThen")
@@ -392,13 +410,23 @@ fun main(args: Array<String>) {
             model("intentions/attributeCallReplacements/replaceUnaryPrefixIntention", testMethod = "doTestReplaceUnaryPrefixIntention")
             model("intentions/attributeCallReplacements/replaceInvokeIntention", testMethod = "doTestReplaceInvokeIntention")
             model("intentions/simplifyNegatedBinaryExpressionIntention", testMethod = "doTestSimplifyNegatedBinaryExpressionIntention")
-        }
-
-        testClass(javaClass<AbstractJetInspectionTest>()) {
-            model("codeInsight/inspections", extension = null, recursive = false)
             model("intentions/convertNegatedBooleanSequence", testMethod="doTestConvertNegatedBooleanSequence")
             model("intentions/convertNegatedExpressionWithDemorgansLaw", testMethod = "doTestConvertNegatedExpressionWithDemorgansLaw")
             model("intentions/swapBinaryExpression", testMethod = "doTestSwapBinaryExpression")
+            model("intentions/splitIf", testMethod = "doTestSplitIf")
+            model("intentions/replaceWithOperatorAssign", testMethod = "doTestReplaceWithOperatorAssign")
+            model("intentions/replaceWithTraditionalAssignment", testMethod = "doTestReplaceWithTraditionalAssignment")
+            model("intentions/simplifyBooleanWithConstants", testMethod = "doTestSimplifyBooleanWithConstants")
+            model("intentions/insertExplicitTypeArguments", testMethod = "doTestInsertExplicitTypeArguments")
+            model("intentions/removeExplicitTypeArguments", testMethod = "doTestRemoveExplicitTypeArguments")
+            model("intentions/convertAssertToIf", testMethod = "doTestConvertAssertToIfWithThrowIntention")
+            model("intentions/convertIfToAssert", testMethod = "doTestConvertIfWithThrowToAssertIntention")
+            model("intentions/makeTypeExplicitInLambda", testMethod = "doTestMakeTypeExplicitInLambda")
+            model("intentions/makeTypeImplicitInLambda", testMethod = "doTestMakeTypeImplicitInLambda")
+        }
+
+        testClass(javaClass<AbstractJetInspectionTest>()) {
+            model("intentions", pattern = "^(inspections\\.test)$", singleClass = true)
         }
 
         testClass(javaClass<AbstractHierarchyTest>()) {
@@ -551,8 +579,30 @@ fun main(args: Array<String>) {
             model("debugger/smartStepInto")
         }
 
+        testClass(javaClass<AbstractKotlinSteppingTest>()) {
+            model("debugger/tinyApp/src/stepInto", testMethod = "doStepIntoTest", testClassName = "StepInto")
+            model("debugger/tinyApp/src/stepInto", testMethod = "doSmartStepIntoTest", testClassName = "SmartStepInto")
+        }
+
+        testClass(javaClass<AbstractKotlinEvaluateExpressionTest>()) {
+            model("debugger/tinyApp/src/evaluate")
+        }
+
         testClass(javaClass<AbstractStubBuilderTest>()) {
             model("stubs", extension = "kt")
+        }
+
+        testClass(javaClass<AbstractMultiFileJvmBasicCompletionTest>()) {
+            model("completion/basic/multifile", pattern = """^([^\.]+)\.kt$""")
+        }
+
+        testClass(javaClass<AbstractJetExtractionTest>()) {
+            model("refactoring/introduceVariable", extension = "kt", testMethod = "doIntroduceVariableTest")
+            model("refactoring/extractFunction", extension = "kt", testMethod = "doExtractFunctionTest")
+        }
+
+        testClass(javaClass<AbstractSelectExpressionForDebuggerTest>()) {
+            model("debugger/selectExpression")
         }
     }
 

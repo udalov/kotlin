@@ -54,11 +54,15 @@ public interface DescriptorRenderer extends Renderer<DeclarationDescriptor> {
             .setModifiers()
             .setStartFromName(true).build();
 
-    DescriptorRenderer TEXT = new DescriptorRendererBuilder().build();
+    DescriptorRenderer FQ_NAMES_IN_TYPES = new DescriptorRendererBuilder().build();
 
     DescriptorRenderer SHORT_NAMES_IN_TYPES = new DescriptorRendererBuilder().setShortNames(true).build();
 
     DescriptorRenderer DEBUG_TEXT = new DescriptorRendererBuilder().setDebugMode(true).build();
+
+    DescriptorRenderer HTML_COMPACT_WITH_MODIFIERS = new DescriptorRendererBuilder()
+            .setWithDefinedIn(false)
+            .setTextFormat(TextFormat.HTML).build();
 
     DescriptorRenderer HTML = new DescriptorRendererBuilder().setTextFormat(TextFormat.HTML).build();
 

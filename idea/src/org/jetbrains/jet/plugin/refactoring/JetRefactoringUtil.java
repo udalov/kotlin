@@ -31,6 +31,7 @@ import com.intellij.psi.*;
 import com.intellij.psi.search.searches.OverridingMethodsSearch;
 import com.intellij.psi.util.PsiFormatUtil;
 import com.intellij.psi.util.PsiFormatUtilBase;
+import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.ui.components.JBList;
 import com.intellij.util.Function;
 import com.intellij.util.containers.ContainerUtil;
@@ -44,7 +45,7 @@ import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.psi.psiUtil.PsiUtilPackage;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.BindingContextUtils;
-import org.jetbrains.jet.lang.resolve.OverridingUtil;
+import org.jetbrains.jet.lang.resolve.OverrideResolver;
 import org.jetbrains.jet.lang.resolve.java.jetAsJava.KotlinLightMethod;
 import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.lang.types.PackageType;
@@ -135,7 +136,7 @@ public class JetRefactoringUtil {
 
         final Project project = declaration.getProject();
         Map<PsiElement, CallableDescriptor> overriddenElementsToDescriptor = ContainerUtil.map2Map(
-                OverridingUtil.getAllOverriddenDescriptors(declarationDescriptor),
+                OverrideResolver.getAllOverriddenDescriptors(declarationDescriptor),
                 new Function<CallableDescriptor, Pair<PsiElement, CallableDescriptor>>() {
                     @Override
                     public Pair<PsiElement, CallableDescriptor> fun(CallableDescriptor descriptor) {
@@ -366,8 +367,16 @@ public class JetRefactoringUtil {
         void run(@Nullable JetExpression expression);
     }
 
+    public static void selectExpression(
+            @NotNull Editor editor,
+            @NotNull PsiFile file,
+            @NotNull SelectExpressionCallback callback) throws IntroduceRefactoringException {
+        selectExpression(editor, file, true, callback);
+    }
+
     public static void selectExpression(@NotNull Editor editor,
                                         @NotNull PsiFile file,
+                                        boolean failOnEmptySuggestion,
                                         @NotNull SelectExpressionCallback callback) throws IntroduceRefactoringException {
         if (editor.getSelectionModel().hasSelection()) {
             int selectionStart = editor.getSelectionModel().getSelectionStart();
@@ -375,11 +384,11 @@ public class JetRefactoringUtil {
             String text = file.getText();
             while (selectionStart < selectionEnd && Character.isSpaceChar(text.charAt(selectionStart))) ++selectionStart;
             while (selectionStart < selectionEnd && Character.isSpaceChar(text.charAt(selectionEnd - 1))) --selectionEnd;
-            callback.run(findExpression(file, selectionStart, selectionEnd));
+            callback.run(findExpression(file, selectionStart, selectionEnd, failOnEmptySuggestion));
         }
         else {
             int offset = editor.getCaretModel().getOffset();
-            smartSelectExpression(editor, file, offset, callback);
+            smartSelectExpression(editor, file, offset, failOnEmptySuggestion, callback);
         }
     }
 
@@ -415,7 +424,9 @@ public class JetRefactoringUtil {
                         addExpression = false;
                     }
                 }
-                else if (element.getParent() instanceof JetCallElement || element.getParent() instanceof JetThisExpression) {
+                else if (element.getParent() instanceof JetCallElement
+                         || element.getParent() instanceof JetThisExpression
+                         || PsiTreeUtil.getParentOfType(element, JetSuperExpression.class) != null) {
                     addExpression = false;
                 }
                 else if (element.getParent() instanceof JetOperationExpression) {
@@ -442,11 +453,15 @@ public class JetRefactoringUtil {
 
     private static void smartSelectExpression(
             @NotNull Editor editor, @NotNull PsiFile file, int offset,
+            boolean failOnEmptySuggestion,
             @NotNull final SelectExpressionCallback callback) throws IntroduceRefactoringException {
         List<JetExpression> expressions = getSmartSelectSuggestions(file, offset);
-        if (expressions.size() == 0) throw new IntroduceRefactoringException(JetRefactoringBundle.message("cannot.refactor.not.expression"));
+        if (expressions.size() == 0) {
+            if (failOnEmptySuggestion) throw new IntroduceRefactoringException(JetRefactoringBundle.message("cannot.refactor.not.expression"));
+            return;
+        }
 
-        if (expressions.size() == 1) {
+        if (expressions.size() == 1 || ApplicationManager.getApplication().isUnitTestMode()) {
             callback.run(expressions.get(0));
             return;
         }
@@ -509,12 +524,18 @@ public class JetRefactoringUtil {
         return expressionText;
     }
 
-    @NotNull
-    private static JetExpression findExpression(@NotNull PsiFile file, int startOffset, int endOffset) throws IntroduceRefactoringException {
+    @Nullable
+    private static JetExpression findExpression(
+            @NotNull PsiFile file, int startOffset, int endOffset, boolean failOnNoExpression
+    ) throws IntroduceRefactoringException {
         JetExpression element = CodeInsightUtils.findExpression(file, startOffset, endOffset);
         if (element == null) {
             //todo: if it's infix expression => add (), then commit document then return new created expression
-            throw new IntroduceRefactoringException(JetRefactoringBundle.message("cannot.refactor.not.expression"));
+
+            if (failOnNoExpression) {
+                throw new IntroduceRefactoringException(JetRefactoringBundle.message("cannot.refactor.not.expression"));
+            }
+            return null;
         }
         return element;
     }

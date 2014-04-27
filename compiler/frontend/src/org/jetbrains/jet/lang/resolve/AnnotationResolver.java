@@ -18,11 +18,15 @@ package org.jetbrains.jet.lang.resolve;
 
 import com.google.common.collect.Lists;
 import com.intellij.openapi.util.Pair;
+import kotlin.Function1;
 import kotlin.KotlinPackage;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.*;
-import org.jetbrains.jet.lang.descriptors.annotations.*;
+import org.jetbrains.jet.lang.descriptors.annotations.Annotated;
+import org.jetbrains.jet.lang.descriptors.annotations.AnnotationDescriptor;
+import org.jetbrains.jet.lang.descriptors.annotations.Annotations;
+import org.jetbrains.jet.lang.descriptors.annotations.AnnotationsImpl;
 import org.jetbrains.jet.lang.diagnostics.Errors;
 import org.jetbrains.jet.lang.evaluate.ConstantExpressionEvaluator;
 import org.jetbrains.jet.lang.psi.*;
@@ -47,9 +51,11 @@ import org.jetbrains.jet.storage.StorageManager;
 
 import javax.inject.Inject;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.jetbrains.jet.lang.diagnostics.Errors.NOT_AN_ANNOTATION_CLASS;
 import static org.jetbrains.jet.lang.resolve.BindingContext.ANNOTATION_DESCRIPTOR_TO_PSI_ELEMENT;
 import static org.jetbrains.jet.lang.types.TypeUtils.NO_EXPECTED_TYPE;
 
@@ -116,7 +122,7 @@ public class AnnotationResolver {
     }
 
     private Annotations resolveAnnotationEntries(
-            @NotNull JetScope scope,
+            @NotNull final JetScope scope,
             @NotNull List<JetAnnotationEntry> annotationEntryElements,
             @NotNull BindingTrace trace,
             boolean shouldResolveArguments
@@ -126,20 +132,20 @@ public class AnnotationResolver {
         for (JetAnnotationEntry entryElement : annotationEntryElements) {
             AnnotationDescriptor descriptor = trace.get(BindingContext.ANNOTATION, entryElement);
             if (descriptor == null) {
-                if (TopDownAnalyzer.LAZY) {
-                    descriptor = new LazyAnnotationDescriptor(
-                            new LazyAnnotationsContext(this, storageManager, scope, trace),
-                            entryElement
-                    );
-                }
-                else {
-                    descriptor = new AnnotationDescriptorImpl();
-                    ((AnnotationDescriptorImpl) descriptor).setAnnotationType(resolveAnnotationType(scope, entryElement));
-                }
-                trace.record(BindingContext.ANNOTATION, entryElement, descriptor);
+                descriptor = new LazyAnnotationDescriptor(
+                        new LazyAnnotationsContext(this, storageManager, trace) {
+
+                            @NotNull
+                            @Override
+                            public JetScope getScope() {
+                                return scope;
+                            }
+                        },
+                        entryElement
+                );
             }
             if (shouldResolveArguments) {
-                resolveAnnotationArguments(entryElement, scope, trace);
+                resolveAnnotationArguments(entryElement, trace);
             }
 
             result.add(descriptor);
@@ -169,11 +175,11 @@ public class AnnotationResolver {
                 ConstructorDescriptor constructor = (ConstructorDescriptor)descriptor;
                 ClassDescriptor classDescriptor = constructor.getContainingDeclaration();
                 if (classDescriptor.getKind() != ClassKind.ANNOTATION_CLASS) {
-                    trace.report(Errors.NOT_AN_ANNOTATION_CLASS.on(entryElement, classDescriptor.getName().asString()));
+                    trace.report(NOT_AN_ANNOTATION_CLASS.on(entryElement, classDescriptor));
                 }
             }
             else {
-                trace.report(Errors.NOT_AN_ANNOTATION_CLASS.on(entryElement, descriptor.getName().asString()));
+                trace.report(NOT_AN_ANNOTATION_CLASS.on(entryElement, descriptor));
             }
         }
     }
@@ -193,72 +199,51 @@ public class AnnotationResolver {
         );
     }
 
-    public void resolveAnnotationsArguments(@NotNull JetScope scope, @Nullable JetModifierList modifierList, @NotNull BindingTrace trace) {
+    public static void resolveAnnotationsArguments(@Nullable JetModifierList modifierList, @NotNull BindingTrace trace) {
         if (modifierList == null) {
             return;
         }
 
         for (JetAnnotationEntry annotationEntry : modifierList.getAnnotationEntries()) {
-            resolveAnnotationArguments(annotationEntry, scope, trace);
+            resolveAnnotationArguments(annotationEntry, trace);
         }
     }
 
-    public void resolveAnnotationsArguments(@NotNull Annotated descriptor, @NotNull BindingTrace trace, @NotNull JetScope scope) {
+    public static void resolveAnnotationsArguments(@NotNull Annotated descriptor, @NotNull BindingTrace trace) {
         for (AnnotationDescriptor annotationDescriptor : descriptor.getAnnotations()) {
             JetAnnotationEntry annotationEntry = trace.getBindingContext().get(ANNOTATION_DESCRIPTOR_TO_PSI_ELEMENT, annotationDescriptor);
             assert annotationEntry != null : "Cannot find annotation entry: " + annotationDescriptor;
-            resolveAnnotationArguments(annotationEntry, scope, trace);
+            resolveAnnotationArguments(annotationEntry, trace);
         }
     }
 
-    private void resolveAnnotationArguments(
+    private static void resolveAnnotationArguments(
             @NotNull JetAnnotationEntry annotationEntry,
-            @NotNull JetScope scope,
             @NotNull BindingTrace trace
     ) {
         AnnotationDescriptor annotationDescriptor = trace.getBindingContext().get(BindingContext.ANNOTATION, annotationEntry);
         assert annotationDescriptor != null : "Annotation descriptor should be created before resolving arguments for " + annotationEntry.getText();
-        if (TopDownAnalyzer.LAZY && annotationDescriptor instanceof LazyAnnotationDescriptor) {
+        if (annotationDescriptor instanceof LazyAnnotationDescriptor) {
             ((LazyAnnotationDescriptor) annotationDescriptor).forceResolveAllContents();
-            return;
-        }
-
-        AnnotationDescriptorImpl annotationDescriptorImpl = (AnnotationDescriptorImpl) annotationDescriptor;
-        if (annotationDescriptorImpl.areValueArgumentsResolved()) return;
-
-        OverloadResolutionResults<FunctionDescriptor> results = resolveAnnotationCall(annotationEntry, scope, trace);
-        if (results.isSingleResult()) {
-            checkAnnotationType(annotationEntry, trace, results);
-            resolveAnnotationArguments(annotationDescriptor, results.getResultingCall(), trace);
-        }
-        else {
-            annotationDescriptorImpl.markValueArgumentsResolved();
         }
     }
 
-    public static void resolveAnnotationArguments(
-            @NotNull AnnotationDescriptor annotationDescriptor,
+    @NotNull
+    public static Map<ValueParameterDescriptor, CompileTimeConstant<?>> resolveAnnotationArguments(
             @NotNull ResolvedCall<?> resolvedCall,
             @NotNull BindingTrace trace
     ) {
-        if (TopDownAnalyzer.LAZY && annotationDescriptor instanceof LazyAnnotationDescriptor) {
-            ((LazyAnnotationDescriptor) annotationDescriptor).forceResolveAllContents();
-            return;
-        }
-
-        AnnotationDescriptorImpl annotationDescriptorImpl = (AnnotationDescriptorImpl) annotationDescriptor;
-
+        Map<ValueParameterDescriptor, CompileTimeConstant<?>> arguments = new HashMap<ValueParameterDescriptor, CompileTimeConstant<?>>();
         for (Map.Entry<ValueParameterDescriptor, ResolvedValueArgument> descriptorToArgument : resolvedCall.getValueArguments().entrySet()) {
             ValueParameterDescriptor parameterDescriptor = descriptorToArgument.getKey();
             ResolvedValueArgument resolvedArgument = descriptorToArgument.getValue();
 
             CompileTimeConstant<?> value = getAnnotationArgumentValue(trace, parameterDescriptor, resolvedArgument);
             if (value != null) {
-                annotationDescriptorImpl.setValueArgument(parameterDescriptor, value);
+                arguments.put(parameterDescriptor, value);
             }
         }
-
-        annotationDescriptorImpl.markValueArgumentsResolved();
+        return arguments;
     }
 
     @Nullable
@@ -274,11 +259,20 @@ public class AnnotationResolver {
                                                                        trace);
 
         if (argumentsAsVararg) {
+
+            boolean usesVariableAsConstant = KotlinPackage.any(constants, new Function1<CompileTimeConstant<?>, Boolean>() {
+                @Override
+                public Boolean invoke(CompileTimeConstant<?> constant) {
+                    return constant.usesVariableAsConstant();
+                }
+            });
+
             JetType arrayType = KotlinBuiltIns.getInstance().getPrimitiveArrayJetTypeByPrimitiveJetType(varargElementType);
             if (arrayType == null) {
                 arrayType = KotlinBuiltIns.getInstance().getArrayType(varargElementType);
             }
-            return new ArrayValue(constants, arrayType, true);
+
+            return new ArrayValue(constants, arrayType, true, usesVariableAsConstant);
         }
         else {
             // we should actually get only one element, but just in case of getting many, we take the last one
@@ -387,7 +381,8 @@ public class AnnotationResolver {
         for (JetAnnotationEntry annotation : annotations) {
             AnnotationDescriptor annotationDescriptor = trace.get(BindingContext.ANNOTATION, annotation);
             if (annotationDescriptor == null) {
-                throw new IllegalStateException("Annotation for annotation should have been resolved: " + annotation);
+                throw new IllegalStateException("Annotation for annotation should have been resolved: \n" +
+                                                JetPsiUtil.getElementTextWithContext(annotation));
             }
 
             result.add(annotationDescriptor);

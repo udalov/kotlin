@@ -27,7 +27,6 @@ import org.jetbrains.jet.lang.descriptors.SimpleFunctionDescriptor;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.calls.autocasts.DataFlowInfo;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
-import org.jetbrains.jet.lang.resolve.scopes.WritableScope;
 import org.jetbrains.jet.storage.ExceptionTracker;
 import org.jetbrains.jet.storage.StorageManager;
 
@@ -46,19 +45,17 @@ public class CachedBodiesResolveContext implements BodiesResolveContext {
     private final Map<JetNamedFunction, SimpleFunctionDescriptor> functions;
     private final Function<JetDeclaration, JetScope> declaringScopes;
     private final Map<JetScript, ScriptDescriptor> scripts;
-    private final Map<JetScript, WritableScope> scriptScopes;
     private final DataFlowInfo outerDataFlowInfo;
 
     private @NotNull TopDownAnalysisParameters topDownAnalysisParameters;
 
     public CachedBodiesResolveContext(TopDownAnalysisContext context) {
         files = Collections.unmodifiableCollection(context.getFiles());
-        classes = Collections.unmodifiableMap(context.getClasses());
+        classes = Collections.unmodifiableMap(context.getDeclaredClasses());
         properties = Collections.unmodifiableMap(context.getProperties());
         functions = Collections.unmodifiableMap(context.getFunctions());
         declaringScopes = context.getDeclaringScopes();
         scripts = Collections.unmodifiableMap(context.getScripts());
-        scriptScopes = Collections.unmodifiableMap(context.getScriptScopes());
         outerDataFlowInfo = context.getOuterDataFlowInfo();
 
         topDownAnalysisParameters = context.getTopDownAnalysisParameters();
@@ -82,7 +79,7 @@ public class CachedBodiesResolveContext implements BodiesResolveContext {
     }
 
     @Override
-    public Map<JetClassOrObject, ClassDescriptorWithResolutionScopes> getClasses() {
+    public Map<JetClassOrObject, ClassDescriptorWithResolutionScopes> getDeclaredClasses() {
         return classes;
     }
 
@@ -104,11 +101,6 @@ public class CachedBodiesResolveContext implements BodiesResolveContext {
     @Override
     public Map<JetScript, ScriptDescriptor> getScripts() {
         return scripts;
-    }
-
-    @Override
-    public Map<JetScript, WritableScope> getScriptScopes() {
-        return scriptScopes;
     }
 
     @Override

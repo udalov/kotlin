@@ -23,8 +23,8 @@ import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.asm4.*;
-import org.jetbrains.asm4.tree.MethodNode;
+import org.jetbrains.org.objectweb.asm.*;
+import org.jetbrains.org.objectweb.asm.tree.MethodNode;
 import org.jetbrains.jet.codegen.PackageCodegen;
 import org.jetbrains.jet.codegen.binding.CodegenBinding;
 import org.jetbrains.jet.codegen.context.CodegenContext;
@@ -53,7 +53,7 @@ import static org.jetbrains.jet.lang.resolve.DescriptorUtils.isTrait;
 
 public class InlineCodegenUtil {
 
-    public final static int API = Opcodes.ASM4;
+    public final static int API = Opcodes.ASM5;
 
     public final static String INVOKE = "invoke";
 

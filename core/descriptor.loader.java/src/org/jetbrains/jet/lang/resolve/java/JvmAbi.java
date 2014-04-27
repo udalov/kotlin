@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2013 JetBrains s.r.o.
+ * Copyright 2010-2014 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,9 +17,6 @@
 package org.jetbrains.jet.lang.resolve.java;
 
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-import org.jetbrains.asm4.Type;
-import org.jetbrains.asm4.commons.Method;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.Name;
 
@@ -41,6 +38,7 @@ public final class JvmAbi {
     public static final String CLASS_OBJECT_SUFFIX = "$" + CLASS_OBJECT_CLASS_NAME;
 
     public static final String DELEGATED_PROPERTY_NAME_SUFFIX = "$delegate";
+    public static final String PROPERTY_METADATA_ARRAY_NAME = "$propertyMetadata";
     public static final String ANNOTATED_PROPERTY_METHOD_NAME_SUFFIX = "$annotations";
 
     public static final String INSTANCE_FIELD = "instance$";
@@ -58,12 +56,8 @@ public final class JvmAbi {
     }
 
     @NotNull
-    public static Method getSyntheticMethodSignatureForAnnotatedProperty(@NotNull Name propertyName, @Nullable Type receiver) {
-        return new Method(
-                propertyName.asString() + ANNOTATED_PROPERTY_METHOD_NAME_SUFFIX,
-                Type.VOID_TYPE,
-                receiver == null ? new Type[0] : new Type[] {receiver}
-        );
+    public static String getSyntheticMethodNameForAnnotatedProperty(@NotNull Name propertyName) {
+        return propertyName.asString() + ANNOTATED_PROPERTY_METHOD_NAME_SUFFIX;
     }
 
     @NotNull

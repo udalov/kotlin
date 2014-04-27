@@ -43,9 +43,13 @@ fun specialJVM(): List<GenericFunction> {
     templates add f("fill(element: T)") {
         only(ArraysOfObjects, ArraysOfPrimitives)
         doc { "Fills original array with the provided value" }
-        returns("Unit")
+        returns { "SELF" }
+        returns(ArraysOfObjects) { "Array<out T>" }
         body {
-            "Arrays.fill(this, element)"
+            """
+            Arrays.fill(this, element)
+            return this
+            """
         }
     }
 
@@ -59,7 +63,7 @@ fun specialJVM(): List<GenericFunction> {
         }
     }
 
-    templates add f("sort(fromIndex : Int = 0, toIndex : Int = size - 1)") {
+    templates add f("sort(fromIndex: Int = 0, toIndex: Int = size - 1)") {
         only(ArraysOfObjects, ArraysOfPrimitives)
         exclude(PrimitiveType.Boolean)
         doc { "Sorts array or range in array inplace" }
@@ -69,30 +73,30 @@ fun specialJVM(): List<GenericFunction> {
         }
     }
 
-    templates add f("filterIsInstanceTo(collection: C, klass: Class<R>)") {
-        doc { "Appends all elements that are instances of specified class into the given *collection*" }
-        typeParam("C: MutableCollection<in R>")
-        typeParam("R: T")
+    templates add f("filterIsInstanceTo(destination: C, klass: Class<R>)") {
+        doc { "Appends all elements that are instances of specified class to the given *destination*" }
+        typeParam("C : MutableCollection<in R>")
+        typeParam("R : T")
         returns("C")
-        exclude(ArraysOfPrimitives)
+        exclude(ArraysOfPrimitives, Strings)
         body {
             """
-            for (element in this) if (klass.isInstance(element)) collection.add(element as R)
-            return collection
+            for (element in this) if (klass.isInstance(element)) destination.add(element as R)
+            return destination
             """
         }
     }
 
     templates add f("filterIsInstance(klass: Class<R>)") {
         doc { "Returns a list containing all elements that are instances of specified class" }
-        typeParam("R: T")
+        typeParam("R : T")
         returns("List<R>")
         body {
             """
             return filterIsInstanceTo(ArrayList<R>(), klass)
             """
         }
-        exclude(ArraysOfPrimitives)
+        exclude(ArraysOfPrimitives, Strings)
 
         doc(Streams) { "Returns a stream containing all elements that are instances of specified class" }
         returns(Streams) { "Stream<T>" }

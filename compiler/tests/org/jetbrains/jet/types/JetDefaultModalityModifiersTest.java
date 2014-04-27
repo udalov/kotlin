@@ -16,6 +16,8 @@
 
 package org.jetbrains.jet.types;
 
+import com.google.common.base.Predicates;
+import com.intellij.psi.PsiFile;
 import org.jetbrains.jet.ConfigurationKind;
 import org.jetbrains.jet.JetLiteFixture;
 import org.jetbrains.jet.JetTestUtils;
@@ -25,19 +27,20 @@ import org.jetbrains.jet.di.InjectorForTests;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.descriptors.impl.MutableClassDescriptor;
 import org.jetbrains.jet.lang.psi.*;
-import org.jetbrains.jet.lang.resolve.AnalyzerScriptParameter;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.DescriptorResolver;
+import org.jetbrains.jet.lang.resolve.TopDownAnalysisParameters;
 import org.jetbrains.jet.lang.resolve.calls.autocasts.DataFlowInfo;
-import org.jetbrains.jet.lang.resolve.java.AnalyzerFacadeForJVM;
+import org.jetbrains.jet.lang.resolve.lazy.JvmResolveUtil;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
 import org.jetbrains.jet.lang.resolve.scopes.RedeclarationHandler;
 import org.jetbrains.jet.lang.resolve.scopes.WritableScope;
 import org.jetbrains.jet.lang.resolve.scopes.WritableScopeImpl;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
+import org.jetbrains.jet.storage.ExceptionTracker;
+import org.jetbrains.jet.storage.LockBasedStorageManager;
 
-import java.util.Collections;
 import java.util.List;
 
 public class JetDefaultModalityModifiersTest extends JetLiteFixture {
@@ -81,8 +84,8 @@ public class JetDefaultModalityModifiersTest extends JetLiteFixture {
             List<JetDeclaration> declarations = file.getDeclarations();
             JetDeclaration aClass = declarations.get(0);
             assert aClass instanceof JetClass;
-            AnalyzeExhaust bindingContext = AnalyzerFacadeForJVM.analyzeOneFileWithJavaIntegration(file,
-                    Collections.<AnalyzerScriptParameter>emptyList());
+            AnalyzeExhaust bindingContext = JvmResolveUtil.analyzeOneFileWithJavaIntegration(file
+            );
             DeclarationDescriptor classDescriptor = bindingContext.getBindingContext().get(BindingContext.DECLARATION_TO_DESCRIPTOR, aClass);
             WritableScopeImpl scope = new WritableScopeImpl(
                     libraryScope, root, RedeclarationHandler.DO_NOTHING, "JetDefaultModalityModifiersTest");
@@ -94,7 +97,11 @@ public class JetDefaultModalityModifiersTest extends JetLiteFixture {
 
         private ClassDescriptorWithResolutionScopes createClassDescriptor(ClassKind kind, JetClass aClass) {
             MutableClassDescriptor classDescriptor = new MutableClassDescriptor(root, scope, kind, false, Name.identifier(aClass.getName()));
-            descriptorResolver.resolveMutableClassDescriptor(aClass, classDescriptor, JetTestUtils.DUMMY_TRACE);
+            TopDownAnalysisParameters parameters = TopDownAnalysisParameters.create(
+                    LockBasedStorageManager.NO_LOCKS, new ExceptionTracker(), Predicates.<PsiFile>alwaysTrue(), false, false
+            );
+            descriptorResolver.resolveMutableClassDescriptor(
+                    parameters, aClass, classDescriptor, JetTestUtils.DUMMY_TRACE);
             return classDescriptor;
         }
 

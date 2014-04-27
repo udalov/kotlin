@@ -19,8 +19,7 @@ package org.jetbrains.jet.lang.resolve.objc;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.*;
-import org.jetbrains.jet.lang.descriptors.impl.MutableClassDescriptorLite;
-import org.jetbrains.jet.lang.descriptors.impl.PackageLikeBuilder;
+import org.jetbrains.jet.lang.descriptors.impl.MutableClassDescriptor;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
 import org.jetbrains.jet.lang.resolve.scopes.RedeclarationHandler;
@@ -30,15 +29,10 @@ import org.jetbrains.jet.lang.types.JetType;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.LinkedHashSet;
-import java.util.Set;
 
-public class ObjCClassDescriptor extends MutableClassDescriptorLite {
+// TODO: get rid of MutableClassDescriptor inheritance
+public class ObjCClassDescriptor extends MutableClassDescriptor {
     private final Collection<JetType> lazySupertypes;
-
-    // TODO: maybe reuse this from MutableClassDescriptor
-    private final Set<CallableMemberDescriptor> declaredCallableMembers = new LinkedHashSet<CallableMemberDescriptor>();
-    private final Set<CallableMemberDescriptor> allCallableMembers = new LinkedHashSet<CallableMemberDescriptor>();
 
     public ObjCClassDescriptor(
             @NotNull DeclarationDescriptor containingDeclaration,
@@ -47,7 +41,7 @@ public class ObjCClassDescriptor extends MutableClassDescriptorLite {
             @NotNull Name name,
             @NotNull Collection<JetType> supertypes
     ) {
-        super(containingDeclaration, name, kind, false);
+        super(containingDeclaration, scope(containingDeclaration), kind, false, name);
 
         setModality(modality);
         setVisibility(Visibilities.PUBLIC);
@@ -60,6 +54,17 @@ public class ObjCClassDescriptor extends MutableClassDescriptorLite {
         this.lazySupertypes = supertypes;
 
         createTypeConstructor();
+    }
+
+    @NotNull
+    private static JetScope scope(@NotNull DeclarationDescriptor containingDeclaration) {
+        if (containingDeclaration instanceof PackageFragmentDescriptor) {
+            return ((PackageFragmentDescriptor) containingDeclaration).getMemberScope();
+        }
+        if (containingDeclaration instanceof ClassDescriptor) {
+            return ((ClassDescriptor) containingDeclaration).getDefaultType().getMemberScope();
+        }
+        throw new UnsupportedOperationException("Obj-C class container not supported: " + containingDeclaration);
     }
 
     /* package */ void initialize() {
@@ -75,78 +80,14 @@ public class ObjCClassDescriptor extends MutableClassDescriptorLite {
         return lazySupertypes;
     }
 
-    @NotNull
-    public Set<CallableMemberDescriptor> getDeclaredCallableMembers() {
-        return declaredCallableMembers;
-    }
-
-    @NotNull
-    public Set<CallableMemberDescriptor> getAllCallableMembers() {
-        return allCallableMembers;
-    }
-
     @Nullable
     @Override
     public ObjCClassDescriptor getClassObjectDescriptor() {
         return (ObjCClassDescriptor) super.getClassObjectDescriptor();
     }
 
-    @NotNull
     @Override
-    public Collection<ConstructorDescriptor> getConstructors() {
-        return Collections.emptyList();
-    }
-
-    @Nullable
-    @Override
-    public ConstructorDescriptor getUnsubstitutedPrimaryConstructor() {
-        return null;
-    }
-
-    private PackageLikeBuilder builder = null;
-
-    @NotNull
-    @Override
-    public PackageLikeBuilder getBuilder() {
-        if (builder == null) {
-            final PackageLikeBuilder superBuilder = super.getBuilder();
-            builder = new PackageLikeBuilder() {
-                @NotNull
-                @Override
-                public DeclarationDescriptor getOwnerForChildren() {
-                    return superBuilder.getOwnerForChildren();
-                }
-
-                @Override
-                public void addClassifierDescriptor(@NotNull MutableClassDescriptorLite classDescriptor) {
-                    superBuilder.addClassifierDescriptor(classDescriptor);
-                }
-
-                @Override
-                public void addFunctionDescriptor(@NotNull SimpleFunctionDescriptor functionDescriptor) {
-                    superBuilder.addFunctionDescriptor(functionDescriptor);
-                    if (functionDescriptor.getKind().isReal()) {
-                        declaredCallableMembers.add(functionDescriptor);
-                    }
-                    allCallableMembers.add(functionDescriptor);
-                }
-
-                @Override
-                public void addPropertyDescriptor(@NotNull PropertyDescriptor propertyDescriptor) {
-                    superBuilder.addPropertyDescriptor(propertyDescriptor);
-                    if (propertyDescriptor.getKind().isReal()) {
-                        declaredCallableMembers.add(propertyDescriptor);
-                    }
-                    allCallableMembers.add(propertyDescriptor);
-                }
-
-                @Override
-                public ClassObjectStatus setClassObjectDescriptor(@NotNull MutableClassDescriptorLite classObjectDescriptor) {
-                    return superBuilder.setClassObjectDescriptor(classObjectDescriptor);
-                }
-            };
-        }
-
-        return builder;
+    public void lockScopes() {
+        // TODO
     }
 }

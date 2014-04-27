@@ -29,7 +29,7 @@ import com.intellij.psi.impl.PsiFileFactoryImpl;
 import com.intellij.testFramework.LightVirtualFile;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.asm4.Type;
+import org.jetbrains.org.objectweb.asm.Type;
 import org.jetbrains.jet.OutputFile;
 import org.jetbrains.jet.analyzer.AnalyzeExhaust;
 import org.jetbrains.jet.cli.common.arguments.CompilerArgumentsUtil;
@@ -83,8 +83,8 @@ public class ReplInterpreter {
     private int lineNumber = 0;
     @Nullable
     private JetScope lastLineScope;
-    private List<EarlierLine> earlierLines = Lists.newArrayList();
-    private List<String> previousIncompleteLines = Lists.newArrayList();
+    private final List<EarlierLine> earlierLines = Lists.newArrayList();
+    private final List<String> previousIncompleteLines = Lists.newArrayList();
     private final ReplClassLoader classLoader;
 
     @NotNull
@@ -103,13 +103,11 @@ public class ReplInterpreter {
         Project project = jetCoreEnvironment.getProject();
         trace = new BindingTraceContext();
         module = AnalyzerFacadeForJVM.createJavaModule("<repl>");
-        TopDownAnalysisParameters topDownAnalysisParameters = new TopDownAnalysisParameters(
+        TopDownAnalysisParameters topDownAnalysisParameters = TopDownAnalysisParameters.createForLocalDeclarations(
                 new LockBasedStorageManager(),
                 new ExceptionTracker(), // dummy
-                Predicates.<PsiFile>alwaysTrue(),
-                false,
-                true,
-                Collections.<AnalyzerScriptParameter>emptyList());
+                Predicates.<PsiFile>alwaysTrue()
+        );
         injector = new InjectorForTopDownAnalyzerForJvm(project, topDownAnalysisParameters, trace, module, MemberFilter.ALWAYS_TRUE);
         topDownAnalysisContext = new TopDownAnalysisContext(topDownAnalysisParameters);
         module.addFragmentProvider(SOURCES, injector.getTopDownAnalyzer().getPackageFragmentProvider());
@@ -128,6 +126,10 @@ public class ReplInterpreter {
         }
 
         classLoader = new ReplClassLoader(new URLClassLoader(classpath.toArray(new URL[0])));
+    }
+
+    private static void prepareForTheNextReplLine(@NotNull TopDownAnalysisContext c) {
+        c.getScripts().clear();
     }
 
     public enum LineResultType {
@@ -229,7 +231,7 @@ public class ReplInterpreter {
             return LineResult.error(errorCollector.getString());
         }
 
-        injector.getTopDownAnalyzer().prepareForTheNextReplLine(topDownAnalysisContext);
+        prepareForTheNextReplLine(topDownAnalysisContext);
         trace.clearDiagnostics();
 
         psiFile.getScript().putUserData(ScriptHeaderResolver.PRIORITY_KEY, lineNumber);
@@ -280,7 +282,12 @@ public class ReplInterpreter {
 
             earlierLines.add(new EarlierLine(line, scriptDescriptor, scriptClass, scriptInstance, scriptClassType));
 
-            return LineResult.successful(rv, scriptDescriptor.getReturnType().equals(KotlinBuiltIns.getInstance().getUnitType()));
+            return LineResult.successful(
+                        rv,
+                        KotlinBuiltIns.getInstance().getUnitType().equals(
+                                scriptDescriptor.getScriptCodeDescriptor().getReturnType()
+                        )
+            );
         } catch (Throwable e) {
             PrintWriter writer = new PrintWriter(System.err);
             classLoader.dumpClasses(writer);
@@ -361,8 +368,8 @@ public class ReplInterpreter {
         state.beforeCompile();
         KotlinCodegenFacade.generatePackage(
                 state,
-                ((JetFile) script.getContainingFile()).getPackageFqName(),
-                Collections.singleton((JetFile) script.getContainingFile()),
+                script.getContainingJetFile().getPackageFqName(),
+                Collections.singleton(script.getContainingJetFile()),
                 errorHandler);
     }
 

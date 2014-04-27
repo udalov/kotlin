@@ -35,7 +35,7 @@ import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.lang.types.checker.JetTypeChecker;
 import org.jetbrains.jet.plugin.JetBundle;
-import org.jetbrains.jet.plugin.project.AnalyzerFacadeWithCache;
+import org.jetbrains.jet.plugin.caches.resolve.ResolvePackage;
 import org.jetbrains.jet.plugin.refactoring.JetNameValidator;
 import org.jetbrains.jet.plugin.refactoring.changeSignature.JetChangeSignatureConfiguration;
 import org.jetbrains.jet.plugin.refactoring.changeSignature.JetChangeSignatureData;
@@ -106,7 +106,7 @@ public class AddFunctionParametersFix extends ChangeFunctionSignatureFix {
 
     @Override
     protected void invoke(@NotNull Project project, Editor editor, JetFile file) {
-        BindingContext bindingContext = AnalyzerFacadeWithCache.analyzeFileWithCache((JetFile) callElement.getContainingFile()).getBindingContext();
+        BindingContext bindingContext = ResolvePackage.getAnalysisResults((JetFile) callElement.getContainingFile()).getBindingContext();
         runChangeSignature(project, functionDescriptor, addParameterConfiguration(), bindingContext, callElement, getText());
     }
 
@@ -116,7 +116,7 @@ public class AddFunctionParametersFix extends ChangeFunctionSignatureFix {
             public void configure(@NotNull JetChangeSignatureData changeSignatureData, @NotNull BindingContext bindingContext) {
                 List<ValueParameterDescriptor> parameters = functionDescriptor.getValueParameters();
                 List<? extends ValueArgument> arguments = callElement.getValueArguments();
-                JetNameValidator validator = JetNameValidator.getCollectingValidator(callElement.getProject());
+                JetNameValidator validator = JetNameValidator.createCollectingValidator(callElement.getProject());
 
                 for (int i = 0; i < arguments.size(); i ++) {
                     ValueArgument argument = arguments.get(i);

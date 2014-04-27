@@ -17,14 +17,12 @@
 package org.jetbrains.jet.lang.resolve.java;
 
 import com.google.common.base.Predicate;
-import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableList;
 import com.intellij.openapi.project.Project;
 import com.intellij.psi.PsiFile;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.analyzer.AnalyzeExhaust;
 import org.jetbrains.jet.analyzer.AnalyzerFacade;
-import org.jetbrains.jet.analyzer.AnalyzerFacadeForEverything;
 import org.jetbrains.jet.context.ContextPackage;
 import org.jetbrains.jet.context.GlobalContext;
 import org.jetbrains.jet.context.GlobalContextImpl;
@@ -32,7 +30,6 @@ import org.jetbrains.jet.descriptors.serialization.descriptors.MemberFilter;
 import org.jetbrains.jet.di.InjectorForLazyResolveWithJava;
 import org.jetbrains.jet.di.InjectorForTopDownAnalyzerForJvm;
 import org.jetbrains.jet.lang.descriptors.DependencyKind;
-import org.jetbrains.jet.lang.descriptors.ModuleDescriptor;
 import org.jetbrains.jet.lang.descriptors.ModuleDescriptorImpl;
 import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.resolve.*;
@@ -44,7 +41,6 @@ import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 
 public enum AnalyzerFacadeForJVM implements AnalyzerFacade {
@@ -56,39 +52,28 @@ public enum AnalyzerFacadeForJVM implements AnalyzerFacade {
             new ImportPath("kotlin.*"),
             new ImportPath("kotlin.io.*"));
 
+    public static class JvmSetup extends BasicSetup {
+
+        private final JavaDescriptorResolver javaDescriptorResolver;
+
+        public JvmSetup(@NotNull ResolveSession session, @NotNull JavaDescriptorResolver javaDescriptorResolver) {
+            super(session);
+            this.javaDescriptorResolver = javaDescriptorResolver;
+        }
+
+        @NotNull
+        public JavaDescriptorResolver getJavaDescriptorResolver() {
+            return javaDescriptorResolver;
+        }
+    }
+
     private AnalyzerFacadeForJVM() {
     }
 
-    @Override
-    @NotNull
-    public AnalyzeExhaust analyzeFiles(
-            @NotNull Project project,
-            @NotNull Collection<JetFile> files,
-            @NotNull List<AnalyzerScriptParameter> scriptParameters,
-            @NotNull Predicate<PsiFile> filesToAnalyzeCompletely
-    ) {
-        return analyzeFilesWithJavaIntegration(project, files, scriptParameters, filesToAnalyzeCompletely, true);
-    }
-
     @NotNull
     @Override
-    public AnalyzeExhaust analyzeBodiesInFiles(
-            @NotNull Project project,
-            @NotNull List<AnalyzerScriptParameter> scriptParameters,
-            @NotNull Predicate<PsiFile> filesForBodiesResolve,
-            @NotNull BindingTrace headersTraceContext,
-            @NotNull BodiesResolveContext bodiesResolveContext,
-            @NotNull ModuleDescriptor module
-    ) {
-        return AnalyzerFacadeForEverything.analyzeBodiesInFilesWithJavaIntegration(
-                project, scriptParameters, filesForBodiesResolve,
-                headersTraceContext, bodiesResolveContext, module);
-    }
-
-    @NotNull
-    @Override
-    public ResolveSession getLazyResolveSession(@NotNull Project fileProject, @NotNull Collection<JetFile> files) {
-        return createLazyResolveSession(fileProject, files, new BindingTraceContext(), true);
+    public JvmSetup createSetup(@NotNull Project fileProject, @NotNull Collection<JetFile> files) {
+        return createSetup(fileProject, files, new BindingTraceContext(), true);
     }
 
     @NotNull
@@ -96,6 +81,16 @@ public enum AnalyzerFacadeForJVM implements AnalyzerFacade {
             @NotNull Project project,
             @NotNull Collection<JetFile> files,
             @NotNull BindingTrace trace,
+            boolean addBuiltIns
+    ) {
+
+        return createSetup(project, files, trace, addBuiltIns).getLazyResolveSession();
+    }
+
+    private static JvmSetup createSetup(
+            Project project,
+            Collection<JetFile> files,
+            BindingTrace trace,
             boolean addBuiltIns
     ) {
         GlobalContextImpl globalContext = ContextPackage.GlobalContext();
@@ -117,73 +112,7 @@ public enum AnalyzerFacadeForJVM implements AnalyzerFacade {
                     DependencyKind.BUILT_INS,
                     KotlinBuiltIns.getInstance().getBuiltInsModule().getPackageFragmentProvider());
         }
-
-        return resolveWithJava.getResolveSession();
-    }
-
-    @NotNull
-    public static AnalyzeExhaust analyzeOneFileWithJavaIntegrationAndCheckForErrors(
-            JetFile file, List<AnalyzerScriptParameter> scriptParameters
-    ) {
-        AnalyzingUtils.checkForSyntacticErrors(file);
-
-        AnalyzeExhaust analyzeExhaust = analyzeOneFileWithJavaIntegration(file, scriptParameters);
-
-        AnalyzingUtils.throwExceptionOnErrors(analyzeExhaust.getBindingContext());
-
-        return analyzeExhaust;
-    }
-
-    @NotNull
-    public static AnalyzeExhaust analyzeOneFileWithJavaIntegration(
-            JetFile file, List<AnalyzerScriptParameter> scriptParameters
-    ) {
-        return analyzeFilesWithJavaIntegration(file.getProject(), Collections.singleton(file), scriptParameters,
-                                               Predicates.<PsiFile>alwaysTrue());
-    }
-
-    @NotNull
-    public static AnalyzeExhaust analyzeFilesWithJavaIntegrationAndCheckForErrors(
-            Project project,
-            Collection<JetFile> files,
-            List<AnalyzerScriptParameter> scriptParameters,
-            Predicate<PsiFile> filesToAnalyzeCompletely
-    ) {
-        for (JetFile file : files) {
-            AnalyzingUtils.checkForSyntacticErrors(file);
-        }
-
-        AnalyzeExhaust analyzeExhaust = analyzeFilesWithJavaIntegration(
-                project, files, scriptParameters, filesToAnalyzeCompletely, false);
-
-        AnalyzingUtils.throwExceptionOnErrors(analyzeExhaust.getBindingContext());
-
-        return analyzeExhaust;
-    }
-
-    @NotNull
-    public static AnalyzeExhaust analyzeFilesWithJavaIntegration(
-            Project project,
-            Collection<JetFile> files,
-            List<AnalyzerScriptParameter> scriptParameters,
-            Predicate<PsiFile> filesToAnalyzeCompletely
-    ) {
-        return analyzeFilesWithJavaIntegration(
-                project, files, scriptParameters, filesToAnalyzeCompletely, false);
-    }
-
-    @NotNull
-    public static AnalyzeExhaust analyzeFilesWithJavaIntegration(
-            Project project,
-            Collection<JetFile> files,
-            List<AnalyzerScriptParameter> scriptParameters,
-            Predicate<PsiFile> filesToAnalyzeCompletely,
-            boolean storeContextForBodiesResolve
-    ) {
-        BindingTraceContext bindingTraceContext = new BindingTraceContext();
-
-        return analyzeFilesWithJavaIntegration(project, files, bindingTraceContext, scriptParameters, filesToAnalyzeCompletely,
-                                               storeContextForBodiesResolve);
+        return new JvmSetup(resolveWithJava.getResolveSession(), resolveWithJava.getJavaDescriptorResolver());
     }
 
     @NotNull
@@ -191,49 +120,18 @@ public enum AnalyzerFacadeForJVM implements AnalyzerFacade {
             Project project,
             Collection<JetFile> files,
             BindingTrace trace,
-            List<AnalyzerScriptParameter> scriptParameters,
-            Predicate<PsiFile> filesToAnalyzeCompletely,
-            boolean storeContextForBodiesResolve
-    ) {
-        return analyzeFilesWithJavaIntegration(project, files, trace, scriptParameters, filesToAnalyzeCompletely,
-                                               storeContextForBodiesResolve, createJavaModule("<module>"), MemberFilter.ALWAYS_TRUE);
-    }
-
-    @NotNull
-    public static AnalyzeExhaust analyzeFilesWithJavaIntegration(
-            Project project,
-            Collection<JetFile> files,
-            BindingTrace trace,
-            List<AnalyzerScriptParameter> scriptParameters,
             Predicate<PsiFile> filesToAnalyzeCompletely,
             boolean storeContextForBodiesResolve,
             ModuleDescriptorImpl module,
             MemberFilter memberFilter
     ) {
         GlobalContext globalContext = ContextPackage.GlobalContext();
-        return analyzeFilesWithJavaIntegrationInGlobalContext(project, files, trace, scriptParameters, filesToAnalyzeCompletely,
-                                                              storeContextForBodiesResolve, module, globalContext, memberFilter);
-    }
-
-    @NotNull
-    public static AnalyzeExhaust analyzeFilesWithJavaIntegrationInGlobalContext(
-            Project project,
-            Collection<JetFile> files,
-            BindingTrace trace,
-            List<AnalyzerScriptParameter> scriptParameters,
-            Predicate<PsiFile> filesToAnalyzeCompletely,
-            boolean storeContextForBodiesResolve,
-            ModuleDescriptorImpl module,
-            GlobalContext globalContext,
-            MemberFilter memberFilter
-    ) {
-        TopDownAnalysisParameters topDownAnalysisParameters = new TopDownAnalysisParameters(
+        TopDownAnalysisParameters topDownAnalysisParameters = TopDownAnalysisParameters.create(
                 globalContext.getStorageManager(),
                 globalContext.getExceptionTracker(),
                 filesToAnalyzeCompletely,
                 false,
-                false,
-                scriptParameters
+                false
         );
 
         InjectorForTopDownAnalyzerForJvm injector = new InjectorForTopDownAnalyzerForJvm(project, topDownAnalysisParameters, trace, module,

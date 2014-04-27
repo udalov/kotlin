@@ -19,9 +19,9 @@ package org.jetbrains.jet.codegen;
 import com.intellij.util.lang.UrlClassLoader;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.asm4.ClassReader;
-import org.jetbrains.asm4.ClassVisitor;
-import org.jetbrains.asm4.Opcodes;
+import org.jetbrains.org.objectweb.asm.ClassReader;
+import org.jetbrains.org.objectweb.asm.ClassVisitor;
+import org.jetbrains.org.objectweb.asm.Opcodes;
 import org.jetbrains.jet.*;
 import org.jetbrains.jet.cli.jvm.compiler.JetCoreEnvironment;
 
@@ -125,7 +125,7 @@ public class OuterClassGenTest extends CodegenTestCase {
 
     public OuterClassInfo getOuterClassInfo(ClassReader reader) {
         final OuterClassInfo info = new OuterClassInfo();
-        reader.accept(new ClassVisitor(Opcodes.ASM4) {
+        reader.accept(new ClassVisitor(Opcodes.ASM5) {
             @Override
             public void visitOuterClass(String owner, String name, String desc) {
                 info.owner = owner;

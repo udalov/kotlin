@@ -9,17 +9,3 @@ fun a() {
         }
     }
 }
-/*
-fun a() {
-    val i = 1
-    if (true) {
-        if (true) {
-            i
-        }
-    } else {
-        if (true) {
-            i
-        }
-    }
-}
-*/

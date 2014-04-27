@@ -29,6 +29,7 @@ import com.intellij.openapi.util.Conditions;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.psi.util.PsiTreeUtil;
+import kotlin.Function1;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.*;
@@ -37,9 +38,10 @@ import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
 import org.jetbrains.jet.lexer.JetTokens;
 import org.jetbrains.jet.plugin.caches.JetShortNamesCache;
+import org.jetbrains.jet.plugin.caches.resolve.ResolvePackage;
 import org.jetbrains.jet.plugin.codeInsight.TipsManager;
+import org.jetbrains.jet.plugin.completion.smart.SmartCompletion;
 import org.jetbrains.jet.plugin.completion.weigher.WeigherPackage;
-import org.jetbrains.jet.plugin.project.AnalyzerFacadeWithCache;
 import org.jetbrains.jet.plugin.project.ResolveSessionForBodies;
 import org.jetbrains.jet.plugin.references.JetSimpleNameReference;
 
@@ -62,21 +64,23 @@ class CompletionSession {
         this.jetReference = jetReference;
 
         ResolveSessionForBodies resolveSession =
-                AnalyzerFacadeWithCache.getLazyResolveSessionForFile((JetFile) position.getContainingFile());
+                ResolvePackage.getLazyResolveSession((JetFile) position.getContainingFile());
         BindingContext expressionBindingContext = resolveSession.resolveToElement(jetReference.getExpression());
         JetScope scope = expressionBindingContext.get(BindingContext.RESOLUTION_SCOPE, jetReference.getExpression());
 
         inDescriptor = scope != null ? scope.getContainingDeclaration() : null;
 
-        this.jetResult = new JetCompletionResultSet(
-                WeigherPackage.addJetSorting(result, parameters),
-                resolveSession,
-                expressionBindingContext, new Condition<DeclarationDescriptor>() {
+        Condition<DeclarationDescriptor> descriptorFilter = new Condition<DeclarationDescriptor>() {
             @Override
             public boolean value(DeclarationDescriptor descriptor) {
                 return isVisibleDescriptor(descriptor);
             }
-        });
+        };
+        this.jetResult = new JetCompletionResultSet(
+                WeigherPackage.addJetSorting(result, parameters),
+                resolveSession,
+                expressionBindingContext,
+                descriptorFilter);
     }
 
     public void completeForReference() {
@@ -132,15 +136,18 @@ class CompletionSession {
     public void completeSmart() {
         assert parameters.getCompletionType() == CompletionType.SMART;
 
-        final SmartCompletionData data = CompletionPackage.buildSmartCompletionData(jetReference.getExpression(), getResolveSession());
-        if (data != null) {
-            addReferenceVariants(new Condition<DeclarationDescriptor>() {
-                @Override
-                public boolean value(DeclarationDescriptor descriptor) {
-                    return data.accepts(descriptor);
-                }
-            });
-            for (LookupElement element : data.getAdditionalElements()) {
+        Collection<DeclarationDescriptor> descriptors = TipsManager.getReferenceVariants(
+                jetReference.getExpression(), getExpressionBindingContext());
+        Function1<DeclarationDescriptor, Boolean> visibilityFilter = new Function1<DeclarationDescriptor, Boolean>() {
+            @Override
+            public Boolean invoke(DeclarationDescriptor descriptor) {
+                return isVisibleDescriptor(descriptor);
+            }
+        };
+        SmartCompletion completion = new SmartCompletion(jetReference.getExpression(), getResolveSession(), visibilityFilter);
+        Collection<LookupElement> elements = completion.buildLookupElements(descriptors);
+        if (elements != null) {
+            for (LookupElement element : elements) {
                 jetResult.addElement(element);
             }
         }
@@ -237,7 +244,7 @@ class CompletionSession {
     }
 
     private boolean shouldRunExtensionsCompletion() {
-        return !(parameters.getInvocationCount() <= 1 && jetResult.getResult().getPrefixMatcher().getPrefix().length() < 3);
+        return parameters.getInvocationCount() > 1 || jetResult.getResult().getPrefixMatcher().getPrefix().length() >= 3;
     }
 
     private void addReferenceVariants(@NotNull final Condition<DeclarationDescriptor> filterCondition) {

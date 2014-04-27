@@ -21,9 +21,11 @@ import com.google.common.base.Functions;
 import com.google.common.collect.Maps;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
+import kotlin.Function1;
+import kotlin.KotlinPackage;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.lang.descriptors.*;
-import org.jetbrains.jet.lang.descriptors.impl.MutableClassDescriptorLite;
+import org.jetbrains.jet.lang.descriptors.impl.MutableClassDescriptor;
 import org.jetbrains.jet.lang.descriptors.impl.MutablePackageFragmentDescriptor;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.calls.autocasts.DataFlowInfo;
@@ -42,7 +44,7 @@ public class TopDownAnalysisContext implements BodiesResolveContext {
     private final Map<JetClassOrObject, ClassDescriptorWithResolutionScopes> classes = Maps.newLinkedHashMap();
     protected final Map<JetFile, MutablePackageFragmentDescriptor> packageFragments = Maps.newHashMap();
     protected final Set<JetFile> files = new LinkedHashSet<JetFile>();
-    private List<MutableClassDescriptorLite> classesTopologicalOrder = null;
+    private List<MutableClassDescriptor> classesTopologicalOrder = null;
 
     private final Map<JetDeclaration, JetScope> declaringScopes = Maps.newHashMap();
     private final Map<JetNamedFunction, SimpleFunctionDescriptor> functions = Maps.newLinkedHashMap();
@@ -58,7 +60,6 @@ public class TopDownAnalysisContext implements BodiesResolveContext {
     public final Map<JetDeclarationContainer, JetScope> normalScope = Maps.newHashMap();
 
     private final Map<JetScript, ScriptDescriptor> scripts = Maps.newLinkedHashMap();
-    private final Map<JetScript, WritableScope> scriptScopes = Maps.newHashMap();
 
     private StringBuilder debugOutput;
 
@@ -109,7 +110,7 @@ public class TopDownAnalysisContext implements BodiesResolveContext {
     }
 
     @Override
-    public Map<JetClassOrObject, ClassDescriptorWithResolutionScopes> getClasses() {
+    public Map<JetClassOrObject, ClassDescriptorWithResolutionScopes> getDeclaredClasses() {
         return classes;
     }
 
@@ -148,12 +149,6 @@ public class TopDownAnalysisContext implements BodiesResolveContext {
         return scripts;
     }
 
-    @Override
-    @NotNull
-    public Map<JetScript, WritableScope> getScriptScopes() {
-        return scriptScopes;
-    }
-
     public Map<JetParameter, PropertyDescriptor> getPrimaryConstructorParameterProperties() {
         return primaryConstructorParameterProperties;
     }
@@ -188,11 +183,11 @@ public class TopDownAnalysisContext implements BodiesResolveContext {
     }
 
     @NotNull
-    public List<MutableClassDescriptorLite> getClassesTopologicalOrder() {
+    public List<MutableClassDescriptor> getClassesTopologicalOrder() {
         return classesTopologicalOrder;
     }
 
-    public void setClassesTopologicalOrder(@NotNull List<MutableClassDescriptorLite> classesTopologicalOrder) {
+    public void setClassesTopologicalOrder(@NotNull List<MutableClassDescriptor> classesTopologicalOrder) {
         this.classesTopologicalOrder = classesTopologicalOrder;
     }
 
@@ -204,5 +199,20 @@ public class TopDownAnalysisContext implements BodiesResolveContext {
 
     public void setOuterDataFlowInfo(@NotNull DataFlowInfo outerDataFlowInfo) {
         this.outerDataFlowInfo = outerDataFlowInfo;
+    }
+
+    @NotNull
+    public Collection<ClassDescriptorWithResolutionScopes> getAllClasses() {
+        // SCRIPT: all classes are declared classes + script classes
+        Collection<ClassDescriptorWithResolutionScopes> scriptClasses = KotlinPackage.map(
+                getScripts().values(),
+                new Function1<ScriptDescriptor, ClassDescriptorWithResolutionScopes>() {
+                    @Override
+                    public ClassDescriptorWithResolutionScopes invoke(ScriptDescriptor scriptDescriptor) {
+                        return (ClassDescriptorWithResolutionScopes) scriptDescriptor.getClassDescriptor();
+                    }
+                }
+        );
+        return KotlinPackage.plus(getDeclaredClasses().values(), scriptClasses);
     }
 }

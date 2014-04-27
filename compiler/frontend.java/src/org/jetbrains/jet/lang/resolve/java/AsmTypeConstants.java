@@ -17,7 +17,7 @@
 package org.jetbrains.jet.lang.resolve.java;
 
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.asm4.Type;
+import org.jetbrains.org.objectweb.asm.Type;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -35,6 +35,8 @@ public class AsmTypeConstants {
     public static final Type FUNCTION0_TYPE = Type.getObjectType(BUILT_INS_PACKAGE_FQ_NAME + "/Function0");
     public static final Type FUNCTION1_TYPE = Type.getObjectType(BUILT_INS_PACKAGE_FQ_NAME + "/Function1");
     public static final Type INT_RANGE_TYPE = Type.getObjectType(BUILT_INS_PACKAGE_FQ_NAME + "/IntRange");
+    public static final Type PROPERTY_METADATA_TYPE = Type.getObjectType(BUILT_INS_PACKAGE_FQ_NAME + "/PropertyMetadata");
+    public static final Type PROPERTY_METADATA_IMPL_TYPE = Type.getObjectType(BUILT_INS_PACKAGE_FQ_NAME + "/PropertyMetadataImpl");
 
     public static final Type OBJECT_REF_TYPE = Type.getObjectType("kotlin/jvm/internal/Ref$ObjectRef");
 

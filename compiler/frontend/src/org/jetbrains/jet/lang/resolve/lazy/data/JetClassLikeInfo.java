@@ -19,6 +19,7 @@ package org.jetbrains.jet.lang.resolve.lazy.data;
 import com.intellij.psi.PsiElement;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.annotations.ReadOnly;
 import org.jetbrains.jet.lang.descriptors.ClassKind;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.name.FqName;
@@ -36,6 +37,10 @@ public interface JetClassLikeInfo extends JetDeclarationContainer {
     @Nullable
     JetClassObject getClassObject();
 
+    @NotNull
+    @ReadOnly
+    List<JetClassObject> getClassObjects();
+
     // This element is used to identify resolution scope for the class
     @NotNull
     PsiElement getScopeAnchor();
@@ -44,9 +49,11 @@ public interface JetClassLikeInfo extends JetDeclarationContainer {
     JetClassOrObject getCorrespondingClassOrObject();
 
     @NotNull
+    @ReadOnly
     List<JetTypeParameter> getTypeParameters();
 
     @NotNull
+    @ReadOnly
     List<? extends JetParameter> getPrimaryConstructorParameters();
 
     @NotNull

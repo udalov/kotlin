@@ -21,10 +21,6 @@ import com.intellij.psi.PsiElement;
 import com.intellij.util.ArrayUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.asm4.MethodVisitor;
-import org.jetbrains.asm4.Type;
-import org.jetbrains.asm4.commons.InstructionAdapter;
-import org.jetbrains.asm4.commons.Method;
 import org.jetbrains.jet.codegen.binding.CalculatedClosure;
 import org.jetbrains.jet.codegen.context.CodegenContext;
 import org.jetbrains.jet.codegen.context.LocalLookup;
@@ -40,15 +36,19 @@ import org.jetbrains.jet.lang.resolve.java.sam.SingleAbstractMethodUtils;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
+import org.jetbrains.org.objectweb.asm.MethodVisitor;
+import org.jetbrains.org.objectweb.asm.Type;
+import org.jetbrains.org.objectweb.asm.commons.InstructionAdapter;
+import org.jetbrains.org.objectweb.asm.commons.Method;
 
 import java.util.Collection;
 import java.util.List;
 
-import static org.jetbrains.asm4.Opcodes.*;
 import static org.jetbrains.jet.codegen.AsmUtil.*;
 import static org.jetbrains.jet.codegen.CodegenUtil.isConst;
 import static org.jetbrains.jet.codegen.binding.CodegenBinding.*;
 import static org.jetbrains.jet.lang.resolve.java.JvmAnnotationNames.KotlinSyntheticClass;
+import static org.jetbrains.org.objectweb.asm.Opcodes.*;
 
 public class ClosureCodegen extends ParentCodegenAwareImpl {
     private final PsiElement fun;
@@ -74,7 +74,7 @@ public class ClosureCodegen extends ParentCodegenAwareImpl {
             @NotNull KotlinSyntheticClass.Kind syntheticClassKind,
             @NotNull LocalLookup localLookup,
             @NotNull FunctionGenerationStrategy strategy,
-            @Nullable MemberCodegen parentCodegen
+            @Nullable MemberCodegen<?> parentCodegen
     ) {
         super(state, parentCodegen);
 
@@ -159,7 +159,7 @@ public class ClosureCodegen extends ParentCodegenAwareImpl {
             v.anew(asmType);
             v.dup();
 
-            codegen.pushClosureOnStack(closure, false, codegen.defaulCallGenerator);
+            codegen.pushClosureOnStack(closure, false, codegen.defaultCallGenerator);
             v.invokespecial(asmType.getInternalName(), "<init>", constructor.getDescriptor());
         }
         return StackValue.onStack(asmType);

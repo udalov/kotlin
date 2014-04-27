@@ -5,7 +5,7 @@ import templates.Family.*
 fun snapshots(): List<GenericFunction> {
     val templates = arrayListOf<GenericFunction>()
 
-    templates add f("toCollection(collection : C)") {
+    templates add f("toCollection(collection: C)") {
         doc { "Appends all elements to the given *collection*" }
         returns("C")
         typeParam("C : MutableCollection<in T>")
@@ -43,13 +43,13 @@ fun snapshots(): List<GenericFunction> {
         body { "return toCollection(ArrayList<T>())" }
 
         // ISSUE: JavaScript can't perform this operation
-/*
-        body(Collections) {
-            """
-            return ArrayList<T>(this)
-            """
-        }
-*/
+        /*
+                body(Collections) {
+                    """
+                    return ArrayList<T>(this)
+                    """
+                }
+        */
         body(ArraysOfObjects, ArraysOfPrimitives) {
             """
             val list = ArrayList<T>(size)
@@ -60,23 +60,37 @@ fun snapshots(): List<GenericFunction> {
     }
 
     templates add f("toList()") {
+        only(Maps)
+        doc { "Returns a List containing all key-value pairs" }
+        returns("List<Map.Entry<K, V>>")
+        body {
+            """
+            val result = ArrayList<Map.Entry<K, V>>(size)
+            for (item in this)
+                result.add(item)
+            return result
+            """
+        }
+    }
+
+    templates add f("toList()") {
         doc { "Returns a List containing all elements" }
         returns("List<T>")
         body { "return toCollection(ArrayList<T>())" }
 
         // ISSUE: JavaScript can't perform this operations
-/*
-        body(Collections) {
-            """
-            return ArrayList<T>(this)
-            """
-        }
-        body(ArraysOfObjects) {
-            """
-            return ArrayList<T>(Arrays.asList(*this))
-            """
-        }
-*/
+        /*
+                body(Collections) {
+                    """
+                    return ArrayList<T>(this)
+                    """
+                }
+                body(ArraysOfObjects) {
+                    """
+                    return ArrayList<T>(Arrays.asList(*this))
+                    """
+                }
+        */
         body(ArraysOfPrimitives) {
             """
             val list = ArrayList<T>(size)
@@ -90,14 +104,6 @@ fun snapshots(): List<GenericFunction> {
         doc { "Returns a LinkedList containing all elements" }
         returns("LinkedList<T>")
         body { "return toCollection(LinkedList<T>())" }
-    }
-
-    templates add f("toSortedList()") {
-        doc { "Returns a sorted list of all elements" }
-        typeParam("T: Comparable<T>")
-        returns("List<T>")
-        body { "return toArrayList().sort()" }
-        body(Iterables) { "return sort()" }
     }
 
     return templates

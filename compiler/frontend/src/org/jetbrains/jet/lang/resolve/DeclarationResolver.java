@@ -32,7 +32,7 @@ import org.jetbrains.jet.lang.descriptors.impl.MutablePackageFragmentDescriptor;
 import org.jetbrains.jet.lang.descriptors.impl.PackageLikeBuilder;
 import org.jetbrains.jet.lang.diagnostics.Errors;
 import org.jetbrains.jet.lang.psi.*;
-import org.jetbrains.jet.lang.resolve.lazy.ResolveSession;
+import org.jetbrains.jet.lang.resolve.lazy.KotlinCodeAnalyzer;
 import org.jetbrains.jet.lang.resolve.lazy.descriptors.LazyPackageDescriptor;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.Name;
@@ -92,6 +92,10 @@ public class DeclarationResolver {
         resolveConstructorHeaders(c);
         resolveAnnotationStubsOnClassesAndConstructors(c);
         resolveFunctionAndPropertyHeaders(c);
+
+        // SCRIPT: Resolve script declarations
+        scriptHeaderResolver.resolveScriptDeclarations(c);
+
         createFunctionsForDataClasses(c);
         importsResolver.processMembersImports(c);
         checkRedeclarationsInPackages(c);
@@ -99,7 +103,7 @@ public class DeclarationResolver {
     }
 
     private void resolveAnnotationConstructors(@NotNull TopDownAnalysisContext c) {
-        for (Map.Entry<JetClassOrObject, ClassDescriptorWithResolutionScopes> entry : c.getClasses().entrySet()) {
+        for (Map.Entry<JetClassOrObject, ClassDescriptorWithResolutionScopes> entry : c.getDeclaredClasses().entrySet()) {
             JetClassOrObject classOrObject = entry.getKey();
             MutableClassDescriptor classDescriptor = (MutableClassDescriptor) entry.getValue();
 
@@ -110,7 +114,7 @@ public class DeclarationResolver {
     }
 
     private void resolveConstructorHeaders(@NotNull TopDownAnalysisContext c) {
-        for (Map.Entry<JetClassOrObject, ClassDescriptorWithResolutionScopes> entry : c.getClasses().entrySet()) {
+        for (Map.Entry<JetClassOrObject, ClassDescriptorWithResolutionScopes> entry : c.getDeclaredClasses().entrySet()) {
             JetClassOrObject classOrObject = entry.getKey();
             MutableClassDescriptor classDescriptor = (MutableClassDescriptor) entry.getValue();
 
@@ -121,7 +125,7 @@ public class DeclarationResolver {
     }
 
     private void resolveAnnotationStubsOnClassesAndConstructors(@NotNull TopDownAnalysisContext c) {
-        for (Map.Entry<JetClassOrObject, ClassDescriptorWithResolutionScopes> entry : c.getClasses().entrySet()) {
+        for (Map.Entry<JetClassOrObject, ClassDescriptorWithResolutionScopes> entry : c.getDeclaredClasses().entrySet()) {
             JetModifierList modifierList = entry.getKey().getModifierList();
             if (modifierList != null) {
                 MutableClassDescriptor descriptor = (MutableClassDescriptor) entry.getValue();
@@ -139,7 +143,7 @@ public class DeclarationResolver {
 
             resolveFunctionAndPropertyHeaders(c, file.getDeclarations(), fileScope, fileScope, fileScope, packageBuilder);
         }
-        for (Map.Entry<JetClassOrObject, ClassDescriptorWithResolutionScopes> entry : c.getClasses().entrySet()) {
+        for (Map.Entry<JetClassOrObject, ClassDescriptorWithResolutionScopes> entry : c.getDeclaredClasses().entrySet()) {
             JetClassOrObject classOrObject = entry.getKey();
             MutableClassDescriptor classDescriptor = (MutableClassDescriptor) entry.getValue();
 
@@ -149,9 +153,6 @@ public class DeclarationResolver {
                     classDescriptor.getScopeForInitializerResolution(), classDescriptor.getScopeForMemberDeclarationResolution(),
                     classDescriptor.getBuilder());
         }
-
-        // SCRIPT: Resolve script declarations, move outside of this function
-        scriptHeaderResolver.resolveScriptDeclarations(c);
 
         // TODO : Extensions
     }
@@ -205,7 +206,7 @@ public class DeclarationResolver {
     }
 
     private void createFunctionsForDataClasses(@NotNull TopDownAnalysisContext c) {
-        for (Map.Entry<JetClassOrObject, ClassDescriptorWithResolutionScopes> entry : c.getClasses().entrySet()) {
+        for (Map.Entry<JetClassOrObject, ClassDescriptorWithResolutionScopes> entry : c.getDeclaredClasses().entrySet()) {
             JetClassOrObject klass = entry.getKey();
             MutableClassDescriptor classDescriptor = (MutableClassDescriptor) entry.getValue();
 
@@ -301,7 +302,7 @@ public class DeclarationResolver {
                     for (DeclarationDescriptor declarationDescriptor : descriptors) {
                         for (PsiElement declaration : getDeclarationsByDescriptor(declarationDescriptor)) {
                             assert declaration != null : "Null declaration for descriptor: " + declarationDescriptor + " " +
-                                                         (declarationDescriptor != null ? DescriptorRenderer.TEXT.render(declarationDescriptor) : "");
+                                                         (declarationDescriptor != null ? DescriptorRenderer.FQ_NAMES_IN_TYPES.render(declarationDescriptor) : "");
                             trace.report(REDECLARATION.on(declaration, declarationDescriptor.getName().asString()));
                         }
                     }
@@ -336,7 +337,7 @@ public class DeclarationResolver {
     }
 
     public void checkRedeclarationsInInnerClassNames(@NotNull TopDownAnalysisContext c) {
-        for (ClassDescriptorWithResolutionScopes classDescriptor : c.getClasses().values()) {
+        for (ClassDescriptorWithResolutionScopes classDescriptor : c.getDeclaredClasses().values()) {
             if (classDescriptor.getKind() == ClassKind.CLASS_OBJECT) {
                 // Class objects should be considered during analysing redeclarations in classes
                 continue;
@@ -395,7 +396,7 @@ public class DeclarationResolver {
         }
     }
 
-    public void checkRedeclarationsInPackages(@NotNull ResolveSession resolveSession, @NotNull Multimap<FqName, JetElement> topLevelFqNames) {
+    public void checkRedeclarationsInPackages(@NotNull KotlinCodeAnalyzer resolveSession, @NotNull Multimap<FqName, JetElement> topLevelFqNames) {
         for (Map.Entry<FqName, Collection<JetElement>> entry : topLevelFqNames.asMap().entrySet()) {
             FqName fqName = entry.getKey();
             Collection<JetElement> declarationsOrPackageDirectives = entry.getValue();
@@ -416,7 +417,7 @@ public class DeclarationResolver {
     }
 
     @NotNull
-    private static Set<DeclarationDescriptor> getTopLevelDescriptorsByFqName(@NotNull ResolveSession resolveSession, @NotNull FqName fqName) {
+    private static Set<DeclarationDescriptor> getTopLevelDescriptorsByFqName(@NotNull KotlinCodeAnalyzer resolveSession, @NotNull FqName fqName) {
         FqName parentFqName = fqName.parent();
 
         Set<DeclarationDescriptor> descriptors = new HashSet<DeclarationDescriptor>();

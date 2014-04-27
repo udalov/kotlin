@@ -16,9 +16,8 @@
 
 package org.jetbrains.jet.plugin.libraries;
 
-import com.google.common.collect.Maps;
+import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
-import com.google.common.collect.Multimaps;
 import com.google.common.collect.Sets;
 import com.intellij.util.Function;
 import com.intellij.util.containers.ContainerUtil;
@@ -34,9 +33,7 @@ import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 import org.jetbrains.jet.lexer.JetTokens;
 import org.jetbrains.jet.renderer.DescriptorRenderer;
-import org.jetbrains.jet.utils.CommonSuppliers;
 
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
@@ -152,7 +149,7 @@ public class MemberMatching {
             return true;
         }
         if (declarationReceiver != null && descriptorReceiver != null) {
-            return declarationReceiver.getText().equals(DescriptorRenderer.TEXT.renderType(descriptorReceiver.getType()));
+            return declarationReceiver.getText().equals(DescriptorRenderer.FQ_NAMES_IN_TYPES.renderType(descriptorReceiver.getType()));
         }
         return false;
     }
@@ -181,7 +178,7 @@ public class MemberMatching {
 
             JetType typeToRender = varargInDeclaration ? descriptorParameter.getVarargElementType() : descriptorParameter.getType();
             assert typeToRender != null;
-            String descriptorParameterText = DescriptorRenderer.TEXT.renderType(typeToRender);
+            String descriptorParameterText = DescriptorRenderer.FQ_NAMES_IN_TYPES.renderType(typeToRender);
             if (!declarationTypeText.equals(descriptorParameterText)) {
                 return false;
             }
@@ -198,8 +195,7 @@ public class MemberMatching {
             return false;
         }
 
-        Multimap<Name, String> decompiledParameterToBounds = Multimaps.newSetMultimap(
-                Maps.<Name, Collection<String>>newHashMap(), CommonSuppliers.<String>getHashSetSupplier());
+        Multimap<Name, String> decompiledParameterToBounds = HashMultimap.create();
         for (JetTypeParameter parameter : decompiledParameters) {
             JetTypeReference extendsBound = parameter.getExtendsBound();
             if (extendsBound != null) {
@@ -231,12 +227,12 @@ public class MemberMatching {
                     descriptor.getUpperBounds(), new Function<JetType, String>() {
                 @Override
                 public String fun(JetType type) {
-                    return DescriptorRenderer.TEXT.renderType(type);
+                    return DescriptorRenderer.FQ_NAMES_IN_TYPES.renderType(type);
                 }
             }));
 
             Set<String> decompiledUpperBounds = decompiledParameterToBounds.get(descriptor.getName()).isEmpty()
-                    ? Sets.newHashSet(DescriptorRenderer.TEXT.renderType(KotlinBuiltIns.getInstance().getDefaultBound()))
+                    ? Sets.newHashSet(DescriptorRenderer.FQ_NAMES_IN_TYPES.renderType(KotlinBuiltIns.getInstance().getDefaultBound()))
                     : Sets.newHashSet(decompiledParameterToBounds.get(descriptor.getName()));
             if (!descriptorUpperBounds.equals(decompiledUpperBounds)) {
                 return false;

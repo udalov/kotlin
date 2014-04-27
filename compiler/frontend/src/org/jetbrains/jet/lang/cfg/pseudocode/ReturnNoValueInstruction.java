@@ -20,19 +20,9 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.lang.cfg.Label;
 import org.jetbrains.jet.lang.psi.JetElement;
 
-public class ReturnNoValueInstruction extends AbstractJumpInstruction implements ReturnInstruction {
-
-    private final JetElement element;
-
+public class ReturnNoValueInstruction extends AbstractJumpInstruction {
     public ReturnNoValueInstruction(@NotNull JetElement element, LexicalScope lexicalScope, Label targetLabel) {
-        super(targetLabel, lexicalScope);
-        this.element = element;
-    }
-
-    @NotNull
-    @Override
-    public JetElement getElement() {
-        return element;
+        super(element, targetLabel, lexicalScope);
     }
 
     @Override

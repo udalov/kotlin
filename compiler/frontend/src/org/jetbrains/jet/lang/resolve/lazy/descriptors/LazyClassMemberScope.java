@@ -76,9 +76,10 @@ public class LazyClassMemberScope extends AbstractLazyMemberScope<LazyClassDescr
     public LazyClassMemberScope(
             @NotNull ResolveSession resolveSession,
             @NotNull ClassMemberDeclarationProvider declarationProvider,
-            @NotNull LazyClassDescriptor thisClass
+            @NotNull LazyClassDescriptor thisClass,
+            @NotNull BindingTrace trace
     ) {
-        super(resolveSession, declarationProvider, thisClass);
+        super(resolveSession, declarationProvider, thisClass, trace);
         this.primaryConstructor = resolveSession.getStorageManager().createNullableLazyValue(new Function0<ConstructorDescriptor>() {
             @Override
             public ConstructorDescriptor invoke() {
@@ -120,7 +121,6 @@ public class LazyClassMemberScope extends AbstractLazyMemberScope<LazyClassDescr
 
                     @Override
                     public void conflict(@NotNull CallableMemberDescriptor fromSuper, @NotNull CallableMemberDescriptor fromCurrent) {
-                        BindingTrace trace = resolveSession.getTrace();
                         JetDeclaration declaration = (JetDeclaration) BindingContextUtils.descriptorToDeclaration(trace.getBindingContext(),
                                                                                                                   fromCurrent);
                         assert declaration != null : "fromCurrent can not be a fake override";
@@ -129,7 +129,7 @@ public class LazyClassMemberScope extends AbstractLazyMemberScope<LazyClassDescr
                     }
                 }
         );
-        OverrideResolver.resolveUnknownVisibilities(result, resolveSession.getTrace());
+        OverrideResolver.resolveUnknownVisibilities(result, trace);
     }
 
     @NotNull
@@ -137,11 +137,7 @@ public class LazyClassMemberScope extends AbstractLazyMemberScope<LazyClassDescr
     public Set<FunctionDescriptor> getFunctions(@NotNull Name name) {
         // TODO: this should be handled by lazy function descriptors
         Set<FunctionDescriptor> functions = super.getFunctions(name);
-        for (FunctionDescriptor functionDescriptor : functions) {
-            if (functionDescriptor.getKind() != FAKE_OVERRIDE && functionDescriptor.getKind() != DELEGATION) {
-                OverrideResolver.resolveUnknownVisibilityForMember(functionDescriptor, resolveSession.getTrace());
-            }
-        }
+        resolveUnknownVisibilitiesForMembers(functions);
         return functions;
     }
 
@@ -176,7 +172,7 @@ public class LazyClassMemberScope extends AbstractLazyMemberScope<LazyClassDescr
             if (name.equals(Name.identifier(DescriptorResolver.COMPONENT_FUNCTION_NAME_PREFIX + parameterIndex))) {
                 SimpleFunctionDescriptor functionDescriptor =
                         DescriptorResolver.createComponentFunctionDescriptor(parameterIndex, property,
-                                                                             parameter, thisDescriptor, resolveSession.getTrace());
+                                                                             parameter, thisDescriptor, trace);
                 result.add(functionDescriptor);
                 break;
             }
@@ -184,7 +180,7 @@ public class LazyClassMemberScope extends AbstractLazyMemberScope<LazyClassDescr
         if (!constructor.getValueParameters().isEmpty() && name.equals(DescriptorResolver.COPY_METHOD_NAME)) {
             SimpleFunctionDescriptor copyFunctionDescriptor = DescriptorResolver.createCopyFunctionDescriptor(
                     constructor.getValueParameters(),
-                    thisDescriptor, resolveSession.getTrace());
+                    thisDescriptor, trace);
             result.add(copyFunctionDescriptor);
         }
     }
@@ -194,54 +190,38 @@ public class LazyClassMemberScope extends AbstractLazyMemberScope<LazyClassDescr
 
         if (name.equals(DescriptorFactory.VALUES_METHOD_NAME)) {
             SimpleFunctionDescriptor valuesMethod = DescriptorResolver
-                    .createEnumClassObjectValuesMethod(thisDescriptor, resolveSession.getTrace());
+                    .createEnumClassObjectValuesMethod(thisDescriptor, trace);
             result.add(valuesMethod);
         }
         else if (name.equals(DescriptorFactory.VALUE_OF_METHOD_NAME)) {
             SimpleFunctionDescriptor valueOfMethod = DescriptorResolver
-                    .createEnumClassObjectValueOfMethod(thisDescriptor, resolveSession.getTrace());
+                    .createEnumClassObjectValueOfMethod(thisDescriptor, trace);
             result.add(valueOfMethod);
         }
     }
 
     @NotNull
     @Override
+    @SuppressWarnings("unchecked")
     public Set<VariableDescriptor> getProperties(@NotNull Name name) {
         // TODO: this should be handled by lazy property descriptors
         Set<VariableDescriptor> properties = super.getProperties(name);
-        for (VariableDescriptor variableDescriptor : properties) {
-            PropertyDescriptor propertyDescriptor = (PropertyDescriptor) variableDescriptor;
-            if (propertyDescriptor.getKind() == FAKE_OVERRIDE || propertyDescriptor.getKind() == DELEGATION) continue;
-            OverrideResolver.resolveUnknownVisibilityForMember(propertyDescriptor, resolveSession.getTrace());
-        }
+        resolveUnknownVisibilitiesForMembers((Set) properties);
         return properties;
+    }
+
+    private void resolveUnknownVisibilitiesForMembers(@NotNull Set<? extends CallableMemberDescriptor> descriptors) {
+        for (CallableMemberDescriptor descriptor : descriptors) {
+            if (descriptor.getKind() != FAKE_OVERRIDE && descriptor.getKind() != DELEGATION) {
+                OverridingUtil.resolveUnknownVisibilityForMember(descriptor, OverrideResolver.createCannotInferVisibilityReporter(trace));
+            }
+        }
     }
 
     @Override
     @SuppressWarnings("unchecked")
     protected void getNonDeclaredProperties(@NotNull Name name, @NotNull Set<VariableDescriptor> result) {
-        JetClassLikeInfo classInfo = declarationProvider.getOwnerInfo();
-
-        // From primary constructor parameters
-        ConstructorDescriptor primaryConstructor = getPrimaryConstructor();
-        if (primaryConstructor != null) {
-            List<ValueParameterDescriptor> valueParameterDescriptors = primaryConstructor.getValueParameters();
-            List<? extends JetParameter> primaryConstructorParameters = classInfo.getPrimaryConstructorParameters();
-            assert valueParameterDescriptors.size() == primaryConstructorParameters.size() : "From descriptor: " + valueParameterDescriptors.size() + " but from PSI: " + primaryConstructorParameters.size();
-            for (ValueParameterDescriptor valueParameterDescriptor : valueParameterDescriptors) {
-                JetParameter parameter = primaryConstructorParameters.get(valueParameterDescriptor.getIndex());
-                if (parameter.getValOrVarNode() != null && name.equals(parameter.getNameAsName())) {
-                    PropertyDescriptor propertyDescriptor =
-                            resolveSession.getDescriptorResolver().resolvePrimaryConstructorParameterToAProperty(
-                                    thisDescriptor,
-                                    valueParameterDescriptor,
-                                    thisDescriptor.getScopeForClassHeaderResolution(),
-                                    parameter, resolveSession.getTrace()
-                            );
-                    result.add(propertyDescriptor);
-                }
-            }
-        }
+        createPropertiesFromPrimaryConstructorParameters(name, result);
 
         // Members from supertypes
         Collection<PropertyDescriptor> fromSupertypes = Lists.newArrayList();
@@ -250,6 +230,35 @@ public class LazyClassMemberScope extends AbstractLazyMemberScope<LazyClassDescr
         }
         result.addAll(generateDelegatingDescriptors(name, MemberExtractor.EXTRACT_PROPERTIES, result));
         generateFakeOverrides(name, fromSupertypes, (Collection) result, PropertyDescriptor.class);
+    }
+
+    protected void createPropertiesFromPrimaryConstructorParameters(@NotNull Name name, @NotNull Set<VariableDescriptor> result) {
+        JetClassLikeInfo classInfo = declarationProvider.getOwnerInfo();
+
+        // From primary constructor parameters
+        ConstructorDescriptor primaryConstructor = getPrimaryConstructor();
+        if (primaryConstructor == null) return;
+
+        List<ValueParameterDescriptor> valueParameterDescriptors = primaryConstructor.getValueParameters();
+        List<? extends JetParameter> primaryConstructorParameters = classInfo.getPrimaryConstructorParameters();
+        assert valueParameterDescriptors.size() == primaryConstructorParameters.size()
+                : "From descriptor: " + valueParameterDescriptors.size() + " but from PSI: " + primaryConstructorParameters.size();
+
+        for (ValueParameterDescriptor valueParameterDescriptor : valueParameterDescriptors) {
+            if (!name.equals(valueParameterDescriptor.getName())) continue;
+
+            JetParameter parameter = primaryConstructorParameters.get(valueParameterDescriptor.getIndex());
+            if (parameter.getValOrVarNode() != null) {
+                PropertyDescriptor propertyDescriptor =
+                        resolveSession.getDescriptorResolver().resolvePrimaryConstructorParameterToAProperty(
+                                thisDescriptor,
+                                valueParameterDescriptor,
+                                thisDescriptor.getScopeForClassHeaderResolution(),
+                                parameter, trace
+                        );
+                result.add(propertyDescriptor);
+            }
+        }
     }
 
     @NotNull
@@ -271,7 +280,7 @@ public class LazyClassMemberScope extends AbstractLazyMemberScope<LazyClassDescr
                 return resolveSession.getTypeResolver().resolveType(
                         thisDescriptor.getScopeForClassHeaderResolution(),
                         reference,
-                        resolveSession.getTrace(),
+                        trace,
                         false);
             }
         };
@@ -282,7 +291,7 @@ public class LazyClassMemberScope extends AbstractLazyMemberScope<LazyClassDescr
                 return extractor.extract(type, name);
             }
         };
-        return generateDelegatedMembers(classOrObject, thisDescriptor, existingDescriptors, resolveSession.getTrace(), lazyMemberExtractor,
+        return generateDelegatedMembers(classOrObject, thisDescriptor, existingDescriptors, trace, lazyMemberExtractor,
                                         lazyTypeResolver);
     }
 
@@ -355,32 +364,34 @@ public class LazyClassMemberScope extends AbstractLazyMemberScope<LazyClassDescr
     }
 
     @Nullable
-    private ConstructorDescriptor resolvePrimaryConstructor() {
-        ConstructorDescriptor primaryConstructor = null;
+    protected ConstructorDescriptor resolvePrimaryConstructor() {
         if (GENERATE_CONSTRUCTORS_FOR.contains(thisDescriptor.getKind())) {
-            JetClassOrObject classOrObject = declarationProvider.getOwnerInfo().getCorrespondingClassOrObject();
+            JetClassLikeInfo ownerInfo = declarationProvider.getOwnerInfo();
+            JetClassOrObject classOrObject = ownerInfo.getCorrespondingClassOrObject();
             if (!thisDescriptor.getKind().isSingleton()) {
                 JetClass jetClass = (JetClass) classOrObject;
+                assert jetClass != null : "No JetClass for " + thisDescriptor;
                 ConstructorDescriptorImpl constructor = resolveSession.getDescriptorResolver()
                         .resolvePrimaryConstructorDescriptor(thisDescriptor.getScopeForClassHeaderResolution(),
                                                              thisDescriptor,
                                                              jetClass,
-                                                             resolveSession.getTrace());
-                primaryConstructor = constructor;
+                                                             trace);
+                assert constructor != null : "No constructor created for " + thisDescriptor;
                 setDeferredReturnType(constructor);
+                return constructor;
             }
             else {
                 ConstructorDescriptorImpl constructor =
-                        DescriptorResolver.createAndRecordPrimaryConstructorForObject(classOrObject, thisDescriptor, resolveSession.getTrace());
+                        DescriptorResolver.createAndRecordPrimaryConstructorForObject(classOrObject, thisDescriptor, trace);
                 setDeferredReturnType(constructor);
-                primaryConstructor = constructor;
+                return constructor;
             }
         }
-        return primaryConstructor;
+        return null;
     }
 
-    private void setDeferredReturnType(@NotNull ConstructorDescriptorImpl descriptor) {
-        descriptor.setReturnType(DeferredType.create(resolveSession.getStorageManager(), resolveSession.getTrace(),
+    protected void setDeferredReturnType(@NotNull ConstructorDescriptorImpl descriptor) {
+        descriptor.setReturnType(DeferredType.create(resolveSession.getStorageManager(), trace,
                 new Function0<JetType>() {
                     @Override
                     public JetType invoke() {

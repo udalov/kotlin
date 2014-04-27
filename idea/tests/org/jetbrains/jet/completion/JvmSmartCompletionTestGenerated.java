@@ -51,6 +51,11 @@ public class JvmSmartCompletionTestGenerated extends AbstractJvmSmartCompletionT
         doTest("idea/testData/completion/smart/AnonymousObjectForJavaInterface.kt");
     }
     
+    @TestMetadata("AnyExpected.kt")
+    public void testAnyExpected() throws Exception {
+        doTest("idea/testData/completion/smart/AnyExpected.kt");
+    }
+    
     @TestMetadata("AutoCastedType.kt")
     public void testAutoCastedType() throws Exception {
         doTest("idea/testData/completion/smart/AutoCastedType.kt");
@@ -126,6 +131,41 @@ public class JvmSmartCompletionTestGenerated extends AbstractJvmSmartCompletionT
         doTest("idea/testData/completion/smart/EnumMembers.kt");
     }
     
+    @TestMetadata("FunctionReference1.kt")
+    public void testFunctionReference1() throws Exception {
+        doTest("idea/testData/completion/smart/FunctionReference1.kt");
+    }
+    
+    @TestMetadata("FunctionReference3.kt")
+    public void testFunctionReference3() throws Exception {
+        doTest("idea/testData/completion/smart/FunctionReference3.kt");
+    }
+    
+    @TestMetadata("FunctionReference4.kt")
+    public void testFunctionReference4() throws Exception {
+        doTest("idea/testData/completion/smart/FunctionReference4.kt");
+    }
+    
+    @TestMetadata("FunctionReference5.kt")
+    public void testFunctionReference5() throws Exception {
+        doTest("idea/testData/completion/smart/FunctionReference5.kt");
+    }
+    
+    @TestMetadata("FunctionReference6.kt")
+    public void testFunctionReference6() throws Exception {
+        doTest("idea/testData/completion/smart/FunctionReference6.kt");
+    }
+    
+    @TestMetadata("FunctionReference7.kt")
+    public void testFunctionReference7() throws Exception {
+        doTest("idea/testData/completion/smart/FunctionReference7.kt");
+    }
+    
+    @TestMetadata("FunctionReference9.kt")
+    public void testFunctionReference9() throws Exception {
+        doTest("idea/testData/completion/smart/FunctionReference9.kt");
+    }
+    
     @TestMetadata("InsideIdentifier.kt")
     public void testInsideIdentifier() throws Exception {
         doTest("idea/testData/completion/smart/InsideIdentifier.kt");
@@ -161,6 +201,31 @@ public class JvmSmartCompletionTestGenerated extends AbstractJvmSmartCompletionT
         doTest("idea/testData/completion/smart/JavaStaticMethods.kt");
     }
     
+    @TestMetadata("Lambda1.kt")
+    public void testLambda1() throws Exception {
+        doTest("idea/testData/completion/smart/Lambda1.kt");
+    }
+    
+    @TestMetadata("Lambda2.kt")
+    public void testLambda2() throws Exception {
+        doTest("idea/testData/completion/smart/Lambda2.kt");
+    }
+    
+    @TestMetadata("Lambda3.kt")
+    public void testLambda3() throws Exception {
+        doTest("idea/testData/completion/smart/Lambda3.kt");
+    }
+    
+    @TestMetadata("Lambda4.kt")
+    public void testLambda4() throws Exception {
+        doTest("idea/testData/completion/smart/Lambda4.kt");
+    }
+    
+    @TestMetadata("Lambda5.kt")
+    public void testLambda5() throws Exception {
+        doTest("idea/testData/completion/smart/Lambda5.kt");
+    }
+    
     @TestMetadata("MethodCallArgument.kt")
     public void testMethodCallArgument() throws Exception {
         doTest("idea/testData/completion/smart/MethodCallArgument.kt");
@@ -169,6 +234,11 @@ public class JvmSmartCompletionTestGenerated extends AbstractJvmSmartCompletionT
     @TestMetadata("NoConstructorWithQualifier.kt")
     public void testNoConstructorWithQualifier() throws Exception {
         doTest("idea/testData/completion/smart/NoConstructorWithQualifier.kt");
+    }
+    
+    @TestMetadata("NoFunctionReferenceAfterQualifier.kt")
+    public void testNoFunctionReferenceAfterQualifier() throws Exception {
+        doTest("idea/testData/completion/smart/NoFunctionReferenceAfterQualifier.kt");
     }
     
     @TestMetadata("NoNothing.kt")
@@ -184,6 +254,36 @@ public class JvmSmartCompletionTestGenerated extends AbstractJvmSmartCompletionT
     @TestMetadata("NotSillyAssignment.kt")
     public void testNotSillyAssignment() throws Exception {
         doTest("idea/testData/completion/smart/NotSillyAssignment.kt");
+    }
+    
+    @TestMetadata("NullableThis.kt")
+    public void testNullableThis() throws Exception {
+        doTest("idea/testData/completion/smart/NullableThis.kt");
+    }
+    
+    @TestMetadata("OverloadedConstructorArgument.kt")
+    public void testOverloadedConstructorArgument() throws Exception {
+        doTest("idea/testData/completion/smart/OverloadedConstructorArgument.kt");
+    }
+    
+    @TestMetadata("OverloadedMethodCallArgument1.kt")
+    public void testOverloadedMethodCallArgument1() throws Exception {
+        doTest("idea/testData/completion/smart/OverloadedMethodCallArgument1.kt");
+    }
+    
+    @TestMetadata("OverloadedMethodCallArgument2.kt")
+    public void testOverloadedMethodCallArgument2() throws Exception {
+        doTest("idea/testData/completion/smart/OverloadedMethodCallArgument2.kt");
+    }
+    
+    @TestMetadata("QualifiedOverloadedMethodCallArgument1.kt")
+    public void testQualifiedOverloadedMethodCallArgument1() throws Exception {
+        doTest("idea/testData/completion/smart/QualifiedOverloadedMethodCallArgument1.kt");
+    }
+    
+    @TestMetadata("QualifiedOverloadedMethodCallArgument2.kt")
+    public void testQualifiedOverloadedMethodCallArgument2() throws Exception {
+        doTest("idea/testData/completion/smart/QualifiedOverloadedMethodCallArgument2.kt");
     }
     
     @TestMetadata("QualifiedThis.kt")

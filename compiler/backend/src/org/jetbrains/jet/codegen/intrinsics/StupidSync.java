@@ -19,8 +19,8 @@ package org.jetbrains.jet.codegen.intrinsics;
 import com.intellij.psi.PsiElement;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.asm4.Type;
-import org.jetbrains.asm4.commons.InstructionAdapter;
+import org.jetbrains.org.objectweb.asm.Type;
+import org.jetbrains.org.objectweb.asm.commons.InstructionAdapter;
 import org.jetbrains.jet.codegen.ExpressionCodegen;
 import org.jetbrains.jet.codegen.StackValue;
 import org.jetbrains.jet.lang.psi.JetCallExpression;
@@ -43,7 +43,7 @@ public class StupidSync extends IntrinsicMethod {
             @NotNull Type returnType,
             @Nullable PsiElement element,
             @Nullable List<JetExpression> arguments,
-            StackValue receiver
+            @Nullable StackValue receiver
     ) {
         assert element != null : "Element should not be null";
         ResolvedCall<?> resolvedCall =
@@ -51,7 +51,7 @@ public class StupidSync extends IntrinsicMethod {
 
         assert resolvedCall != null : "Resolved call for " + element.getText() + " should be not null";
 
-        codegen.pushMethodArguments(resolvedCall, Arrays.asList(OBJECT_TYPE, FUNCTION0_TYPE), codegen.defaulCallGenerator);
+        codegen.pushMethodArgumentsWithoutCallReceiver(resolvedCall, Arrays.asList(OBJECT_TYPE, FUNCTION0_TYPE), false, codegen.defaultCallGenerator);
         v.invokestatic("kotlin/jvm/internal/Intrinsics", "stupidSync", Type.getMethodDescriptor(OBJECT_TYPE, OBJECT_TYPE, FUNCTION0_TYPE));
         return OBJECT_TYPE;
     }

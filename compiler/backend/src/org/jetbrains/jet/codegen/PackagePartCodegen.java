@@ -16,117 +16,71 @@
 
 package org.jetbrains.jet.codegen;
 
-import com.google.common.collect.Lists;
 import com.intellij.util.ArrayUtil;
+import kotlin.Function0;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.asm4.MethodVisitor;
-import org.jetbrains.asm4.Type;
 import org.jetbrains.jet.codegen.context.FieldOwnerContext;
 import org.jetbrains.jet.codegen.state.GenerationState;
-import org.jetbrains.jet.lang.descriptors.*;
-import org.jetbrains.jet.lang.descriptors.annotations.Annotations;
-import org.jetbrains.jet.lang.descriptors.impl.SimpleFunctionDescriptorImpl;
 import org.jetbrains.jet.lang.psi.*;
-import org.jetbrains.jet.lang.resolve.BindingContext;
-import org.jetbrains.jet.lang.resolve.name.Name;
+import org.jetbrains.org.objectweb.asm.Type;
 
-import java.util.Collections;
-import java.util.List;
-
-import static org.jetbrains.asm4.Opcodes.*;
 import static org.jetbrains.jet.codegen.AsmUtil.writeKotlinSyntheticClassAnnotation;
 import static org.jetbrains.jet.lang.resolve.java.JvmAnnotationNames.KotlinSyntheticClass;
+import static org.jetbrains.org.objectweb.asm.Opcodes.*;
 
-public class PackagePartCodegen extends MemberCodegen {
-
-    private final ClassBuilder v;
-
-    private final PackageFragmentDescriptor descriptor;
-
-    private final JetFile jetFile;
-
-    private final Type packagePartName;
-
-    private final FieldOwnerContext context;
+public class PackagePartCodegen extends MemberCodegen<JetFile> {
+    private final Type packagePartType;
 
     public PackagePartCodegen(
             @NotNull ClassBuilder v,
-            @NotNull JetFile jetFile,
-            @NotNull Type packagePartName,
+            @NotNull JetFile file,
+            @NotNull Type packagePartType,
             @NotNull FieldOwnerContext context,
             @NotNull GenerationState state
     ) {
-        super(state, null, context, v);
-        this.v = v;
-        this.jetFile = jetFile;
-        this.packagePartName = packagePartName;
-        this.context = context;
-        descriptor = state.getBindingContext().get(BindingContext.FILE_TO_PACKAGE_FRAGMENT, jetFile);
-        assert descriptor != null : "No package fragment found for jetFile " + jetFile + " declared package: " + jetFile.getPackageFqName();
+        super(state, null, context, file, v);
+        this.packagePartType = packagePartType;
     }
 
-    public void generate() {
-        v.defineClass(jetFile, V1_6,
+    @Override
+    protected void generateDeclaration() {
+        v.defineClass(element, V1_6,
                       ACC_PUBLIC | ACC_FINAL,
-                      packagePartName.getInternalName(),
+                      packagePartType.getInternalName(),
                       null,
                       "java/lang/Object",
                       ArrayUtil.EMPTY_STRING_ARRAY
         );
-        v.visitSource(jetFile.getName(), null);
+        v.visitSource(element.getName(), null);
+    }
 
-        writeKotlinSyntheticClassAnnotation(v, KotlinSyntheticClass.Kind.PACKAGE_PART);
-
-        for (JetDeclaration declaration : jetFile.getDeclarations()) {
+    @Override
+    protected void generateBody() {
+        for (JetDeclaration declaration : element.getDeclarations()) {
             if (declaration instanceof JetNamedFunction || declaration instanceof JetProperty) {
                 genFunctionOrProperty((JetTypeParameterListOwner) declaration, v);
             }
         }
 
-        generateStaticInitializers();
-
-        v.done();
-    }
-
-    private void generateStaticInitializers() {
-        List<JetProperty> properties = collectPropertiesToInitialize();
-        if (properties.isEmpty()) return;
-
-        MethodVisitor mv = v.newMethod(jetFile, ACC_STATIC, "<clinit>", "()V", null, null);
         if (state.getClassBuilderMode() == ClassBuilderMode.FULL) {
-            mv.visitCode();
-
-            FrameMap frameMap = new FrameMap();
-
-            SimpleFunctionDescriptorImpl clInit =
-                    SimpleFunctionDescriptorImpl.create(this.descriptor, Annotations.EMPTY,
-                                                        Name.special("<clinit>"),
-                                                        CallableMemberDescriptor.Kind.SYNTHESIZED);
-            clInit.initialize(null, null, Collections.<TypeParameterDescriptor>emptyList(),
-                              Collections.<ValueParameterDescriptor>emptyList(), null, null, Visibilities.PRIVATE);
-
-            ExpressionCodegen codegen = new ExpressionCodegen(mv, frameMap, Type.VOID_TYPE, this.context.intoFunction(clInit), state, this);
-
-            for (JetDeclaration declaration : properties) {
-                ImplementationBodyCodegen.
-                        initializeProperty(codegen, state.getBindingContext(), (JetProperty) declaration);
-            }
-
-            mv.visitInsn(RETURN);
-            FunctionCodegen.endVisit(mv, "static initializer for package", jetFile);
-            mv.visitEnd();
+            generateInitializers(new Function0<ExpressionCodegen>() {
+                @Override
+                public ExpressionCodegen invoke() {
+                    return createOrGetClInitCodegen();
+                }
+            });
         }
     }
 
-    @NotNull
-    private List<JetProperty> collectPropertiesToInitialize() {
-        List<JetProperty> result = Lists.newArrayList();
-        for (JetDeclaration declaration : jetFile.getDeclarations()) {
-            if (declaration instanceof JetProperty &&
-                ImplementationBodyCodegen.shouldInitializeProperty((JetProperty) declaration, typeMapper)) {
-                result.add((JetProperty) declaration);
-            }
+    @Override
+    protected void generateSyntheticParts() {
+        if (state.getClassBuilderMode() == ClassBuilderMode.FULL) {
+            generatePropertyMetadataArrayFieldIfNeeded(packagePartType);
         }
-        return result;
+    }
+
+    @Override
+    protected void generateKotlinAnnotation() {
+        writeKotlinSyntheticClassAnnotation(v, KotlinSyntheticClass.Kind.PACKAGE_PART);
     }
 }

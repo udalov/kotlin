@@ -17,8 +17,8 @@
 package org.jetbrains.jet.codegen;
 
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.asm4.ClassWriter;
-import org.jetbrains.asm4.util.TraceClassVisitor;
+import org.jetbrains.org.objectweb.asm.ClassWriter;
+import org.jetbrains.org.objectweb.asm.util.TraceClassVisitor;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -26,6 +26,7 @@ import java.io.StringWriter;
 @SuppressWarnings("IOResourceOpenedButNotSafelyClosed")
 public class ClassBuilderFactories {
 
+    @NotNull
     public static ClassBuilderFactory TEST = new ClassBuilderFactory() {
         @NotNull
         @Override
@@ -54,6 +55,7 @@ public class ClassBuilderFactories {
         }
     };
 
+    @NotNull
     public static ClassBuilderFactory BINARIES = new ClassBuilderFactory() {
         @NotNull
         @Override

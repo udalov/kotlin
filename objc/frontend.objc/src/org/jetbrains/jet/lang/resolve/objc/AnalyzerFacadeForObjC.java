@@ -27,13 +27,11 @@ import org.jetbrains.jet.context.GlobalContextImpl;
 import org.jetbrains.jet.descriptors.serialization.descriptors.MemberFilter;
 import org.jetbrains.jet.di.InjectorForTopDownAnalyzerForObjC;
 import org.jetbrains.jet.lang.descriptors.DependencyKind;
-import org.jetbrains.jet.lang.descriptors.ModuleDescriptor;
 import org.jetbrains.jet.lang.descriptors.ModuleDescriptorImpl;
 import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.resolve.*;
 import org.jetbrains.jet.lang.resolve.java.AnalyzerFacadeForJVM;
 import org.jetbrains.jet.lang.resolve.java.mapping.JavaToKotlinClassMap;
-import org.jetbrains.jet.lang.resolve.lazy.ResolveSession;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.resolve.objc.builtins.ObjCBuiltIns;
 
@@ -47,6 +45,12 @@ public enum AnalyzerFacadeForObjC implements AnalyzerFacade {
 
     @NotNull
     @Override
+    public Setup createSetup(@NotNull Project project, @NotNull Collection<JetFile> files) {
+        // TODO
+        throw new UnsupportedOperationException();
+    }
+
+    @NotNull
     public AnalyzeExhaust analyzeFiles(
             @NotNull Project project,
             @NotNull Collection<JetFile> files,
@@ -71,8 +75,8 @@ public enum AnalyzerFacadeForObjC implements AnalyzerFacade {
         module.addFragmentProvider(DependencyKind.BUILT_INS, ObjCBuiltIns.getInstance().getPackageFragmentProvider());
         module.addFragmentProvider(DependencyKind.BINARIES, injector.getJavaDescriptorResolver().getPackageFragmentProvider());
 
-        TopDownAnalysisParameters topDownAnalysisParameters = new TopDownAnalysisParameters(
-                global.getStorageManager(), global.getExceptionTracker(), filesToAnalyzeCompletely, false, false, scriptParameters
+        TopDownAnalysisParameters topDownAnalysisParameters = TopDownAnalysisParameters.create(
+                global.getStorageManager(), global.getExceptionTracker(), filesToAnalyzeCompletely, false, false
         );
 
         try {
@@ -81,24 +85,5 @@ public enum AnalyzerFacadeForObjC implements AnalyzerFacade {
         } finally {
             injector.destroy();
         }
-    }
-
-    @NotNull
-    @Override
-    public AnalyzeExhaust analyzeBodiesInFiles(
-            @NotNull Project project,
-            @NotNull List<AnalyzerScriptParameter> scriptParameters,
-            @NotNull Predicate<PsiFile> filesForBodiesResolve,
-            @NotNull BindingTrace traceContext,
-            @NotNull BodiesResolveContext bodiesResolveContext,
-            @NotNull ModuleDescriptor moduleDescriptor
-    ) {
-        throw new UnsupportedOperationException();
-    }
-
-    @NotNull
-    @Override
-    public ResolveSession getLazyResolveSession(@NotNull Project project, @NotNull Collection<JetFile> files) {
-        throw new UnsupportedOperationException();
     }
 }

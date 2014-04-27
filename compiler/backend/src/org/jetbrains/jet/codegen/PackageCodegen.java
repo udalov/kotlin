@@ -28,9 +28,6 @@ import com.intellij.util.PathUtil;
 import com.intellij.util.SmartList;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.asm4.AnnotationVisitor;
-import org.jetbrains.asm4.MethodVisitor;
-import org.jetbrains.asm4.Type;
 import org.jetbrains.jet.codegen.context.CodegenContext;
 import org.jetbrains.jet.codegen.context.FieldOwnerContext;
 import org.jetbrains.jet.codegen.context.MethodContext;
@@ -39,7 +36,10 @@ import org.jetbrains.jet.codegen.signature.JvmMethodSignature;
 import org.jetbrains.jet.codegen.state.GenerationState;
 import org.jetbrains.jet.codegen.state.GenerationStateAware;
 import org.jetbrains.jet.config.IncrementalCompilation;
-import org.jetbrains.jet.descriptors.serialization.*;
+import org.jetbrains.jet.descriptors.serialization.BitEncoding;
+import org.jetbrains.jet.descriptors.serialization.DescriptorSerializer;
+import org.jetbrains.jet.descriptors.serialization.PackageData;
+import org.jetbrains.jet.descriptors.serialization.ProtoBuf;
 import org.jetbrains.jet.descriptors.serialization.descriptors.DeserializedCallableMemberDescriptor;
 import org.jetbrains.jet.descriptors.serialization.descriptors.DeserializedPropertyDescriptor;
 import org.jetbrains.jet.descriptors.serialization.descriptors.DeserializedSimpleFunctionDescriptor;
@@ -57,14 +57,17 @@ import org.jetbrains.jet.lang.resolve.java.lazy.descriptors.LazyJavaPackageFragm
 import org.jetbrains.jet.lang.resolve.kotlin.BaseDescriptorDeserializer;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.Name;
+import org.jetbrains.org.objectweb.asm.AnnotationVisitor;
+import org.jetbrains.org.objectweb.asm.MethodVisitor;
+import org.jetbrains.org.objectweb.asm.Type;
 
 import java.util.*;
 
-import static org.jetbrains.asm4.Opcodes.*;
 import static org.jetbrains.jet.codegen.AsmUtil.asmDescByFqNameWithoutInnerClasses;
 import static org.jetbrains.jet.codegen.AsmUtil.asmTypeByFqNameWithoutInnerClasses;
 import static org.jetbrains.jet.descriptors.serialization.NameSerializationUtil.createNameResolver;
 import static org.jetbrains.jet.lang.resolve.java.PackageClassUtils.getPackageClassFqName;
+import static org.jetbrains.org.objectweb.asm.Opcodes.*;
 
 public class PackageCodegen extends GenerationStateAware {
     @NotNull
@@ -164,7 +167,7 @@ public class PackageCodegen extends GenerationStateAware {
                                                                    @NotNull MethodVisitor mv,
                                                                    @NotNull JvmMethodSignature signature,
                                                                    @NotNull MethodContext context,
-                                                                   @Nullable MemberCodegen parentCodegen
+                                                                   @Nullable MemberCodegen<?> parentCodegen
                                                            ) {
                                                                throw new IllegalStateException("shouldn't be called");
                                                            }
@@ -292,7 +295,7 @@ public class PackageCodegen extends GenerationStateAware {
 
         FieldOwnerContext packageFacade = CodegenContext.STATIC.intoPackageFacade(packagePartType, packageFragment);
 
-        final MemberCodegen memberCodegen = getMemberCodegen(packageFacade);
+        final MemberCodegen<?> memberCodegen = getMemberCodegen(packageFacade);
 
         for (final JetDeclaration declaration : file.getDeclarations()) {
             if (declaration instanceof JetNamedFunction || declaration instanceof JetProperty) {
@@ -304,8 +307,7 @@ public class PackageCodegen extends GenerationStateAware {
                         new Runnable() {
                             @Override
                             public void run() {
-                                memberCodegen.genFunctionOrProperty(
-                                        (JetTypeParameterListOwner) declaration, v.getClassBuilder());
+                                memberCodegen.genFunctionOrProperty((JetTypeParameterListOwner) declaration, v.getClassBuilder());
                             }
                         }
                 );
@@ -316,12 +318,21 @@ public class PackageCodegen extends GenerationStateAware {
     }
 
     //TODO: FIX: Default method generated at facade without delegation
-    private MemberCodegen getMemberCodegen(@NotNull FieldOwnerContext packageFacade) {
-        return new MemberCodegen(state, null, packageFacade, null) {
-            @NotNull
+    private MemberCodegen<?> getMemberCodegen(@NotNull FieldOwnerContext packageFacade) {
+        return new MemberCodegen<JetFile>(state, null, packageFacade, null, null) {
             @Override
-            public ClassBuilder getBuilder() {
-                return v.getClassBuilder();
+            protected void generateDeclaration() {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            protected void generateBody() {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            protected void generateKotlinAnnotation() {
+                throw new UnsupportedOperationException();
             }
         };
     }
@@ -344,7 +355,7 @@ public class PackageCodegen extends GenerationStateAware {
     }
 
     public void generateClassOrObject(@NotNull JetClassOrObject classOrObject) {
-        JetFile file = (JetFile) classOrObject.getContainingFile();
+        JetFile file = classOrObject.getContainingJetFile();
         Type packagePartType = getPackagePartType(getPackageClassFqName(packageFragment.getFqName()), file.getVirtualFile());
         CodegenContext context = CodegenContext.STATIC.intoPackagePart(packageFragment, packagePartType);
         MemberCodegen.genClassOrObject(context, classOrObject, state, null);

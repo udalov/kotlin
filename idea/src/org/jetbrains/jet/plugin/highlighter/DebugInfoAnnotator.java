@@ -23,11 +23,12 @@ import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.psi.PsiElement;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.checkers.DebugInfoUtil;
+import org.jetbrains.jet.lang.psi.JetCodeFragmentImpl;
 import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.psi.JetReferenceExpression;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.plugin.JetPluginUtil;
-import org.jetbrains.jet.plugin.project.AnalyzerFacadeWithCache;
+import org.jetbrains.jet.plugin.caches.resolve.ResolvePackage;
 
 /**
  * Quick showing possible problems with Kotlin internals in IDEA with tooltips
@@ -46,10 +47,10 @@ public class DebugInfoAnnotator implements Annotator {
             return;
         }
 
-        if (element instanceof JetFile) {
+        if (element instanceof JetFile && !(element instanceof JetCodeFragmentImpl)) {
             JetFile file = (JetFile) element;
             try {
-                BindingContext bindingContext = AnalyzerFacadeWithCache.analyzeFileWithCache(file).getBindingContext();
+                BindingContext bindingContext = ResolvePackage.getAnalysisResults(file).getBindingContext();
                 DebugInfoUtil.markDebugAnnotations(file, bindingContext, new DebugInfoUtil.DebugInfoReporter() {
                     @Override
                     public void reportElementWithErrorType(@NotNull JetReferenceExpression expression) {

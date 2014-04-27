@@ -21,7 +21,7 @@ import com.intellij.psi.PsiElement;
 import com.intellij.psi.util.PsiTreeUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.asm4.Type;
+import org.jetbrains.org.objectweb.asm.Type;
 import org.jetbrains.jet.codegen.PackageCodegen;
 import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor;
 import org.jetbrains.jet.lang.psi.*;
@@ -80,7 +80,7 @@ public final class PsiCodegenPredictor {
             }
         }
         else {
-            FqName packageFqName = ((JetFile) declaration.getContainingFile()).getPackageFqName();
+            FqName packageFqName = declaration.getContainingJetFile().getPackageFqName();
 
             if (declaration instanceof JetNamedFunction) {
                 JvmClassName packageClass = JvmClassName.byFqNameWithoutInnerClasses(getPackageClassFqName(packageFqName));

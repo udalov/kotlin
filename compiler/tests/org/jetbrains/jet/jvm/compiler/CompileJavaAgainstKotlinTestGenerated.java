@@ -73,6 +73,21 @@ public class CompileJavaAgainstKotlinTestGenerated extends AbstractCompileJavaAg
             doTest("compiler/testData/compileJavaAgainstKotlin/class/ImplementsMapPP.kt");
         }
         
+        @TestMetadata("InnerClass.kt")
+        public void testInnerClass() throws Exception {
+            doTest("compiler/testData/compileJavaAgainstKotlin/class/InnerClass.kt");
+        }
+        
+        @TestMetadata("InnerClassConstructors.kt")
+        public void testInnerClassConstructors() throws Exception {
+            doTest("compiler/testData/compileJavaAgainstKotlin/class/InnerClassConstructors.kt");
+        }
+        
+        @TestMetadata("InnerClassOfGeneric.kt")
+        public void testInnerClassOfGeneric() throws Exception {
+            doTest("compiler/testData/compileJavaAgainstKotlin/class/InnerClassOfGeneric.kt");
+        }
+        
         @TestMetadata("kt3561.kt")
         public void testKt3561() throws Exception {
             doTest("compiler/testData/compileJavaAgainstKotlin/class/kt3561.kt");
@@ -125,6 +140,11 @@ public class CompileJavaAgainstKotlinTestGenerated extends AbstractCompileJavaAg
         @TestMetadata("Delegation.kt")
         public void testDelegation() throws Exception {
             doTest("compiler/testData/compileJavaAgainstKotlin/method/Delegation.kt");
+        }
+        
+        @TestMetadata("Extensions.kt")
+        public void testExtensions() throws Exception {
+            doTest("compiler/testData/compileJavaAgainstKotlin/method/Extensions.kt");
         }
         
         @TestMetadata("GenericArray.kt")
@@ -190,6 +210,11 @@ public class CompileJavaAgainstKotlinTestGenerated extends AbstractCompileJavaAg
         @TestMetadata("QExtendsString.kt")
         public void testQExtendsString() throws Exception {
             doTest("compiler/testData/compileJavaAgainstKotlin/method/QExtendsString.kt");
+        }
+        
+        @TestMetadata("TraitImpl.kt")
+        public void testTraitImpl() throws Exception {
+            doTest("compiler/testData/compileJavaAgainstKotlin/method/TraitImpl.kt");
         }
         
         @TestMetadata("Vararg.kt")
@@ -321,6 +346,11 @@ public class CompileJavaAgainstKotlinTestGenerated extends AbstractCompileJavaAg
     public static class Property extends AbstractCompileJavaAgainstKotlinTest {
         public void testAllFilesPresentInProperty() throws Exception {
             JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), "org.jetbrains.jet.generators.tests.TestsPackage", new File("compiler/testData/compileJavaAgainstKotlin/property"), Pattern.compile("^(.+)\\.kt$"), true);
+        }
+        
+        @TestMetadata("Extensions.kt")
+        public void testExtensions() throws Exception {
+            doTest("compiler/testData/compileJavaAgainstKotlin/property/Extensions.kt");
         }
         
         @TestMetadata("GenericProperty.kt")

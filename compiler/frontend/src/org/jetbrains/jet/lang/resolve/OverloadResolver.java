@@ -43,8 +43,6 @@ public class OverloadResolver {
         this.trace = trace;
     }
 
-
-
     public void process(@NotNull BodiesResolveContext c) {
         checkOverloads(c);
     }
@@ -54,18 +52,18 @@ public class OverloadResolver {
         MultiMap<FqNameUnsafe, ConstructorDescriptor> inPackages = MultiMap.create();
         fillGroupedConstructors(c, inClasses, inPackages);
 
-        for (Map.Entry<JetClassOrObject, ClassDescriptorWithResolutionScopes> entry : c.getClasses().entrySet()) {
+        for (Map.Entry<JetClassOrObject, ClassDescriptorWithResolutionScopes> entry : c.getDeclaredClasses().entrySet()) {
             checkOverloadsInAClass(entry.getValue(), entry.getKey(), inClasses.get(entry.getValue()));
         }
         checkOverloadsInPackages(c, inPackages);
     }
 
-    private void fillGroupedConstructors(
+    private static void fillGroupedConstructors(
             @NotNull BodiesResolveContext c,
             @NotNull MultiMap<ClassDescriptor, ConstructorDescriptor> inClasses,
             @NotNull MultiMap<FqNameUnsafe, ConstructorDescriptor> inPackages
     ) {
-        for (ClassDescriptorWithResolutionScopes klass : c.getClasses().values()) {
+        for (ClassDescriptorWithResolutionScopes klass : c.getDeclaredClasses().values()) {
             if (klass.getKind().isSingleton()) {
                 // Constructors of singletons aren't callable from the code, so they shouldn't participate in overload name checking
                 continue;
@@ -108,7 +106,9 @@ public class OverloadResolver {
         }
 
         for (Map.Entry<FqNameUnsafe, Collection<CallableMemberDescriptor>> e : functionsByName.entrySet()) {
-            checkOverloadsWithSameName(e.getValue(), e.getKey().parent().asString());
+            // TODO: don't render FQ name here, extract this logic to somewhere
+            FqNameUnsafe fqName = e.getKey().parent();
+            checkOverloadsWithSameName(e.getValue(), fqName.isRoot() ? "root package" : fqName.asString());
         }
     }
 
@@ -133,7 +133,7 @@ public class OverloadResolver {
         MultiMap<Name, CallableMemberDescriptor> functionsByName = MultiMap.create();
         
         if (classDescriptor.getKind() == ClassKind.ENUM_CLASS) {
-            ClassDescriptorWithResolutionScopes classObjectDescriptor = (ClassDescriptorWithResolutionScopes) classDescriptor.getClassObjectDescriptor();
+            ClassDescriptorWithResolutionScopes classObjectDescriptor = classDescriptor.getClassObjectDescriptor();
             assert classObjectDescriptor != null;
             for (CallableMemberDescriptor memberDescriptor : classObjectDescriptor.getDeclaredCallableMembers()) {
                 functionsByName.putValue(memberDescriptor.getName(), memberDescriptor);
@@ -164,13 +164,12 @@ public class OverloadResolver {
             // micro-optimization
             return;
         }
-        Set<Pair<JetDeclaration, CallableMemberDescriptor>> redeclarations = findRedeclarations(functions);
-        reportRedeclarations(functionContainer, redeclarations);
+        reportRedeclarations(functionContainer, findRedeclarations(functions));
     }
 
     @NotNull
     private Set<Pair<JetDeclaration, CallableMemberDescriptor>> findRedeclarations(@NotNull Collection<CallableMemberDescriptor> functions) {
-        Set<Pair<JetDeclaration, CallableMemberDescriptor>> redeclarations = Sets.newHashSet();
+        Set<Pair<JetDeclaration, CallableMemberDescriptor>> redeclarations = Sets.newLinkedHashSet();
         for (CallableMemberDescriptor member : functions) {
             for (CallableMemberDescriptor member2 : functions) {
                 if (member == member2) {

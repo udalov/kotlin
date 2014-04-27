@@ -10,185 +10,383 @@ import java.util.*
 /**
  * Returns a list with elements in reversed order
  */
-public fun <T> Array<out T>.reverse() : List<T> {
+public fun <T> Array<out T>.reverse(): List<T> {
     val list = toArrayList()
     Collections.reverse(list)
     return list
-    
 }
 
 /**
  * Returns a list with elements in reversed order
  */
-public fun BooleanArray.reverse() : List<Boolean> {
+public fun BooleanArray.reverse(): List<Boolean> {
     val list = toArrayList()
     Collections.reverse(list)
     return list
-    
 }
 
 /**
  * Returns a list with elements in reversed order
  */
-public fun ByteArray.reverse() : List<Byte> {
+public fun ByteArray.reverse(): List<Byte> {
     val list = toArrayList()
     Collections.reverse(list)
     return list
-    
 }
 
 /**
  * Returns a list with elements in reversed order
  */
-public fun CharArray.reverse() : List<Char> {
+public fun CharArray.reverse(): List<Char> {
     val list = toArrayList()
     Collections.reverse(list)
     return list
-    
 }
 
 /**
  * Returns a list with elements in reversed order
  */
-public fun DoubleArray.reverse() : List<Double> {
+public fun DoubleArray.reverse(): List<Double> {
     val list = toArrayList()
     Collections.reverse(list)
     return list
-    
 }
 
 /**
  * Returns a list with elements in reversed order
  */
-public fun FloatArray.reverse() : List<Float> {
+public fun FloatArray.reverse(): List<Float> {
     val list = toArrayList()
     Collections.reverse(list)
     return list
-    
 }
 
 /**
  * Returns a list with elements in reversed order
  */
-public fun IntArray.reverse() : List<Int> {
+public fun IntArray.reverse(): List<Int> {
     val list = toArrayList()
     Collections.reverse(list)
     return list
-    
 }
 
 /**
  * Returns a list with elements in reversed order
  */
-public fun LongArray.reverse() : List<Long> {
+public fun LongArray.reverse(): List<Long> {
     val list = toArrayList()
     Collections.reverse(list)
     return list
-    
 }
 
 /**
  * Returns a list with elements in reversed order
  */
-public fun ShortArray.reverse() : List<Short> {
+public fun ShortArray.reverse(): List<Short> {
     val list = toArrayList()
     Collections.reverse(list)
     return list
-    
 }
 
 /**
  * Returns a list with elements in reversed order
  */
-public fun <T> Iterable<T>.reverse() : List<T> {
+public fun <T> Iterable<T>.reverse(): List<T> {
     val list = toArrayList()
     Collections.reverse(list)
     return list
-    
+}
+
+/**
+ * Returns a string with characters in reversed order
+ */
+public fun String.reverse(): String {
+    return StringBuilder().append(this).reverse().toString()
 }
 
 /**
  * Returns a sorted list of all elements
  */
-public fun <T: Comparable<T>> Iterable<T>.sort() : List<T> {
+public fun <T : Comparable<T>> Iterable<T>.sort(): List<T> {
     val sortedList = toArrayList()
     java.util.Collections.sort(sortedList)
     return sortedList
-    
 }
 
 /**
  * Returns a list of all elements, sorted by the specified *comparator*
  */
-public fun <T> Array<out T>.sortBy(comparator : Comparator<T>) : List<T> {
+public fun <T> Array<out T>.sortBy(comparator: Comparator<T>): List<T> {
     val sortedList = toArrayList()
     java.util.Collections.sort(sortedList, comparator)
     return sortedList
-    
 }
 
 /**
  * Returns a list of all elements, sorted by the specified *comparator*
  */
-public fun <T> Iterable<T>.sortBy(comparator : Comparator<T>) : List<T> {
+public fun <T> Iterable<T>.sortBy(comparator: Comparator<T>): List<T> {
     val sortedList = toArrayList()
     java.util.Collections.sort(sortedList, comparator)
     return sortedList
-    
 }
 
 /**
- * Returns a list of all elements, sorted by results of specified *order* function.
+ * Returns a sorted list of all elements, ordered by results of specified *order* function.
  */
-public inline fun <T, R: Comparable<R>> Array<out T>.sortBy(order: (T) -> R) : List<T> {
+public inline fun <T, R : Comparable<R>> Array<out T>.sortBy(order: (T) -> R): List<T> {
     val sortedList = toArrayList()
-    val sortBy: Comparator<T> = comparator<T> {(x: T, y: T) -> order(x).compareTo(order(y))}
+    val sortBy: Comparator<T> = comparator<T> {(x: T, y: T) -> order(x).compareTo(order(y)) }
     java.util.Collections.sort(sortedList, sortBy)
     return sortedList
-    
 }
 
 /**
- * Returns a list of all elements, sorted by results of specified *order* function.
+ * Returns a sorted list of all elements, ordered by results of specified *order* function.
  */
-public inline fun <T, R: Comparable<R>> Iterable<T>.sortBy(order: (T) -> R) : List<T> {
+public inline fun <T, R : Comparable<R>> Iterable<T>.sortBy(order: (T) -> R): List<T> {
     val sortedList = toArrayList()
-    val sortBy: Comparator<T> = comparator<T> {(x: T, y: T) -> order(x).compareTo(order(y))}
+    val sortBy: Comparator<T> = comparator<T> {(x: T, y: T) -> order(x).compareTo(order(y)) }
     java.util.Collections.sort(sortedList, sortBy)
     return sortedList
-    
+}
+
+/**
+ * Returns a sorted list of all elements, in descending order
+ */
+public fun <T : Comparable<T>> Iterable<T>.sortDescending(): List<T> {
+    val sortedList = toArrayList()
+    val sortBy: Comparator<T> = comparator<T> {(x: T, y: T) -> -x.compareTo(y) }
+    java.util.Collections.sort(sortedList, sortBy)
+    return sortedList
+}
+
+/**
+ * Returns a sorted list of all elements, in descending order by results of specified *order* function.
+ */
+public inline fun <T, R : Comparable<R>> Array<out T>.sortDescendingBy(order: (T) -> R): List<T> {
+    val sortedList = toArrayList()
+    val sortBy: Comparator<T> = comparator<T> {(x: T, y: T) -> -order(x).compareTo(order(y)) }
+    java.util.Collections.sort(sortedList, sortBy)
+    return sortedList
+}
+
+/**
+ * Returns a sorted list of all elements, in descending order by results of specified *order* function.
+ */
+public inline fun <T, R : Comparable<R>> Iterable<T>.sortDescendingBy(order: (T) -> R): List<T> {
+    val sortedList = toArrayList()
+    val sortBy: Comparator<T> = comparator<T> {(x: T, y: T) -> -order(x).compareTo(order(y)) }
+    java.util.Collections.sort(sortedList, sortBy)
+    return sortedList
 }
 
 /**
  * Returns a sorted list of all elements
  */
-public fun <T: Comparable<T>> Iterable<T>.sortDescending() : List<T> {
+public fun <T : Comparable<T>> Array<out T>.toSortedList(): List<T> {
     val sortedList = toArrayList()
-    val sortBy: Comparator<T> = comparator<T> {(x: T, y: T) -> -x.compareTo(y)}
-    java.util.Collections.sort(sortedList, sortBy)
+    java.util.Collections.sort(sortedList)
     return sortedList
-    
 }
 
 /**
- * Returns a list of all elements, sorted by results of specified *order* function.
+ * Returns a sorted list of all elements
  */
-public inline fun <T, R: Comparable<R>> Array<out T>.sortDescendingBy(order: (T) -> R) : List<T> {
+public fun BooleanArray.toSortedList(): List<Boolean> {
     val sortedList = toArrayList()
-    val sortBy: Comparator<T> = comparator<T> {(x: T, y: T) -> -order(x).compareTo(order(y))}
-    java.util.Collections.sort(sortedList, sortBy)
+    java.util.Collections.sort(sortedList)
     return sortedList
-    
 }
 
 /**
- * Returns a list of all elements, sorted by results of specified *order* function.
+ * Returns a sorted list of all elements
  */
-public inline fun <T, R: Comparable<R>> Iterable<T>.sortDescendingBy(order: (T) -> R) : List<T> {
+public fun ByteArray.toSortedList(): List<Byte> {
     val sortedList = toArrayList()
-    val sortBy: Comparator<T> = comparator<T> {(x: T, y: T) -> -order(x).compareTo(order(y))}
+    java.util.Collections.sort(sortedList)
+    return sortedList
+}
+
+/**
+ * Returns a sorted list of all elements
+ */
+public fun CharArray.toSortedList(): List<Char> {
+    val sortedList = toArrayList()
+    java.util.Collections.sort(sortedList)
+    return sortedList
+}
+
+/**
+ * Returns a sorted list of all elements
+ */
+public fun DoubleArray.toSortedList(): List<Double> {
+    val sortedList = toArrayList()
+    java.util.Collections.sort(sortedList)
+    return sortedList
+}
+
+/**
+ * Returns a sorted list of all elements
+ */
+public fun FloatArray.toSortedList(): List<Float> {
+    val sortedList = toArrayList()
+    java.util.Collections.sort(sortedList)
+    return sortedList
+}
+
+/**
+ * Returns a sorted list of all elements
+ */
+public fun IntArray.toSortedList(): List<Int> {
+    val sortedList = toArrayList()
+    java.util.Collections.sort(sortedList)
+    return sortedList
+}
+
+/**
+ * Returns a sorted list of all elements
+ */
+public fun LongArray.toSortedList(): List<Long> {
+    val sortedList = toArrayList()
+    java.util.Collections.sort(sortedList)
+    return sortedList
+}
+
+/**
+ * Returns a sorted list of all elements
+ */
+public fun ShortArray.toSortedList(): List<Short> {
+    val sortedList = toArrayList()
+    java.util.Collections.sort(sortedList)
+    return sortedList
+}
+
+/**
+ * Returns a sorted list of all elements
+ */
+public fun <T : Comparable<T>> Iterable<T>.toSortedList(): List<T> {
+    val sortedList = toArrayList()
+    java.util.Collections.sort(sortedList)
+    return sortedList
+}
+
+/**
+ * Returns a sorted list of all elements
+ */
+public fun <T : Comparable<T>> Stream<T>.toSortedList(): List<T> {
+    val sortedList = toArrayList()
+    java.util.Collections.sort(sortedList)
+    return sortedList
+}
+
+/**
+ * Returns a sorted list of all elements, ordered by results of specified *order* function.
+ */
+public fun <T, V : Comparable<V>> Array<out T>.toSortedListBy(order: (T) -> V): List<T> {
+    val sortedList = toArrayList()
+    val sortBy: Comparator<T> = comparator<T> {(x: T, y: T) -> order(x).compareTo(order(y)) }
     java.util.Collections.sort(sortedList, sortBy)
     return sortedList
-    
+}
+
+/**
+ * Returns a sorted list of all elements, ordered by results of specified *order* function.
+ */
+public fun <V : Comparable<V>> BooleanArray.toSortedListBy(order: (Boolean) -> V): List<Boolean> {
+    val sortedList = toArrayList()
+    val sortBy: Comparator<Boolean> = comparator<Boolean> {(x: Boolean, y: Boolean) -> order(x).compareTo(order(y)) }
+    java.util.Collections.sort(sortedList, sortBy)
+    return sortedList
+}
+
+/**
+ * Returns a sorted list of all elements, ordered by results of specified *order* function.
+ */
+public fun <V : Comparable<V>> ByteArray.toSortedListBy(order: (Byte) -> V): List<Byte> {
+    val sortedList = toArrayList()
+    val sortBy: Comparator<Byte> = comparator<Byte> {(x: Byte, y: Byte) -> order(x).compareTo(order(y)) }
+    java.util.Collections.sort(sortedList, sortBy)
+    return sortedList
+}
+
+/**
+ * Returns a sorted list of all elements, ordered by results of specified *order* function.
+ */
+public fun <V : Comparable<V>> CharArray.toSortedListBy(order: (Char) -> V): List<Char> {
+    val sortedList = toArrayList()
+    val sortBy: Comparator<Char> = comparator<Char> {(x: Char, y: Char) -> order(x).compareTo(order(y)) }
+    java.util.Collections.sort(sortedList, sortBy)
+    return sortedList
+}
+
+/**
+ * Returns a sorted list of all elements, ordered by results of specified *order* function.
+ */
+public fun <V : Comparable<V>> DoubleArray.toSortedListBy(order: (Double) -> V): List<Double> {
+    val sortedList = toArrayList()
+    val sortBy: Comparator<Double> = comparator<Double> {(x: Double, y: Double) -> order(x).compareTo(order(y)) }
+    java.util.Collections.sort(sortedList, sortBy)
+    return sortedList
+}
+
+/**
+ * Returns a sorted list of all elements, ordered by results of specified *order* function.
+ */
+public fun <V : Comparable<V>> FloatArray.toSortedListBy(order: (Float) -> V): List<Float> {
+    val sortedList = toArrayList()
+    val sortBy: Comparator<Float> = comparator<Float> {(x: Float, y: Float) -> order(x).compareTo(order(y)) }
+    java.util.Collections.sort(sortedList, sortBy)
+    return sortedList
+}
+
+/**
+ * Returns a sorted list of all elements, ordered by results of specified *order* function.
+ */
+public fun <V : Comparable<V>> IntArray.toSortedListBy(order: (Int) -> V): List<Int> {
+    val sortedList = toArrayList()
+    val sortBy: Comparator<Int> = comparator<Int> {(x: Int, y: Int) -> order(x).compareTo(order(y)) }
+    java.util.Collections.sort(sortedList, sortBy)
+    return sortedList
+}
+
+/**
+ * Returns a sorted list of all elements, ordered by results of specified *order* function.
+ */
+public fun <V : Comparable<V>> LongArray.toSortedListBy(order: (Long) -> V): List<Long> {
+    val sortedList = toArrayList()
+    val sortBy: Comparator<Long> = comparator<Long> {(x: Long, y: Long) -> order(x).compareTo(order(y)) }
+    java.util.Collections.sort(sortedList, sortBy)
+    return sortedList
+}
+
+/**
+ * Returns a sorted list of all elements, ordered by results of specified *order* function.
+ */
+public fun <V : Comparable<V>> ShortArray.toSortedListBy(order: (Short) -> V): List<Short> {
+    val sortedList = toArrayList()
+    val sortBy: Comparator<Short> = comparator<Short> {(x: Short, y: Short) -> order(x).compareTo(order(y)) }
+    java.util.Collections.sort(sortedList, sortBy)
+    return sortedList
+}
+
+/**
+ * Returns a sorted list of all elements, ordered by results of specified *order* function.
+ */
+public fun <T, V : Comparable<V>> Iterable<T>.toSortedListBy(order: (T) -> V): List<T> {
+    val sortedList = toArrayList()
+    val sortBy: Comparator<T> = comparator<T> {(x: T, y: T) -> order(x).compareTo(order(y)) }
+    java.util.Collections.sort(sortedList, sortBy)
+    return sortedList
+}
+
+/**
+ * Returns a sorted list of all elements, ordered by results of specified *order* function.
+ */
+public fun <T, V : Comparable<V>> Stream<T>.toSortedListBy(order: (T) -> V): List<T> {
+    val sortedList = toArrayList()
+    val sortBy: Comparator<T> = comparator<T> {(x: T, y: T) -> order(x).compareTo(order(y)) }
+    java.util.Collections.sort(sortedList, sortBy)
+    return sortedList
 }
 

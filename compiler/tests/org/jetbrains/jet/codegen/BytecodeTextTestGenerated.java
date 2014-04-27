@@ -33,6 +33,11 @@ import org.jetbrains.jet.codegen.AbstractBytecodeTextTest;
 @TestMetadata("compiler/testData/codegen/bytecodeText")
 @InnerTestClasses({BytecodeTextTestGenerated.Constants.class, BytecodeTextTestGenerated.DirectInvoke.class, BytecodeTextTestGenerated.Statements.class})
 public class BytecodeTextTestGenerated extends AbstractBytecodeTextTest {
+    @TestMetadata("accessorForProtected.kt")
+    public void testAccessorForProtected() throws Exception {
+        doTest("compiler/testData/codegen/bytecodeText/accessorForProtected.kt");
+    }
+    
     public void testAllFilesPresentInBytecodeText() throws Exception {
         JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), "org.jetbrains.jet.generators.tests.TestsPackage", new File("compiler/testData/codegen/bytecodeText"), Pattern.compile("^(.+)\\.kt$"), true);
     }
@@ -52,9 +57,19 @@ public class BytecodeTextTestGenerated extends AbstractBytecodeTextTest {
         doTest("compiler/testData/codegen/bytecodeText/annotationRetentionPolicySource.kt");
     }
     
+    @TestMetadata("bridgeForFakeOverride.kt")
+    public void testBridgeForFakeOverride() throws Exception {
+        doTest("compiler/testData/codegen/bytecodeText/bridgeForFakeOverride.kt");
+    }
+    
     @TestMetadata("componentEvaluatesOnlyOnce.kt")
     public void testComponentEvaluatesOnlyOnce() throws Exception {
         doTest("compiler/testData/codegen/bytecodeText/componentEvaluatesOnlyOnce.kt");
+    }
+    
+    @TestMetadata("constClosureOptimization.kt")
+    public void testConstClosureOptimization() throws Exception {
+        doTest("compiler/testData/codegen/bytecodeText/constClosureOptimization.kt");
     }
     
     @TestMetadata("intConstantNotNull.kt")
@@ -105,6 +120,11 @@ public class BytecodeTextTestGenerated extends AbstractBytecodeTextTest {
     @TestMetadata("topLevelFunWithDefaultArgs.kt")
     public void testTopLevelFunWithDefaultArgs() throws Exception {
         doTest("compiler/testData/codegen/bytecodeText/topLevelFunWithDefaultArgs.kt");
+    }
+    
+    @TestMetadata("traitImplGeneratedOnce.kt")
+    public void testTraitImplGeneratedOnce() throws Exception {
+        doTest("compiler/testData/codegen/bytecodeText/traitImplGeneratedOnce.kt");
     }
     
     @TestMetadata("compiler/testData/codegen/bytecodeText/constants")

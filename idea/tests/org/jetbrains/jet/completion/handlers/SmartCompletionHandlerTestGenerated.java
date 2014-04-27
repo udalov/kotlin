@@ -66,6 +66,71 @@ public class SmartCompletionHandlerTestGenerated extends AbstractSmartCompletion
         doTest("idea/testData/completion/handlers/smart/ClassObjectMethod2.kt");
     }
     
+    @TestMetadata("ClassObjectMethod3.kt")
+    public void testClassObjectMethod3() throws Exception {
+        doTest("idea/testData/completion/handlers/smart/ClassObjectMethod3.kt");
+    }
+    
+    @TestMetadata("ClassObjectMethod4.kt")
+    public void testClassObjectMethod4() throws Exception {
+        doTest("idea/testData/completion/handlers/smart/ClassObjectMethod4.kt");
+    }
+    
+    @TestMetadata("ClosingParenthesis1.kt")
+    public void testClosingParenthesis1() throws Exception {
+        doTest("idea/testData/completion/handlers/smart/ClosingParenthesis1.kt");
+    }
+    
+    @TestMetadata("ClosingParenthesis2.kt")
+    public void testClosingParenthesis2() throws Exception {
+        doTest("idea/testData/completion/handlers/smart/ClosingParenthesis2.kt");
+    }
+    
+    @TestMetadata("Comma1.kt")
+    public void testComma1() throws Exception {
+        doTest("idea/testData/completion/handlers/smart/Comma1.kt");
+    }
+    
+    @TestMetadata("Comma2.kt")
+    public void testComma2() throws Exception {
+        doTest("idea/testData/completion/handlers/smart/Comma2.kt");
+    }
+    
+    @TestMetadata("Comma3.kt")
+    public void testComma3() throws Exception {
+        doTest("idea/testData/completion/handlers/smart/Comma3.kt");
+    }
+    
+    @TestMetadata("Comma4.kt")
+    public void testComma4() throws Exception {
+        doTest("idea/testData/completion/handlers/smart/Comma4.kt");
+    }
+    
+    @TestMetadata("Comma5.kt")
+    public void testComma5() throws Exception {
+        doTest("idea/testData/completion/handlers/smart/Comma5.kt");
+    }
+    
+    @TestMetadata("Comma6.kt")
+    public void testComma6() throws Exception {
+        doTest("idea/testData/completion/handlers/smart/Comma6.kt");
+    }
+    
+    @TestMetadata("Comma7.kt")
+    public void testComma7() throws Exception {
+        doTest("idea/testData/completion/handlers/smart/Comma7.kt");
+    }
+    
+    @TestMetadata("Comma8.kt")
+    public void testComma8() throws Exception {
+        doTest("idea/testData/completion/handlers/smart/Comma8.kt");
+    }
+    
+    @TestMetadata("Comma9.kt")
+    public void testComma9() throws Exception {
+        doTest("idea/testData/completion/handlers/smart/Comma9.kt");
+    }
+    
     @TestMetadata("Constructor.kt")
     public void testConstructor() throws Exception {
         doTest("idea/testData/completion/handlers/smart/Constructor.kt");
@@ -96,6 +161,16 @@ public class SmartCompletionHandlerTestGenerated extends AbstractSmartCompletion
         doTest("idea/testData/completion/handlers/smart/ConstructorInsertsImport2.kt");
     }
     
+    @TestMetadata("ConstructorWithLambdaParameter1.kt")
+    public void testConstructorWithLambdaParameter1() throws Exception {
+        doTest("idea/testData/completion/handlers/smart/ConstructorWithLambdaParameter1.kt");
+    }
+    
+    @TestMetadata("ConstructorWithLambdaParameter2.kt")
+    public void testConstructorWithLambdaParameter2() throws Exception {
+        doTest("idea/testData/completion/handlers/smart/ConstructorWithLambdaParameter2.kt");
+    }
+    
     @TestMetadata("ConstructorWithParameters.kt")
     public void testConstructorWithParameters() throws Exception {
         doTest("idea/testData/completion/handlers/smart/ConstructorWithParameters.kt");
@@ -104,6 +179,16 @@ public class SmartCompletionHandlerTestGenerated extends AbstractSmartCompletion
     @TestMetadata("EnumMember.kt")
     public void testEnumMember() throws Exception {
         doTest("idea/testData/completion/handlers/smart/EnumMember.kt");
+    }
+    
+    @TestMetadata("FunctionReference1.kt")
+    public void testFunctionReference1() throws Exception {
+        doTest("idea/testData/completion/handlers/smart/FunctionReference1.kt");
+    }
+    
+    @TestMetadata("FunctionReference2.kt")
+    public void testFunctionReference2() throws Exception {
+        doTest("idea/testData/completion/handlers/smart/FunctionReference2.kt");
     }
     
     @TestMetadata("JavaEnumMemberInsertsImport.kt")
@@ -129,6 +214,81 @@ public class SmartCompletionHandlerTestGenerated extends AbstractSmartCompletion
     @TestMetadata("JavaStaticMethodInsertsImport.kt")
     public void testJavaStaticMethodInsertsImport() throws Exception {
         doTest("idea/testData/completion/handlers/smart/JavaStaticMethodInsertsImport.kt");
+    }
+    
+    @TestMetadata("Lambda1.kt")
+    public void testLambda1() throws Exception {
+        doTest("idea/testData/completion/handlers/smart/Lambda1.kt");
+    }
+    
+    @TestMetadata("Lambda2.kt")
+    public void testLambda2() throws Exception {
+        doTest("idea/testData/completion/handlers/smart/Lambda2.kt");
+    }
+    
+    @TestMetadata("Lambda3.kt")
+    public void testLambda3() throws Exception {
+        doTest("idea/testData/completion/handlers/smart/Lambda3.kt");
+    }
+    
+    @TestMetadata("Lambda4.kt")
+    public void testLambda4() throws Exception {
+        doTest("idea/testData/completion/handlers/smart/Lambda4.kt");
+    }
+    
+    @TestMetadata("Lambda5.kt")
+    public void testLambda5() throws Exception {
+        doTest("idea/testData/completion/handlers/smart/Lambda5.kt");
+    }
+    
+    @TestMetadata("LambdaInsertImport.kt")
+    public void testLambdaInsertImport() throws Exception {
+        doTest("idea/testData/completion/handlers/smart/LambdaInsertImport.kt");
+    }
+    
+    @TestMetadata("MergeTail1.kt")
+    public void testMergeTail1() throws Exception {
+        doTest("idea/testData/completion/handlers/smart/MergeTail1.kt");
+    }
+    
+    @TestMetadata("MergeTail2.kt")
+    public void testMergeTail2() throws Exception {
+        doTest("idea/testData/completion/handlers/smart/MergeTail2.kt");
+    }
+    
+    @TestMetadata("MergeTail3.kt")
+    public void testMergeTail3() throws Exception {
+        doTest("idea/testData/completion/handlers/smart/MergeTail3.kt");
+    }
+    
+    @TestMetadata("MergeTail4.kt")
+    public void testMergeTail4() throws Exception {
+        doTest("idea/testData/completion/handlers/smart/MergeTail4.kt");
+    }
+    
+    @TestMetadata("NullableValue1.kt")
+    public void testNullableValue1() throws Exception {
+        doTest("idea/testData/completion/handlers/smart/NullableValue1.kt");
+    }
+    
+    @TestMetadata("NullableValue2.kt")
+    public void testNullableValue2() throws Exception {
+        doTest("idea/testData/completion/handlers/smart/NullableValue2.kt");
+    }
+    
+    @TestMetadata("NullableValue3.kt")
+    public void testNullableValue3() throws Exception {
+        doTest("idea/testData/completion/handlers/smart/NullableValue3.kt");
+    }
+    
+    @TestMetadata("TabReplaceComma1.kt")
+    public void testTabReplaceComma1() throws Exception {
+        doTest("idea/testData/completion/handlers/smart/TabReplaceComma1.kt");
+    }
+    
+    @TestMetadata("TabReplaceComma2.kt")
+    public void testTabReplaceComma2() throws Exception {
+        doTest("idea/testData/completion/handlers/smart/TabReplaceComma2.kt");
     }
     
     @TestMetadata("TabReplaceExpression.kt")

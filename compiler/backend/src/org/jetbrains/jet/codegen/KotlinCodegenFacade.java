@@ -18,7 +18,7 @@ package org.jetbrains.jet.codegen;
 
 import com.intellij.util.containers.MultiMap;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.asm4.Type;
+import org.jetbrains.org.objectweb.asm.Type;
 import org.jetbrains.jet.codegen.state.GenerationState;
 import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.psi.JetScript;
@@ -38,9 +38,10 @@ public class KotlinCodegenFacade {
         for (JetFile file : state.getFiles()) {
             if (file.isScript()) {
                 // SCRIPT: register class name for scripting from this file, move outside of this function
-                FqName name = ScriptNameUtil.classNameForScript(file);
                 JetScript script = file.getScript();
                 assert script != null;
+
+                FqName name = ScriptNameUtil.classNameForScript(script);
                 Type type = AsmUtil.asmTypeByFqNameWithoutInnerClasses(name);
                 registerClassNameForScript(state.getBindingTrace(), script, type);
             }

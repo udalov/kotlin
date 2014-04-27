@@ -23,12 +23,49 @@ import org.jetbrains.jet.context.GlobalContext;
 import org.jetbrains.jet.storage.ExceptionTracker;
 import org.jetbrains.jet.storage.StorageManager;
 
-import java.util.List;
-
 /**
  * Various junk that cannot be placed into context (yet).
  */
 public class TopDownAnalysisParameters implements GlobalContext {
+    private static boolean LAZY;
+
+    static {
+        LAZY = "true".equals(System.getProperty("lazy.tda"));
+    }
+
+    @NotNull
+    public static TopDownAnalysisParameters create(
+            @NotNull StorageManager storageManager,
+            @NotNull ExceptionTracker exceptionTracker,
+            @NotNull Predicate<PsiFile> analyzeCompletely,
+            boolean analyzingBootstrapLibrary,
+            boolean declaredLocally
+    ) {
+        return new TopDownAnalysisParameters(storageManager, exceptionTracker, analyzeCompletely, analyzingBootstrapLibrary,
+                                             declaredLocally, LAZY);
+    }
+
+    @NotNull
+    public static TopDownAnalysisParameters createForLazy(
+            @NotNull StorageManager storageManager,
+            @NotNull ExceptionTracker exceptionTracker,
+            @NotNull Predicate<PsiFile> analyzeCompletely,
+            boolean analyzingBootstrapLibrary,
+            boolean declaredLocally
+    ) {
+        return new TopDownAnalysisParameters(storageManager, exceptionTracker, analyzeCompletely, analyzingBootstrapLibrary,
+                                             declaredLocally, true);
+    }
+
+    @NotNull
+    public static TopDownAnalysisParameters createForLocalDeclarations(
+            @NotNull StorageManager storageManager,
+            @NotNull ExceptionTracker exceptionTracker,
+            @NotNull Predicate<PsiFile> analyzeCompletely
+    ) {
+        return new TopDownAnalysisParameters(storageManager, exceptionTracker, analyzeCompletely, false, true, false);
+    }
+
     @NotNull
     private final StorageManager storageManager;
     @NotNull
@@ -37,23 +74,22 @@ public class TopDownAnalysisParameters implements GlobalContext {
     private final Predicate<PsiFile> analyzeCompletely;
     private final boolean analyzingBootstrapLibrary;
     private final boolean declaredLocally;
-    @NotNull
-    private final List<AnalyzerScriptParameter> scriptParameters;
+    private final boolean lazyTopDownAnalysis;
 
-    public TopDownAnalysisParameters(
+    private TopDownAnalysisParameters(
             @NotNull StorageManager storageManager,
             @NotNull ExceptionTracker exceptionTracker,
             @NotNull Predicate<PsiFile> analyzeCompletely,
             boolean analyzingBootstrapLibrary,
             boolean declaredLocally,
-            @NotNull List<AnalyzerScriptParameter> scriptParameters
+            boolean lazyTopDownAnalysis
     ) {
         this.storageManager = storageManager;
         this.exceptionTracker = exceptionTracker;
         this.analyzeCompletely = analyzeCompletely;
         this.analyzingBootstrapLibrary = analyzingBootstrapLibrary;
         this.declaredLocally = declaredLocally;
-        this.scriptParameters = scriptParameters;
+        this.lazyTopDownAnalysis = lazyTopDownAnalysis;
     }
 
     @Override
@@ -81,8 +117,9 @@ public class TopDownAnalysisParameters implements GlobalContext {
         return declaredLocally;
     }
 
-    @NotNull
-    public List<AnalyzerScriptParameter> getScriptParameters() {
-        return scriptParameters;
+    // Used temporarily while we are transitioning from eager to lazy analysis of headers in the IDE
+    @Deprecated
+    public boolean isLazyTopDownAnalysis() {
+        return lazyTopDownAnalysis;
     }
 }

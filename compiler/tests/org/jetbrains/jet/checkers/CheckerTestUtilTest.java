@@ -24,9 +24,8 @@ import org.jetbrains.jet.JetLiteFixture;
 import org.jetbrains.jet.cli.jvm.compiler.JetCoreEnvironment;
 import org.jetbrains.jet.lang.diagnostics.Diagnostic;
 import org.jetbrains.jet.lang.psi.JetFile;
-import org.jetbrains.jet.lang.resolve.AnalyzerScriptParameter;
 import org.jetbrains.jet.lang.resolve.BindingContext;
-import org.jetbrains.jet.lang.resolve.java.AnalyzerFacadeForJVM;
+import org.jetbrains.jet.lang.resolve.lazy.JvmResolveUtil;
 
 import java.util.Collections;
 import java.util.List;
@@ -108,8 +107,8 @@ public class CheckerTestUtilTest extends JetLiteFixture {
         }
 
         public void test(@NotNull PsiFile psiFile) {
-            BindingContext bindingContext = AnalyzerFacadeForJVM.analyzeOneFileWithJavaIntegration(
-                    (JetFile) psiFile,Collections.<AnalyzerScriptParameter>emptyList())
+            BindingContext bindingContext = JvmResolveUtil.analyzeOneFileWithJavaIntegration(
+                    (JetFile) psiFile)
                     .getBindingContext();
 
             String expectedText = CheckerTestUtil.addDiagnosticMarkersToText(psiFile, CheckerTestUtil.getDiagnosticsIncludingSyntaxErrors(bindingContext, psiFile)).toString();

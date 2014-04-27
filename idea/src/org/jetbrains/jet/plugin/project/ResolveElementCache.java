@@ -27,6 +27,7 @@ import kotlin.Function1;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.di.InjectorForBodyResolve;
+import org.jetbrains.jet.di.InjectorForMacros;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.descriptors.annotations.Annotated;
 import org.jetbrains.jet.lang.psi.*;
@@ -38,8 +39,8 @@ import org.jetbrains.jet.lang.resolve.lazy.descriptors.LazyPackageDescriptor;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
-import org.jetbrains.jet.lang.resolve.scopes.WritableScope;
 import org.jetbrains.jet.lang.types.TypeConstructor;
+import org.jetbrains.jet.lang.types.TypeUtils;
 import org.jetbrains.jet.storage.ExceptionTracker;
 import org.jetbrains.jet.storage.LazyResolveStorageManager;
 import org.jetbrains.jet.storage.MemoizedFunctionToNotNull;
@@ -93,7 +94,8 @@ public class ResolveElementCache {
                 JetAnnotationEntry.class,
                 JetTypeParameter.class,
                 JetTypeConstraint.class,
-                JetPackageDirective.class);
+                JetPackageDirective.class,
+                JetExpressionCodeFragment.class);
 
         if (elementOfAdditionalResolve != null && !(elementOfAdditionalResolve instanceof JetParameter)) {
             if (elementOfAdditionalResolve instanceof JetPackageDirective) {
@@ -129,7 +131,7 @@ public class ResolveElementCache {
         BindingTrace trace = resolveSession.getStorageManager().createSafeTrace(
                 new DelegatingBindingTrace(resolveSession.getBindingContext(), "trace to resolve element", resolveElement));
 
-        JetFile file = (JetFile) resolveElement.getContainingFile();
+        JetFile file = resolveElement.getContainingJetFile();
 
         if (resolveElement instanceof JetNamedFunction) {
             functionAdditionalResolve(resolveSession, (JetNamedFunction) resolveElement, trace, file);
@@ -145,7 +147,7 @@ public class ResolveElementCache {
         }
         else if (resolveElement instanceof JetImportDirective) {
             JetImportDirective importDirective = (JetImportDirective) resolveElement;
-            LazyImportScope scope = resolveSession.getScopeProvider().getExplicitImportsScopeForFile((JetFile) importDirective.getContainingFile());
+            LazyImportScope scope = resolveSession.getScopeProvider().getExplicitImportsScopeForFile(importDirective.getContainingJetFile());
             scope.forceResolveAllContents();
         }
         else if (resolveElement instanceof JetAnnotationEntry) {
@@ -159,6 +161,9 @@ public class ResolveElementCache {
         }
         else if (resolveElement instanceof JetTypeConstraint) {
             typeConstraintAdditionalResolve(resolveSession, (JetTypeConstraint) resolveElement);
+        }
+        else if (resolveElement instanceof JetExpressionCodeFragment) {
+            codeFragmentAdditionalResolve(resolveSession, (JetExpressionCodeFragment) resolveElement, trace);
         }
         else if (PsiTreeUtil.getParentOfType(resolveElement, JetPackageDirective.class) != null) {
             packageRefAdditionalResolve(resolveSession, trace, resolveElement);
@@ -207,15 +212,42 @@ public class ResolveElementCache {
         }
     }
 
+    private void codeFragmentAdditionalResolve(
+            ResolveSession resolveSession,
+            JetExpressionCodeFragment codeFragment,
+            BindingTrace trace
+    ) {
+        JetExpression codeFragmentExpression = codeFragment.getExpression();
+        if (codeFragmentExpression == null) return;
+
+        PsiElement contextElement = codeFragment.getContext();
+        if (!(contextElement instanceof JetExpression)) return;
+
+        JetExpression contextExpression = (JetExpression) contextElement;
+        BindingContext contextForElement = resolveToElement(contextExpression);
+
+        JetScope scopeForContextElement = contextForElement.get(BindingContext.RESOLUTION_SCOPE, contextExpression);
+        if (scopeForContextElement != null) {
+            DataFlowInfo dataFlowInfoForContextElement = contextForElement.get(BindingContext.EXPRESSION_DATA_FLOW_INFO, contextExpression);
+            InjectorForMacros injectorForMacros = new InjectorForMacros(codeFragment.getProject(), resolveSession.getModuleDescriptor());
+            injectorForMacros.getExpressionTypingServices().getType(
+                    scopeForContextElement,
+                    codeFragmentExpression,
+                    TypeUtils.NO_EXPECTED_TYPE,
+                    dataFlowInfoForContextElement == null ? DataFlowInfo.EMPTY : dataFlowInfoForContextElement,
+                    trace
+            );
+        }
+    }
+
     private static void annotationAdditionalResolve(ResolveSession resolveSession, JetAnnotationEntry jetAnnotationEntry) {
         JetDeclaration declaration = PsiTreeUtil.getParentOfType(jetAnnotationEntry, JetDeclaration.class);
         if (declaration != null) {
             Annotated descriptor = resolveSession.resolveToDescriptor(declaration);
 
-            resolveSession.getAnnotationResolver().resolveAnnotationsArguments(
+            AnnotationResolver.resolveAnnotationsArguments(
                     descriptor,
-                    resolveSession.getTrace(),
-                    resolveSession.getScopeProvider().getResolutionScopeForDeclaration(declaration)
+                    resolveSession.getTrace()
             );
 
             ForceResolveUtil.forceResolveAllContents(descriptor.getAnnotations());
@@ -334,9 +366,9 @@ public class ResolveElementCache {
     }
 
     private static TopDownAnalysisParameters createParameters(@NotNull ResolveSession resolveSession) {
-        return new TopDownAnalysisParameters(
-                    resolveSession.getStorageManager(), resolveSession.getExceptionTracker(),
-                    Predicates.<PsiFile>alwaysTrue(), false, true, Collections.<AnalyzerScriptParameter>emptyList());
+        return TopDownAnalysisParameters.createForLocalDeclarations(
+                resolveSession.getStorageManager(), resolveSession.getExceptionTracker(),
+                Predicates.<PsiFile>alwaysTrue());
     }
 
     @NotNull
@@ -348,7 +380,7 @@ public class ResolveElementCache {
         ScopeProvider provider = resolveSession.getScopeProvider();
         JetDeclaration parentDeclaration = PsiTreeUtil.getParentOfType(expression, JetDeclaration.class);
         if (parentDeclaration == null) {
-            return provider.getFileScope((JetFile) expression.getContainingFile());
+            return provider.getFileScope(expression.getContainingJetFile());
         }
         return provider.getResolutionScopeForDeclaration(parentDeclaration);
     }
@@ -382,7 +414,7 @@ public class ResolveElementCache {
 
                 if (expression.getParent() instanceof JetDotQualifiedExpression) {
                     JetExpression element = ((JetDotQualifiedExpression) expression.getParent()).getReceiverExpression();
-                    FqName fqName = ((JetFile) expression.getContainingFile()).getPackageFqName();
+                    FqName fqName = expression.getContainingJetFile().getPackageFqName();
 
                     PackageViewDescriptor filePackage = resolveSession.getModuleDescriptor().getPackage(fqName);
                     assert filePackage != null : "File package should be already resolved and be found";
@@ -457,7 +489,7 @@ public class ResolveElementCache {
         }
 
         @Override
-        public Map<JetClassOrObject, ClassDescriptorWithResolutionScopes> getClasses() {
+        public Map<JetClassOrObject, ClassDescriptorWithResolutionScopes> getDeclaredClasses() {
             return Collections.emptyMap();
         }
 
@@ -479,11 +511,6 @@ public class ResolveElementCache {
 
         @Override
         public Map<JetScript, ScriptDescriptor> getScripts() {
-            return Collections.emptyMap();
-        }
-
-        @Override
-        public Map<JetScript, WritableScope> getScriptScopes() {
             return Collections.emptyMap();
         }
 

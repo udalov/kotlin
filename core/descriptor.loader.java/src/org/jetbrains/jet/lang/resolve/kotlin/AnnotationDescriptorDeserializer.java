@@ -42,7 +42,9 @@ import org.jetbrains.jet.lang.types.ErrorUtils;
 import javax.inject.Inject;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.jetbrains.jet.descriptors.serialization.descriptors.Deserializers.AnnotatedCallableKind;
 import static org.jetbrains.jet.lang.resolve.kotlin.DescriptorDeserializersStorage.MemberSignature;
@@ -119,14 +121,14 @@ public class AnnotationDescriptorDeserializer extends BaseDescriptorDeserializer
         if (JvmAnnotationNames.isSpecialAnnotation(className)) return null;
 
         final ClassDescriptor annotationClass = resolveClass(className, classResolver);
-        final AnnotationDescriptorImpl annotation = new AnnotationDescriptorImpl();
-        annotation.setAnnotationType(annotationClass.getDefaultType());
 
         return new KotlinJvmBinaryClass.AnnotationArgumentVisitor() {
+            private final Map<ValueParameterDescriptor, CompileTimeConstant<?>> arguments = new HashMap<ValueParameterDescriptor, CompileTimeConstant<?>>();
+
             @Override
             public void visit(@Nullable Name name, @Nullable Object value) {
                 if (name != null) {
-                    CompileTimeConstant<?> argument = ConstantsPackage.createCompileTimeConstant(value, true, false, null);
+                    CompileTimeConstant<?> argument = ConstantsPackage.createCompileTimeConstant(value, true, false, false, null);
                     setArgumentValueByName(name, argument != null ? argument : ErrorValue.create("Unsupported annotation argument: " + name));
                 }
             }
@@ -149,7 +151,7 @@ public class AnnotationDescriptorDeserializer extends BaseDescriptorDeserializer
                 if (enumClass.getKind() == ClassKind.ENUM_CLASS) {
                     ClassifierDescriptor classifier = enumClass.getUnsubstitutedInnerClassesScope().getClassifier(name);
                     if (classifier instanceof ClassDescriptor) {
-                        return new EnumValue((ClassDescriptor) classifier);
+                        return new EnumValue((ClassDescriptor) classifier, false);
                     }
                 }
                 return ErrorValue.create("Unresolved enum entry: " + enumClassName.getInternalName() + "." + name);
@@ -157,14 +159,16 @@ public class AnnotationDescriptorDeserializer extends BaseDescriptorDeserializer
 
             @Override
             public void visitEnd() {
-                annotation.markValueArgumentsResolved();
-                result.add(annotation);
+                result.add(new AnnotationDescriptorImpl(
+                        annotationClass.getDefaultType(),
+                        arguments
+                ));
             }
 
             private void setArgumentValueByName(@NotNull Name name, @NotNull CompileTimeConstant<?> argumentValue) {
                 ValueParameterDescriptor parameter = DescriptorResolverUtils.getAnnotationParameterByName(name, annotationClass);
                 if (parameter != null) {
-                    annotation.setValueArgument(parameter, argumentValue);
+                    arguments.put(parameter, argumentValue);
                 }
             }
         };

@@ -24,26 +24,24 @@ import org.jetbrains.jet.di.InjectorForBodyResolve;
 import org.jetbrains.jet.lang.descriptors.ModuleDescriptor;
 import org.jetbrains.jet.lang.resolve.*;
 
-import java.util.List;
-
 public class AnalyzerFacadeForEverything {
 
     private AnalyzerFacadeForEverything() {
     }
 
     public static AnalyzeExhaust analyzeBodiesInFilesWithJavaIntegration(
-            Project project, List<AnalyzerScriptParameter> scriptParameters, Predicate<PsiFile> filesToAnalyzeCompletely,
+            Project project, Predicate<PsiFile> filesToAnalyzeCompletely,
             @NotNull BindingTrace traceContext,
             @NotNull BodiesResolveContext bodiesResolveContext,
-            @NotNull ModuleDescriptor module) {
+            @NotNull ModuleDescriptor module
+    ) {
 
-        TopDownAnalysisParameters topDownAnalysisParameters = new TopDownAnalysisParameters(
+        TopDownAnalysisParameters topDownAnalysisParameters = TopDownAnalysisParameters.create(
                 bodiesResolveContext.getStorageManager(),
                 bodiesResolveContext.getExceptionTracker(),
                 filesToAnalyzeCompletely,
                 false,
-                false,
-                scriptParameters
+                false
         );
 
         bodiesResolveContext.setTopDownAnalysisParameters(topDownAnalysisParameters);

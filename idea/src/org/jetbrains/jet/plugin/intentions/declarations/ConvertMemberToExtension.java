@@ -35,10 +35,10 @@ import org.jetbrains.jet.lang.descriptors.ClassDescriptor;
 import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.BindingContext;
-import org.jetbrains.jet.lexer.JetToken;
+import org.jetbrains.jet.lexer.JetModifierKeywordToken;
 import org.jetbrains.jet.lexer.JetTokens;
 import org.jetbrains.jet.plugin.JetBundle;
-import org.jetbrains.jet.plugin.caches.resolve.KotlinCacheManagerUtil;
+import org.jetbrains.jet.plugin.caches.resolve.ResolvePackage;
 
 import java.util.List;
 
@@ -87,7 +87,7 @@ public class ConvertMemberToExtension extends BaseIntentionAction {
         JetCallableDeclaration member = getTarget(editor, file);
         assert member != null : "Must be checked by isAvailable";
 
-        BindingContext bindingContext = KotlinCacheManagerUtil.getDeclarationsBindingContext(member);
+        BindingContext bindingContext = ResolvePackage.getBindingContext(member);
         DeclarationDescriptor memberDescriptor = bindingContext.get(DECLARATION_TO_DESCRIPTOR, member);
         if (memberDescriptor == null) return;
 
@@ -148,7 +148,7 @@ public class ConvertMemberToExtension extends BaseIntentionAction {
         JetModifierList modifierList = member.getModifierList();
         if (modifierList == null) return "";
         for (IElementType modifierType : JetTokens.VISIBILITY_MODIFIERS.getTypes()) {
-            PsiElement modifier = modifierList.getModifier((JetToken) modifierType);
+            PsiElement modifier = modifierList.getModifier((JetModifierKeywordToken) modifierType);
             if (modifier != null) {
                 return modifierType == JetTokens.PROTECTED_KEYWORD ? "" : modifier.getText() + " ";
             }

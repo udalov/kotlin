@@ -28,7 +28,6 @@ import com.intellij.openapi.editor.colors.EditorColors;
 import com.intellij.openapi.editor.colors.EditorColorsManager;
 import com.intellij.openapi.editor.markup.TextAttributes;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.util.Pair;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.openapi.wm.StatusBar;
 import com.intellij.openapi.wm.WindowManager;
@@ -43,6 +42,7 @@ import com.intellij.refactoring.RefactoringBundle;
 import com.intellij.refactoring.util.CommonRefactoringUtil;
 import com.intellij.refactoring.util.RefactoringMessageDialog;
 import com.intellij.util.Function;
+import kotlin.Pair;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.SimpleFunctionDescriptor;
@@ -58,6 +58,7 @@ import org.jetbrains.jet.lang.types.ErrorUtils;
 import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.lexer.JetTokens;
 import org.jetbrains.jet.plugin.JetLanguage;
+import org.jetbrains.jet.plugin.caches.resolve.ResolvePackage;
 import org.jetbrains.jet.plugin.codeInsight.ShortenReferences;
 import org.jetbrains.jet.plugin.project.AnalyzerFacadeWithCache;
 import org.jetbrains.jet.plugin.project.ResolveSessionForBodies;
@@ -236,7 +237,7 @@ public class KotlinInlineValHandler extends InlineActionHandler {
         return StringUtil.join(fun.getValueParameters(), new Function<ValueParameterDescriptor, String>() {
             @Override
             public String fun(ValueParameterDescriptor descriptor) {
-                return descriptor.getName() + ": " + DescriptorRenderer.TEXT.renderType(descriptor.getType());
+                return descriptor.getName() + ": " + DescriptorRenderer.FQ_NAMES_IN_TYPES.renderType(descriptor.getType());
             }
         }, ", ");
     }
@@ -254,10 +255,10 @@ public class KotlinInlineValHandler extends InlineActionHandler {
     }
 
     private static void addFunctionLiteralParameterTypes(@NotNull String parameters, @NotNull List<JetExpression> inlinedExpressions) {
-        JetFile containingFile = (JetFile) inlinedExpressions.get(0).getContainingFile();
+        JetFile containingFile = inlinedExpressions.get(0).getContainingJetFile();
         List<JetFunctionLiteralExpression> functionsToAddParameters = Lists.newArrayList();
 
-        ResolveSessionForBodies resolveSessionForBodies = AnalyzerFacadeWithCache.getLazyResolveSessionForFile(containingFile);
+        ResolveSessionForBodies resolveSessionForBodies = ResolvePackage.getLazyResolveSession(containingFile);
         for (JetExpression inlinedExpression : inlinedExpressions) {
             JetFunctionLiteralExpression functionLiteralExpression = getFunctionLiteralExpression(inlinedExpression);
             assert functionLiteralExpression != null : "can't find function literal expression for " + inlinedExpression.getText();
@@ -283,7 +284,7 @@ public class KotlinInlineValHandler extends InlineActionHandler {
                         ? nextSibling.copy() : null;
 
                 Pair<PsiElement, PsiElement> whitespaceAndArrow = JetPsiFactory.createWhitespaceAndArrow(containingFile.getProject());
-                functionLiteral.addRangeAfter(whitespaceAndArrow.first, whitespaceAndArrow.second, openBraceElement);
+                functionLiteral.addRangeAfter(whitespaceAndArrow.getFirst(), whitespaceAndArrow.getSecond(), openBraceElement);
 
                 functionLiteral.addAfter(newParameterList, openBraceElement);
                 if (whitespaceToAdd != null) {
@@ -314,10 +315,10 @@ public class KotlinInlineValHandler extends InlineActionHandler {
     }
 
     private static void addTypeArguments(@NotNull String typeArguments, @NotNull List<JetExpression> inlinedExpressions) {
-        JetFile containingFile = (JetFile) inlinedExpressions.get(0).getContainingFile();
+        JetFile containingFile = inlinedExpressions.get(0).getContainingJetFile();
         List<JetCallExpression> callsToAddArguments = Lists.newArrayList();
 
-        ResolveSessionForBodies resolveSessionForBodies = AnalyzerFacadeWithCache.getLazyResolveSessionForFile(containingFile);
+        ResolveSessionForBodies resolveSessionForBodies = ResolvePackage.getLazyResolveSession(containingFile);
         for (JetExpression inlinedExpression : inlinedExpressions) {
             JetCallExpression callExpression = getCallExpression(inlinedExpression);
             assert callExpression != null : "can't find call expression for " + inlinedExpression.getText();
@@ -357,7 +358,7 @@ public class KotlinInlineValHandler extends InlineActionHandler {
         return StringUtil.join(typeArguments, new Function<JetType, String>() {
             @Override
             public String fun(JetType type) {
-                return DescriptorRenderer.TEXT.renderType(type);
+                return DescriptorRenderer.FQ_NAMES_IN_TYPES.renderType(type);
             }
         }, ", ");
     }

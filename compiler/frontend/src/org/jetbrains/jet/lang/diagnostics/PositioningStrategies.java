@@ -27,6 +27,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.JetNodeTypes;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lexer.JetKeywordToken;
+import org.jetbrains.jet.lexer.JetModifierKeywordToken;
 import org.jetbrains.jet.lexer.JetTokens;
 
 import java.util.Arrays;
@@ -97,6 +98,9 @@ public class PositioningStrategies {
             if (nameIdentifier != null) {
                 return markElement(nameIdentifier);
             }
+            if (element instanceof JetObjectDeclaration) {
+                return markElement(((JetObjectDeclaration) element).getObjectKeyword());
+            }
             return markElement(element);
         }
     };
@@ -144,24 +148,26 @@ public class PositioningStrategies {
                         property.getTextRange().getStartOffset(), endOfSignatureElement.getTextRange().getEndOffset()));
             }
             else if (element instanceof JetClass) {
-                // primary constructor
-                JetClass klass = (JetClass)element;
-                PsiElement nameAsDeclaration = klass.getNameIdentifier();
+                PsiElement nameAsDeclaration = element.getNameIdentifier();
                 if (nameAsDeclaration == null) {
-                    return markElement(klass);
+                    return markElement(element);
                 }
-                PsiElement primaryConstructorParameterList = klass.getPrimaryConstructorParameterList();
+                PsiElement primaryConstructorParameterList = ((JetClass) element).getPrimaryConstructorParameterList();
                 if (primaryConstructorParameterList == null) {
                     return markRange(nameAsDeclaration.getTextRange());
                 }
                 return markRange(new TextRange(
                         nameAsDeclaration.getTextRange().getStartOffset(), primaryConstructorParameterList.getTextRange().getEndOffset()));
             }
+            else if (element instanceof JetObjectDeclaration) {
+                return NAME_IDENTIFIER.mark(element);
+            }
             return super.mark(element);
         }
+
         @Override
         public boolean isValid(@NotNull PsiNameIdentifierOwner element) {
-            return element.getNameIdentifier() != null && super.isValid(element);
+            return (element.getNameIdentifier() != null || element instanceof JetObjectDeclaration) && super.isValid(element);
         }
     };
 
@@ -258,10 +264,10 @@ public class PositioningStrategies {
         @NotNull
         @Override
         public List<TextRange> mark(@NotNull JetModifierListOwner element) {
-            List<JetKeywordToken> visibilityTokens = Lists.newArrayList(
+            List<JetModifierKeywordToken> visibilityTokens = Lists.newArrayList(
                     JetTokens.PRIVATE_KEYWORD, JetTokens.PROTECTED_KEYWORD, JetTokens.PUBLIC_KEYWORD, JetTokens.INTERNAL_KEYWORD);
             List<TextRange> result = Lists.newArrayList();
-            for (JetKeywordToken token : visibilityTokens) {
+            for (JetModifierKeywordToken token : visibilityTokens) {
                 if (element.hasModifier(token)) {
                     //noinspection ConstantConditions
                     result.add(element.getModifierList().getModifierNode(token).getTextRange());

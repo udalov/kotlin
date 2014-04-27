@@ -19,10 +19,6 @@ package org.jetbrains.jet.codegen;
 import com.intellij.psi.tree.IElementType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.asm4.Label;
-import org.jetbrains.asm4.Type;
-import org.jetbrains.asm4.commons.InstructionAdapter;
-import org.jetbrains.asm4.commons.Method;
 import org.jetbrains.jet.codegen.intrinsics.IntrinsicMethod;
 import org.jetbrains.jet.codegen.state.GenerationState;
 import org.jetbrains.jet.codegen.state.JetTypeMapper;
@@ -31,12 +27,16 @@ import org.jetbrains.jet.lang.psi.JetExpression;
 import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCall;
 import org.jetbrains.jet.lang.resolve.scopes.receivers.ReceiverValue;
 import org.jetbrains.jet.lexer.JetTokens;
+import org.jetbrains.org.objectweb.asm.Label;
+import org.jetbrains.org.objectweb.asm.Type;
+import org.jetbrains.org.objectweb.asm.commons.InstructionAdapter;
+import org.jetbrains.org.objectweb.asm.commons.Method;
 
 import java.util.List;
 
-import static org.jetbrains.asm4.Opcodes.*;
 import static org.jetbrains.jet.codegen.AsmUtil.*;
 import static org.jetbrains.jet.lang.resolve.java.AsmTypeConstants.*;
+import static org.jetbrains.org.objectweb.asm.Opcodes.*;
 
 public abstract class StackValue {
 
@@ -118,8 +118,8 @@ public abstract class StackValue {
     }
 
     @NotNull
-    public static StackValue arrayElement(Type type, boolean unbox) {
-        return new ArrayElement(type, unbox);
+    public static StackValue arrayElement(Type type) {
+        return new ArrayElement(type);
     }
 
     @NotNull
@@ -330,10 +330,14 @@ public abstract class StackValue {
             ExpressionCodegen codegen,
             @Nullable CallableMethod callableMethod
     ) {
-        if (resolvedCall.getThisObject().exists() || resolvedCall.getReceiverArgument().exists()) {
+        if (resolvedCall.getThisObject().exists() || resolvedCall.getReceiverArgument().exists() || isLocalFunCall(callableMethod)) {
             return new CallReceiver(resolvedCall, receiver, codegen, callableMethod, true);
         }
         return receiver;
+    }
+
+    private static boolean isLocalFunCall(@Nullable CallableMethod callableMethod) {
+        return callableMethod != null && callableMethod.getGenerateCalleeType() != null;
     }
 
     public static StackValue receiverWithoutReceiverArgument(StackValue receiverWithParameter) {
@@ -563,23 +567,20 @@ public abstract class StackValue {
     }
 
     private static class ArrayElement extends StackValue {
-        private final Type boxed;
-
-        public ArrayElement(Type type, boolean unbox) {
+        public ArrayElement(Type type) {
             super(type);
-            this.boxed = unbox ? boxType(type) : type;
         }
 
         @Override
         public void put(Type type, InstructionAdapter v) {
-            v.aload(boxed);    // assumes array and index are on the stack
-            coerce(boxed, type, v);
+            v.aload(this.type);    // assumes array and index are on the stack
+            coerceTo(type, v);
         }
 
         @Override
         public void store(Type topOfStackType, InstructionAdapter v) {
-            coerce(topOfStackType, boxed, v);
-            v.astore(boxed);
+            coerceFrom(topOfStackType, v);
+            v.astore(this.type);
         }
 
         @Override
@@ -676,41 +677,30 @@ public abstract class StackValue {
                 return;
             }
 
-            int size = 0;
-            // ugly hack: getting the last variable index
-            int lastIndex = frame.enterTemp(Type.INT_TYPE);
-            frame.leaveTemp(Type.INT_TYPE);
+            FrameMap.Mark mark = frame.mark();
 
             // indexes
             List<ValueParameterDescriptor> valueParameters = resolvedGetCall.getResultingDescriptor().getValueParameters();
             int firstParamIndex = -1;
             for (int i = valueParameters.size() - 1; i >= 0; --i) {
                 Type type = codegen.typeMapper.mapType(valueParameters.get(i).getType());
-                int sz = type.getSize();
-                frame.enterTemp(type);
-                lastIndex += sz;
-                size += sz;
-                v.store((firstParamIndex = lastIndex) - sz, type);
+                firstParamIndex = frame.enterTemp(type);
+                v.store(firstParamIndex, type);
             }
 
             ReceiverValue receiverParameter = resolvedGetCall.getReceiverArgument();
             int receiverIndex = -1;
             if (receiverParameter.exists()) {
                 Type type = codegen.typeMapper.mapType(receiverParameter.getType());
-                int sz = type.getSize();
-                frame.enterTemp(type);
-                lastIndex += sz;
-                size += sz;
-                v.store((receiverIndex = lastIndex) - sz, type);
+                receiverIndex = frame.enterTemp(type);
+                v.store(receiverIndex, type);
             }
 
             ReceiverValue thisObject = resolvedGetCall.getThisObject();
             int thisIndex = -1;
             if (thisObject.exists()) {
-                frame.enterTemp(OBJECT_TYPE);
-                lastIndex++;
-                size++;
-                v.store((thisIndex = lastIndex) - 1, OBJECT_TYPE);
+                thisIndex = frame.enterTemp(OBJECT_TYPE);
+                v.store(thisIndex, OBJECT_TYPE);
             }
 
             // for setter
@@ -733,11 +723,11 @@ public abstract class StackValue {
                 if (resolvedSetCall.getReceiverArgument().exists()) {
                     codegen.generateFromResolvedCall(resolvedSetCall.getThisObject(), OBJECT_TYPE);
                 }
-                v.load(realReceiverIndex - realReceiverType.getSize(), realReceiverType);
+                v.load(realReceiverIndex, realReceiverType);
             }
             else {
                 if (resolvedSetCall.getReceiverArgument().exists()) {
-                    v.load(realReceiverIndex - realReceiverType.getSize(), realReceiverType);
+                    v.load(realReceiverIndex, realReceiverType);
                 }
                 else {
                     throw new UnsupportedOperationException();
@@ -747,31 +737,27 @@ public abstract class StackValue {
             int index = firstParamIndex;
             for (ValueParameterDescriptor valueParameter : valueParameters) {
                 Type type = codegen.typeMapper.mapType(valueParameter.getType());
-                int sz = type.getSize();
-                v.load(index - sz, type);
-                index -= sz;
+                v.load(index, type);
+                index -= type.getSize();
             }
 
             // restoring original
             if (thisIndex != -1) {
-                v.load(thisIndex - 1, OBJECT_TYPE);
+                v.load(thisIndex, OBJECT_TYPE);
             }
 
             if (receiverIndex != -1) {
-                v.load(receiverIndex - realReceiverType.getSize(), realReceiverType);
+                v.load(receiverIndex, realReceiverType);
             }
 
             index = firstParamIndex;
             for (ValueParameterDescriptor valueParameter : valueParameters) {
                 Type type = codegen.typeMapper.mapType(valueParameter.getType());
-                int sz = type.getSize();
-                v.load(index - sz, type);
-                index -= sz;
+                v.load(index, type);
+                index -= type.getSize();
             }
 
-            for (int i = 0; i < size; i++) {
-                frame.leaveTemp(OBJECT_TYPE);
-            }
+            mark.dropTo();
         }
 
         private boolean isStandardStack(ResolvedCall<?> call, int valueParamsSize) {
@@ -1125,37 +1111,26 @@ public abstract class StackValue {
 
             CallableDescriptor descriptor = resolvedCall.getResultingDescriptor();
 
-            if (thisObject.exists()) {
+            if (receiverArgument.exists()) {
                 if (callableMethod != null) {
-                    if (receiverArgument.exists()) {
-                        return callableMethod.getReceiverClass();
-                    }
-                    else {
-                        //noinspection ConstantConditions
-                        return callableMethod.getThisType();
-                    }
+                    return callableMethod.getReceiverClass();
                 }
                 else {
-                    if (receiverArgument.exists()) {
-                        return codegen.typeMapper.mapType(descriptor.getReceiverParameter().getType());
-                    }
-                    else {
-                        return codegen.typeMapper.mapType(descriptor.getExpectedThisObject().getType());
-                    }
+                    return codegen.typeMapper.mapType(descriptor.getReceiverParameter().getType());
+                }
+            } else if (thisObject.exists()) {
+                if (callableMethod != null) {
+                    return callableMethod.getThisType();
+                }
+                else {
+                    return codegen.typeMapper.mapType(descriptor.getExpectedThisObject().getType());
                 }
             }
+            else if (isLocalFunCall(callableMethod)) {
+                return callableMethod.getGenerateCalleeType();
+            }
             else {
-                if (receiverArgument.exists()) {
-                    if (callableMethod != null) {
-                        return callableMethod.getReceiverClass();
-                    }
-                    else {
-                        return codegen.typeMapper.mapType(descriptor.getReceiverParameter().getType());
-                    }
-                }
-                else {
-                    return Type.VOID_TYPE;
-                }
+                return Type.VOID_TYPE;
             }
         }
 
@@ -1165,27 +1140,33 @@ public abstract class StackValue {
 
             ReceiverValue thisObject = resolvedCall.getThisObject();
             ReceiverValue receiverArgument = resolvedCall.getReceiverArgument();
+            int depth;
             if (thisObject.exists()) {
                 if (receiverArgument.exists()) {
-                    if (callableMethod != null) {
-                        codegen.generateFromResolvedCall(thisObject, callableMethod.getOwner());
-                    }
-                    else {
-                        codegen.generateFromResolvedCall(thisObject, codegen.typeMapper
-                                .mapType(descriptor.getExpectedThisObject().getType()));
-                    }
-                    if (putReceiverArgumentOnStack) {
-                        genReceiver(v, receiverArgument, type, descriptor.getReceiverParameter(), 1);
-                    }
+                    Type resultType = callableMethod != null ? callableMethod.getOwner() : codegen.typeMapper
+                            .mapType(descriptor.getExpectedThisObject().getType());
+
+                    codegen.generateFromResolvedCall(thisObject, resultType);
                 }
                 else {
                     genReceiver(v, thisObject, type, null, 0);
                 }
+
+                depth = 1;
+            } else if (isLocalFunCall(callableMethod)) {
+                assert receiver == none() || receiverArgument.exists(): "Receiver should be present only for local extension function: " + callableMethod;
+                StackValue value = codegen.findLocalOrCapturedValue(descriptor.getOriginal());
+                assert value != null : "Local fun should be found in locals or in captured params: " + resolvedCall;
+                value.put(callableMethod.getGenerateCalleeType(), v);
+
+                depth = 1;
             }
             else {
-                if (putReceiverArgumentOnStack && receiverArgument.exists()) {
-                    genReceiver(v, receiverArgument, type, descriptor.getReceiverParameter(), 0);
-                }
+                depth = 0;
+            }
+
+            if (putReceiverArgumentOnStack && receiverArgument.exists()) {
+                genReceiver(v, receiverArgument, type, descriptor.getReceiverParameter(), depth);
             }
         }
 
@@ -1211,7 +1192,7 @@ public abstract class StackValue {
 
     public abstract static class StackValueWithSimpleReceiver extends StackValue {
 
-        protected final boolean isStatic;
+        public final boolean isStatic;
 
         public StackValueWithSimpleReceiver(@NotNull Type type, boolean isStatic) {
             super(type);

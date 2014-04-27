@@ -481,7 +481,10 @@
                 return value;
             },
             hasNext: function () {
-                return this.i <= this.end;
+                if (this.increment > 0)
+                    return this.i <= this.end;
+                else
+                    return this.i >= this.end;
             }
     });
 
@@ -495,11 +498,11 @@
                 return this.start <= number && number <= this.end;
             },
             iterator: function () {
-                return new Kotlin.RangeIterator(this.start, this.end);
+                return new Kotlin.RangeIterator(this.start, this.end, this.increment);
             }
     });
 
-    Kotlin.Progression = Kotlin.createClassNow(null,
+    Kotlin.NumberProgression = Kotlin.createClassNow(null,
         function (start, end, increment) {
             this.start = start;
             this.end = end;
@@ -598,6 +601,10 @@
         }, {
         append: function (obj) {
             this.string = this.string + obj.toString();
+            return this;
+        },
+        reverse: function () {
+            this.string = this.string.split("").reverse().join("");
             return this;
         },
         toString: function () {

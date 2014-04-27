@@ -6,7 +6,7 @@
   <version>@snapshot@</version>
   <vendor url="http://www.jetbrains.com">JetBrains Inc.</vendor>
 
-  <idea-version since-build="134.1342" until-build="136.9999"/>
+  <idea-version since-build="135.666" until-build="136.9999"/>
 
   <depends optional="true" config-file="junit.xml">JUnit</depends>
   <depends optional="true" config-file="gradle.xml">org.jetbrains.plugins.gradle</depends>
@@ -114,8 +114,8 @@
     <projectService serviceInterface="org.jetbrains.jet.lang.resolve.java.JetFilesProvider"
                     serviceImplementation="org.jetbrains.jet.plugin.project.PluginJetFilesProvider"/>
 
-    <projectService serviceInterface="org.jetbrains.jet.plugin.caches.resolve.KotlinCacheManager"
-                    serviceImplementation="org.jetbrains.jet.plugin.caches.resolve.KotlinCacheManager"/>
+    <projectService serviceInterface="org.jetbrains.jet.plugin.caches.resolve.KotlinCacheService"
+                    serviceImplementation="org.jetbrains.jet.plugin.caches.resolve.KotlinCacheService"/>
 
     <projectService serviceInterface="org.jetbrains.jet.lang.resolve.kotlin.VirtualFileFinder"
                     serviceImplementation="org.jetbrains.jet.plugin.vfilefinder.IDEVirtualFileFinder"/>
@@ -240,6 +240,9 @@
     <renamePsiElementProcessor implementation="org.jetbrains.jet.plugin.refactoring.rename.RenameKotlinFunctionProcessor"
                                id="KotlinFunction"
                                order="first"/>
+    <renamePsiElementProcessor implementation="org.jetbrains.jet.plugin.refactoring.rename.RenameKotlinPropertyProcessor"
+                               id="KotlinProperty"
+                               order="first"/>
 
     <spellchecker.support implementationClass="org.jetbrains.jet.plugin.KotlinSpellcheckingStrategy" language="jet"/>
 
@@ -254,6 +257,7 @@
     <liveTemplateMacro implementation="org.jetbrains.jet.plugin.liveTemplates.macro.JetAnonymousSuperMacro"/>
     <liveTemplateMacro implementation="org.jetbrains.jet.plugin.liveTemplates.macro.JetIterableVariableMacro"/>
     <liveTemplateMacro implementation="org.jetbrains.jet.plugin.liveTemplates.macro.JetSuggestVariableNameMacro"/>
+    <liveTemplateOptionalProcessor implementation="org.jetbrains.jet.plugin.liveTemplates.KotlinShortenFQNamesProcessor"/>
 
     <annotator language="jet" implementationClass="org.jetbrains.jet.plugin.highlighter.JetPsiChecker"/>
     <highlightRangeExtension implementation="org.jetbrains.jet.plugin.highlighter.JetPsiChecker"/>
@@ -305,6 +309,8 @@
         implementationClass="org.jetbrains.jet.plugin.refactoring.safeDelete.KotlinJavaSafeDeleteDelegate"/>
     <debugger.jvmSmartStepIntoHandler implementation="org.jetbrains.jet.plugin.debugger.KotlinSmartStepIntoHandler"/>
     <debugger.positionManagerFactory implementation="org.jetbrains.jet.plugin.debugger.JetPositionManagerFactory"/>
+    <debugger.codeFragmentFactory implementation="org.jetbrains.jet.plugin.debugger.evaluate.KotlinCodeFragmentFactory"/>
+    <debuggerEditorTextProvider language="jet" implementationClass="org.jetbrains.jet.plugin.debugger.KotlinEditorTextProvider"/>
     <codeInsight.implementMethod language="jet" implementationClass="org.jetbrains.jet.plugin.codeInsight.ImplementMethodsHandler"/>
     <codeInsight.overrideMethod language="jet" implementationClass="org.jetbrains.jet.plugin.codeInsight.OverrideMethodsHandler"/>
 
@@ -491,6 +497,16 @@
     </intentionAction>
 
     <intentionAction>
+      <className>org.jetbrains.jet.plugin.intentions.branchedTransformations.intentions.DoubleBangToIfThenIntention</className>
+      <category>Kotlin</category>
+    </intentionAction>
+
+    <intentionAction>
+      <className>org.jetbrains.jet.plugin.intentions.branchedTransformations.intentions.IfThenToDoubleBangIntention</className>
+      <category>Kotlin</category>
+    </intentionAction>
+
+    <intentionAction>
       <className>org.jetbrains.jet.plugin.intentions.branchedTransformations.intentions.ElvisToIfThenIntention</className>
       <category>Kotlin</category>
     </intentionAction>
@@ -551,6 +567,11 @@
     </intentionAction>
 
     <intentionAction>
+      <className>org.jetbrains.jet.plugin.intentions.RemoveExplicitTypeArguments</className>
+      <category>Kotlin</category>
+    </intentionAction>
+
+    <intentionAction>
       <className>org.jetbrains.jet.plugin.intentions.RemoveCurlyBracesFromTemplateIntention</className>
       <category>Kotlin</category>
     </intentionAction>
@@ -562,6 +583,11 @@
 
     <intentionAction>
       <className>org.jetbrains.jet.plugin.intentions.MoveLambdaInsideParenthesesIntention</className>
+      <category>Kotlin</category>
+    </intentionAction>
+
+    <intentionAction>
+      <className>org.jetbrains.jet.plugin.intentions.InsertExplicitTypeArguments</className>
       <category>Kotlin</category>
     </intentionAction>
 
@@ -624,7 +650,53 @@
       <className>org.jetbrains.jet.plugin.intentions.ConvertNegatedExpressionWithDemorgansLawIntention</className>
       <category>Kotlin</category>
     </intentionAction>
+
+    <intentionAction>
+      <className>org.jetbrains.jet.plugin.intentions.SimplifyBooleanWithConstantsIntention</className>
+      <category>Kotlin</category>
+    </intentionAction>
     
+
+    <intentionAction>
+      <className>org.jetbrains.jet.plugin.intentions.SwapBinaryExpression</className>
+      <category>Kotlin</category>
+    </intentionAction>
+
+    <intentionAction>
+      <className>org.jetbrains.jet.plugin.intentions.SplitIfIntention</className>
+      <category>Kotlin</category>
+    </intentionAction>
+
+    <intentionAction>
+      <className>org.jetbrains.jet.plugin.intentions.ReplaceWithOperatorAssignIntention</className>
+      <category>Kotlin</category>
+    </intentionAction>
+
+    <intentionAction>
+      <className>org.jetbrains.jet.plugin.intentions.ReplaceWithTraditionalAssignmentIntention</className>
+      <category>Kotlin</category>
+    </intentionAction>
+
+    <intentionAction>
+      <className>org.jetbrains.jet.plugin.intentions.ConvertAssertToIfWithThrowIntention</className>
+      <category>Kotlin</category>
+    </intentionAction>
+
+    <intentionAction>
+      <className>org.jetbrains.jet.plugin.intentions.ConvertIfWithThrowToAssertIntention</className>
+      <category>Kotlin</category>
+    </intentionAction>
+
+    <intentionAction>
+      <className>org.jetbrains.jet.plugin.intentions.MakeTypeExplicitInLambdaIntention</className>
+      <category>Kotlin</category>
+    </intentionAction>
+
+    <intentionAction>
+      <className>org.jetbrains.jet.plugin.intentions.MakeTypeImplicitInLambdaIntention</className>
+      <category>Kotlin</category>
+    </intentionAction>
+
     <localInspection implementationClass="org.jetbrains.jet.plugin.inspections.ExplicitGetInspection"
         displayName="Explicit 'get'"
         groupName="Kotlin"
@@ -632,10 +704,19 @@
         level="WARNING"
         />
 
-    <intentionAction>
-      <className>org.jetbrains.jet.plugin.intentions.SwapBinaryExpression</className>
-      <category>Kotlin</category>
-    </intentionAction>
+    <localInspection implementationClass="org.jetbrains.jet.plugin.inspections.IfThenToElvisInspection"
+        displayName="If-Then foldable to '?:'"
+        groupName="Kotlin"
+        enabledByDefault="true"
+        level="WARNING"
+        />
+
+    <localInspection implementationClass="org.jetbrains.jet.plugin.inspections.IfThenToSafeAccessInspection"
+        displayName="If-Then foldable to '?.'"
+        groupName="Kotlin"
+        enabledByDefault="true"
+        level="WARNING"
+        />
 
     <project.converterProvider implementation="org.jetbrains.jet.plugin.converters.JetRunConfigurationSettingsFormatConverterProvider"/>
 

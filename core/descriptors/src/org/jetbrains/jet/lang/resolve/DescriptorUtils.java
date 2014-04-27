@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2013 JetBrains s.r.o.
+ * Copyright 2010-2014 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -55,12 +55,6 @@ public class DescriptorUtils {
         assert substitutedFunction != null : "Substituting upper bounds should always be legal";
 
         return substitutedFunction;
-    }
-
-    @NotNull
-    public static Modality convertModality(@NotNull Modality modality, boolean makeNonAbstract) {
-        if (makeNonAbstract && modality == Modality.ABSTRACT) return Modality.OPEN;
-        return modality;
     }
 
     @Nullable
@@ -470,8 +464,11 @@ public class DescriptorUtils {
                containing instanceof ClassDescriptor && isTopLevelOrInnerClass((ClassDescriptor) containing);
     }
 
-    // This method works correctly because every fake override has a declaration among its ancestors, and no fake override is allowed
-    // to have two different declarations among its ancestors, none of which is an ancestor of the other
+    /**
+     * Given a fake override, finds any declaration of it in the overridden descriptors. Keep in mind that there may be many declarations
+     * of the fake override in the supertypes, this method finds just the only one.
+     * TODO: probably all call-sites of this method are wrong, they should handle all super-declarations
+     */
     @NotNull
     public static <D extends CallableMemberDescriptor> D unwrapFakeOverride(@NotNull D descriptor) {
         while (descriptor.getKind() == CallableMemberDescriptor.Kind.FAKE_OVERRIDE) {

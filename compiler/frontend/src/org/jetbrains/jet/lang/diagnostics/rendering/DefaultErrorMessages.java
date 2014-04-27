@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2013 JetBrains s.r.o.
+ * Copyright 2010-2014 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@ import org.jetbrains.jet.lang.psi.JetSimpleNameExpression;
 import org.jetbrains.jet.lang.psi.JetTypeConstraint;
 import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.lexer.JetKeywordToken;
-import org.jetbrains.jet.renderer.DescriptorRenderer;
+import org.jetbrains.jet.lexer.JetModifierKeywordToken;
 import org.jetbrains.jet.renderer.Renderer;
 
 import java.lang.reflect.Field;
@@ -34,34 +34,26 @@ import java.util.Collection;
 
 import static org.jetbrains.jet.lang.diagnostics.Errors.*;
 import static org.jetbrains.jet.lang.diagnostics.rendering.Renderers.*;
-import static org.jetbrains.jet.renderer.DescriptorRenderer.SHORT_NAMES_IN_TYPES;
+import static org.jetbrains.jet.renderer.DescriptorRenderer.*;
 
 public class DefaultErrorMessages {
     public static final DiagnosticFactoryToRendererMap MAP = new DiagnosticFactoryToRendererMap();
     public static final DiagnosticRenderer<Diagnostic> RENDERER = new DispatchingDiagnosticRenderer(MAP);
 
     static {
-        MAP.put(EXCEPTION_WHILE_ANALYZING, "{0}", new Renderer<Throwable>() {
-            @NotNull
-            @Override
-            public String render(@NotNull Throwable e) {
-                return e.getClass().getSimpleName() + ": " + e.getMessage();
-            }
-        });
-
         MAP.put(UNRESOLVED_REFERENCE, "Unresolved reference: {0}", ELEMENT_TEXT);
 
         MAP.put(INVISIBLE_REFERENCE, "Cannot access ''{0}'': it is ''{1}'' in ''{2}''", NAME, TO_STRING, NAME);
         MAP.put(INVISIBLE_MEMBER, "Cannot access ''{0}'': it is ''{1}'' in ''{2}''", NAME, TO_STRING, NAME);
 
-        MAP.put(REDECLARATION, "Redeclaration: {0}", NAME);
-        MAP.put(NAME_SHADOWING, "Name shadowed: {0}", NAME);
+        MAP.put(REDECLARATION, "Redeclaration: {0}", STRING);
+        MAP.put(NAME_SHADOWING, "Name shadowed: {0}", STRING);
 
         MAP.put(TYPE_MISMATCH, "Type mismatch: inferred type is {1} but {0} was expected", RENDER_TYPE, RENDER_TYPE);
-        MAP.put(INCOMPATIBLE_MODIFIERS, "Incompatible modifiers: ''{0}''", new Renderer<Collection<JetKeywordToken>>() {
+        MAP.put(INCOMPATIBLE_MODIFIERS, "Incompatible modifiers: ''{0}''", new Renderer<Collection<JetModifierKeywordToken>>() {
             @NotNull
             @Override
-            public String render(@NotNull Collection<JetKeywordToken> tokens) {
+            public String render(@NotNull Collection<JetModifierKeywordToken> tokens) {
                 StringBuilder sb = new StringBuilder();
                 for (JetKeywordToken token : tokens) {
                     if (sb.length() != 0) {
@@ -140,8 +132,8 @@ public class DefaultErrorMessages {
         MAP.put(PROPERTY_INITIALIZER_IN_TRAIT, "Property initializers are not allowed in traits");
         MAP.put(FINAL_PROPERTY_IN_TRAIT, "Abstract property in trait cannot be final");
         MAP.put(PROPERTY_INITIALIZER_NO_BACKING_FIELD, "Initializer is not allowed here because this property has no backing field");
-        MAP.put(ABSTRACT_PROPERTY_IN_NON_ABSTRACT_CLASS, "Abstract property ''{0}'' in non-abstract class ''{1}''", NAME, NAME);
-        MAP.put(ABSTRACT_FUNCTION_IN_NON_ABSTRACT_CLASS, "Abstract function ''{0}'' in non-abstract class ''{1}''", NAME, NAME);
+        MAP.put(ABSTRACT_PROPERTY_IN_NON_ABSTRACT_CLASS, "Abstract property ''{0}'' in non-abstract class ''{1}''", STRING, NAME);
+        MAP.put(ABSTRACT_FUNCTION_IN_NON_ABSTRACT_CLASS, "Abstract function ''{0}'' in non-abstract class ''{1}''", STRING, NAME);
         MAP.put(ABSTRACT_FUNCTION_WITH_BODY, "A function ''{0}'' with body cannot be abstract", NAME);
         MAP.put(NON_ABSTRACT_FUNCTION_WITH_NO_BODY, "Function ''{0}'' without a body must be abstract", NAME);
         MAP.put(FINAL_FUNCTION_WITH_NO_BODY, "Function ''{0}'' without body cannot be final", NAME);
@@ -158,8 +150,8 @@ public class DefaultErrorMessages {
 
         MAP.put(DATA_CLASS_OVERRIDE_CONFLICT, "Function ''{0}'' generated for the data class conflicts with member of supertype ''{1}''", NAME, NAME);
 
-        MAP.put(CANNOT_OVERRIDE_INVISIBLE_MEMBER, "''{0}'' cannot has no access to ''{1}'' in class {2}, so it cannot override it",
-                DescriptorRenderer.TEXT, DescriptorRenderer.TEXT, DescriptorRenderer.TEXT);
+        MAP.put(CANNOT_OVERRIDE_INVISIBLE_MEMBER, "''{0}'' has no access to ''{1}'', so it cannot override it", FQ_NAMES_IN_TYPES,
+                FQ_NAMES_IN_TYPES);
         MAP.put(CANNOT_INFER_VISIBILITY, "Cannot infer visibility. Please specify it explicitly");
 
         MAP.put(ENUM_ENTRY_SHOULD_BE_INITIALIZED, "Missing delegation specifier ''{0}''", NAME);
@@ -171,7 +163,7 @@ public class DefaultErrorMessages {
         MAP.put(UNUSED_PARAMETER, "Parameter ''{0}'' is never used", NAME);
         MAP.put(ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE, "Variable ''{0}'' is assigned but never accessed", NAME);
         MAP.put(VARIABLE_WITH_REDUNDANT_INITIALIZER, "Variable ''{0}'' initializer is redundant", NAME);
-        MAP.put(UNUSED_VALUE, "The value ''{0}'' assigned to ''{1}'' is never used", ELEMENT_TEXT, TO_STRING);
+        MAP.put(UNUSED_VALUE, "The value ''{0}'' assigned to ''{1}'' is never used", ELEMENT_TEXT, FQ_NAMES_IN_TYPES);
         MAP.put(UNUSED_CHANGED_VALUE, "The value changed at ''{0}'' is never used", ELEMENT_TEXT);
         MAP.put(UNUSED_EXPRESSION, "The expression is unused");
         MAP.put(UNUSED_FUNCTION_LITERAL, "The function literal is unused. If you mean block, you can use 'run { ... }'");
@@ -217,7 +209,7 @@ public class DefaultErrorMessages {
         MAP.put(EQUALS_MISSING, "No method 'equals(kotlin.Any?): kotlin.Boolean' available");
         MAP.put(ASSIGNMENT_IN_EXPRESSION_CONTEXT, "Assignments are not expressions, and only expressions are allowed in this context");
         MAP.put(PACKAGE_IS_NOT_AN_EXPRESSION, "'package' is not an expression, it can only be used on the left-hand side of a dot ('.')");
-        MAP.put(SUPER_IS_NOT_AN_EXPRESSION, "''{0}'' is not an expression, it can only be used on the left-hand side of a dot ('.')", TO_STRING);
+        MAP.put(SUPER_IS_NOT_AN_EXPRESSION, "''{0}'' is not an expression, it can only be used on the left-hand side of a dot ('.')", STRING);
         MAP.put(DECLARATION_IN_ILLEGAL_CONTEXT, "Declarations are not allowed in this position");
         MAP.put(SETTER_PARAMETER_WITH_DEFAULT_VALUE, "Setter parameters cannot have default values");
         MAP.put(NO_THIS, "'this' is not defined in this context");
@@ -253,11 +245,12 @@ public class DefaultErrorMessages {
         MAP.put(ITERATOR_MISSING, "For-loop range must have an iterator() method");
         MAP.put(ITERATOR_AMBIGUITY, "Method ''iterator()'' is ambiguous for this expression: {0}", AMBIGUOUS_CALLS);
 
-        MAP.put(DELEGATE_SPECIAL_FUNCTION_MISSING, "Missing ''{0}'' method on delegate of type ''{1}''", TO_STRING, RENDER_TYPE);
-        MAP.put(DELEGATE_SPECIAL_FUNCTION_AMBIGUITY, "Overload resolution ambiguity on method ''{0}'': {1}",  TO_STRING, AMBIGUOUS_CALLS);
-        MAP.put(DELEGATE_SPECIAL_FUNCTION_NONE_APPLICABLE, "Property delegate must have a ''{0}'' method. None of the following functions is suitable: {1}", TO_STRING,  AMBIGUOUS_CALLS);
+        MAP.put(DELEGATE_SPECIAL_FUNCTION_MISSING, "Missing ''{0}'' method on delegate of type ''{1}''", STRING, RENDER_TYPE);
+        MAP.put(DELEGATE_SPECIAL_FUNCTION_AMBIGUITY, "Overload resolution ambiguity on method ''{0}'': {1}",  STRING, AMBIGUOUS_CALLS);
+        MAP.put(DELEGATE_SPECIAL_FUNCTION_NONE_APPLICABLE, "Property delegate must have a ''{0}'' method. None of the following functions is suitable: {1}",
+                STRING, AMBIGUOUS_CALLS);
         MAP.put(DELEGATE_SPECIAL_FUNCTION_RETURN_TYPE_MISMATCH, "The ''{0}'' function of property delegate is expected to return ''{1}'', but returns ''{2}''",
-                TO_STRING, RENDER_TYPE, RENDER_TYPE);
+                STRING, RENDER_TYPE, RENDER_TYPE);
 
         MAP.put(COMPARE_TO_TYPE_MISMATCH, "''compareTo()'' must return kotlin.Int, but returns {0}", RENDER_TYPE);
 
@@ -292,9 +285,9 @@ public class DefaultErrorMessages {
         MAP.put(CONFLICTING_UPPER_BOUNDS, "Upper bounds of {0} have empty intersection", NAME);
         MAP.put(CONFLICTING_CLASS_OBJECT_UPPER_BOUNDS, "Class object upper bounds of {0} have empty intersection", NAME);
 
-        MAP.put(TOO_MANY_ARGUMENTS, "Too many arguments for {0}", DescriptorRenderer.TEXT);
+        MAP.put(TOO_MANY_ARGUMENTS, "Too many arguments for {0}", FQ_NAMES_IN_TYPES);
 
-        MAP.put(CONSTANT_EXPECTED_TYPE_MISMATCH, "An {0} literal does not conform to the expected type {1}", TO_STRING, RENDER_TYPE);
+        MAP.put(CONSTANT_EXPECTED_TYPE_MISMATCH, "An {0} literal does not conform to the expected type {1}", STRING, RENDER_TYPE);
         MAP.put(INTEGER_OVERFLOW, "This operation has led to an overflow");
         MAP.put(INT_LITERAL_OUT_OF_RANGE, "The value is out of range");
         MAP.put(WRONG_LONG_SUFFIX, "Use 'L' instead of 'l'");
@@ -320,14 +313,14 @@ public class DefaultErrorMessages {
         MAP.put(FINAL_SUPERTYPE, "This type is final, so it cannot be inherited from");
         MAP.put(SINGLETON_IN_SUPERTYPE, "Cannot inherit from a singleton");
 
-        MAP.put(ILLEGAL_SELECTOR, "Expression ''{0}'' cannot be a selector (occur after a dot)", TO_STRING);
+        MAP.put(ILLEGAL_SELECTOR, "Expression ''{0}'' cannot be a selector (occur after a dot)", STRING);
 
         MAP.put(NO_TAIL_CALLS_FOUND, "A function is marked as tail-recursive but no tail calls are found");
         MAP.put(VALUE_PARAMETER_WITH_NO_TYPE_ANNOTATION, "A type annotation is required on a value parameter");
         MAP.put(BREAK_OR_CONTINUE_OUTSIDE_A_LOOP, "'break' and 'continue' are only allowed inside a loop");
         MAP.put(BREAK_OR_CONTINUE_JUMPS_ACROSS_FUNCTION_BOUNDARY, "'break' or 'continue' jumps across a function boundary");
-        MAP.put(NOT_A_LOOP_LABEL, "The label ''{0}'' does not denote a loop", TO_STRING);
-        MAP.put(NOT_A_RETURN_LABEL, "The label ''{0}'' does not reference to a context from which we can return", TO_STRING);
+        MAP.put(NOT_A_LOOP_LABEL, "The label ''{0}'' does not denote a loop", STRING);
+        MAP.put(NOT_A_RETURN_LABEL, "The label ''{0}'' does not reference to a context from which we can return", STRING);
 
         MAP.put(ANONYMOUS_INITIALIZER_IN_TRAIT, "Anonymous initializers are not allowed in traits");
         MAP.put(NULLABLE_SUPERTYPE, "A supertype cannot be nullable");
@@ -337,7 +330,7 @@ public class DefaultErrorMessages {
                                                 "Using ''{0}?'' is likely to mislead the reader", RENDER_TYPE);
         MAP.put(UNSAFE_CALL, "Only safe (?.) or non-null asserted (!!.) calls are allowed on a nullable receiver of type {0}", RENDER_TYPE);
         MAP.put(AMBIGUOUS_LABEL, "Ambiguous label");
-        MAP.put(UNSUPPORTED, "Unsupported [{0}]", TO_STRING);
+        MAP.put(UNSUPPORTED, "Unsupported [{0}]", STRING);
         MAP.put(UNNECESSARY_SAFE_CALL, "Unnecessary safe call on a non-null receiver of type {0}", RENDER_TYPE);
         MAP.put(UNNECESSARY_NOT_NULL_ASSERTION, "Unnecessary non-null assertion (!!) on a non-null receiver of type {0}", RENDER_TYPE);
         MAP.put(NAME_IN_CONSTRAINT_IS_NOT_A_TYPE_PARAMETER, "{0} does not refer to a type parameter of {1}", new Renderer<JetTypeConstraint>() {
@@ -347,9 +340,9 @@ public class DefaultErrorMessages {
                 //noinspection ConstantConditions
                 return typeConstraint.getSubjectTypeParameterName().getReferencedName();
             }
-        }, NAME);
-        MAP.put(AUTOCAST_IMPOSSIBLE, "Automatic cast to ''{0}'' is impossible, because ''{1}'' could have changed since the is-check", RENDER_TYPE,
-                NAME);
+        }, DECLARATION_NAME);
+        MAP.put(AUTOCAST_IMPOSSIBLE,
+                "Automatic cast to ''{0}'' is impossible, because ''{1}'' could have changed since the is-check", RENDER_TYPE, STRING);
 
         MAP.put(VARIANCE_ON_TYPE_PARAMETER_OF_FUNCTION_OR_PROPERTY, "Variance annotations are only allowed for type parameters of classes and traits");
         MAP.put(REDUNDANT_PROJECTION, "Projection is redundant: the corresponding type parameter of {0} has the same variance", NAME);
@@ -383,21 +376,20 @@ public class DefaultErrorMessages {
         MAP.put(CANNOT_CHANGE_ACCESS_PRIVILEGE, "Cannot change access privilege ''{0}'' for ''{1}'' in ''{2}''", TO_STRING, NAME, NAME);
 
         MAP.put(RETURN_TYPE_MISMATCH_ON_OVERRIDE, "Return type of ''{0}'' is not a subtype of the return type of overridden member {1}",
-                NAME, DescriptorRenderer.TEXT);
+                NAME, FQ_NAMES_IN_TYPES);
 
         MAP.put(PROPERTY_TYPE_MISMATCH_ON_OVERRIDE, "Type of ''{0}'' doesn't match to the type of overridden var-property {1}",
-                NAME, DescriptorRenderer.TEXT);
+                NAME, FQ_NAMES_IN_TYPES);
 
-        MAP.put(VAR_OVERRIDDEN_BY_VAL, "Var-property {0} cannot be overridden by val-property {1}", DescriptorRenderer.TEXT,
-                DescriptorRenderer.TEXT);
+        MAP.put(VAR_OVERRIDDEN_BY_VAL, "Var-property {0} cannot be overridden by val-property {1}", FQ_NAMES_IN_TYPES, FQ_NAMES_IN_TYPES);
 
         MAP.put(ABSTRACT_MEMBER_NOT_IMPLEMENTED, "{0} must be declared abstract or implement abstract member {1}", RENDER_CLASS_OR_OBJECT,
-                DescriptorRenderer.TEXT);
+                FQ_NAMES_IN_TYPES);
 
         MAP.put(MANY_IMPL_MEMBER_NOT_IMPLEMENTED, "{0} must override {1} because it inherits many implementations of it",
-                RENDER_CLASS_OR_OBJECT, DescriptorRenderer.TEXT);
+                RENDER_CLASS_OR_OBJECT, FQ_NAMES_IN_TYPES);
 
-        MAP.put(CONFLICTING_OVERLOADS, "{1} is already defined in ''{0}''", DescriptorRenderer.TEXT, TO_STRING);
+        MAP.put(CONFLICTING_OVERLOADS, "''{0}'' is already defined in {1}", COMPACT_WITH_MODIFIERS, STRING);
 
         MAP.put(FUNCTION_EXPECTED, "Expression ''{0}''{1} cannot be invoked as a function. The function 'invoke()' is not found", ELEMENT_TEXT, new Renderer<JetType>() {
             @NotNull
@@ -417,11 +409,11 @@ public class DefaultErrorMessages {
         MAP.put(NON_TAIL_RECURSIVE_CALL, "Recursive call is not a tail call");
         MAP.put(TAIL_RECURSION_IN_TRY_IS_NOT_SUPPORTED, "Tail recursion optimization inside try/catch/finally is not supported");
 
-        MAP.put(RESULT_TYPE_MISMATCH, "{0} must return {1} but returns {2}", TO_STRING, RENDER_TYPE, RENDER_TYPE);
+        MAP.put(RESULT_TYPE_MISMATCH, "{0} must return {1} but returns {2}", STRING, RENDER_TYPE, RENDER_TYPE);
         MAP.put(UNSAFE_INFIX_CALL,
                 "Infix call corresponds to a dot-qualified call ''{0}.{1}({2})'' which is not allowed on a nullable receiver ''{0}''. " +
                 "Use '?.'-qualified call instead",
-                TO_STRING, TO_STRING, TO_STRING);
+                STRING, STRING, STRING);
 
         MAP.put(OVERLOAD_RESOLUTION_AMBIGUITY, "Overload resolution ambiguity: {0}", AMBIGUOUS_CALLS);
         MAP.put(NONE_APPLICABLE, "None of the following functions can be called with the arguments supplied: {0}", AMBIGUOUS_CALLS);
@@ -442,7 +434,7 @@ public class DefaultErrorMessages {
 
         MAP.put(WRONG_NUMBER_OF_TYPE_ARGUMENTS, "{0,choice,0#No type arguments|1#Type argument|1<{0,number,integer} type arguments} expected", null);
         MAP.put(NO_TYPE_ARGUMENTS_ON_RHS, "{0,choice,0#No type arguments|1#Type argument|1<{0,number,integer} type arguments} expected. " +
-                                                           "Use ''{1}'' if you don''t want to pass type arguments", null, TO_STRING);
+                                                           "Use ''{1}'' if you don''t want to pass type arguments", null, STRING);
 
         MAP.put(DANGLING_FUNCTION_LITERAL_ARGUMENT_SUSPECTED,
                 "This expression is treated as an argument to the function call on the previous line. " +
@@ -453,7 +445,7 @@ public class DefaultErrorMessages {
         MAP.put(SUPERTYPES_FOR_ANNOTATION_CLASS, "Annotation class cannot have supertypes");
         MAP.put(MISSING_VAL_ON_ANNOTATION_PARAMETER, "'val' keyword is missing on annotation parameter");
         MAP.put(ANNOTATION_CLASS_CONSTRUCTOR_CALL, "Annotation class cannot be instantiated");
-        MAP.put(NOT_AN_ANNOTATION_CLASS, "''{0}'' is not an annotation class", TO_STRING);
+        MAP.put(NOT_AN_ANNOTATION_CLASS, "''{0}'' is not an annotation class", NAME);
         MAP.put(ANNOTATION_CLASS_WITH_BODY, "Body is not allowed for annotation class");
         MAP.put(INVALID_TYPE_OF_ANNOTATION_MEMBER, "Invalid type of annotation member");
         MAP.put(NULLABLE_TYPE_OF_ANNOTATION_MEMBER, "An annotation parameter cannot be nullable");
@@ -467,20 +459,20 @@ public class DefaultErrorMessages {
 
         String multipleDefaultsMessage = "More than one overridden descriptor declares a default value for ''{0}''. " +
                                          "As the compiler can not make sure these values agree, this is not allowed.";
-        MAP.put(MULTIPLE_DEFAULTS_INHERITED_FROM_SUPERTYPES, multipleDefaultsMessage, TO_STRING);
-        MAP.put(MULTIPLE_DEFAULTS_INHERITED_FROM_SUPERTYPES_WHEN_NO_EXPLICIT_OVERRIDE, multipleDefaultsMessage, TO_STRING);
+        MAP.put(MULTIPLE_DEFAULTS_INHERITED_FROM_SUPERTYPES, multipleDefaultsMessage, FQ_NAMES_IN_TYPES);
+        MAP.put(MULTIPLE_DEFAULTS_INHERITED_FROM_SUPERTYPES_WHEN_NO_EXPLICIT_OVERRIDE, multipleDefaultsMessage, FQ_NAMES_IN_TYPES);
 
         MAP.put(PARAMETER_NAME_CHANGED_ON_OVERRIDE, "The corresponding parameter in the supertype ''{0}'' is named ''{1}''. " +
                                                     "This may cause problems when calling this function with named arguments.", NAME, NAME);
 
         MAP.put(DIFFERENT_NAMES_FOR_THE_SAME_PARAMETER_IN_SUPERTYPES,
-                    "Names of the parameter #{1} conflict in the following members of supertypes: ''{0}''" +
-                    "This may cause problems when calling this function with named arguments.", commaSeparated(TO_STRING), TO_STRING);
+                    "Names of the parameter #{1} conflict in the following members of supertypes: ''{0}''. " +
+                    "This may cause problems when calling this function with named arguments.", commaSeparated(FQ_NAMES_IN_TYPES), TO_STRING);
 
         MAP.put(AMBIGUOUS_ANONYMOUS_TYPE_INFERRED, "Right-hand side has anonymous type. Please specify type explicitly", TO_STRING);
 
         MAP.put(EXTENSION_IN_CLASS_REFERENCE_NOT_ALLOWED,
-                "''{0}'' is a member and an extension at the same time. References to such elements are not allowed", TO_STRING);
+                "''{0}'' is a member and an extension at the same time. References to such elements are not allowed", NAME);
         MAP.put(CALLABLE_REFERENCE_LHS_NOT_A_CLASS, "Callable reference left-hand side cannot be a type parameter");
 
         //Inline

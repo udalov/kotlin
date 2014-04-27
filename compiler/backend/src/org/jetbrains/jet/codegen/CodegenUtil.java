@@ -16,13 +16,11 @@
 
 package org.jetbrains.jet.codegen;
 
-import com.intellij.openapi.util.Condition;
 import com.intellij.openapi.util.io.FileUtil;
 import com.intellij.openapi.vfs.VirtualFile;
-import com.intellij.util.ArrayUtil;
-import com.intellij.util.Function;
-import com.intellij.util.containers.ContainerUtil;
 import com.intellij.util.containers.Stack;
+import kotlin.Function1;
+import kotlin.KotlinPackage;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.codegen.binding.CalculatedClosure;
@@ -32,17 +30,11 @@ import org.jetbrains.jet.codegen.context.PackageContext;
 import org.jetbrains.jet.codegen.state.JetTypeMapper;
 import org.jetbrains.jet.config.IncrementalCompilation;
 import org.jetbrains.jet.lang.descriptors.*;
-import org.jetbrains.jet.lang.descriptors.annotations.Annotated;
-import org.jetbrains.jet.lang.descriptors.annotations.AnnotationDescriptor;
 import org.jetbrains.jet.lang.descriptors.annotations.Annotations;
 import org.jetbrains.jet.lang.descriptors.impl.SimpleFunctionDescriptorImpl;
 import org.jetbrains.jet.lang.descriptors.impl.TypeParameterDescriptorImpl;
 import org.jetbrains.jet.lang.resolve.DescriptorUtils;
 import org.jetbrains.jet.lang.resolve.calls.CallResolverUtil;
-import org.jetbrains.jet.lang.resolve.constants.ArrayValue;
-import org.jetbrains.jet.lang.resolve.constants.CompileTimeConstant;
-import org.jetbrains.jet.lang.resolve.constants.JavaClassValue;
-import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.lang.types.TypeUtils;
@@ -190,16 +182,15 @@ public class CodegenUtil {
     }
 
     public static boolean hasAbstractMembers(@NotNull ClassDescriptor classDescriptor) {
-        return ContainerUtil.exists(classDescriptor.getDefaultType().getMemberScope().getAllDescriptors(),
-                                    new Condition<DeclarationDescriptor>() {
-                                        @Override
-                                        public boolean value(DeclarationDescriptor declaration) {
-                                            if (!(declaration instanceof MemberDescriptor)) {
-                                                return false;
-                                            }
-                                            return ((MemberDescriptor) declaration).getModality() == ABSTRACT;
-                                        }
-                                    });
+        return KotlinPackage.any(classDescriptor.getDefaultType().getMemberScope().getAllDescriptors(),
+                                 new Function1<DeclarationDescriptor, Boolean>() {
+                                     @Override
+                                     public Boolean invoke(DeclarationDescriptor descriptor) {
+                                         return descriptor instanceof CallableMemberDescriptor &&
+                                                ((CallableMemberDescriptor) descriptor).getModality() == ABSTRACT;
+                                     }
+                                 }
+        );
     }
 
     /**
@@ -246,12 +237,11 @@ public class CodegenUtil {
     }
 
     @NotNull
-    public static ImplementationBodyCodegen getParentBodyCodegen(@Nullable MemberCodegen classBodyCodegen) {
-        assert classBodyCodegen != null &&
-               classBodyCodegen
-                       .getParentCodegen() instanceof ImplementationBodyCodegen : "Class object should have appropriate parent BodyCodegen";
+    public static ImplementationBodyCodegen getParentBodyCodegen(@Nullable MemberCodegen<?> classBodyCodegen) {
+        assert classBodyCodegen != null && classBodyCodegen.getParentCodegen() instanceof ImplementationBodyCodegen
+                : "Class object should have appropriate parent BodyCodegen";
 
-        return ((ImplementationBodyCodegen) classBodyCodegen.getParentCodegen());
+        return (ImplementationBodyCodegen) classBodyCodegen.getParentCodegen();
     }
 
     static int getPathHashCode(@NotNull VirtualFile file) {
@@ -283,35 +273,5 @@ public class CodegenUtil {
         }
 
         return null;
-    }
-
-    @NotNull
-    public static String[] getExceptions(@NotNull Annotated annotatedDescriptor, @NotNull final JetTypeMapper mapper) {
-        // Can't say 'throws.class', because 'throws' is a reserved work in Java
-        AnnotationDescriptor annotation = annotatedDescriptor.getAnnotations().findAnnotation(new FqName("kotlin.throws"));
-        if (annotation == null) return ArrayUtil.EMPTY_STRING_ARRAY;
-
-        Collection<CompileTimeConstant<?>> values = annotation.getAllValueArguments().values();
-        if (values.isEmpty()) return ArrayUtil.EMPTY_STRING_ARRAY;
-
-        Object value = values.iterator().next();
-        if (!(value instanceof ArrayValue)) return ArrayUtil.EMPTY_STRING_ARRAY;
-        ArrayValue arrayValue = (ArrayValue) value;
-
-        List<String> strings = ContainerUtil.mapNotNull(
-                arrayValue.getValue(),
-                new Function<CompileTimeConstant<?>, String>() {
-                    @Override
-                    public String fun(CompileTimeConstant<?> constant) {
-                        if (constant instanceof JavaClassValue) {
-                            JavaClassValue classValue = (JavaClassValue) constant;
-                            ClassDescriptor classDescriptor = DescriptorUtils.getClassDescriptorForType(classValue.getValue());
-                            return mapper.mapClass(classDescriptor).getInternalName();
-                        }
-                        return null;
-                    }
-                }
-        );
-        return strings.toArray(new String[strings.size()]);
     }
 }

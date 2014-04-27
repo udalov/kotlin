@@ -13,3 +13,4 @@ tmp
 workspace.xml
 *.dylib
 *.versionsBackup
+idea/testData/debugger/tinyApp/classes*

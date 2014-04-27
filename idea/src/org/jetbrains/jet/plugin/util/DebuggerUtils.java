@@ -27,7 +27,7 @@ import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.resolve.java.JetFilesProvider;
 import org.jetbrains.jet.lang.resolve.java.JvmClassName;
 import org.jetbrains.jet.lang.resolve.name.FqName;
-import org.jetbrains.jet.plugin.project.AnalyzerFacadeWithCache;
+import org.jetbrains.jet.plugin.caches.resolve.ResolvePackage;
 
 import java.util.Collection;
 
@@ -63,7 +63,7 @@ public class DebuggerUtils {
             return anyFile;
         }
 
-        Collection<JetFile> allPackageFiles = filesProvider.allPackageFiles().fun(anyFile);
+        Collection<JetFile> allPackageFiles = filesProvider.allPackageFiles(anyFile);
         JetFile file = PsiCodegenPredictor.getFileForPackagePartName(allPackageFiles, className);
         if (file != null) {
             return file;
@@ -71,7 +71,8 @@ public class DebuggerUtils {
 
         // In the rare case that there's more than one file with this name in this package,
         // we may actually need to analyze the project in order to find a file which produces this class
-        AnalyzeExhaust analyzeExhaust = AnalyzerFacadeWithCache.analyzeFileWithCache(anyFile);
+        // TODO: this code is not entirely correct, because it takes a session for only one file
+        AnalyzeExhaust analyzeExhaust = ResolvePackage.getAnalysisResultsForElements(files);
 
         return PsiCodegenPredictor.getFileForCodegenNamedClass(analyzeExhaust.getBindingContext(), allPackageFiles, className.getInternalName());
     }

@@ -51,7 +51,7 @@ import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.FqNameUnsafe;
 import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
-import org.jetbrains.jet.lexer.JetKeywordToken;
+import org.jetbrains.jet.lexer.JetModifierKeywordToken;
 import org.jetbrains.jet.plugin.JetLanguage;
 
 import javax.swing.*;
@@ -66,7 +66,7 @@ public class KotlinLightClassForExplicitDeclaration extends KotlinWrappingLightC
 
     @Nullable
     public static KotlinLightClassForExplicitDeclaration create(@NotNull PsiManager manager, @NotNull JetClassOrObject classOrObject) {
-        if (LightClassUtil.belongsToKotlinBuiltIns((JetFile) classOrObject.getContainingFile())) {
+        if (LightClassUtil.belongsToKotlinBuiltIns(classOrObject.getContainingJetFile())) {
             return null;
         }
 
@@ -288,7 +288,7 @@ public class KotlinLightClassForExplicitDeclaration extends KotlinWrappingLightC
                 @NotNull
                 @Override
                 public String getPackageName() {
-                    return ((JetFile) classOrObject.getContainingFile()).getPackageFqName().asString();
+                    return classOrObject.getContainingJetFile().getPackageFqName().asString();
                 }
 
                 @NotNull
@@ -402,13 +402,13 @@ public class KotlinLightClassForExplicitDeclaration extends KotlinWrappingLightC
 
         // PUBLIC, PROTECTED, PRIVATE, ABSTRACT, FINAL
         //noinspection unchecked
-        List<Pair<JetKeywordToken, String>> jetTokenToPsiModifier = Lists.newArrayList(
+        List<Pair<JetModifierKeywordToken, String>> jetTokenToPsiModifier = Lists.newArrayList(
                 Pair.create(PUBLIC_KEYWORD, PsiModifier.PUBLIC),
                 Pair.create(INTERNAL_KEYWORD, PsiModifier.PUBLIC),
                 Pair.create(PROTECTED_KEYWORD, PsiModifier.PROTECTED),
                 Pair.create(FINAL_KEYWORD, PsiModifier.FINAL));
 
-        for (Pair<JetKeywordToken, String> tokenAndModifier : jetTokenToPsiModifier) {
+        for (Pair<JetModifierKeywordToken, String> tokenAndModifier : jetTokenToPsiModifier) {
             if (classOrObject.hasModifier(tokenAndModifier.first)) {
                 psiModifiers.add(tokenAndModifier.second);
             }

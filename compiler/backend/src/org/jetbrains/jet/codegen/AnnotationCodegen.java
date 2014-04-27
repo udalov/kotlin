@@ -19,7 +19,7 @@ package org.jetbrains.jet.codegen;
 import com.intellij.psi.PsiElement;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.asm4.*;
+import org.jetbrains.org.objectweb.asm.*;
 import org.jetbrains.jet.codegen.state.JetTypeMapper;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.descriptors.annotations.Annotated;
@@ -48,7 +48,7 @@ import static org.jetbrains.jet.lang.resolve.BindingContextUtils.descriptorToDec
 public abstract class AnnotationCodegen {
     public static final FqName VOLATILE_FQ_NAME = new FqName("kotlin.volatile");
 
-    private static final AnnotationVisitor NO_ANNOTATION_VISITOR = new AnnotationVisitor(Opcodes.ASM4) {};
+    private static final AnnotationVisitor NO_ANNOTATION_VISITOR = new AnnotationVisitor(Opcodes.ASM5) {};
 
     private final JetTypeMapper typeMapper;
     private final BindingContext bindingContext;

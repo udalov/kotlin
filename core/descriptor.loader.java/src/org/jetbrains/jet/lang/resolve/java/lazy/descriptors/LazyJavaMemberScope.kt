@@ -29,10 +29,8 @@ import org.jetbrains.jet.lang.types.JetType
 import org.jetbrains.jet.lang.resolve.java.descriptor.JavaPropertyDescriptor
 import org.jetbrains.jet.lang.descriptors.impl.PropertyDescriptorImpl
 import java.util.Collections
-import org.jetbrains.annotations.TestOnly
 import org.jetbrains.jet.lang.resolve.java.resolver.ExternalSignatureResolver
 import org.jetbrains.jet.lang.resolve.java.sam.SingleAbstractMethodUtils
-import org.jetbrains.jet.utils.Printer
 import org.jetbrains.jet.lang.resolve.java.descriptor.JavaPackageFragmentDescriptor
 import org.jetbrains.jet.lang.resolve.java.structure.JavaPropertyInitializerEvaluator
 import org.jetbrains.jet.utils.*
@@ -275,7 +273,7 @@ public abstract class LazyJavaMemberScope(
         if (DescriptorUtils.shouldRecordInitializerForProperty(propertyDescriptor, propertyDescriptor.getType())) {
             propertyDescriptor.setCompileTimeInitializer(
                     c.storageManager.createNullableLazyValue {
-                        JavaPropertyInitializerEvaluator.getInstance().getInitializerConstant(field, propertyDescriptor)
+                        c.javaPropertyInitializerEvaluator.getInitializerConstant(field, propertyDescriptor)
                     })
         }
 
@@ -349,7 +347,6 @@ public abstract class LazyJavaMemberScope(
 
     override fun toString() = "Lazy scope for ${getContainingDeclaration()}"
     
-    TestOnly
     override fun printScopeStructure(p: Printer) {
         p.println(javaClass.getSimpleName(), " {")
         p.pushIndent()

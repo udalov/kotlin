@@ -16,17 +16,21 @@
 
 package org.jetbrains.jet.lang.resolve;
 
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.lang.parsing.JetScriptDefinition;
 import org.jetbrains.jet.lang.parsing.JetScriptDefinitionProvider;
 import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.psi.JetPackageDirective;
+import org.jetbrains.jet.lang.psi.JetScript;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 
 public class ScriptNameUtil {
     private ScriptNameUtil() {
     }
 
-    public static FqName classNameForScript(JetFile file) {
+    @NotNull
+    public static FqName classNameForScript(JetScript script) {
+        JetFile file = script.getContainingJetFile();
         JetScriptDefinition scriptDefinition = JetScriptDefinitionProvider.getInstance(file.getProject()).findScriptDefinition(file);
 
         String name = file.getName();

@@ -19,13 +19,13 @@ package org.jetbrains.jet.lang.resolve;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.lang.descriptors.CallableMemberDescriptor;
 import org.jetbrains.jet.lang.descriptors.ScriptDescriptor;
+import org.jetbrains.jet.lang.descriptors.ScriptDescriptorImpl;
 import org.jetbrains.jet.lang.descriptors.SimpleFunctionDescriptor;
 import org.jetbrains.jet.lang.descriptors.impl.PropertyDescriptorImpl;
-import org.jetbrains.jet.lang.psi.JetDeclaration;
-import org.jetbrains.jet.lang.psi.JetNamedFunction;
-import org.jetbrains.jet.lang.psi.JetProperty;
-import org.jetbrains.jet.lang.psi.JetScript;
+import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.calls.autocasts.DataFlowInfo;
+import org.jetbrains.jet.lang.resolve.lazy.ForceResolveUtil;
+import org.jetbrains.jet.lang.resolve.lazy.data.DataPackage;
 import org.jetbrains.jet.lang.resolve.scopes.WritableScope;
 import org.jetbrains.jet.lang.types.ErrorUtils;
 import org.jetbrains.jet.lang.types.JetType;
@@ -46,44 +46,30 @@ public class ScriptBodyResolver {
 
     @NotNull
     private ExpressionTypingServices expressionTypingServices;
-    @NotNull
-    private BindingTrace trace;
-
-    public void setContext(@NotNull TopDownAnalysisContext context) {
-    }
 
     @Inject
     public void setExpressionTypingServices(@NotNull ExpressionTypingServices expressionTypingServices) {
         this.expressionTypingServices = expressionTypingServices;
     }
 
-    @Inject
-    public void setTrace(@NotNull BindingTrace trace) {
-        this.trace = trace;
-    }
 
 
-
-    public void resolveScriptBodies(@NotNull BodiesResolveContext c) {
+    public void resolveScriptBodies(@NotNull BodiesResolveContext c, @NotNull BindingTrace trace) {
         for (Map.Entry<JetScript, ScriptDescriptor> e : c.getScripts().entrySet()) {
             JetScript declaration = e.getKey();
             ScriptDescriptor descriptor = e.getValue();
-            WritableScope scope = c.getScriptScopes().get(declaration);
+
+            if (c.getTopDownAnalysisParameters().isLazyTopDownAnalysis()) {
+                ForceResolveUtil.forceResolveAllContents(descriptor);
+                continue;
+            }
+
+            ScriptDescriptorImpl descriptorImpl = (ScriptDescriptorImpl) descriptor;
 
             // TODO: lock in resolveScriptDeclarations
-            scope.changeLockLevel(WritableScope.LockLevel.READING);
+            descriptorImpl.getScopeForBodyResolution().changeLockLevel(WritableScope.LockLevel.READING);
 
-            ExpressionTypingContext context = ExpressionTypingContext.newContext(
-                    expressionTypingServices,
-                    trace,
-                    scope,
-                    DataFlowInfo.EMPTY,
-                    NO_EXPECTED_TYPE
-            );
-            JetType returnType = expressionTypingServices.getBlockReturnedType(declaration.getBlockExpression(), CoercionStrategy.NO_COERCION, context).getType();
-            if (returnType == null) {
-                returnType = ErrorUtils.createErrorType("getBlockReturnedType returned null");
-            }
+            JetType returnType = resolveScriptReturnType(declaration, descriptor, trace);
 
             List<PropertyDescriptorImpl> properties = new ArrayList<PropertyDescriptorImpl>();
             List<SimpleFunctionDescriptor> functions = new ArrayList<SimpleFunctionDescriptor>();
@@ -91,9 +77,14 @@ public class ScriptBodyResolver {
             BindingContext bindingContext = trace.getBindingContext();
             for (JetDeclaration jetDeclaration : declaration.getDeclarations()) {
                 if (jetDeclaration instanceof JetProperty) {
-                    properties.add((PropertyDescriptorImpl) bindingContext.get(BindingContext.VARIABLE, jetDeclaration));
+                    if (!DataPackage.shouldBeScriptClassMember(jetDeclaration)) continue;
+
+                    PropertyDescriptorImpl propertyDescriptor = (PropertyDescriptorImpl) bindingContext.get(BindingContext.VARIABLE, jetDeclaration);
+                    properties.add(propertyDescriptor);
                 }
                 else if (jetDeclaration instanceof JetNamedFunction) {
+                    if (!DataPackage.shouldBeScriptClassMember(jetDeclaration)) continue;
+
                     SimpleFunctionDescriptor function = bindingContext.get(BindingContext.FUNCTION, jetDeclaration);
                     assert function != null;
                     functions.add(function.copy(descriptor.getClassDescriptor(), function.getModality(), function.getVisibility(),
@@ -101,8 +92,28 @@ public class ScriptBodyResolver {
                 }
             }
 
-            descriptor.initialize(returnType, properties, functions);
+            descriptorImpl.initialize(returnType, properties, functions);
         }
     }
 
+    @NotNull
+    public JetType resolveScriptReturnType(
+            @NotNull JetScript script,
+            @NotNull ScriptDescriptor scriptDescriptor,
+            @NotNull BindingTrace trace
+    ) {
+        // Resolve all contents of the script
+        ExpressionTypingContext context = ExpressionTypingContext.newContext(
+                expressionTypingServices,
+                trace,
+                scriptDescriptor.getScopeForBodyResolution(),
+                DataFlowInfo.EMPTY,
+                NO_EXPECTED_TYPE
+        );
+        JetType returnType = expressionTypingServices.getBlockReturnedType(script.getBlockExpression(), CoercionStrategy.NO_COERCION, context).getType();
+        if (returnType == null) {
+            returnType = ErrorUtils.createErrorType("getBlockReturnedType returned null");
+        }
+        return returnType;
+    }
 }

@@ -28,6 +28,7 @@ import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.psi.JetClass;
 import org.jetbrains.jet.lang.psi.JetClassOrObject;
+import org.jetbrains.jet.lang.psi.JetNamedDeclaration;
 import org.jetbrains.jet.lang.resolve.DescriptorUtils;
 import org.jetbrains.jet.lang.resolve.calls.inference.*;
 import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCall;
@@ -56,6 +57,11 @@ public class Renderers {
         @NotNull
         @Override
         public String render(@NotNull Object element) {
+            if (element instanceof DeclarationDescriptor) {
+                LOG.warn("Diagnostic renderer TO_STRING was used to render an instance of DeclarationDescriptor.\n" +
+                         "This is usually a bad idea, because descriptors' toString() includes some debug information, " +
+                         "which should not be seen by the user.\nDescriptor: " + element);
+            }
             return element.toString();
         }
 
@@ -65,14 +71,19 @@ public class Renderers {
         }
     };
 
-    public static final Renderer<Object> NAME = new Renderer<Object>() {
+    public static final Renderer<String> STRING = new Renderer<String>() {
         @NotNull
         @Override
-        public String render(@NotNull Object element) {
-            if (element instanceof Named) {
-                return ((Named) element).getName().asString();
-            }
-            return element.toString();
+        public String render(@NotNull String element) {
+            return element;
+        }
+    };
+
+    public static final Renderer<Named> NAME = new Renderer<Named>() {
+        @NotNull
+        @Override
+        public String render(@NotNull Named element) {
+            return element.getName().asString();
         }
     };
 
@@ -81,6 +92,14 @@ public class Renderers {
         @Override
         public String render(@NotNull PsiElement element) {
             return element.getText();
+        }
+    };
+
+    public static final Renderer<JetNamedDeclaration> DECLARATION_NAME = new Renderer<JetNamedDeclaration>() {
+        @NotNull
+        @Override
+        public String render(@NotNull JetNamedDeclaration element) {
+            return element.getNameAsSafeName().asString();
         }
     };
 
@@ -101,7 +120,7 @@ public class Renderers {
         @NotNull
         @Override
         public String render(@NotNull JetType type) {
-            return DescriptorRenderer.TEXT.renderType(type);
+            return DescriptorRenderer.FQ_NAMES_IN_TYPES.renderType(type);
         }
     };
 
@@ -112,7 +131,7 @@ public class Renderers {
                 public String render(@NotNull Collection<? extends ResolvedCall<?>> argument) {
                     StringBuilder stringBuilder = new StringBuilder("\n");
                     for (ResolvedCall<?> call : argument) {
-                        stringBuilder.append(DescriptorRenderer.TEXT.render(call.getResultingDescriptor())).append("\n");
+                        stringBuilder.append(DescriptorRenderer.FQ_NAMES_IN_TYPES.render(call.getResultingDescriptor())).append("\n");
                     }
                     return stringBuilder.toString();
                 }

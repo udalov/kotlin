@@ -22,10 +22,10 @@ import com.intellij.openapi.util.Disposer;
 import com.intellij.openapi.util.io.FileUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.asm4.ClassReader;
-import org.jetbrains.asm4.ClassVisitor;
-import org.jetbrains.asm4.MethodVisitor;
-import org.jetbrains.asm4.Opcodes;
+import org.jetbrains.org.objectweb.asm.ClassReader;
+import org.jetbrains.org.objectweb.asm.ClassVisitor;
+import org.jetbrains.org.objectweb.asm.MethodVisitor;
+import org.jetbrains.org.objectweb.asm.Opcodes;
 import org.jetbrains.jet.JetTestUtils;
 import org.jetbrains.jet.OutputFileCollection;
 import org.jetbrains.jet.cli.common.output.outputUtils.OutputUtilsPackage;
@@ -110,7 +110,7 @@ public abstract class AbstractWriteSignatureTest extends TestCaseWithTmpdir {
                 ActualSignature readSignature;
 
                 public Visitor() {
-                    super(Opcodes.ASM4);
+                    super(Opcodes.ASM5);
                 }
 
                 @Override
@@ -126,7 +126,7 @@ public abstract class AbstractWriteSignatureTest extends TestCaseWithTmpdir {
                 public MethodVisitor visitMethod(int access, String name, final String desc, final String signature, String[] exceptions) {
                     if (name.equals(methodName)) {
 
-                        return new MethodVisitor(Opcodes.ASM4) {
+                        return new MethodVisitor(Opcodes.ASM5) {
                             @Override
                             public void visitEnd() {
                                 Assert.assertNull(readSignature);

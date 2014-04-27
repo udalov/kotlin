@@ -41,7 +41,7 @@ public class JetKeywordToken extends JetSingleValueToken {
 
     private final boolean myIsSoft;
 
-    private JetKeywordToken(@NotNull @NonNls String debugName, @NotNull @NonNls String value, boolean isSoft) {
+    protected JetKeywordToken(@NotNull @NonNls String debugName, @NotNull @NonNls String value, boolean isSoft) {
         super(debugName, value);
         myIsSoft = isSoft;
     }

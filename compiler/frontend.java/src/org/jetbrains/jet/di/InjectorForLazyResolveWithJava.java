@@ -33,6 +33,7 @@ import org.jetbrains.jet.lang.resolve.java.resolver.LazyResolveBasedCache;
 import org.jetbrains.jet.lang.resolve.java.resolver.TraceBasedErrorReporter;
 import org.jetbrains.jet.lang.resolve.java.resolver.PsiBasedMethodSignatureChecker;
 import org.jetbrains.jet.lang.resolve.java.resolver.PsiBasedExternalAnnotationResolver;
+import org.jetbrains.jet.lang.resolve.java.structure.impl.JavaPropertyInitializerEvaluatorImpl;
 import org.jetbrains.jet.lang.resolve.AnnotationResolver;
 import org.jetbrains.jet.lang.resolve.calls.CallResolver;
 import org.jetbrains.jet.lang.resolve.calls.ArgumentTypeResolver;
@@ -50,6 +51,8 @@ import org.jetbrains.jet.lang.resolve.calls.CallResolverExtensionProvider;
 import org.jetbrains.jet.lang.resolve.calls.CandidateResolver;
 import org.jetbrains.jet.lang.psi.JetImportsFactory;
 import org.jetbrains.jet.lang.resolve.lazy.ScopeProvider;
+import org.jetbrains.jet.lang.resolve.ScriptBodyResolver;
+import org.jetbrains.jet.lang.resolve.ScriptParameterResolver;
 import org.jetbrains.jet.lang.resolve.java.lazy.LazyJavaPackageFragmentProvider;
 import org.jetbrains.jet.lang.resolve.java.lazy.GlobalJavaResolverContext;
 import org.jetbrains.jet.lang.resolve.kotlin.DeserializedDescriptorResolver;
@@ -81,6 +84,7 @@ public class InjectorForLazyResolveWithJava {
     private final TraceBasedErrorReporter traceBasedErrorReporter;
     private final PsiBasedMethodSignatureChecker psiBasedMethodSignatureChecker;
     private final PsiBasedExternalAnnotationResolver psiBasedExternalAnnotationResolver;
+    private final JavaPropertyInitializerEvaluatorImpl javaPropertyInitializerEvaluator;
     private final AnnotationResolver annotationResolver;
     private final CallResolver callResolver;
     private final ArgumentTypeResolver argumentTypeResolver;
@@ -98,6 +102,8 @@ public class InjectorForLazyResolveWithJava {
     private final CandidateResolver candidateResolver;
     private final JetImportsFactory jetImportsFactory;
     private final ScopeProvider scopeProvider;
+    private final ScriptBodyResolver scriptBodyResolver;
+    private final ScriptParameterResolver scriptParameterResolver;
     private final LazyJavaPackageFragmentProvider lazyJavaPackageFragmentProvider;
     private final GlobalJavaResolverContext globalJavaResolverContext;
     private final DeserializedDescriptorResolver deserializedDescriptorResolver;
@@ -128,7 +134,8 @@ public class InjectorForLazyResolveWithJava {
         this.traceBasedErrorReporter = new TraceBasedErrorReporter();
         this.psiBasedMethodSignatureChecker = new PsiBasedMethodSignatureChecker();
         this.lazyResolveBasedCache = new LazyResolveBasedCache();
-        this.globalJavaResolverContext = new GlobalJavaResolverContext(lockBasedStorageManager, javaClassFinder, virtualFileFinder, deserializedDescriptorResolver, psiBasedExternalAnnotationResolver, traceBasedExternalSignatureResolver, traceBasedErrorReporter, psiBasedMethodSignatureChecker, lazyResolveBasedCache);
+        this.javaPropertyInitializerEvaluator = new JavaPropertyInitializerEvaluatorImpl();
+        this.globalJavaResolverContext = new GlobalJavaResolverContext(lockBasedStorageManager, javaClassFinder, virtualFileFinder, deserializedDescriptorResolver, psiBasedExternalAnnotationResolver, traceBasedExternalSignatureResolver, traceBasedErrorReporter, psiBasedMethodSignatureChecker, lazyResolveBasedCache, javaPropertyInitializerEvaluator);
         this.lazyJavaPackageFragmentProvider = new LazyJavaPackageFragmentProvider(globalJavaResolverContext, getModule());
         this.javaDescriptorResolver = new JavaDescriptorResolver(lazyJavaPackageFragmentProvider, getModule());
         this.memberFilter = org.jetbrains.jet.descriptors.serialization.descriptors.MemberFilter.ALWAYS_TRUE;
@@ -149,6 +156,8 @@ public class InjectorForLazyResolveWithJava {
         this.candidateResolver = new CandidateResolver();
         this.jetImportsFactory = new JetImportsFactory();
         this.scopeProvider = new ScopeProvider(getResolveSession());
+        this.scriptBodyResolver = new ScriptBodyResolver();
+        this.scriptParameterResolver = new ScriptParameterResolver();
         this.descriptorDeserializers = new DescriptorDeserializers();
         this.annotationDescriptorDeserializer = new AnnotationDescriptorDeserializer();
         this.descriptorDeserializersStorage = new DescriptorDeserializersStorage(lockBasedStorageManager);
@@ -159,11 +168,14 @@ public class InjectorForLazyResolveWithJava {
         this.resolveSession.setJetImportFactory(jetImportsFactory);
         this.resolveSession.setQualifiedExpressionResolver(qualifiedExpressionResolver);
         this.resolveSession.setScopeProvider(scopeProvider);
+        this.resolveSession.setScriptBodyResolver(scriptBodyResolver);
+        this.resolveSession.setScriptParameterResolver(scriptParameterResolver);
         this.resolveSession.setTypeResolver(typeResolver);
 
         javaClassFinder.setProject(project);
 
         traceBasedExternalSignatureResolver.setExternalAnnotationResolver(psiBasedExternalAnnotationResolver);
+        traceBasedExternalSignatureResolver.setProject(project);
         traceBasedExternalSignatureResolver.setTrace(bindingTrace);
 
         lazyResolveBasedCache.setSession(resolveSession);
@@ -224,7 +236,11 @@ public class InjectorForLazyResolveWithJava {
 
         jetImportsFactory.setProject(project);
 
-        deserializedDescriptorResolver.setAnnotationDeserializer(descriptorDeserializers);
+        scriptBodyResolver.setExpressionTypingServices(expressionTypingServices);
+
+        scriptParameterResolver.setDependencyClassByQualifiedNameResolver(javaDescriptorResolver);
+
+        deserializedDescriptorResolver.setDeserializers(descriptorDeserializers);
         deserializedDescriptorResolver.setErrorReporter(traceBasedErrorReporter);
         deserializedDescriptorResolver.setJavaDescriptorResolver(javaDescriptorResolver);
         deserializedDescriptorResolver.setJavaPackageFragmentProvider(lazyJavaPackageFragmentProvider);

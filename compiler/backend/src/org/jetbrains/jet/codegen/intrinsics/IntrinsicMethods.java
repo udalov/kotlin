@@ -24,7 +24,7 @@ import org.jetbrains.jet.lang.descriptors.SimpleFunctionDescriptor;
 import org.jetbrains.jet.lang.resolve.CompileTimeConstantUtils;
 import org.jetbrains.jet.lang.resolve.DescriptorUtils;
 import org.jetbrains.jet.lang.resolve.java.JvmPrimitiveType;
-import org.jetbrains.jet.lang.resolve.name.FqName;
+import org.jetbrains.jet.lang.resolve.name.FqNameUnsafe;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.types.expressions.OperatorConventions;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
@@ -33,7 +33,7 @@ import org.jetbrains.jet.lang.types.lang.PrimitiveType;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.jetbrains.asm4.Opcodes.*;
+import static org.jetbrains.org.objectweb.asm.Opcodes.*;
 import static org.jetbrains.jet.lang.resolve.DescriptorUtils.*;
 import static org.jetbrains.jet.lang.types.lang.KotlinBuiltIns.BUILT_INS_PACKAGE_FQ_NAME;
 
@@ -59,8 +59,8 @@ public class IntrinsicMethods {
     private static final EnumValueOf ENUM_VALUE_OF = new EnumValueOf();
     private static final ToString TO_STRING = new ToString();
 
-    private static final FqName KOTLIN_ANY_FQ_NAME = DescriptorUtils.getFqNameSafe(KotlinBuiltIns.getInstance().getAny());
-    private static final FqName KOTLIN_STRING_FQ_NAME = DescriptorUtils.getFqNameSafe(KotlinBuiltIns.getInstance().getString());
+    private static final FqNameUnsafe KOTLIN_ANY_FQ_NAME = DescriptorUtils.getFqName(KotlinBuiltIns.getInstance().getAny());
+    private static final FqNameUnsafe KOTLIN_STRING_FQ_NAME = DescriptorUtils.getFqName(KotlinBuiltIns.getInstance().getString());
 
     private final Map<String, IntrinsicMethod> namedMethods = new HashMap<String, IntrinsicMethod>();
     private static final IntrinsicMethod ARRAY_ITERATOR = new ArrayIterator();

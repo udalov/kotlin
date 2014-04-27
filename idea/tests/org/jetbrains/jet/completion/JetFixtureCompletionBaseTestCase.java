@@ -19,9 +19,14 @@ package org.jetbrains.jet.completion;
 import com.intellij.codeInsight.CodeInsightSettings;
 import com.intellij.codeInsight.completion.CompletionType;
 import com.intellij.codeInsight.lookup.LookupElement;
+import com.intellij.openapi.util.io.FileUtil;
 import com.intellij.testFramework.fixtures.LightCodeInsightFixtureTestCase;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.plugin.project.TargetPlatform;
+
+import java.io.File;
+import java.util.Collections;
+import java.util.List;
 
 public abstract class JetFixtureCompletionBaseTestCase extends LightCodeInsightFixtureTestCase {
     private boolean autoCompleteSetting;
@@ -59,16 +64,16 @@ public abstract class JetFixtureCompletionBaseTestCase extends LightCodeInsightF
     @NotNull
     protected abstract CompletionType completionType();
 
-    public void doTest(String testPath) {
-        myFixture.configureByFile(testPath);
+    public void doTest(String testPath) throws Exception {
+        setUpFixture(testPath);
 
-        String fileText = myFixture.getFile().getText();
+        String fileText = FileUtil.loadFile(new File(testPath), true);
 
         Integer invocationCount = ExpectedCompletionUtils.getInvocationCount(fileText);
 
         myFixture.complete(completionType(), invocationCount == null ? 0 : invocationCount);
 
-        ExpectedCompletionUtils.assertDirectivesValid(fileText);
+        ExpectedCompletionUtils.assertDirectivesValid(fileText, getAdditionalDirectives());
 
         ExpectedCompletionUtils.CompletionProposal[] expected = ExpectedCompletionUtils.itemsShouldExist(fileText, getPlatform());
         ExpectedCompletionUtils.CompletionProposal[] unexpected = ExpectedCompletionUtils.itemsShouldAbsent(fileText, getPlatform());
@@ -93,5 +98,14 @@ public abstract class JetFixtureCompletionBaseTestCase extends LightCodeInsightF
                             ExpectedCompletionUtils.listToString(ExpectedCompletionUtils.getItemsInformation(items))),
                     itemsNumber.intValue(), items.length);
         }
+    }
+
+    @NotNull
+    protected List<String> getAdditionalDirectives() {
+        return Collections.emptyList();
+    }
+
+    protected void setUpFixture(@NotNull String testPath) {
+        myFixture.configureByFile(testPath);
     }
 }

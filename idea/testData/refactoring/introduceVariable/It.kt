@@ -5,12 +5,3 @@ fun b() {
         <selection>it</selection>
     }
 }
-/*
-fun a(op: (Int) -> Int) {}
-fun b() {
-    a {it}
-    a {
-        val i = it
-    }
-}
-*/

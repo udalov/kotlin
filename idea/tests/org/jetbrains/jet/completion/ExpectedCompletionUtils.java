@@ -19,7 +19,6 @@ package org.jetbrains.jet.completion;
 import com.google.common.base.Function;
 import com.google.common.collect.Collections2;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -179,6 +178,9 @@ public class ExpectedCompletionUtils {
                 JsonElement json = parser.parse(proposalStr);
                 proposals.add(new CompletionProposal((JsonObject) json));
             }
+            else if (proposalStr.startsWith("\"") && proposalStr.endsWith("\"")) {
+                proposals.add(new CompletionProposal(proposalStr.substring(1, proposalStr.length() - 1)));
+            }
             else{
                 for(String item : proposalStr.split(",")){
                     proposals.add(new CompletionProposal(item.trim()));
@@ -219,8 +221,10 @@ public class ExpectedCompletionUtils {
         return InTextDirectivesUtils.getPrefixedInt(fileText, WITH_ORDER_PREFIX) != null;
     }
 
-    public static void assertDirectivesValid(String fileText) {
-        InTextDirectivesUtils.assertHasUnknownPrefixes(fileText, KNOWN_PREFIXES);
+    public static void assertDirectivesValid(String fileText, List<String> additionalPrefixes) {
+        List<String> allowedPrefixes = new ArrayList<String>(KNOWN_PREFIXES);
+        allowedPrefixes.addAll(additionalPrefixes);
+        InTextDirectivesUtils.assertHasUnknownPrefixes(fileText, allowedPrefixes);
     }
 
     public static void assertContainsRenderedItems(CompletionProposal[] expected, LookupElement[] items, boolean checkOrder) {

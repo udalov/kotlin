@@ -23,6 +23,9 @@ import com.google.common.collect.Multimap;
 import kotlin.Function0;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.lang.psi.*;
+import org.jetbrains.jet.lang.resolve.lazy.data.JetClassInfoUtil;
+import org.jetbrains.jet.lang.resolve.lazy.data.JetClassLikeInfo;
+import org.jetbrains.jet.lang.resolve.lazy.data.JetScriptInfo;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.storage.NotNullLazyValue;
 import org.jetbrains.jet.storage.StorageManager;
@@ -39,7 +42,7 @@ public abstract class AbstractPsiBasedDeclarationProvider implements Declaration
         private final List<JetDeclaration> allDeclarations = Lists.newArrayList();
         private final Multimap<Name, JetNamedFunction> functions = HashMultimap.create();
         private final Multimap<Name, JetProperty> properties = HashMultimap.create();
-        private final Multimap<Name, JetClassOrObject> classesAndObjects = ArrayListMultimap.create(); // order matters here
+        private final Multimap<Name, JetClassLikeInfo> classesAndObjects = ArrayListMultimap.create(); // order matters here
 
         public void putToIndex(@NotNull JetDeclaration declaration) {
             if (declaration instanceof JetClassInitializer) {
@@ -56,9 +59,22 @@ public abstract class AbstractPsiBasedDeclarationProvider implements Declaration
             }
             else if (declaration instanceof JetClassOrObject) {
                 JetClassOrObject classOrObject = (JetClassOrObject) declaration;
-                classesAndObjects.put(safeNameForLazyResolve(classOrObject.getNameAsName()), classOrObject);
+                classesAndObjects.put(
+                        safeNameForLazyResolve(classOrObject.getNameAsName()),
+                        JetClassInfoUtil.createClassLikeInfo(classOrObject)
+                );
             }
-            else if (declaration instanceof JetParameter || declaration instanceof JetTypedef || declaration instanceof JetMultiDeclaration) {
+            else if (declaration instanceof JetScript) {
+                JetScript script = (JetScript) declaration;
+                JetScriptInfo scriptInfo = new JetScriptInfo(script);
+                classesAndObjects.put(
+                        scriptInfo.getFqName().shortName(),
+                        scriptInfo
+                );
+            }
+            else if (declaration instanceof JetParameter ||
+                     declaration instanceof JetTypedef ||
+                     declaration instanceof JetMultiDeclaration) {
                 // Do nothing, just put it into allDeclarations is enough
             }
             else {
@@ -82,6 +98,7 @@ public abstract class AbstractPsiBasedDeclarationProvider implements Declaration
 
     protected abstract void doCreateIndex(@NotNull Index index);
 
+    @NotNull
     @Override
     public List<JetDeclaration> getAllDeclarations() {
         return index.invoke().allDeclarations;
@@ -101,7 +118,7 @@ public abstract class AbstractPsiBasedDeclarationProvider implements Declaration
 
     @NotNull
     @Override
-    public Collection<JetClassOrObject> getClassOrObjectDeclarations(@NotNull Name name) {
+    public Collection<JetClassLikeInfo> getClassOrObjectDeclarations(@NotNull Name name) {
         return index.invoke().classesAndObjects.get(name);
     }
 }

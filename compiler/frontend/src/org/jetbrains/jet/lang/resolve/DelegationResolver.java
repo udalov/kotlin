@@ -19,8 +19,6 @@ package org.jetbrains.jet.lang.resolve;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Collections2;
-import com.google.common.collect.Lists;
-import com.intellij.psi.PsiElement;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.*;
@@ -32,11 +30,9 @@ import org.jetbrains.jet.lang.psi.JetTypeReference;
 import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.lang.types.TypeUtils;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 
+import static org.jetbrains.jet.lang.descriptors.CallableMemberDescriptor.Kind.DELEGATION;
 import static org.jetbrains.jet.lang.diagnostics.Errors.MANY_IMPL_MEMBER_NOT_IMPLEMENTED;
 import static org.jetbrains.jet.lang.resolve.OverridingUtil.OverrideCompatibilityInfo.Result.OVERRIDABLE;
 
@@ -162,12 +158,11 @@ public final class DelegationResolver<T extends CallableMemberDescriptor> {
     @NotNull
     private Collection<T> generateDelegationCandidates(@NotNull JetType delegatedTraitType) {
         Collection<T> descriptorsToDelegate = overridableMembersNotFromSuperClassOfTrait(delegatedTraitType);
-        Collection<T> result = Lists.newArrayList();
+        Collection<T> result = new ArrayList<T>(descriptorsToDelegate.size());
         for (T memberDescriptor : descriptorsToDelegate) {
-            Modality modality = DescriptorUtils.convertModality(memberDescriptor.getModality(), true);
+            Modality newModality = memberDescriptor.getModality() == Modality.ABSTRACT ? Modality.OPEN : memberDescriptor.getModality();
             @SuppressWarnings("unchecked")
-            T copy = (T) memberDescriptor.copy(ownerDescriptor, modality, memberDescriptor.getVisibility(),
-                                               CallableMemberDescriptor.Kind.DELEGATION, false);
+            T copy = (T) memberDescriptor.copy(ownerDescriptor, newModality, Visibilities.INHERITED, DELEGATION, false);
             result.add(copy);
         }
         return result;
@@ -185,16 +180,11 @@ public final class DelegationResolver<T extends CallableMemberDescriptor> {
         return false;
     }
 
-    private boolean checkClashWithOtherDelegatedMember(
-            @NotNull Collection<T> delegatedMembers,
-            @NotNull T candidate
-    ) {
+    private boolean checkClashWithOtherDelegatedMember(@NotNull Collection<T> delegatedMembers, @NotNull T candidate) {
         for (CallableMemberDescriptor alreadyDelegatedMember : delegatedMembers) {
             if (haveSameSignatures(alreadyDelegatedMember, candidate)) {
                 //trying to delegate to many traits with the same methods
-                PsiElement nameIdentifier = classOrObject.getNameIdentifier();
-                PsiElement element = nameIdentifier != null ? nameIdentifier : classOrObject;
-                trace.report(MANY_IMPL_MEMBER_NOT_IMPLEMENTED.on(element, classOrObject, alreadyDelegatedMember));
+                trace.report(MANY_IMPL_MEMBER_NOT_IMPLEMENTED.on(classOrObject, classOrObject, alreadyDelegatedMember));
                 return true;
             }
         }

@@ -16,6 +16,8 @@
 
 package org.jetbrains.jet.lang.resolve.java.resolver;
 
+import kotlin.Function1;
+import kotlin.Unit;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.*;
@@ -56,10 +58,11 @@ public final class DescriptorResolverUtils {
                     @Override
                     @SuppressWarnings("unchecked")
                     public void addToScope(@NotNull CallableMemberDescriptor fakeOverride) {
-                        OverridingUtil.resolveUnknownVisibilityForMember(fakeOverride, new OverridingUtil.NotInferredVisibilitySink() {
+                        OverridingUtil.resolveUnknownVisibilityForMember(fakeOverride, new Function1<CallableMemberDescriptor, Unit>() {
                             @Override
-                            public void cannotInferVisibility(@NotNull CallableMemberDescriptor descriptor) {
+                            public Unit invoke(@NotNull CallableMemberDescriptor descriptor) {
                                 errorReporter.reportCannotInferVisibility(descriptor);
+                                return Unit.VALUE;
                             }
                         });
                         result.add((D) fakeOverride);
@@ -96,10 +99,14 @@ public final class DescriptorResolverUtils {
     public static boolean shouldBeInEnumClassObject(@NotNull JavaMethod method) {
         if (!method.getContainingClass().isEnum()) return false;
 
-        String signature = JavaSignatureFormatter.getInstance().formatMethod(method);
-
-        return "values()".equals(signature) ||
-               "valueOf(java.lang.String)".equals(signature);
+        String name = method.getName().asString();
+        if (name.equals("values")) {
+            return method.getValueParameters().isEmpty();
+        }
+        else if (name.equals("valueOf")) {
+            return isMethodWithOneParameterWithFqName(method, "java.lang.String");
+        }
+        return false;
     }
 
     public static boolean isObjectMethodInInterface(@NotNull JavaMember member) {
@@ -107,10 +114,29 @@ public final class DescriptorResolverUtils {
     }
 
     public static boolean isObjectMethod(@NotNull JavaMethod method) {
-        String signature = JavaSignatureFormatter.getInstance().formatMethod(method);
-        return "hashCode()".equals(signature) ||
-               "equals(java.lang.Object)".equals(signature) ||
-               "toString()".equals(signature);
+        String name = method.getName().asString();
+        if (name.equals("toString") || name.equals("hashCode")) {
+            return method.getValueParameters().isEmpty();
+        }
+        else if (name.equals("equals")) {
+            return isMethodWithOneParameterWithFqName(method, "java.lang.Object");
+        }
+        return false;
+    }
+
+    private static boolean isMethodWithOneParameterWithFqName(@NotNull JavaMethod method, @NotNull String fqName) {
+        List<JavaValueParameter> parameters = method.getValueParameters();
+        if (parameters.size() == 1) {
+            JavaType type = parameters.get(0).getType();
+            if (type instanceof JavaClassifierType) {
+                JavaClassifier classifier = ((JavaClassifierType) type).getClassifier();
+                if (classifier instanceof JavaClass) {
+                    FqName classFqName = ((JavaClass) classifier).getFqName();
+                    return classFqName != null && classFqName.asString().equals(fqName);
+                }
+            }
+        }
+        return false;
     }
 
     @NotNull
@@ -160,7 +186,7 @@ public final class DescriptorResolverUtils {
         }
         else if (type instanceof JavaArrayType) {
             JavaType erasure = erasure(((JavaArrayType) type).getComponentType(), substitutor);
-            return erasure == null ? null : JavaElementFactory.getInstance().createArrayType(erasure);
+            return erasure == null ? null : erasure.createArrayType();
         }
         else if (type instanceof JavaWildcardType) {
             JavaWildcardType wildcardType = (JavaWildcardType) type;

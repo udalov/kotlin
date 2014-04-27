@@ -16,10 +16,10 @@
 
 package org.jetbrains.jet.codegen.inline;
 
-import org.jetbrains.asm4.Label;
-import org.jetbrains.asm4.MethodVisitor;
-import org.jetbrains.asm4.Opcodes;
-import org.jetbrains.asm4.commons.InstructionAdapter;
+import org.jetbrains.org.objectweb.asm.Label;
+import org.jetbrains.org.objectweb.asm.MethodVisitor;
+import org.jetbrains.org.objectweb.asm.Opcodes;
+import org.jetbrains.org.objectweb.asm.commons.InstructionAdapter;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -35,7 +35,7 @@ public class InlineAdapter extends InstructionAdapter {
     private int nextLocalIndexBeforeInline = -1;
 
     public InlineAdapter(MethodVisitor mv, int localsSize) {
-        super(mv);
+        super(InlineCodegenUtil.API, mv);
         nextLocalIndex = localsSize;
     }
 

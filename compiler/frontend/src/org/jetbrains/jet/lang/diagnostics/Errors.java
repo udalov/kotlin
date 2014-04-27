@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2013 JetBrains s.r.o.
+ * Copyright 2010-2014 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@ import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCall;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.lexer.JetKeywordToken;
+import org.jetbrains.jet.lexer.JetModifierKeywordToken;
 import org.jetbrains.jet.lexer.JetTokens;
 
 import java.lang.reflect.Field;
@@ -48,8 +49,6 @@ public interface Errors {
     // Meta-errors: unsupported features, failure
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-    DiagnosticFactory1<JetFile, Throwable> EXCEPTION_WHILE_ANALYZING = DiagnosticFactory1.create(ERROR);
 
     DiagnosticFactory1<PsiElement, String> UNSUPPORTED = DiagnosticFactory1.create(ERROR);
 
@@ -105,16 +104,16 @@ public interface Errors {
 
     // Modifiers
 
-    DiagnosticFactory1<PsiElement, Collection<JetKeywordToken>> INCOMPATIBLE_MODIFIERS = DiagnosticFactory1.create(ERROR);
-    DiagnosticFactory1<PsiElement, JetKeywordToken> ILLEGAL_MODIFIER = DiagnosticFactory1.create(ERROR);
-    DiagnosticFactory2<PsiElement, JetKeywordToken, JetKeywordToken> REDUNDANT_MODIFIER = DiagnosticFactory2.create(Severity.WARNING);
+    DiagnosticFactory1<PsiElement, Collection<JetModifierKeywordToken>> INCOMPATIBLE_MODIFIERS = DiagnosticFactory1.create(ERROR);
+    DiagnosticFactory1<PsiElement, JetModifierKeywordToken> ILLEGAL_MODIFIER = DiagnosticFactory1.create(ERROR);
+    DiagnosticFactory2<PsiElement, JetModifierKeywordToken, JetModifierKeywordToken> REDUNDANT_MODIFIER = DiagnosticFactory2.create(Severity.WARNING);
 
     // Annotations
 
     DiagnosticFactory0<JetDelegationSpecifierList> SUPERTYPES_FOR_ANNOTATION_CLASS = DiagnosticFactory0.create(ERROR);
     DiagnosticFactory0<JetParameter> MISSING_VAL_ON_ANNOTATION_PARAMETER = DiagnosticFactory0.create(WARNING);
     DiagnosticFactory0<JetCallExpression> ANNOTATION_CLASS_CONSTRUCTOR_CALL = DiagnosticFactory0.create(ERROR);
-    DiagnosticFactory1<JetAnnotationEntry, String> NOT_AN_ANNOTATION_CLASS = DiagnosticFactory1.create(ERROR);
+    DiagnosticFactory1<JetAnnotationEntry, DeclarationDescriptor> NOT_AN_ANNOTATION_CLASS = DiagnosticFactory1.create(ERROR);
     DiagnosticFactory0<PsiElement> ANNOTATION_CLASS_WITH_BODY = DiagnosticFactory0.create(ERROR);
     DiagnosticFactory0<JetTypeReference> INVALID_TYPE_OF_ANNOTATION_MEMBER = DiagnosticFactory0.create(ERROR);
     DiagnosticFactory0<JetTypeReference> NULLABLE_TYPE_OF_ANNOTATION_MEMBER = DiagnosticFactory0.create(ERROR);
@@ -210,8 +209,8 @@ public interface Errors {
     DiagnosticFactory3<PsiNameIdentifierOwner, CallableMemberDescriptor, CallableMemberDescriptor, DeclarationDescriptor> VIRTUAL_MEMBER_HIDDEN =
             DiagnosticFactory3.create(ERROR, NAMED_ELEMENT);
 
-    DiagnosticFactory3<JetModifierListOwner, CallableMemberDescriptor, CallableDescriptor, DeclarationDescriptor> CANNOT_OVERRIDE_INVISIBLE_MEMBER =
-            DiagnosticFactory3.create(ERROR, OVERRIDE_MODIFIER);
+    DiagnosticFactory2<JetModifierListOwner, CallableMemberDescriptor, CallableDescriptor> CANNOT_OVERRIDE_INVISIBLE_MEMBER =
+            DiagnosticFactory2.create(ERROR, OVERRIDE_MODIFIER);
 
     DiagnosticFactory2<JetAnnotationEntry, CallableMemberDescriptor, DeclarationDescriptor> DATA_CLASS_OVERRIDE_CONFLICT =
             DiagnosticFactory2.create(ERROR);
@@ -229,10 +228,10 @@ public interface Errors {
     DiagnosticFactory2<JetNamedDeclaration, CallableMemberDescriptor, CallableMemberDescriptor> PROPERTY_TYPE_MISMATCH_ON_OVERRIDE =
             DiagnosticFactory2.create(ERROR, DECLARATION_RETURN_TYPE);
 
-    DiagnosticFactory2<PsiElement, JetClassOrObject, CallableMemberDescriptor> ABSTRACT_MEMBER_NOT_IMPLEMENTED =
-            DiagnosticFactory2.create(ERROR);
-    DiagnosticFactory2<PsiElement, JetClassOrObject, CallableMemberDescriptor> MANY_IMPL_MEMBER_NOT_IMPLEMENTED =
-            DiagnosticFactory2.create(ERROR);
+    DiagnosticFactory2<JetClassOrObject, JetClassOrObject, CallableMemberDescriptor> ABSTRACT_MEMBER_NOT_IMPLEMENTED =
+            DiagnosticFactory2.create(ERROR, NAME_IDENTIFIER);
+    DiagnosticFactory2<JetClassOrObject, JetClassOrObject, CallableMemberDescriptor> MANY_IMPL_MEMBER_NOT_IMPLEMENTED =
+            DiagnosticFactory2.create(ERROR, NAME_IDENTIFIER);
 
     DiagnosticFactory1<JetNamedDeclaration, Collection<JetType>> AMBIGUOUS_ANONYMOUS_TYPE_INFERRED = DiagnosticFactory1.create(ERROR, NAMED_ELEMENT);
 
@@ -444,10 +443,10 @@ public interface Errors {
     DiagnosticFactory1<JetSimpleNameExpression, VariableDescriptor> UNINITIALIZED_VARIABLE = DiagnosticFactory1.create(ERROR);
     DiagnosticFactory1<JetSimpleNameExpression, ValueParameterDescriptor> UNINITIALIZED_PARAMETER = DiagnosticFactory1.create(ERROR);
 
-    DiagnosticFactory1<PsiNameIdentifierOwner, Object> UNUSED_VARIABLE = DiagnosticFactory1.create(WARNING, NAME_IDENTIFIER);
-    DiagnosticFactory1<PsiNameIdentifierOwner, Object> UNUSED_PARAMETER = DiagnosticFactory1.create(WARNING, NAME_IDENTIFIER);
+    DiagnosticFactory1<PsiNameIdentifierOwner, VariableDescriptor> UNUSED_VARIABLE = DiagnosticFactory1.create(WARNING, NAME_IDENTIFIER);
+    DiagnosticFactory1<PsiNameIdentifierOwner, VariableDescriptor> UNUSED_PARAMETER = DiagnosticFactory1.create(WARNING, NAME_IDENTIFIER);
 
-    DiagnosticFactory1<PsiNameIdentifierOwner, Object> ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE =
+    DiagnosticFactory1<PsiNameIdentifierOwner, VariableDescriptor> ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE =
             DiagnosticFactory1.create(WARNING, NAME_IDENTIFIER);
     DiagnosticFactory1<JetExpression, DeclarationDescriptor> VARIABLE_WITH_REDUNDANT_INITIALIZER = DiagnosticFactory1.create(WARNING);
     DiagnosticFactory2<JetElement, JetElement, DeclarationDescriptor> UNUSED_VALUE = DiagnosticFactory2.create(WARNING);

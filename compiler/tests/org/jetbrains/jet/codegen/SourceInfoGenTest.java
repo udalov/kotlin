@@ -15,9 +15,9 @@
  */
 package org.jetbrains.jet.codegen;
 
-import org.jetbrains.asm4.ClassReader;
-import org.jetbrains.asm4.ClassVisitor;
-import org.jetbrains.asm4.Opcodes;
+import org.jetbrains.org.objectweb.asm.ClassReader;
+import org.jetbrains.org.objectweb.asm.ClassVisitor;
+import org.jetbrains.org.objectweb.asm.Opcodes;
 import org.jetbrains.jet.ConfigurationKind;
 import org.jetbrains.jet.OutputFile;
 
@@ -51,8 +51,8 @@ public class SourceInfoGenTest extends CodegenTestCase {
 
         ClassReader classReader = new ClassReader(file.asByteArray());
 
-        final String [] producer = new String [1];
-        classReader.accept(new ClassVisitor(Opcodes.ASM4) {
+        final String [] producer = new String[1];
+        classReader.accept(new ClassVisitor(Opcodes.ASM5) {
 
             @Override
             public void visitSource(String source, String debug) {

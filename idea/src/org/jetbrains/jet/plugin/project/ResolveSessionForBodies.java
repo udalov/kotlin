@@ -19,16 +19,23 @@ package org.jetbrains.jet.plugin.project;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.ModificationTracker;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+import org.jetbrains.annotations.ReadOnly;
 import org.jetbrains.jet.lang.descriptors.ClassDescriptor;
 import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor;
 import org.jetbrains.jet.lang.descriptors.ModuleDescriptor;
-import org.jetbrains.jet.lang.psi.JetClassOrObject;
-import org.jetbrains.jet.lang.psi.JetDeclaration;
-import org.jetbrains.jet.lang.psi.JetElement;
-import org.jetbrains.jet.lang.psi.JetFile;
+import org.jetbrains.jet.lang.descriptors.ScriptDescriptor;
+import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.lazy.KotlinCodeAnalyzer;
 import org.jetbrains.jet.lang.resolve.lazy.ResolveSession;
+import org.jetbrains.jet.lang.resolve.lazy.ScopeProvider;
+import org.jetbrains.jet.lang.resolve.lazy.descriptors.LazyPackageDescriptor;
+import org.jetbrains.jet.lang.resolve.name.FqName;
+import org.jetbrains.jet.storage.ExceptionTracker;
+import org.jetbrains.jet.storage.StorageManager;
+
+import java.util.Collection;
 
 public class ResolveSessionForBodies implements KotlinCodeAnalyzer, ModificationTracker {
     private final Object createdForObject;
@@ -54,6 +61,7 @@ public class ResolveSessionForBodies implements KotlinCodeAnalyzer, Modification
         return resolveElementCache.resolveToElement(element);
     }
 
+    @NotNull
     @Override
     public ModuleDescriptor getModuleDescriptor() {
         return resolveSession.getModuleDescriptor();
@@ -90,5 +98,40 @@ public class ResolveSessionForBodies implements KotlinCodeAnalyzer, Modification
     @Override
     public String toString() {
         return "ResolveSessionForBodies: " + getModificationCount() + " " + createdForObject + " " + createdForObject.hashCode();
+    }
+
+    @Override
+    @Nullable
+    public LazyPackageDescriptor getPackageFragment(@NotNull FqName fqName) {
+        return resolveSession.getPackageFragment(fqName);
+    }
+
+    @Override
+    @NotNull
+    @ReadOnly
+    public Collection<ClassDescriptor> getTopLevelClassDescriptors(@NotNull FqName fqName) {
+        return resolveSession.getTopLevelClassDescriptors(fqName);
+    }
+
+    @Override
+    @NotNull
+    public ScriptDescriptor getScriptDescriptor(@NotNull JetScript script) {
+        return resolveSession.getScriptDescriptor(script);
+    }
+
+    @Override
+    @NotNull
+    public ScopeProvider getScopeProvider() {
+        return resolveSession.getScopeProvider();
+    }
+
+    @NotNull
+    public StorageManager getStorageManager() {
+        return resolveSession.getStorageManager();
+    }
+
+    @NotNull
+    public ExceptionTracker getExceptionTracker() {
+        return resolveSession.getExceptionTracker();
     }
 }

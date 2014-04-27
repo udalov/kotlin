@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2013 JetBrains s.r.o.
+ * Copyright 2010-2014 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,7 +36,7 @@ import org.jetbrains.jet.lang.resolve.scopes.receivers.ReceiverValue;
 import org.jetbrains.jet.lang.types.*;
 import org.jetbrains.jet.lang.types.expressions.DataFlowUtils;
 import org.jetbrains.jet.lang.types.expressions.ExpressionTypingServices;
-import org.jetbrains.jet.lexer.JetKeywordToken;
+import org.jetbrains.jet.lexer.JetModifierKeywordToken;
 import org.jetbrains.jet.lexer.JetTokens;
 import org.jetbrains.jet.util.Box;
 import org.jetbrains.jet.util.ReenteringLazyValueComputationException;
@@ -120,7 +120,7 @@ public class BodyResolver {
 
         resolvePropertyDeclarationBodies(c);
 
-        if (!TopDownAnalyzer.LAZY) {
+        if (!c.getTopDownAnalysisParameters().isLazyTopDownAnalysis()) {
             resolveClassAnnotations(c);
         }
         resolveAnonymousInitializers(c);
@@ -129,7 +129,7 @@ public class BodyResolver {
         resolveFunctionBodies(c);
 
         // SCRIPT: resolve script bodies
-        scriptBodyResolverResolver.resolveScriptBodies(c);
+        scriptBodyResolverResolver.resolveScriptBodies(c, trace);
 
         if (!c.getTopDownAnalysisParameters().isDeclaredLocally()) {
             computeDeferredTypes();
@@ -145,7 +145,7 @@ public class BodyResolver {
 
     private void resolveDelegationSpecifierLists(@NotNull BodiesResolveContext c) {
         // TODO : Make sure the same thing is not initialized twice
-        for (Map.Entry<JetClassOrObject, ClassDescriptorWithResolutionScopes> entry : c.getClasses().entrySet()) {
+        for (Map.Entry<JetClassOrObject, ClassDescriptorWithResolutionScopes> entry : c.getDeclaredClasses().entrySet()) {
             JetClassOrObject classOrObject = entry.getKey();
             ClassDescriptorWithResolutionScopes descriptor = entry.getValue();
 
@@ -328,13 +328,13 @@ public class BodyResolver {
     }
 
     private void resolveClassAnnotations(@NotNull BodiesResolveContext c) {
-        for (Map.Entry<JetClassOrObject, ClassDescriptorWithResolutionScopes> entry : c.getClasses().entrySet()) {
+        for (Map.Entry<JetClassOrObject, ClassDescriptorWithResolutionScopes> entry : c.getDeclaredClasses().entrySet()) {
             resolveAnnotationArguments(entry.getValue().getScopeForClassHeaderResolution(), entry.getKey());
         }
     }
 
     private void resolveAnonymousInitializers(@NotNull BodiesResolveContext c) {
-        for (Map.Entry<JetClassOrObject, ClassDescriptorWithResolutionScopes> entry : c.getClasses().entrySet()) {
+        for (Map.Entry<JetClassOrObject, ClassDescriptorWithResolutionScopes> entry : c.getDeclaredClasses().entrySet()) {
             JetClassOrObject classOrObject = entry.getKey();
             ClassDescriptorWithResolutionScopes descriptor = entry.getValue();
             resolveAnonymousInitializers(c, classOrObject, descriptor.getUnsubstitutedPrimaryConstructor(),
@@ -372,18 +372,18 @@ public class BodyResolver {
         annotationResolver.resolveAnnotationsWithArguments(scope, modifierList, trace);
 
         for (ASTNode node : modifierList.getModifierNodes()) {
-            trace.report(ILLEGAL_MODIFIER.on(node.getPsi(), (JetKeywordToken) node.getElementType()));
+            trace.report(ILLEGAL_MODIFIER.on(node.getPsi(), (JetModifierKeywordToken) node.getElementType()));
         }
     }
 
     private void resolvePrimaryConstructorParameters(@NotNull BodiesResolveContext c) {
-        for (Map.Entry<JetClassOrObject, ClassDescriptorWithResolutionScopes> entry : c.getClasses().entrySet()) {
+        for (Map.Entry<JetClassOrObject, ClassDescriptorWithResolutionScopes> entry : c.getDeclaredClasses().entrySet()) {
             if (!(entry.getKey() instanceof JetClass)) continue;
             JetClass klass = (JetClass) entry.getKey();
             ClassDescriptorWithResolutionScopes classDescriptor = entry.getValue();
             ConstructorDescriptor unsubstitutedPrimaryConstructor = classDescriptor.getUnsubstitutedPrimaryConstructor();
 
-            annotationResolver.resolveAnnotationsArguments(classDescriptor.getScopeForClassHeaderResolution(), klass.getPrimaryConstructorModifierList(), trace);
+            AnnotationResolver.resolveAnnotationsArguments(klass.getPrimaryConstructorModifierList(), trace);
 
             if (unsubstitutedPrimaryConstructor != null) {
                 WritableScope parameterScope = getPrimaryConstructorParametersScope(classDescriptor.getScopeForClassHeaderResolution(), unsubstitutedPrimaryConstructor);
@@ -413,7 +413,7 @@ public class BodyResolver {
 
         // Member properties
         Set<JetProperty> processed = Sets.newHashSet();
-        for (Map.Entry<JetClassOrObject, ClassDescriptorWithResolutionScopes> entry : c.getClasses().entrySet()) {
+        for (Map.Entry<JetClassOrObject, ClassDescriptorWithResolutionScopes> entry : c.getDeclaredClasses().entrySet()) {
             if (!(entry.getKey() instanceof JetClass)) continue;
             JetClass jetClass = (JetClass) entry.getKey();
             ClassDescriptorWithResolutionScopes classDescriptor = entry.getValue();
@@ -589,7 +589,7 @@ public class BodyResolver {
             JetScope declaringScope = c.getDeclaringScopes().apply(declaration);
             assert declaringScope != null;
 
-            if (!TopDownAnalyzer.LAZY || c.getTopDownAnalysisParameters().isDeclaredLocally()) {
+            if (!c.getTopDownAnalysisParameters().isLazyTopDownAnalysis()) {
                 resolveAnnotationArguments(declaringScope, declaration);
             }
             resolveFunctionBody(c, trace, declaration, descriptor, declaringScope);
@@ -644,7 +644,7 @@ public class BodyResolver {
     }
 
     private void resolveAnnotationArguments(@NotNull JetScope scope, @NotNull JetModifierListOwner owner) {
-        annotationResolver.resolveAnnotationsArguments(scope, owner.getModifierList(), trace);
+        AnnotationResolver.resolveAnnotationsArguments(owner.getModifierList(), trace);
     }
 
     private static void computeDeferredType(JetType type) {

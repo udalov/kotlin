@@ -83,7 +83,7 @@ public class ObjCBuiltIns {
 
     @NotNull
     public JetType getOpaquePointerType() {
-        return pointerTo(SubstitutionUtils.makeStarProjection(getPointerClass().getTypeConstructor().getParameters().get(0)));
+        return pointerTo(TypeUtils.makeStarProjection(getPointerClass().getTypeConstructor().getParameters().get(0)));
     }
 
     @NotNull

@@ -33,7 +33,7 @@ import org.jetbrains.jet.checkers.AbstractJetDiagnosticsTest;
 @InnerTestClasses({JetDiagnosticsTestGenerated.Tests.class, JetDiagnosticsTestGenerated.Script.class, JetDiagnosticsTestGenerated.TailRecursion.class})
 public class JetDiagnosticsTestGenerated extends AbstractJetDiagnosticsTest {
     @TestMetadata("compiler/testData/diagnostics/tests")
-    @InnerTestClasses({Tests.Annotations.class, Tests.BackingField.class, Tests.CallableReference.class, Tests.Cast.class, Tests.CheckArguments.class, Tests.ClassObjects.class, Tests.ControlFlowAnalysis.class, Tests.ControlStructures.class, Tests.DataClasses.class, Tests.DataFlow.class, Tests.DataFlowInfoTraversal.class, Tests.DeclarationChecks.class, Tests.DelegatedProperty.class, Tests.Deparenthesize.class, Tests.Enum.class, Tests.Evaluate.class, Tests.Extensions.class, Tests.FunctionLiterals.class, Tests.Generics.class, Tests.Imports.class, Tests.IncompleteCode.class, Tests.Inference.class, Tests.Infos.class, Tests.Inline.class, Tests.Inner.class, Tests.J_k.class, Tests.Jdk_annotations.class, Tests.Library.class, Tests.NamedArguments.class, Tests.NullabilityAndAutoCasts.class, Tests.NullableTypes.class, Tests.Numbers.class, Tests.Objects.class, Tests.OperatorsOverloading.class, Tests.Overload.class, Tests.Override.class, Tests.Recovery.class, Tests.Redeclarations.class, Tests.Regressions.class, Tests.Resolve.class, Tests.Scopes.class, Tests.SenselessComparison.class, Tests.Shadowing.class, Tests.SmartCasts.class, Tests.Substitutions.class, Tests.Subtyping.class, Tests.Suppress.class, Tests.ThisAndSuper.class, Tests.Unit.class, Tests.Varargs.class, Tests.When.class})
+    @InnerTestClasses({Tests.Annotations.class, Tests.BackingField.class, Tests.CallableReference.class, Tests.Cast.class, Tests.CheckArguments.class, Tests.ClassObjects.class, Tests.ControlFlowAnalysis.class, Tests.ControlStructures.class, Tests.CyclicHierarchy.class, Tests.DataClasses.class, Tests.DataFlow.class, Tests.DataFlowInfoTraversal.class, Tests.DeclarationChecks.class, Tests.DelegatedProperty.class, Tests.Deparenthesize.class, Tests.Enum.class, Tests.Evaluate.class, Tests.Extensions.class, Tests.FunctionLiterals.class, Tests.Generics.class, Tests.Imports.class, Tests.IncompleteCode.class, Tests.Inference.class, Tests.Infos.class, Tests.Inline.class, Tests.Inner.class, Tests.J_k.class, Tests.Jdk_annotations.class, Tests.Library.class, Tests.NamedArguments.class, Tests.NullabilityAndAutoCasts.class, Tests.NullableTypes.class, Tests.Numbers.class, Tests.Objects.class, Tests.OperatorsOverloading.class, Tests.Overload.class, Tests.Override.class, Tests.Recovery.class, Tests.Redeclarations.class, Tests.Regressions.class, Tests.Resolve.class, Tests.Scopes.class, Tests.SenselessComparison.class, Tests.Shadowing.class, Tests.SmartCasts.class, Tests.Substitutions.class, Tests.Subtyping.class, Tests.Suppress.class, Tests.ThisAndSuper.class, Tests.Unit.class, Tests.Varargs.class, Tests.When.class})
     public static class Tests extends AbstractJetDiagnosticsTest {
         @TestMetadata("Abstract.kt")
         public void testAbstract() throws Exception {
@@ -147,11 +147,6 @@ public class JetDiagnosticsTestGenerated extends AbstractJetDiagnosticsTest {
         @TestMetadata("CovariantOverrideType.kt")
         public void testCovariantOverrideType() throws Exception {
             doTest("compiler/testData/diagnostics/tests/CovariantOverrideType.kt");
-        }
-        
-        @TestMetadata("CyclicHierarchy.kt")
-        public void testCyclicHierarchy() throws Exception {
-            doTest("compiler/testData/diagnostics/tests/CyclicHierarchy.kt");
         }
         
         @TestMetadata("DefaultValuesTypechecking.kt")
@@ -619,6 +614,11 @@ public class JetDiagnosticsTestGenerated extends AbstractJetDiagnosticsTest {
             @TestMetadata("onLoops.kt")
             public void testOnLoops() throws Exception {
                 doTest("compiler/testData/diagnostics/tests/annotations/onLoops.kt");
+            }
+            
+            @TestMetadata("onLoopsUnreachable.kt")
+            public void testOnLoopsUnreachable() throws Exception {
+                doTest("compiler/testData/diagnostics/tests/annotations/onLoopsUnreachable.kt");
             }
             
             @TestMetadata("onMultiDeclaration.kt")
@@ -1818,6 +1818,59 @@ public class JetDiagnosticsTestGenerated extends AbstractJetDiagnosticsTest {
             @TestMetadata("when.kt234.kt973.kt")
             public void testWhen_kt234_kt973() throws Exception {
                 doTest("compiler/testData/diagnostics/tests/controlStructures/when.kt234.kt973.kt");
+            }
+            
+        }
+        
+        @TestMetadata("compiler/testData/diagnostics/tests/cyclicHierarchy")
+        public static class CyclicHierarchy extends AbstractJetDiagnosticsTest {
+            public void testAllFilesPresentInCyclicHierarchy() throws Exception {
+                JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), "org.jetbrains.jet.generators.tests.TestsPackage", new File("compiler/testData/diagnostics/tests/cyclicHierarchy"), Pattern.compile("^(.+)\\.kt$"), true);
+            }
+            
+            @TestMetadata("classIndirectlyInheritsNested.kt")
+            public void testClassIndirectlyInheritsNested() throws Exception {
+                doTest("compiler/testData/diagnostics/tests/cyclicHierarchy/classIndirectlyInheritsNested.kt");
+            }
+            
+            @TestMetadata("classInheritsNested.kt")
+            public void testClassInheritsNested() throws Exception {
+                doTest("compiler/testData/diagnostics/tests/cyclicHierarchy/classInheritsNested.kt");
+            }
+            
+            @TestMetadata("cyclicHierarchy.kt")
+            public void testCyclicHierarchy() throws Exception {
+                doTest("compiler/testData/diagnostics/tests/cyclicHierarchy/cyclicHierarchy.kt");
+            }
+            
+            @TestMetadata("javaKotlinJavaCycle.kt")
+            public void testJavaKotlinJavaCycle() throws Exception {
+                doTest("compiler/testData/diagnostics/tests/cyclicHierarchy/javaKotlinJavaCycle.kt");
+            }
+            
+            @TestMetadata("kotlinJavaCycle.kt")
+            public void testKotlinJavaCycle() throws Exception {
+                doTest("compiler/testData/diagnostics/tests/cyclicHierarchy/kotlinJavaCycle.kt");
+            }
+            
+            @TestMetadata("kotlinJavaKotlinCycle.kt")
+            public void testKotlinJavaKotlinCycle() throws Exception {
+                doTest("compiler/testData/diagnostics/tests/cyclicHierarchy/kotlinJavaKotlinCycle.kt");
+            }
+            
+            @TestMetadata("kotlinJavaNestedCycle.kt")
+            public void testKotlinJavaNestedCycle() throws Exception {
+                doTest("compiler/testData/diagnostics/tests/cyclicHierarchy/kotlinJavaNestedCycle.kt");
+            }
+            
+            @TestMetadata("kt303.kt")
+            public void testKt303() throws Exception {
+                doTest("compiler/testData/diagnostics/tests/cyclicHierarchy/kt303.kt");
+            }
+            
+            @TestMetadata("twoClassesWithNestedCycle.kt")
+            public void testTwoClassesWithNestedCycle() throws Exception {
+                doTest("compiler/testData/diagnostics/tests/cyclicHierarchy/twoClassesWithNestedCycle.kt");
             }
             
         }
@@ -3358,6 +3411,11 @@ public class JetDiagnosticsTestGenerated extends AbstractJetDiagnosticsTest {
             @TestMetadata("ImportResolutionOrder.kt")
             public void testImportResolutionOrder() throws Exception {
                 doTest("compiler/testData/diagnostics/tests/imports/ImportResolutionOrder.kt");
+            }
+            
+            @TestMetadata("ImportsHiddenByDefinitionInTheSameFile.kt")
+            public void testImportsHiddenByDefinitionInTheSameFile() throws Exception {
+                doTest("compiler/testData/diagnostics/tests/imports/ImportsHiddenByDefinitionInTheSameFile.kt");
             }
             
             @TestMetadata("RenameOnImport.kt")
@@ -5331,6 +5389,21 @@ public class JetDiagnosticsTestGenerated extends AbstractJetDiagnosticsTest {
                 doTest("compiler/testData/diagnostics/tests/override/kt2052.kt");
             }
             
+            @TestMetadata("kt4785.kt")
+            public void testKt4785() throws Exception {
+                doTest("compiler/testData/diagnostics/tests/override/kt4785.kt");
+            }
+            
+            @TestMetadata("kt4785classObject.kt")
+            public void testKt4785classObject() throws Exception {
+                doTest("compiler/testData/diagnostics/tests/override/kt4785classObject.kt");
+            }
+            
+            @TestMetadata("kt4785delegation.kt")
+            public void testKt4785delegation() throws Exception {
+                doTest("compiler/testData/diagnostics/tests/override/kt4785delegation.kt");
+            }
+            
             @TestMetadata("kt880.kt")
             public void testKt880() throws Exception {
                 doTest("compiler/testData/diagnostics/tests/override/kt880.kt");
@@ -5351,6 +5424,11 @@ public class JetDiagnosticsTestGenerated extends AbstractJetDiagnosticsTest {
                 doTest("compiler/testData/diagnostics/tests/override/MultipleDefaultParametersInSupertypesNoOverride.kt");
             }
             
+            @TestMetadata("MultipleDefaultsAndNamesInSupertypes.kt")
+            public void testMultipleDefaultsAndNamesInSupertypes() throws Exception {
+                doTest("compiler/testData/diagnostics/tests/override/MultipleDefaultsAndNamesInSupertypes.kt");
+            }
+            
             @TestMetadata("MultipleDefaultsInSupertypesNoExplicitOverride.kt")
             public void testMultipleDefaultsInSupertypesNoExplicitOverride() throws Exception {
                 doTest("compiler/testData/diagnostics/tests/override/MultipleDefaultsInSupertypesNoExplicitOverride.kt");
@@ -5359,6 +5437,11 @@ public class JetDiagnosticsTestGenerated extends AbstractJetDiagnosticsTest {
             @TestMetadata("NonGenerics.kt")
             public void testNonGenerics() throws Exception {
                 doTest("compiler/testData/diagnostics/tests/override/NonGenerics.kt");
+            }
+            
+            @TestMetadata("ObjectDelegationManyImpl.kt")
+            public void testObjectDelegationManyImpl() throws Exception {
+                doTest("compiler/testData/diagnostics/tests/override/ObjectDelegationManyImpl.kt");
             }
             
             @TestMetadata("OverridingFinalMember.kt")
@@ -5737,11 +5820,6 @@ public class JetDiagnosticsTestGenerated extends AbstractJetDiagnosticsTest {
             @TestMetadata("kt302.kt")
             public void testKt302() throws Exception {
                 doTest("compiler/testData/diagnostics/tests/regressions/kt302.kt");
-            }
-            
-            @TestMetadata("kt303.kt")
-            public void testKt303() throws Exception {
-                doTest("compiler/testData/diagnostics/tests/regressions/kt303.kt");
             }
             
             @TestMetadata("kt306.kt")
@@ -7104,6 +7182,7 @@ public class JetDiagnosticsTestGenerated extends AbstractJetDiagnosticsTest {
             suite.addTestSuite(ClassObjects.class);
             suite.addTest(ControlFlowAnalysis.innerSuite());
             suite.addTestSuite(ControlStructures.class);
+            suite.addTestSuite(CyclicHierarchy.class);
             suite.addTestSuite(DataClasses.class);
             suite.addTest(DataFlow.innerSuite());
             suite.addTestSuite(DataFlowInfoTraversal.class);

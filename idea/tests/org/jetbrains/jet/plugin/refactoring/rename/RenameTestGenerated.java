@@ -126,4 +126,39 @@ public class RenameTestGenerated extends AbstractRenameTest {
         doTest("idea/testData/refactoring/rename/renameKotlinPackageFunctionFromJava/renameKotlinPackageFunctionFromJava.test");
     }
     
+    @TestMetadata("renameKotlinValProperty/renameAsJavaGetterForExplicitGetter.test")
+    public void testRenameKotlinValProperty_RenameAsJavaGetterForExplicitGetter() throws Exception {
+        doTest("idea/testData/refactoring/rename/renameKotlinValProperty/renameAsJavaGetterForExplicitGetter.test");
+    }
+    
+    @TestMetadata("renameKotlinValProperty/renameBase.test")
+    public void testRenameKotlinValProperty_RenameBase() throws Exception {
+        doTest("idea/testData/refactoring/rename/renameKotlinValProperty/renameBase.test");
+    }
+    
+    @TestMetadata("renameKotlinValProperty/renameOverriden.test")
+    public void testRenameKotlinValProperty_RenameOverriden() throws Exception {
+        doTest("idea/testData/refactoring/rename/renameKotlinValProperty/renameOverriden.test");
+    }
+    
+    @TestMetadata("renameKotlinVarProperty/renameAsJavaGetter.test")
+    public void testRenameKotlinVarProperty_RenameAsJavaGetter() throws Exception {
+        doTest("idea/testData/refactoring/rename/renameKotlinVarProperty/renameAsJavaGetter.test");
+    }
+    
+    @TestMetadata("renameKotlinVarProperty/renameAsJavaSetter.test")
+    public void testRenameKotlinVarProperty_RenameAsJavaSetter() throws Exception {
+        doTest("idea/testData/refactoring/rename/renameKotlinVarProperty/renameAsJavaSetter.test");
+    }
+    
+    @TestMetadata("renameKotlinVarProperty/renameBase.test")
+    public void testRenameKotlinVarProperty_RenameBase() throws Exception {
+        doTest("idea/testData/refactoring/rename/renameKotlinVarProperty/renameBase.test");
+    }
+    
+    @TestMetadata("renameKotlinVarProperty/renameOverriden.test")
+    public void testRenameKotlinVarProperty_RenameOverriden() throws Exception {
+        doTest("idea/testData/refactoring/rename/renameKotlinVarProperty/renameOverriden.test");
+    }
+    
 }

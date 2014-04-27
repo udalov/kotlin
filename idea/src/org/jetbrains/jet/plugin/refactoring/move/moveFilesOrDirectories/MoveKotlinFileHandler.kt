@@ -49,6 +49,11 @@ import com.intellij.refactoring.util.TextOccurrencesUtil
 import java.util.Collections
 import org.jetbrains.jet.plugin.refactoring.move.PackageNameInfo
 import org.jetbrains.jet.plugin.refactoring.move.updateInternalReferencesOnPackageNameChange
+import org.jetbrains.jet.plugin.search.projectScope
+import org.jetbrains.jet.plugin.search.fileScope
+import org.jetbrains.jet.plugin.search.not
+import org.jetbrains.jet.plugin.search.and
+import org.jetbrains.jet.plugin.search.minus
 
 public class MoveKotlinFileHandler : MoveFileHandler() {
     class object {
@@ -108,12 +113,13 @@ public class MoveKotlinFileHandler : MoveFileHandler() {
         val project = psiFile.getProject()
         val newPackageName = newParent.getPackage()?.getQualifiedName() ?: ""
 
+        val searchScope = project.projectScope() - psiFile.fileScope()
         return psiFile.getDeclarations().flatMap { declaration ->
             val name = (declaration as? JetNamedDeclaration)?.getName()
             if (name != null) {
                 val newFqName = StringUtil.getQualifiedName(newPackageName, name)!!
 
-                val results = ReferencesSearch.search(declaration, GlobalSearchScope.projectScope(project), false)
+                val results = ReferencesSearch.search(declaration, searchScope, false)
                         .toSet()
                         .mapTo(ArrayList<UsageInfo?>()) { ref ->
                             val range = ref.getRangeInElement()!!

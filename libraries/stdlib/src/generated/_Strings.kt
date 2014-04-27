@@ -12,7 +12,7 @@ import java.util.*
  * If a collection could be huge you can specify a non-negative value of *limit* which will only show a subset of the collection then it will
  * a special *truncated* separator (which defaults to "..."
  */
-public fun <T> Array<out T>.appendString(buffer: Appendable, separator: String = ", ", prefix: String ="", postfix: String = "", limit: Int = -1, truncated: String = "...") : Unit {
+public fun <T> Array<out T>.appendString(buffer: Appendable, separator: String = ", ", prefix: String = "", postfix: String = "", limit: Int = -1, truncated: String = "..."): Unit {
     buffer.append(prefix)
     var count = 0
     for (element in this) {
@@ -24,7 +24,6 @@ public fun <T> Array<out T>.appendString(buffer: Appendable, separator: String =
     }
     if (limit >= 0 && count > limit) buffer.append(truncated)
     buffer.append(postfix)
-    
 }
 
 /**
@@ -32,7 +31,7 @@ public fun <T> Array<out T>.appendString(buffer: Appendable, separator: String =
  * If a collection could be huge you can specify a non-negative value of *limit* which will only show a subset of the collection then it will
  * a special *truncated* separator (which defaults to "..."
  */
-public fun BooleanArray.appendString(buffer: Appendable, separator: String = ", ", prefix: String ="", postfix: String = "", limit: Int = -1, truncated: String = "...") : Unit {
+public fun BooleanArray.appendString(buffer: Appendable, separator: String = ", ", prefix: String = "", postfix: String = "", limit: Int = -1, truncated: String = "..."): Unit {
     buffer.append(prefix)
     var count = 0
     for (element in this) {
@@ -44,7 +43,6 @@ public fun BooleanArray.appendString(buffer: Appendable, separator: String = ", 
     }
     if (limit >= 0 && count > limit) buffer.append(truncated)
     buffer.append(postfix)
-    
 }
 
 /**
@@ -52,7 +50,7 @@ public fun BooleanArray.appendString(buffer: Appendable, separator: String = ", 
  * If a collection could be huge you can specify a non-negative value of *limit* which will only show a subset of the collection then it will
  * a special *truncated* separator (which defaults to "..."
  */
-public fun ByteArray.appendString(buffer: Appendable, separator: String = ", ", prefix: String ="", postfix: String = "", limit: Int = -1, truncated: String = "...") : Unit {
+public fun ByteArray.appendString(buffer: Appendable, separator: String = ", ", prefix: String = "", postfix: String = "", limit: Int = -1, truncated: String = "..."): Unit {
     buffer.append(prefix)
     var count = 0
     for (element in this) {
@@ -64,7 +62,6 @@ public fun ByteArray.appendString(buffer: Appendable, separator: String = ", ", 
     }
     if (limit >= 0 && count > limit) buffer.append(truncated)
     buffer.append(postfix)
-    
 }
 
 /**
@@ -72,7 +69,7 @@ public fun ByteArray.appendString(buffer: Appendable, separator: String = ", ", 
  * If a collection could be huge you can specify a non-negative value of *limit* which will only show a subset of the collection then it will
  * a special *truncated* separator (which defaults to "..."
  */
-public fun CharArray.appendString(buffer: Appendable, separator: String = ", ", prefix: String ="", postfix: String = "", limit: Int = -1, truncated: String = "...") : Unit {
+public fun CharArray.appendString(buffer: Appendable, separator: String = ", ", prefix: String = "", postfix: String = "", limit: Int = -1, truncated: String = "..."): Unit {
     buffer.append(prefix)
     var count = 0
     for (element in this) {
@@ -84,7 +81,6 @@ public fun CharArray.appendString(buffer: Appendable, separator: String = ", ", 
     }
     if (limit >= 0 && count > limit) buffer.append(truncated)
     buffer.append(postfix)
-    
 }
 
 /**
@@ -92,7 +88,7 @@ public fun CharArray.appendString(buffer: Appendable, separator: String = ", ", 
  * If a collection could be huge you can specify a non-negative value of *limit* which will only show a subset of the collection then it will
  * a special *truncated* separator (which defaults to "..."
  */
-public fun DoubleArray.appendString(buffer: Appendable, separator: String = ", ", prefix: String ="", postfix: String = "", limit: Int = -1, truncated: String = "...") : Unit {
+public fun DoubleArray.appendString(buffer: Appendable, separator: String = ", ", prefix: String = "", postfix: String = "", limit: Int = -1, truncated: String = "..."): Unit {
     buffer.append(prefix)
     var count = 0
     for (element in this) {
@@ -104,7 +100,6 @@ public fun DoubleArray.appendString(buffer: Appendable, separator: String = ", "
     }
     if (limit >= 0 && count > limit) buffer.append(truncated)
     buffer.append(postfix)
-    
 }
 
 /**
@@ -112,7 +107,7 @@ public fun DoubleArray.appendString(buffer: Appendable, separator: String = ", "
  * If a collection could be huge you can specify a non-negative value of *limit* which will only show a subset of the collection then it will
  * a special *truncated* separator (which defaults to "..."
  */
-public fun FloatArray.appendString(buffer: Appendable, separator: String = ", ", prefix: String ="", postfix: String = "", limit: Int = -1, truncated: String = "...") : Unit {
+public fun FloatArray.appendString(buffer: Appendable, separator: String = ", ", prefix: String = "", postfix: String = "", limit: Int = -1, truncated: String = "..."): Unit {
     buffer.append(prefix)
     var count = 0
     for (element in this) {
@@ -124,7 +119,6 @@ public fun FloatArray.appendString(buffer: Appendable, separator: String = ", ",
     }
     if (limit >= 0 && count > limit) buffer.append(truncated)
     buffer.append(postfix)
-    
 }
 
 /**
@@ -132,7 +126,7 @@ public fun FloatArray.appendString(buffer: Appendable, separator: String = ", ",
  * If a collection could be huge you can specify a non-negative value of *limit* which will only show a subset of the collection then it will
  * a special *truncated* separator (which defaults to "..."
  */
-public fun IntArray.appendString(buffer: Appendable, separator: String = ", ", prefix: String ="", postfix: String = "", limit: Int = -1, truncated: String = "...") : Unit {
+public fun IntArray.appendString(buffer: Appendable, separator: String = ", ", prefix: String = "", postfix: String = "", limit: Int = -1, truncated: String = "..."): Unit {
     buffer.append(prefix)
     var count = 0
     for (element in this) {
@@ -144,7 +138,6 @@ public fun IntArray.appendString(buffer: Appendable, separator: String = ", ", p
     }
     if (limit >= 0 && count > limit) buffer.append(truncated)
     buffer.append(postfix)
-    
 }
 
 /**
@@ -152,7 +145,7 @@ public fun IntArray.appendString(buffer: Appendable, separator: String = ", ", p
  * If a collection could be huge you can specify a non-negative value of *limit* which will only show a subset of the collection then it will
  * a special *truncated* separator (which defaults to "..."
  */
-public fun LongArray.appendString(buffer: Appendable, separator: String = ", ", prefix: String ="", postfix: String = "", limit: Int = -1, truncated: String = "...") : Unit {
+public fun LongArray.appendString(buffer: Appendable, separator: String = ", ", prefix: String = "", postfix: String = "", limit: Int = -1, truncated: String = "..."): Unit {
     buffer.append(prefix)
     var count = 0
     for (element in this) {
@@ -164,7 +157,6 @@ public fun LongArray.appendString(buffer: Appendable, separator: String = ", ", 
     }
     if (limit >= 0 && count > limit) buffer.append(truncated)
     buffer.append(postfix)
-    
 }
 
 /**
@@ -172,7 +164,7 @@ public fun LongArray.appendString(buffer: Appendable, separator: String = ", ", 
  * If a collection could be huge you can specify a non-negative value of *limit* which will only show a subset of the collection then it will
  * a special *truncated* separator (which defaults to "..."
  */
-public fun ShortArray.appendString(buffer: Appendable, separator: String = ", ", prefix: String ="", postfix: String = "", limit: Int = -1, truncated: String = "...") : Unit {
+public fun ShortArray.appendString(buffer: Appendable, separator: String = ", ", prefix: String = "", postfix: String = "", limit: Int = -1, truncated: String = "..."): Unit {
     buffer.append(prefix)
     var count = 0
     for (element in this) {
@@ -184,7 +176,6 @@ public fun ShortArray.appendString(buffer: Appendable, separator: String = ", ",
     }
     if (limit >= 0 && count > limit) buffer.append(truncated)
     buffer.append(postfix)
-    
 }
 
 /**
@@ -192,7 +183,7 @@ public fun ShortArray.appendString(buffer: Appendable, separator: String = ", ",
  * If a collection could be huge you can specify a non-negative value of *limit* which will only show a subset of the collection then it will
  * a special *truncated* separator (which defaults to "..."
  */
-public fun <T> Iterable<T>.appendString(buffer: Appendable, separator: String = ", ", prefix: String ="", postfix: String = "", limit: Int = -1, truncated: String = "...") : Unit {
+public fun <T> Iterable<T>.appendString(buffer: Appendable, separator: String = ", ", prefix: String = "", postfix: String = "", limit: Int = -1, truncated: String = "..."): Unit {
     buffer.append(prefix)
     var count = 0
     for (element in this) {
@@ -204,7 +195,6 @@ public fun <T> Iterable<T>.appendString(buffer: Appendable, separator: String = 
     }
     if (limit >= 0 && count > limit) buffer.append(truncated)
     buffer.append(postfix)
-    
 }
 
 /**
@@ -212,7 +202,7 @@ public fun <T> Iterable<T>.appendString(buffer: Appendable, separator: String = 
  * If a collection could be huge you can specify a non-negative value of *limit* which will only show a subset of the collection then it will
  * a special *truncated* separator (which defaults to "..."
  */
-public fun <T> Stream<T>.appendString(buffer: Appendable, separator: String = ", ", prefix: String ="", postfix: String = "", limit: Int = -1, truncated: String = "...") : Unit {
+public fun <T> Stream<T>.appendString(buffer: Appendable, separator: String = ", ", prefix: String = "", postfix: String = "", limit: Int = -1, truncated: String = "..."): Unit {
     buffer.append(prefix)
     var count = 0
     for (element in this) {
@@ -224,7 +214,25 @@ public fun <T> Stream<T>.appendString(buffer: Appendable, separator: String = ",
     }
     if (limit >= 0 && count > limit) buffer.append(truncated)
     buffer.append(postfix)
-    
+}
+
+/**
+ * Appends the string from all the elements separated using the *separator* and using the given *prefix* and *postfix* if supplied
+ * If a collection could be huge you can specify a non-negative value of *limit* which will only show a subset of the collection then it will
+ * a special *truncated* separator (which defaults to "..."
+ */
+public fun String.appendString(buffer: Appendable, separator: String = ", ", prefix: String = "", postfix: String = "", limit: Int = -1, truncated: String = "..."): Unit {
+    buffer.append(prefix)
+    var count = 0
+    for (element in this) {
+        if (++count > 1) buffer.append(separator)
+        if (limit < 0 || count <= limit) {
+            val text = if (element == null) "null" else element.toString()
+            buffer.append(text)
+        } else break
+    }
+    if (limit >= 0 && count > limit) buffer.append(truncated)
+    buffer.append(postfix)
 }
 
 /**
@@ -232,11 +240,10 @@ public fun <T> Stream<T>.appendString(buffer: Appendable, separator: String = ",
  * If a collection could be huge you can specify a non-negative value of *limit* which will only show a subset of the collection then it will
  * a special *truncated* separator (which defaults to "..."
  */
-public fun <T> Array<out T>.makeString(separator: String = ", ", prefix: String = "", postfix: String = "", limit: Int = -1, truncated: String = "...") : String {
+public fun <T> Array<out T>.makeString(separator: String = ", ", prefix: String = "", postfix: String = "", limit: Int = -1, truncated: String = "..."): String {
     val buffer = StringBuilder()
     appendString(buffer, separator, prefix, postfix, limit, truncated)
     return buffer.toString()
-    
 }
 
 /**
@@ -244,11 +251,10 @@ public fun <T> Array<out T>.makeString(separator: String = ", ", prefix: String 
  * If a collection could be huge you can specify a non-negative value of *limit* which will only show a subset of the collection then it will
  * a special *truncated* separator (which defaults to "..."
  */
-public fun BooleanArray.makeString(separator: String = ", ", prefix: String = "", postfix: String = "", limit: Int = -1, truncated: String = "...") : String {
+public fun BooleanArray.makeString(separator: String = ", ", prefix: String = "", postfix: String = "", limit: Int = -1, truncated: String = "..."): String {
     val buffer = StringBuilder()
     appendString(buffer, separator, prefix, postfix, limit, truncated)
     return buffer.toString()
-    
 }
 
 /**
@@ -256,11 +262,10 @@ public fun BooleanArray.makeString(separator: String = ", ", prefix: String = ""
  * If a collection could be huge you can specify a non-negative value of *limit* which will only show a subset of the collection then it will
  * a special *truncated* separator (which defaults to "..."
  */
-public fun ByteArray.makeString(separator: String = ", ", prefix: String = "", postfix: String = "", limit: Int = -1, truncated: String = "...") : String {
+public fun ByteArray.makeString(separator: String = ", ", prefix: String = "", postfix: String = "", limit: Int = -1, truncated: String = "..."): String {
     val buffer = StringBuilder()
     appendString(buffer, separator, prefix, postfix, limit, truncated)
     return buffer.toString()
-    
 }
 
 /**
@@ -268,11 +273,10 @@ public fun ByteArray.makeString(separator: String = ", ", prefix: String = "", p
  * If a collection could be huge you can specify a non-negative value of *limit* which will only show a subset of the collection then it will
  * a special *truncated* separator (which defaults to "..."
  */
-public fun CharArray.makeString(separator: String = ", ", prefix: String = "", postfix: String = "", limit: Int = -1, truncated: String = "...") : String {
+public fun CharArray.makeString(separator: String = ", ", prefix: String = "", postfix: String = "", limit: Int = -1, truncated: String = "..."): String {
     val buffer = StringBuilder()
     appendString(buffer, separator, prefix, postfix, limit, truncated)
     return buffer.toString()
-    
 }
 
 /**
@@ -280,11 +284,10 @@ public fun CharArray.makeString(separator: String = ", ", prefix: String = "", p
  * If a collection could be huge you can specify a non-negative value of *limit* which will only show a subset of the collection then it will
  * a special *truncated* separator (which defaults to "..."
  */
-public fun DoubleArray.makeString(separator: String = ", ", prefix: String = "", postfix: String = "", limit: Int = -1, truncated: String = "...") : String {
+public fun DoubleArray.makeString(separator: String = ", ", prefix: String = "", postfix: String = "", limit: Int = -1, truncated: String = "..."): String {
     val buffer = StringBuilder()
     appendString(buffer, separator, prefix, postfix, limit, truncated)
     return buffer.toString()
-    
 }
 
 /**
@@ -292,11 +295,10 @@ public fun DoubleArray.makeString(separator: String = ", ", prefix: String = "",
  * If a collection could be huge you can specify a non-negative value of *limit* which will only show a subset of the collection then it will
  * a special *truncated* separator (which defaults to "..."
  */
-public fun FloatArray.makeString(separator: String = ", ", prefix: String = "", postfix: String = "", limit: Int = -1, truncated: String = "...") : String {
+public fun FloatArray.makeString(separator: String = ", ", prefix: String = "", postfix: String = "", limit: Int = -1, truncated: String = "..."): String {
     val buffer = StringBuilder()
     appendString(buffer, separator, prefix, postfix, limit, truncated)
     return buffer.toString()
-    
 }
 
 /**
@@ -304,11 +306,10 @@ public fun FloatArray.makeString(separator: String = ", ", prefix: String = "", 
  * If a collection could be huge you can specify a non-negative value of *limit* which will only show a subset of the collection then it will
  * a special *truncated* separator (which defaults to "..."
  */
-public fun IntArray.makeString(separator: String = ", ", prefix: String = "", postfix: String = "", limit: Int = -1, truncated: String = "...") : String {
+public fun IntArray.makeString(separator: String = ", ", prefix: String = "", postfix: String = "", limit: Int = -1, truncated: String = "..."): String {
     val buffer = StringBuilder()
     appendString(buffer, separator, prefix, postfix, limit, truncated)
     return buffer.toString()
-    
 }
 
 /**
@@ -316,11 +317,10 @@ public fun IntArray.makeString(separator: String = ", ", prefix: String = "", po
  * If a collection could be huge you can specify a non-negative value of *limit* which will only show a subset of the collection then it will
  * a special *truncated* separator (which defaults to "..."
  */
-public fun LongArray.makeString(separator: String = ", ", prefix: String = "", postfix: String = "", limit: Int = -1, truncated: String = "...") : String {
+public fun LongArray.makeString(separator: String = ", ", prefix: String = "", postfix: String = "", limit: Int = -1, truncated: String = "..."): String {
     val buffer = StringBuilder()
     appendString(buffer, separator, prefix, postfix, limit, truncated)
     return buffer.toString()
-    
 }
 
 /**
@@ -328,11 +328,10 @@ public fun LongArray.makeString(separator: String = ", ", prefix: String = "", p
  * If a collection could be huge you can specify a non-negative value of *limit* which will only show a subset of the collection then it will
  * a special *truncated* separator (which defaults to "..."
  */
-public fun ShortArray.makeString(separator: String = ", ", prefix: String = "", postfix: String = "", limit: Int = -1, truncated: String = "...") : String {
+public fun ShortArray.makeString(separator: String = ", ", prefix: String = "", postfix: String = "", limit: Int = -1, truncated: String = "..."): String {
     val buffer = StringBuilder()
     appendString(buffer, separator, prefix, postfix, limit, truncated)
     return buffer.toString()
-    
 }
 
 /**
@@ -340,11 +339,10 @@ public fun ShortArray.makeString(separator: String = ", ", prefix: String = "", 
  * If a collection could be huge you can specify a non-negative value of *limit* which will only show a subset of the collection then it will
  * a special *truncated* separator (which defaults to "..."
  */
-public fun <T> Iterable<T>.makeString(separator: String = ", ", prefix: String = "", postfix: String = "", limit: Int = -1, truncated: String = "...") : String {
+public fun <T> Iterable<T>.makeString(separator: String = ", ", prefix: String = "", postfix: String = "", limit: Int = -1, truncated: String = "..."): String {
     val buffer = StringBuilder()
     appendString(buffer, separator, prefix, postfix, limit, truncated)
     return buffer.toString()
-    
 }
 
 /**
@@ -352,10 +350,20 @@ public fun <T> Iterable<T>.makeString(separator: String = ", ", prefix: String =
  * If a collection could be huge you can specify a non-negative value of *limit* which will only show a subset of the collection then it will
  * a special *truncated* separator (which defaults to "..."
  */
-public fun <T> Stream<T>.makeString(separator: String = ", ", prefix: String = "", postfix: String = "", limit: Int = -1, truncated: String = "...") : String {
+public fun <T> Stream<T>.makeString(separator: String = ", ", prefix: String = "", postfix: String = "", limit: Int = -1, truncated: String = "..."): String {
     val buffer = StringBuilder()
     appendString(buffer, separator, prefix, postfix, limit, truncated)
     return buffer.toString()
-    
+}
+
+/**
+ * Creates a string from all the elements separated using the *separator* and using the given *prefix* and *postfix* if supplied.
+ * If a collection could be huge you can specify a non-negative value of *limit* which will only show a subset of the collection then it will
+ * a special *truncated* separator (which defaults to "..."
+ */
+public fun String.makeString(separator: String = ", ", prefix: String = "", postfix: String = "", limit: Int = -1, truncated: String = "..."): String {
+    val buffer = StringBuilder()
+    appendString(buffer, separator, prefix, postfix, limit, truncated)
+    return buffer.toString()
 }
 

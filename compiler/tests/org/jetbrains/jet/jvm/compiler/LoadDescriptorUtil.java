@@ -39,10 +39,9 @@ import org.jetbrains.jet.di.InjectorForJavaDescriptorResolver;
 import org.jetbrains.jet.di.InjectorForJavaDescriptorResolverUtil;
 import org.jetbrains.jet.lang.descriptors.PackageViewDescriptor;
 import org.jetbrains.jet.lang.psi.JetFile;
-import org.jetbrains.jet.lang.resolve.AnalyzerScriptParameter;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.BindingTraceContext;
-import org.jetbrains.jet.lang.resolve.java.AnalyzerFacadeForJVM;
+import org.jetbrains.jet.lang.resolve.lazy.JvmResolveUtil;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.Name;
 
@@ -155,8 +154,8 @@ public final class LoadDescriptorUtil {
                     }
                 }
             });
-            AnalyzeExhaust exhaust = AnalyzerFacadeForJVM.analyzeFilesWithJavaIntegration(
-                    jetCoreEnvironment.getProject(), jetFiles, Collections.<AnalyzerScriptParameter>emptyList(), Predicates.<PsiFile>alwaysTrue());
+            AnalyzeExhaust exhaust = JvmResolveUtil.analyzeFilesWithJavaIntegration(
+                    jetCoreEnvironment.getProject(), jetFiles, Predicates.<PsiFile>alwaysTrue());
             return new JetFilesAndExhaust(jetFiles, exhaust);
         }
 

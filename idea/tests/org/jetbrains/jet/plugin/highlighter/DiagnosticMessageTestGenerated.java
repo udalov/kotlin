@@ -36,9 +36,39 @@ public class DiagnosticMessageTestGenerated extends AbstractDiagnosticMessageTes
         JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), "org.jetbrains.jet.generators.tests.TestsPackage", new File("idea/testData/diagnosticMessage"), Pattern.compile("^(.+)\\.kt$"), true);
     }
     
+    @TestMetadata("assignedButNeverAccessedVariable.kt")
+    public void testAssignedButNeverAccessedVariable() throws Exception {
+        doTest("idea/testData/diagnosticMessage/assignedButNeverAccessedVariable.kt");
+    }
+    
+    @TestMetadata("cannotOverrideInvisibleMember.kt")
+    public void testCannotOverrideInvisibleMember() throws Exception {
+        doTest("idea/testData/diagnosticMessage/cannotOverrideInvisibleMember.kt");
+    }
+    
+    @TestMetadata("conflictingOverloadsClass.kt")
+    public void testConflictingOverloadsClass() throws Exception {
+        doTest("idea/testData/diagnosticMessage/conflictingOverloadsClass.kt");
+    }
+    
+    @TestMetadata("conflictingOverloadsDefaultPackage.kt")
+    public void testConflictingOverloadsDefaultPackage() throws Exception {
+        doTest("idea/testData/diagnosticMessage/conflictingOverloadsDefaultPackage.kt");
+    }
+    
     @TestMetadata("conflictingSubstitutions.kt")
     public void testConflictingSubstitutions() throws Exception {
         doTest("idea/testData/diagnosticMessage/conflictingSubstitutions.kt");
+    }
+    
+    @TestMetadata("differentNamesForSameParameter.kt")
+    public void testDifferentNamesForSameParameter() throws Exception {
+        doTest("idea/testData/diagnosticMessage/differentNamesForSameParameter.kt");
+    }
+    
+    @TestMetadata("extensionInClassReference.kt")
+    public void testExtensionInClassReference() throws Exception {
+        doTest("idea/testData/diagnosticMessage/extensionInClassReference.kt");
     }
     
     @TestMetadata("functionPlaceholder.kt")
@@ -54,6 +84,16 @@ public class DiagnosticMessageTestGenerated extends AbstractDiagnosticMessageTes
     @TestMetadata("invisibleMember.kt")
     public void testInvisibleMember() throws Exception {
         doTest("idea/testData/diagnosticMessage/invisibleMember.kt");
+    }
+    
+    @TestMetadata("multipleDefaultsFromSupertypes.kt")
+    public void testMultipleDefaultsFromSupertypes() throws Exception {
+        doTest("idea/testData/diagnosticMessage/multipleDefaultsFromSupertypes.kt");
+    }
+    
+    @TestMetadata("nameInConstraintIsNotATypeParameter.kt")
+    public void testNameInConstraintIsNotATypeParameter() throws Exception {
+        doTest("idea/testData/diagnosticMessage/nameInConstraintIsNotATypeParameter.kt");
     }
     
     @TestMetadata("numberValueTypes.kt")
@@ -74,6 +114,21 @@ public class DiagnosticMessageTestGenerated extends AbstractDiagnosticMessageTes
     @TestMetadata("typeMismatchWithNothing.kt")
     public void testTypeMismatchWithNothing() throws Exception {
         doTest("idea/testData/diagnosticMessage/typeMismatchWithNothing.kt");
+    }
+    
+    @TestMetadata("unusedParameter.kt")
+    public void testUnusedParameter() throws Exception {
+        doTest("idea/testData/diagnosticMessage/unusedParameter.kt");
+    }
+    
+    @TestMetadata("unusedValue.kt")
+    public void testUnusedValue() throws Exception {
+        doTest("idea/testData/diagnosticMessage/unusedValue.kt");
+    }
+    
+    @TestMetadata("unusedVariable.kt")
+    public void testUnusedVariable() throws Exception {
+        doTest("idea/testData/diagnosticMessage/unusedVariable.kt");
     }
     
     @TestMetadata("upperBoundViolated.kt")

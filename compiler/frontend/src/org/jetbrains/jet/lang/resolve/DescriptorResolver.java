@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2013 JetBrains s.r.o.
+ * Copyright 2010-2014 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -47,6 +47,7 @@ import org.jetbrains.jet.lang.types.checker.JetTypeChecker;
 import org.jetbrains.jet.lang.types.expressions.ExpressionTypingServices;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 import org.jetbrains.jet.lexer.JetKeywordToken;
+import org.jetbrains.jet.lexer.JetModifierKeywordToken;
 import org.jetbrains.jet.lexer.JetTokens;
 import org.jetbrains.jet.storage.StorageManager;
 
@@ -102,6 +103,7 @@ public class DescriptorResolver {
     }
 
     public void resolveMutableClassDescriptor(
+            @NotNull TopDownAnalysisParameters topDownAnalysisParameters,
             @NotNull JetClass classElement,
             @NotNull MutableClassDescriptor descriptor,
             BindingTrace trace
@@ -110,7 +112,7 @@ public class DescriptorResolver {
         List<TypeParameterDescriptor> typeParameters = Lists.newArrayList();
         int index = 0;
         for (JetTypeParameter typeParameter : classElement.getTypeParameters()) {
-            if (!TopDownAnalyzer.LAZY) {
+            if (!topDownAnalysisParameters.isLazyTopDownAnalysis()) {
                 // TODO: Support
                 AnnotationResolver.reportUnsupportedAnnotationForTypeParameter(typeParameter, trace);
             }
@@ -820,6 +822,7 @@ public class DescriptorResolver {
             BindingTrace trace
     ) {
         DeclarationDescriptor containingDeclaration = scope.getContainingDeclaration();
+        // SCRIPT: Create property descriptors
         if (JetPsiUtil.isScriptDeclaration(variable)) {
             PropertyDescriptorImpl propertyDescriptor = PropertyDescriptorImpl.create(
                     containingDeclaration,
@@ -836,6 +839,7 @@ public class DescriptorResolver {
 
             ReceiverParameterDescriptor receiverParameter = ((ScriptDescriptor) containingDeclaration).getThisAsReceiverParameter();
             propertyDescriptor.setType(type, Collections.<TypeParameterDescriptor>emptyList(), receiverParameter, (JetType) null);
+            initializeWithDefaultGetterSetter(propertyDescriptor);
             trace.record(BindingContext.VARIABLE, variable, propertyDescriptor);
             return propertyDescriptor;
         }
@@ -848,6 +852,20 @@ public class DescriptorResolver {
             variableDescriptor.setOutType(type);
             return variableDescriptor;
         }
+    }
+
+    private static void initializeWithDefaultGetterSetter(PropertyDescriptorImpl propertyDescriptor) {
+        PropertyGetterDescriptorImpl getter = propertyDescriptor.getGetter();
+        if (getter == null && propertyDescriptor.getVisibility() != Visibilities.PRIVATE) {
+            getter = DescriptorFactory.createDefaultGetter(propertyDescriptor);
+            getter.initialize(propertyDescriptor.getType());
+        }
+
+        PropertySetterDescriptor setter = propertyDescriptor.getSetter();
+        if (setter == null && propertyDescriptor.isVar()) {
+            setter = DescriptorFactory.createDefaultSetter(propertyDescriptor);
+        }
+        propertyDescriptor.initialize(getter, setter);
     }
 
     @NotNull
@@ -1443,8 +1461,8 @@ public class DescriptorResolver {
             while (node != null) {
                 IElementType elementType = node.getElementType();
 
-                if (elementType != JetTokens.VARARG_KEYWORD && elementType instanceof JetKeywordToken) {
-                    trace.report(ILLEGAL_MODIFIER.on(node.getPsi(), (JetKeywordToken) elementType));
+                if (elementType != JetTokens.VARARG_KEYWORD && elementType instanceof JetModifierKeywordToken) {
+                    trace.report(ILLEGAL_MODIFIER.on(node.getPsi(), (JetModifierKeywordToken) elementType));
                 }
                 node = node.getTreeNext();
             }

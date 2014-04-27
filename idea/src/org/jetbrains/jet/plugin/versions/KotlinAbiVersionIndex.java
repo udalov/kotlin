@@ -26,10 +26,10 @@ import com.intellij.util.indexing.*;
 import com.intellij.util.io.ExternalIntegerKeyDescriptor;
 import com.intellij.util.io.KeyDescriptor;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.asm4.AnnotationVisitor;
-import org.jetbrains.asm4.ClassReader;
-import org.jetbrains.asm4.ClassVisitor;
-import org.jetbrains.asm4.Opcodes;
+import org.jetbrains.org.objectweb.asm.AnnotationVisitor;
+import org.jetbrains.org.objectweb.asm.ClassReader;
+import org.jetbrains.org.objectweb.asm.ClassVisitor;
+import org.jetbrains.org.objectweb.asm.Opcodes;
 import org.jetbrains.jet.lang.resolve.java.AbiVersionUtil;
 
 import java.util.Map;
@@ -77,14 +77,14 @@ public class KotlinAbiVersionIndex extends ScalarIndexExtension<Integer> {
 
             try {
                 ClassReader classReader = new ClassReader(inputData.getContent());
-                classReader.accept(new ClassVisitor(Opcodes.ASM4) {
+                classReader.accept(new ClassVisitor(Opcodes.ASM5) {
                     @Override
                     public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
                         if (!kotlinAnnotationsDesc.contains(desc)) {
                             return null;
                         }
                         annotationPresent.set(true);
-                        return new AnnotationVisitor(Opcodes.ASM4) {
+                        return new AnnotationVisitor(Opcodes.ASM5) {
                             @Override
                             public void visit(String name, Object value) {
                                 if (ABI_VERSION_FIELD_NAME.equals(name)) {

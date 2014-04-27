@@ -16,11 +16,9 @@
 
 package org.jetbrains.jet.codegen;
 
+import kotlin.Function0;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.asm4.MethodVisitor;
-import org.jetbrains.asm4.Type;
-import org.jetbrains.asm4.commons.InstructionAdapter;
 import org.jetbrains.jet.codegen.context.CodegenContext;
 import org.jetbrains.jet.codegen.context.FieldOwnerContext;
 import org.jetbrains.jet.codegen.context.MethodContext;
@@ -30,18 +28,23 @@ import org.jetbrains.jet.codegen.state.GenerationState;
 import org.jetbrains.jet.lang.descriptors.ClassDescriptor;
 import org.jetbrains.jet.lang.descriptors.ScriptDescriptor;
 import org.jetbrains.jet.lang.descriptors.ValueParameterDescriptor;
-import org.jetbrains.jet.lang.psi.*;
+import org.jetbrains.jet.lang.psi.JetDeclaration;
+import org.jetbrains.jet.lang.psi.JetScript;
+import org.jetbrains.jet.lang.psi.JetTypeParameterListOwner;
 import org.jetbrains.jet.lang.resolve.BindingContext;
+import org.jetbrains.org.objectweb.asm.MethodVisitor;
+import org.jetbrains.org.objectweb.asm.Type;
+import org.jetbrains.org.objectweb.asm.commons.InstructionAdapter;
 
 import java.util.Collections;
 import java.util.List;
 
-import static org.jetbrains.asm4.Opcodes.*;
 import static org.jetbrains.jet.codegen.binding.CodegenBinding.*;
 import static org.jetbrains.jet.lang.resolve.java.AsmTypeConstants.OBJECT_TYPE;
+import static org.jetbrains.org.objectweb.asm.Opcodes.*;
 
 // SCRIPT: script code generator
-public class ScriptCodegen extends MemberCodegen {
+public class ScriptCodegen extends MemberCodegen<JetScript> {
 
     public static ScriptCodegen createScriptCodegen(
             @NotNull JetScript declaration,
@@ -62,14 +65,10 @@ public class ScriptCodegen extends MemberCodegen {
         return new ScriptCodegen(declaration, state, scriptContext, state.getEarlierScriptsForReplInterpreter(), builder);
     }
 
-    @NotNull
-    private JetScript scriptDeclaration;
-
-    @NotNull
+    private final JetScript scriptDeclaration;
     private final ScriptContext context;
-
-    @NotNull
-    private List<ScriptDescriptor> earlierScripts;
+    private final List<ScriptDescriptor> earlierScripts;
+    private final ScriptDescriptor scriptDescriptor;
 
     private ScriptCodegen(
             @NotNull JetScript scriptDeclaration,
@@ -78,43 +77,48 @@ public class ScriptCodegen extends MemberCodegen {
             @Nullable List<ScriptDescriptor> earlierScripts,
             @NotNull ClassBuilder builder
     ) {
-        super(state, null, context, builder);
+        super(state, null, context, scriptDeclaration, builder);
         this.scriptDeclaration = scriptDeclaration;
         this.context = context;
         this.earlierScripts = earlierScripts == null ? Collections.<ScriptDescriptor>emptyList() : earlierScripts;
+        this.scriptDescriptor = context.getScriptDescriptor();
     }
 
-    public void generate() {
-        ScriptDescriptor scriptDescriptor = context.getScriptDescriptor();
-        ClassDescriptor classDescriptorForScript = context.getContextDescriptor();
-        Type classType = bindingContext.get(ASM_TYPE, classDescriptorForScript);
+    @Override
+    protected void generateDeclaration() {
+        Type classType = bindingContext.get(ASM_TYPE, context.getContextDescriptor());
         assert classType != null;
 
-        ClassBuilder classBuilder = getBuilder();
-        classBuilder.defineClass(scriptDeclaration,
-                                 V1_6,
-                                 ACC_PUBLIC,
-                                 classType.getInternalName(),
-                                 null,
-                                 "java/lang/Object",
-                                 new String[0]);
+        v.defineClass(scriptDeclaration,
+                      V1_6,
+                      ACC_PUBLIC,
+                      classType.getInternalName(),
+                      null,
+                      "java/lang/Object",
+                      new String[0]);
+    }
 
-        genMembers(context, classBuilder);
-        genFieldsForParameters(scriptDescriptor, classBuilder);
-        genConstructor(scriptDescriptor, classDescriptorForScript, classBuilder,
+    @Override
+    protected void generateBody() {
+        genMembers(context, v);
+        genFieldsForParameters(scriptDescriptor, v);
+        genConstructor(scriptDescriptor, context.getContextDescriptor(), v,
                        context.intoFunction(scriptDescriptor.getScriptCodeDescriptor()));
+    }
 
-        classBuilder.done();
+    @Override
+    protected void generateKotlinAnnotation() {
+        // TODO
     }
 
     private void genConstructor(
             @NotNull ScriptDescriptor scriptDescriptor,
             @NotNull ClassDescriptor classDescriptorForScript,
             @NotNull ClassBuilder classBuilder,
-            @NotNull MethodContext context
+            @NotNull final MethodContext context
     ) {
 
-        Type blockType = typeMapper.mapType(scriptDescriptor.getReturnType());
+        Type blockType = typeMapper.mapType(scriptDescriptor.getScriptCodeDescriptor().getReturnType());
 
         classBuilder.newField(null, ACC_PUBLIC | ACC_FINAL, ScriptDescriptor.LAST_EXPRESSION_VALUE_FIELD_NAME,
                               blockType.getDescriptor(), null, null);
@@ -127,7 +131,7 @@ public class ScriptCodegen extends MemberCodegen {
 
         mv.visitCode();
 
-        InstructionAdapter instructionAdapter = new InstructionAdapter(mv);
+        final InstructionAdapter instructionAdapter = new InstructionAdapter(mv);
 
         Type classType = bindingContext.get(ASM_TYPE, classDescriptorForScript);
         assert classType != null;
@@ -137,7 +141,7 @@ public class ScriptCodegen extends MemberCodegen {
 
         instructionAdapter.load(0, classType);
 
-        FrameMap frameMap = context.prepareFrame(typeMapper);
+        final FrameMap frameMap = context.prepareFrame(typeMapper);
 
         for (ScriptDescriptor importedScript : earlierScripts) {
             frameMap.enter(importedScript, OBJECT_TYPE);
@@ -146,16 +150,17 @@ public class ScriptCodegen extends MemberCodegen {
         Type[] argTypes = jvmSignature.getAsmMethod().getArgumentTypes();
         int add = 0;
 
-        for (int i = 0; i < scriptDescriptor.getValueParameters().size(); i++) {
-            ValueParameterDescriptor parameter = scriptDescriptor.getValueParameters().get(i);
+        for (int i = 0; i < scriptDescriptor.getScriptCodeDescriptor().getValueParameters().size(); i++) {
+            ValueParameterDescriptor parameter = scriptDescriptor.getScriptCodeDescriptor().getValueParameters().get(i);
             frameMap.enter(parameter, argTypes[i + add]);
         }
 
-        ImplementationBodyCodegen.generateInitializers(
-                new ExpressionCodegen(instructionAdapter, frameMap, Type.VOID_TYPE, context, state, this),
-                scriptDeclaration.getDeclarations(),
-                bindingContext,
-                state);
+        generateInitializers(new Function0<ExpressionCodegen>() {
+            @Override
+            public ExpressionCodegen invoke() {
+                return new ExpressionCodegen(instructionAdapter, frameMap, Type.VOID_TYPE, context, state, ScriptCodegen.this);
+            }
+        });
 
         int offset = 1;
 
@@ -167,7 +172,7 @@ public class ScriptCodegen extends MemberCodegen {
             instructionAdapter.putfield(classType.getInternalName(), getScriptFieldName(earlierScript), earlierClassType.getDescriptor());
         }
 
-        for (ValueParameterDescriptor parameter : scriptDescriptor.getValueParameters()) {
+        for (ValueParameterDescriptor parameter : scriptDescriptor.getScriptCodeDescriptor().getValueParameters()) {
             Type parameterType = typeMapper.mapType(parameter.getType());
             instructionAdapter.load(0, classType);
             instructionAdapter.load(offset, parameterType);
@@ -195,7 +200,7 @@ public class ScriptCodegen extends MemberCodegen {
             classBuilder.newField(null, access, getScriptFieldName(earlierScript), earlierClassName.getDescriptor(), null, null);
         }
 
-        for (ValueParameterDescriptor parameter : script.getValueParameters()) {
+        for (ValueParameterDescriptor parameter : script.getScriptCodeDescriptor().getValueParameters()) {
             Type parameterType = typeMapper.mapType(parameter);
             int access = ACC_PUBLIC | ACC_FINAL;
             classBuilder.newField(null, access, parameter.getName().getIdentifier(), parameterType.getDescriptor(), null, null);

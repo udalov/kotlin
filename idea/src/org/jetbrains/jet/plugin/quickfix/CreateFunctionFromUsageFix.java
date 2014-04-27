@@ -65,10 +65,10 @@ import org.jetbrains.jet.lang.types.*;
 import org.jetbrains.jet.lang.types.checker.JetTypeChecker;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 import org.jetbrains.jet.plugin.JetBundle;
+import org.jetbrains.jet.plugin.caches.resolve.ResolvePackage;
 import org.jetbrains.jet.plugin.codeInsight.DescriptorToDeclarationUtil;
 import org.jetbrains.jet.plugin.codeInsight.ShortenReferences;
 import org.jetbrains.jet.plugin.presentation.JetClassPresenter;
-import org.jetbrains.jet.plugin.project.AnalyzerFacadeWithCache;
 import org.jetbrains.jet.plugin.refactoring.JetNameSuggester;
 import org.jetbrains.jet.plugin.refactoring.JetNameValidator;
 import org.jetbrains.jet.plugin.references.JetSimpleNameReference;
@@ -611,7 +611,7 @@ public class CreateFunctionFromUsageFix extends CreateFromUsageFixBase {
     public void invoke(@NotNull final Project project, Editor editor, JetFile file) throws IncorrectOperationException {
         currentFile = file;
         currentFileEditor = editor;
-        AnalyzeExhaust exhaust = AnalyzerFacadeWithCache.analyzeFileWithCache(currentFile);
+        AnalyzeExhaust exhaust = ResolvePackage.getAnalysisResults(currentFile);
         currentFileContext = exhaust.getBindingContext();
         currentFileModule = exhaust.getModuleDescriptor();
 
@@ -787,6 +787,9 @@ public class CreateFunctionFromUsageFix extends CreateFromUsageFixBase {
 
         // fix up the template to include the expression for the type parameter list
         variables.add(new Variable(TYPE_PARAMETER_LIST_VARIABLE_NAME, expression, expression, false, true));
+
+        // TODO: Disabled shortening names because it causes some tests fail. Refactor code to use automatic reference shortening
+        templateImpl.setToShortenLongNames(false);
 
         // run the template
         TemplateManager.getInstance(project).startTemplate(containingFileEditor, templateImpl, new TemplateEditingAdapter() {
@@ -1377,7 +1380,7 @@ public class CreateFunctionFromUsageFix extends CreateFromUsageFixBase {
                 TypeOrExpressionThereof iterableType = new TypeOrExpressionThereof(iterableExpr, Variance.IN_VARIANCE);
                 JetType returnJetType = KotlinBuiltIns.getInstance().getIterator().getDefaultType();
 
-                BindingContext context = AnalyzerFacadeWithCache.analyzeFileWithCache(jetFile).getBindingContext();
+                BindingContext context = ResolvePackage.getAnalysisResults(jetFile).getBindingContext();
                 JetType[] returnJetTypeParameterTypes = guessTypesForExpression(variableExpr, context);
                 if (returnJetTypeParameterTypes.length != 1) return null;
 

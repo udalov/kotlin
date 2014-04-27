@@ -88,10 +88,10 @@ public class BuiltInsReferenceResolver extends AbstractProjectComponent {
             @Override
             public void run() {
                 GlobalContextImpl globalContext = ContextPackage.GlobalContext();
-                TopDownAnalysisParameters topDownAnalysisParameters = new TopDownAnalysisParameters(
+                TopDownAnalysisParameters topDownAnalysisParameters = TopDownAnalysisParameters.create(
                         globalContext.getStorageManager(),
                         globalContext.getExceptionTracker(),
-                        Predicates.<PsiFile>alwaysFalse(), true, false, Collections.<AnalyzerScriptParameter>emptyList());
+                        Predicates.<PsiFile>alwaysFalse(), true, false);
                 ModuleDescriptorImpl module = new ModuleDescriptorImpl(
                         Name.special("<fake_module>"), Collections.<ImportPath>emptyList(), PlatformToKotlinClassMap.EMPTY);
                 BindingTraceContext trace = new BindingTraceContext();
@@ -187,7 +187,7 @@ public class BuiltInsReferenceResolver extends AbstractProjectComponent {
         JetScope memberScope = getMemberScope(containingDeclaration);
         if (memberScope == null) return null;
 
-        String renderedOriginal = DescriptorRenderer.TEXT.render(originalDescriptor);
+        String renderedOriginal = DescriptorRenderer.FQ_NAMES_IN_TYPES.render(originalDescriptor);
         Collection<? extends DeclarationDescriptor> descriptors;
         if (originalDescriptor instanceof ConstructorDescriptor && containingDeclaration instanceof ClassDescriptor) {
             descriptors = ((ClassDescriptor) containingDeclaration).getConstructors();
@@ -196,7 +196,7 @@ public class BuiltInsReferenceResolver extends AbstractProjectComponent {
             descriptors = memberScope.getAllDescriptors();
         }
         for (DeclarationDescriptor member : descriptors) {
-            if (renderedOriginal.equals(DescriptorRenderer.TEXT.render(member))) {
+            if (renderedOriginal.equals(DescriptorRenderer.FQ_NAMES_IN_TYPES.render(member))) {
                 return member;
             }
         }

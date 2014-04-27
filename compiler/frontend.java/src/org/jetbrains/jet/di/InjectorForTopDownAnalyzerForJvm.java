@@ -20,9 +20,10 @@ import com.intellij.openapi.project.Project;
 import org.jetbrains.jet.context.GlobalContext;
 import org.jetbrains.jet.storage.StorageManager;
 import org.jetbrains.jet.lang.resolve.BindingTrace;
-import org.jetbrains.jet.lang.descriptors.ModuleDescriptorImpl;
+import org.jetbrains.jet.lang.descriptors.ModuleDescriptor;
 import org.jetbrains.jet.lang.PlatformToKotlinClassMap;
 import org.jetbrains.jet.lang.resolve.TopDownAnalyzer;
+import org.jetbrains.jet.lang.resolve.LazyTopDownAnalyzer;
 import org.jetbrains.jet.lang.resolve.MutablePackageFragmentProvider;
 import org.jetbrains.jet.descriptors.serialization.descriptors.MemberFilter;
 import org.jetbrains.jet.lang.resolve.java.JavaDescriptorResolver;
@@ -32,6 +33,7 @@ import org.jetbrains.jet.lang.resolve.java.resolver.TraceBasedJavaResolverCache;
 import org.jetbrains.jet.lang.resolve.java.resolver.TraceBasedErrorReporter;
 import org.jetbrains.jet.lang.resolve.java.resolver.PsiBasedMethodSignatureChecker;
 import org.jetbrains.jet.lang.resolve.java.resolver.PsiBasedExternalAnnotationResolver;
+import org.jetbrains.jet.lang.resolve.java.structure.impl.JavaPropertyInitializerEvaluatorImpl;
 import org.jetbrains.jet.lang.resolve.kotlin.VirtualFileFinder;
 import org.jetbrains.jet.lang.resolve.BodyResolver;
 import org.jetbrains.jet.lang.resolve.AnnotationResolver;
@@ -57,6 +59,7 @@ import org.jetbrains.jet.lang.resolve.DeclarationResolver;
 import org.jetbrains.jet.lang.resolve.ImportsResolver;
 import org.jetbrains.jet.lang.psi.JetImportsFactory;
 import org.jetbrains.jet.lang.resolve.ScriptHeaderResolver;
+import org.jetbrains.jet.lang.resolve.ScriptParameterResolver;
 import org.jetbrains.jet.lang.resolve.OverloadResolver;
 import org.jetbrains.jet.lang.resolve.OverrideResolver;
 import org.jetbrains.jet.lang.resolve.TypeHierarchyResolver;
@@ -78,9 +81,10 @@ public class InjectorForTopDownAnalyzerForJvm implements InjectorForTopDownAnaly
     private final GlobalContext globalContext;
     private final StorageManager storageManager;
     private final BindingTrace bindingTrace;
-    private final ModuleDescriptorImpl moduleDescriptor;
+    private final ModuleDescriptor moduleDescriptor;
     private final PlatformToKotlinClassMap platformToKotlinClassMap;
     private final TopDownAnalyzer topDownAnalyzer;
+    private final LazyTopDownAnalyzer lazyTopDownAnalyzer;
     private final MutablePackageFragmentProvider mutablePackageFragmentProvider;
     private final MemberFilter memberFilter;
     private final JavaDescriptorResolver javaDescriptorResolver;
@@ -90,6 +94,7 @@ public class InjectorForTopDownAnalyzerForJvm implements InjectorForTopDownAnaly
     private final TraceBasedErrorReporter traceBasedErrorReporter;
     private final PsiBasedMethodSignatureChecker psiBasedMethodSignatureChecker;
     private final PsiBasedExternalAnnotationResolver psiBasedExternalAnnotationResolver;
+    private final JavaPropertyInitializerEvaluatorImpl javaPropertyInitializerEvaluator;
     private final VirtualFileFinder virtualFileFinder;
     private final BodyResolver bodyResolver;
     private final AnnotationResolver annotationResolver;
@@ -115,6 +120,7 @@ public class InjectorForTopDownAnalyzerForJvm implements InjectorForTopDownAnaly
     private final ImportsResolver importsResolver;
     private final JetImportsFactory jetImportsFactory;
     private final ScriptHeaderResolver scriptHeaderResolver;
+    private final ScriptParameterResolver scriptParameterResolver;
     private final OverloadResolver overloadResolver;
     private final OverrideResolver overrideResolver;
     private final TypeHierarchyResolver typeHierarchyResolver;
@@ -130,7 +136,7 @@ public class InjectorForTopDownAnalyzerForJvm implements InjectorForTopDownAnaly
         @NotNull Project project,
         @NotNull GlobalContext globalContext,
         @NotNull BindingTrace bindingTrace,
-        @NotNull ModuleDescriptorImpl moduleDescriptor,
+        @NotNull ModuleDescriptor moduleDescriptor,
         @NotNull MemberFilter memberFilter
     ) {
         this.project = project;
@@ -140,6 +146,7 @@ public class InjectorForTopDownAnalyzerForJvm implements InjectorForTopDownAnaly
         this.moduleDescriptor = moduleDescriptor;
         this.platformToKotlinClassMap = moduleDescriptor.getPlatformToKotlinClassMap();
         this.topDownAnalyzer = new TopDownAnalyzer();
+        this.lazyTopDownAnalyzer = new LazyTopDownAnalyzer();
         this.mutablePackageFragmentProvider = new MutablePackageFragmentProvider(getModuleDescriptor());
         this.memberFilter = memberFilter;
         this.javaClassFinder = new JavaClassFinderImpl();
@@ -150,7 +157,8 @@ public class InjectorForTopDownAnalyzerForJvm implements InjectorForTopDownAnaly
         this.traceBasedErrorReporter = new TraceBasedErrorReporter();
         this.psiBasedMethodSignatureChecker = new PsiBasedMethodSignatureChecker();
         this.traceBasedJavaResolverCache = new TraceBasedJavaResolverCache();
-        this.globalJavaResolverContext = new GlobalJavaResolverContext(storageManager, javaClassFinder, virtualFileFinder, deserializedDescriptorResolver, psiBasedExternalAnnotationResolver, traceBasedExternalSignatureResolver, traceBasedErrorReporter, psiBasedMethodSignatureChecker, traceBasedJavaResolverCache);
+        this.javaPropertyInitializerEvaluator = new JavaPropertyInitializerEvaluatorImpl();
+        this.globalJavaResolverContext = new GlobalJavaResolverContext(storageManager, javaClassFinder, virtualFileFinder, deserializedDescriptorResolver, psiBasedExternalAnnotationResolver, traceBasedExternalSignatureResolver, traceBasedErrorReporter, psiBasedMethodSignatureChecker, traceBasedJavaResolverCache, javaPropertyInitializerEvaluator);
         this.lazyJavaPackageFragmentProvider = new LazyJavaPackageFragmentProvider(globalJavaResolverContext, getModuleDescriptor());
         this.javaDescriptorResolver = new JavaDescriptorResolver(lazyJavaPackageFragmentProvider, getModuleDescriptor());
         this.bodyResolver = new BodyResolver();
@@ -177,6 +185,7 @@ public class InjectorForTopDownAnalyzerForJvm implements InjectorForTopDownAnaly
         this.importsResolver = new ImportsResolver();
         this.jetImportsFactory = new JetImportsFactory();
         this.scriptHeaderResolver = new ScriptHeaderResolver();
+        this.scriptParameterResolver = new ScriptParameterResolver();
         this.overloadResolver = new OverloadResolver();
         this.overrideResolver = new OverrideResolver();
         this.typeHierarchyResolver = new TypeHierarchyResolver();
@@ -187,18 +196,26 @@ public class InjectorForTopDownAnalyzerForJvm implements InjectorForTopDownAnaly
 
         this.topDownAnalyzer.setBodyResolver(bodyResolver);
         this.topDownAnalyzer.setDeclarationResolver(declarationResolver);
+        this.topDownAnalyzer.setLazyTopDownAnalyzer(lazyTopDownAnalyzer);
         this.topDownAnalyzer.setModuleDescriptor(moduleDescriptor);
         this.topDownAnalyzer.setOverloadResolver(overloadResolver);
         this.topDownAnalyzer.setOverrideResolver(overrideResolver);
         this.topDownAnalyzer.setPackageFragmentProvider(mutablePackageFragmentProvider);
         this.topDownAnalyzer.setProject(project);
-        this.topDownAnalyzer.setScriptHeaderResolver(scriptHeaderResolver);
         this.topDownAnalyzer.setTrace(bindingTrace);
         this.topDownAnalyzer.setTypeHierarchyResolver(typeHierarchyResolver);
+
+        this.lazyTopDownAnalyzer.setBodyResolver(bodyResolver);
+        this.lazyTopDownAnalyzer.setDeclarationResolver(declarationResolver);
+        this.lazyTopDownAnalyzer.setModuleDescriptor(moduleDescriptor);
+        this.lazyTopDownAnalyzer.setOverloadResolver(overloadResolver);
+        this.lazyTopDownAnalyzer.setOverrideResolver(overrideResolver);
+        this.lazyTopDownAnalyzer.setTrace(bindingTrace);
 
         javaClassFinder.setProject(project);
 
         traceBasedExternalSignatureResolver.setExternalAnnotationResolver(psiBasedExternalAnnotationResolver);
+        traceBasedExternalSignatureResolver.setProject(project);
         traceBasedExternalSignatureResolver.setTrace(bindingTrace);
 
         traceBasedJavaResolverCache.setTrace(bindingTrace);
@@ -275,7 +292,6 @@ public class InjectorForTopDownAnalyzerForJvm implements InjectorForTopDownAnaly
         functionAnalyzerExtension.setTrace(bindingTrace);
 
         scriptBodyResolver.setExpressionTypingServices(expressionTypingServices);
-        scriptBodyResolver.setTrace(bindingTrace);
 
         declarationResolver.setAnnotationResolver(annotationResolver);
         declarationResolver.setDescriptorResolver(descriptorResolver);
@@ -290,9 +306,11 @@ public class InjectorForTopDownAnalyzerForJvm implements InjectorForTopDownAnaly
 
         jetImportsFactory.setProject(project);
 
-        scriptHeaderResolver.setDependencyClassByQualifiedNameResolver(javaDescriptorResolver);
         scriptHeaderResolver.setPackageFragmentProvider(mutablePackageFragmentProvider);
+        scriptHeaderResolver.setScriptParameterResolver(scriptParameterResolver);
         scriptHeaderResolver.setTrace(bindingTrace);
+
+        scriptParameterResolver.setDependencyClassByQualifiedNameResolver(javaDescriptorResolver);
 
         overloadResolver.setTrace(bindingTrace);
 
@@ -304,7 +322,7 @@ public class InjectorForTopDownAnalyzerForJvm implements InjectorForTopDownAnaly
         typeHierarchyResolver.setScriptHeaderResolver(scriptHeaderResolver);
         typeHierarchyResolver.setTrace(bindingTrace);
 
-        deserializedDescriptorResolver.setAnnotationDeserializer(descriptorDeserializers);
+        deserializedDescriptorResolver.setDeserializers(descriptorDeserializers);
         deserializedDescriptorResolver.setErrorReporter(traceBasedErrorReporter);
         deserializedDescriptorResolver.setJavaDescriptorResolver(javaDescriptorResolver);
         deserializedDescriptorResolver.setJavaPackageFragmentProvider(lazyJavaPackageFragmentProvider);
@@ -335,12 +353,16 @@ public class InjectorForTopDownAnalyzerForJvm implements InjectorForTopDownAnaly
     public void destroy() {
     }
     
-    public ModuleDescriptorImpl getModuleDescriptor() {
+    public ModuleDescriptor getModuleDescriptor() {
         return this.moduleDescriptor;
     }
     
     public TopDownAnalyzer getTopDownAnalyzer() {
         return this.topDownAnalyzer;
+    }
+    
+    public LazyTopDownAnalyzer getLazyTopDownAnalyzer() {
+        return this.lazyTopDownAnalyzer;
     }
     
     public JavaDescriptorResolver getJavaDescriptorResolver() {

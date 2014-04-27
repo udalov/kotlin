@@ -42,7 +42,6 @@ import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 import org.jetbrains.k2js.config.Config;
 
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 
 import static org.jetbrains.jet.lang.resolve.lazy.declarations.DeclarationProviderFactoryService.createDeclarationProviderFactory;
@@ -92,8 +91,8 @@ public final class AnalyzerFacadeForJS {
         Predicate<PsiFile> completely = Predicates.and(notLibFiles(config.getLibFiles()), filesToAnalyzeCompletely);
 
         GlobalContextImpl globalContext = ContextPackage.GlobalContext();
-        TopDownAnalysisParameters topDownAnalysisParameters = new TopDownAnalysisParameters(
-                globalContext.getStorageManager(), globalContext.getExceptionTracker(), completely, false, false, Collections.<AnalyzerScriptParameter>emptyList());
+        TopDownAnalysisParameters topDownAnalysisParameters = TopDownAnalysisParameters.create(
+                globalContext.getStorageManager(), globalContext.getExceptionTracker(), completely, false, false);
 
         ModuleDescriptor libraryModule = config.getLibraryModule();
         if (libraryModule != null) {
@@ -131,7 +130,7 @@ public final class AnalyzerFacadeForJS {
         Predicate<PsiFile> completely = Predicates.and(notLibFiles(config.getLibFiles()), filesToAnalyzeCompletely);
 
         return AnalyzerFacadeForEverything.analyzeBodiesInFilesWithJavaIntegration(
-                config.getProject(), Collections.<AnalyzerScriptParameter>emptyList(), completely, traceContext, bodiesResolveContext,
+                config.getProject(), completely, traceContext, bodiesResolveContext,
                 module);
     }
 

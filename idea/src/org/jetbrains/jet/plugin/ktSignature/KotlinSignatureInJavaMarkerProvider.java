@@ -35,14 +35,10 @@ import com.intellij.util.Function;
 import com.intellij.util.ui.UIUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.jet.di.InjectorForJavaDescriptorResolver;
-import org.jetbrains.jet.di.InjectorForJavaDescriptorResolverUtil;
 import org.jetbrains.jet.lang.descriptors.ClassDescriptor;
 import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor;
 import org.jetbrains.jet.lang.descriptors.PackageFragmentDescriptor;
 import org.jetbrains.jet.lang.resolve.BindingContext;
-import org.jetbrains.jet.lang.resolve.BindingTrace;
-import org.jetbrains.jet.lang.resolve.DelegatingBindingTrace;
 import org.jetbrains.jet.lang.resolve.java.JavaBindingContext;
 import org.jetbrains.jet.lang.resolve.java.JavaDescriptorResolver;
 import org.jetbrains.jet.lang.resolve.java.descriptor.JavaClassDescriptor;
@@ -50,8 +46,8 @@ import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
 import org.jetbrains.jet.plugin.JetIcons;
-import org.jetbrains.jet.plugin.caches.resolve.KotlinCacheManager;
-import org.jetbrains.jet.plugin.caches.resolve.KotlinDeclarationsCache;
+import org.jetbrains.jet.plugin.caches.resolve.JavaResolveExtension;
+import org.jetbrains.jet.plugin.caches.resolve.ResolvePackage;
 import org.jetbrains.jet.plugin.project.ProjectStructureUtil;
 import org.jetbrains.jet.plugin.project.TargetPlatform;
 
@@ -97,10 +93,9 @@ public class KotlinSignatureInJavaMarkerProvider implements LineMarkerProvider {
             return;
         }
 
-        BindingTrace trace = createDelegatingTrace(project);
-        InjectorForJavaDescriptorResolver injector = InjectorForJavaDescriptorResolverUtil.create(project, trace);
+        BindingContext bindingContext = ResolvePackage.getLazyResolveSession(project, TargetPlatform.JVM).getBindingContext();
 
-        JavaDescriptorResolver javaDescriptorResolver = injector.getJavaDescriptorResolver();
+        JavaDescriptorResolver javaDescriptorResolver = JavaResolveExtension.instance$.get(project);
 
         for (PsiElement element : elements) {
             if (!(element instanceof PsiMember)) {
@@ -112,11 +107,11 @@ public class KotlinSignatureInJavaMarkerProvider implements LineMarkerProvider {
                 continue;
             }
 
-            DeclarationDescriptor memberDescriptor = getDescriptorForMember(javaDescriptorResolver, member, trace);
+            DeclarationDescriptor memberDescriptor = getDescriptorForMember(javaDescriptorResolver, member, bindingContext);
 
             if (memberDescriptor == null) continue;
 
-            List<String> errors = trace.get(JavaBindingContext.LOAD_FROM_JAVA_SIGNATURE_ERRORS, memberDescriptor);
+            List<String> errors = bindingContext.get(JavaBindingContext.LOAD_FROM_JAVA_SIGNATURE_ERRORS, memberDescriptor);
             boolean hasSignatureAnnotation = KotlinSignatureUtil.findKotlinSignatureAnnotation(element) != null;
 
             if (errors != null || hasSignatureAnnotation) {
@@ -125,18 +120,11 @@ public class KotlinSignatureInJavaMarkerProvider implements LineMarkerProvider {
         }
     }
 
-    @NotNull
-    static BindingTrace createDelegatingTrace(@NotNull Project project) {
-        KotlinDeclarationsCache declarationsCache = KotlinCacheManager.getInstance(project).getDeclarationsFromProject(TargetPlatform.JVM);
-        BindingContext bindingContext = declarationsCache.getBindingContext();
-        return new DelegatingBindingTrace(bindingContext, "wrapped context of declarations cache");
-    }
-
     @Nullable
     private static DeclarationDescriptor getDescriptorForMember(
             @NotNull JavaDescriptorResolver javaDescriptorResolver,
             @NotNull PsiMember member,
-            @NotNull BindingTrace trace
+            @NotNull BindingContext bindingContext
     ) {
         PsiClass containingClass = member.getContainingClass();
         if (containingClass == null) { // e.g., type parameter
@@ -155,7 +143,7 @@ public class KotlinSignatureInJavaMarkerProvider implements LineMarkerProvider {
         if (memberScope == null) {
             return null;
         }
-        return getDescriptorForMember(member, memberScope, trace);
+        return getDescriptorForMember(member, memberScope, bindingContext);
     }
 
     @Nullable
@@ -186,7 +174,7 @@ public class KotlinSignatureInJavaMarkerProvider implements LineMarkerProvider {
     private static DeclarationDescriptor getDescriptorForMember(
             @NotNull PsiMember member,
             @NotNull JetScope memberScope,
-            @NotNull BindingTrace trace
+            @NotNull BindingContext bindingContext
     ) {
         if (!(member instanceof PsiMethod) && !(member instanceof PsiField)) {
             return null;
@@ -213,7 +201,7 @@ public class KotlinSignatureInJavaMarkerProvider implements LineMarkerProvider {
         }
 
         PsiModifierListOwner annotationOwner = KotlinSignatureUtil.getAnnotationOwner(member);
-        return trace.get(BindingContext.DECLARATION_TO_DESCRIPTOR, annotationOwner);
+        return bindingContext.get(BindingContext.DECLARATION_TO_DESCRIPTOR, annotationOwner);
     }
 
     public static boolean isMarkersEnabled(@NotNull Project project) {

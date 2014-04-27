@@ -20,11 +20,6 @@ import jet.objc.Native;
 import jet.objc.ObjCObject;
 import jet.objc.helpers.HelpersPackage;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.asm4.ClassWriter;
-import org.jetbrains.asm4.MethodVisitor;
-import org.jetbrains.asm4.Type;
-import org.jetbrains.asm4.commons.InstructionAdapter;
-import org.jetbrains.asm4.commons.Method;
 import org.jetbrains.jet.codegen.state.JetTypeMapper;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.resolve.DescriptorUtils;
@@ -33,6 +28,11 @@ import org.jetbrains.jet.lang.resolve.objc.ObjCMethodDescriptor;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
 import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.lang.types.TypeProjection;
+import org.jetbrains.org.objectweb.asm.ClassWriter;
+import org.jetbrains.org.objectweb.asm.MethodVisitor;
+import org.jetbrains.org.objectweb.asm.Type;
+import org.jetbrains.org.objectweb.asm.commons.InstructionAdapter;
+import org.jetbrains.org.objectweb.asm.commons.Method;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -40,8 +40,8 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
-import static org.jetbrains.asm4.Opcodes.*;
-import static org.jetbrains.asm4.Type.*;
+import static org.jetbrains.org.objectweb.asm.Opcodes.*;
+import static org.jetbrains.org.objectweb.asm.Type.*;
 
 public class ObjCClassCodegen {
     public static final String NATIVE = Type.getType(Native.class).getInternalName();

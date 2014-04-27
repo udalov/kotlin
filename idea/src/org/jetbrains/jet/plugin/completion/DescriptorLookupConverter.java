@@ -37,13 +37,10 @@ import org.jetbrains.jet.lang.resolve.lazy.KotlinCodeAnalyzer;
 import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 import org.jetbrains.jet.plugin.JetDescriptorIconProvider;
-import org.jetbrains.jet.plugin.completion.handlers.JetClassInsertHandler;
-import org.jetbrains.jet.plugin.completion.handlers.JetJavaClassInsertHandler;
+import org.jetbrains.jet.plugin.completion.handlers.*;
 import org.jetbrains.jet.renderer.DescriptorRenderer;
 
 import java.util.List;
-
-import static org.jetbrains.jet.plugin.completion.handlers.JetFunctionInsertHandler.*;
 
 public final class DescriptorLookupConverter {
     private DescriptorLookupConverter() {}
@@ -64,57 +61,66 @@ public final class DescriptorLookupConverter {
         String presentableText = descriptor.getName().asString();
         String typeText = "";
         String tailText = "";
-        boolean tailTextGrayed = true;
 
         if (descriptor instanceof FunctionDescriptor) {
             FunctionDescriptor functionDescriptor = (FunctionDescriptor) descriptor;
             JetType returnType = functionDescriptor.getReturnType();
-            typeText = DescriptorRenderer.TEXT.renderType(returnType);
-            presentableText += DescriptorRenderer.TEXT.renderFunctionParameters(functionDescriptor);
+            typeText = returnType != null ? DescriptorRenderer.SHORT_NAMES_IN_TYPES.renderType(returnType) : "";
+            presentableText += DescriptorRenderer.SHORT_NAMES_IN_TYPES.renderFunctionParameters(functionDescriptor);
 
             boolean extensionFunction = functionDescriptor.getReceiverParameter() != null;
             DeclarationDescriptor containingDeclaration = descriptor.getContainingDeclaration();
             if (containingDeclaration != null && extensionFunction) {
-                tailText += " for " + DescriptorRenderer.TEXT.renderType(functionDescriptor.getReceiverParameter().getType());
+                tailText += " for " + DescriptorRenderer.SHORT_NAMES_IN_TYPES.renderType(functionDescriptor.getReceiverParameter().getType());
                 tailText += " in " + DescriptorUtils.getFqName(containingDeclaration);
             }
         }
         else if (descriptor instanceof VariableDescriptor) {
             JetType outType = ((VariableDescriptor) descriptor).getType();
-            typeText = DescriptorRenderer.TEXT.renderType(outType);
+            typeText = DescriptorRenderer.SHORT_NAMES_IN_TYPES.renderType(outType);
         }
         else if (descriptor instanceof ClassDescriptor) {
             DeclarationDescriptor declaredIn = descriptor.getContainingDeclaration();
             assert declaredIn != null;
             tailText = " (" + DescriptorUtils.getFqName(declaredIn) + ")";
-            tailTextGrayed = true;
         }
         else {
-            typeText = DescriptorRenderer.TEXT.render(descriptor);
+            typeText = DescriptorRenderer.SHORT_NAMES_IN_TYPES.render(descriptor);
         }
 
-        element = element.withInsertHandler(getInsertHandler(descriptor));
-        element = element.withTailText(tailText, tailTextGrayed).withTypeText(typeText).withPresentableText(presentableText);
+        InsertHandler<LookupElement> insertHandler = getDefaultInsertHandler(descriptor);
+        element = element.withInsertHandler(insertHandler);
+        if (insertHandler instanceof JetFunctionInsertHandler && ((JetFunctionInsertHandler)insertHandler).getLambdaInfo() != null) {
+            element.putUserData(JetCompletionCharFilter.ACCEPT_OPENING_BRACE, true);
+        }
+        element = element.withTailText(tailText, true).withTypeText(typeText).withPresentableText(presentableText);
         element = element.withIcon(JetDescriptorIconProvider.getIcon(descriptor, Iconable.ICON_FLAG_VISIBILITY));
         element = element.withStrikeoutness(KotlinBuiltIns.getInstance().isDeprecated(descriptor));
+
         return element;
     }
 
     @Nullable
-    public static InsertHandler<LookupElement> getInsertHandler(@NotNull DeclarationDescriptor descriptor) {
+    public static InsertHandler<LookupElement> getDefaultInsertHandler(@NotNull DeclarationDescriptor descriptor) {
         if (descriptor instanceof FunctionDescriptor) {
             FunctionDescriptor functionDescriptor = (FunctionDescriptor) descriptor;
+            List<ValueParameterDescriptor> parameters = functionDescriptor.getValueParameters();
 
-            if (functionDescriptor.getValueParameters().isEmpty()) {
-                return EMPTY_FUNCTION_HANDLER;
+            if (parameters.isEmpty()) {
+                return JetFunctionInsertHandler.NO_PARAMETERS_HANDLER;
             }
 
-            if (functionDescriptor.getValueParameters().size() == 1 &&
-                KotlinBuiltIns.getInstance().isFunctionOrExtensionFunctionType(functionDescriptor.getValueParameters().get(0).getType())) {
-                return PARAMS_BRACES_FUNCTION_HANDLER;
+            if (parameters.size() == 1) {
+                JetType parameterType = parameters.get(0).getType();
+                if (KotlinBuiltIns.getInstance().isFunctionOrExtensionFunctionType(parameterType)) {
+                    int parameterCount = KotlinBuiltIns.getInstance().getParameterTypeProjectionsFromFunctionType(parameterType).size();
+                    if (parameterCount <= 1) { // otherwise additional item with lambda template is to be added
+                        return new JetFunctionInsertHandler(CaretPosition.IN_BRACKETS, new GenerateLambdaInfo(parameterType, false));
+                    }
+                }
             }
 
-            return PARAMS_PARENTHESIS_FUNCTION_HANDLER;
+            return JetFunctionInsertHandler.WITH_PARAMETERS_HANDLER;
         }
 
         if (descriptor instanceof ClassDescriptor) {
@@ -137,8 +143,10 @@ public final class DescriptorLookupConverter {
             PsiClass containingClass = ((PsiMember) declaration).getContainingClass();
             if (containingClass != null && !JavaResolverPsiUtils.isCompiledKotlinClassOrPackageClass(containingClass)) {
                 if (declaration instanceof PsiMethod) {
-                    InsertHandler<LookupElement> handler = getInsertHandler(descriptor);
-                    assert handler != null: "Special kotlin handler is expected for function: " + declaration.getText() + " and descriptor" + DescriptorRenderer.TEXT.render(descriptor);
+                    InsertHandler<LookupElement> handler = getDefaultInsertHandler(descriptor);
+                    assert handler != null:
+                            "Special kotlin handler is expected for function: " + declaration.getText() +
+                            " and descriptor: " + DescriptorRenderer.FQ_NAMES_IN_TYPES.render(descriptor);
 
                     return new JavaMethodCallElementWithCustomHandler(declaration).setInsertHandler(handler);
                 }
