@@ -33,8 +33,8 @@ public open class Pointer<T> internal(open val peer: Long) {
         public fun pointerToString(string: String): Pointer<Char> {
             // TODO: not very optimal, use a native function instead
             val n = string.length
-            val pointer = allocateChars(n + 1.toLong())
-            for (i in 0..n-1) {
+            val pointer = allocateChars(n + 1L)
+            for (i in n.indices) {
                 pointer.setChar(i.toLong(), string[i])
             }
             pointer.setChar(n.toLong(), 0.toChar())
@@ -49,7 +49,7 @@ public open class Pointer<T> internal(open val peer: Long) {
 
     public fun getString(): String {
         val sb = StringBuilder()
-        var offset: Long = 0
+        var offset = 0L
         while (true) {
             val c = getChar(offset)
             if (c == 0.toChar()) break
