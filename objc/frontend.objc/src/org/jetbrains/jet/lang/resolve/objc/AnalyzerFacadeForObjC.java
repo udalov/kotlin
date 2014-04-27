@@ -16,7 +16,7 @@
 
 package org.jetbrains.jet.lang.resolve.objc;
 
-import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
 import com.intellij.openapi.project.Project;
 import com.intellij.psi.PsiFile;
 import org.jetbrains.annotations.NotNull;
@@ -51,12 +51,7 @@ public enum AnalyzerFacadeForObjC implements AnalyzerFacade {
     }
 
     @NotNull
-    public AnalyzeExhaust analyzeFiles(
-            @NotNull Project project,
-            @NotNull Collection<JetFile> files,
-            @NotNull List<AnalyzerScriptParameter> scriptParameters,
-            @NotNull Predicate<PsiFile> filesToAnalyzeCompletely
-    ) {
+    public static AnalyzeExhaust analyzeFiles(@NotNull Project project, @NotNull Collection<JetFile> files) {
         List<ImportPath> imports = new ArrayList<ImportPath>();
         // TODO: kotlin.objc.* or kotlin.jvm.objc.* ?
         imports.add(new ImportPath("jet.objc.*"));
@@ -76,7 +71,7 @@ public enum AnalyzerFacadeForObjC implements AnalyzerFacade {
         module.addFragmentProvider(DependencyKind.BINARIES, injector.getJavaDescriptorResolver().getPackageFragmentProvider());
 
         TopDownAnalysisParameters topDownAnalysisParameters = TopDownAnalysisParameters.create(
-                global.getStorageManager(), global.getExceptionTracker(), filesToAnalyzeCompletely, false, false
+                global.getStorageManager(), global.getExceptionTracker(), Predicates.<PsiFile>alwaysTrue(), false, false
         );
 
         try {

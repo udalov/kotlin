@@ -16,10 +16,8 @@
 
 package org.jetbrains.jet.objc;
 
-import com.google.common.base.Predicates;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.io.FileUtil;
-import com.intellij.psi.PsiFile;
 import com.intellij.testFramework.UsefulTestCase;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.JetTestUtils;
@@ -33,7 +31,6 @@ import org.jetbrains.jet.codegen.ObjCDescriptorCodegen;
 import org.jetbrains.jet.codegen.state.GenerationState;
 import org.jetbrains.jet.lang.descriptors.PackageViewDescriptor;
 import org.jetbrains.jet.lang.psi.JetFile;
-import org.jetbrains.jet.lang.resolve.AnalyzerScriptParameter;
 import org.jetbrains.jet.lang.resolve.AnalyzingUtils;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.java.PackageClassUtils;
@@ -46,7 +43,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 
 import static org.jetbrains.jet.objc.ObjCTestUtil.*;
@@ -162,11 +158,7 @@ public abstract class AbstractObjCWithJavaTest extends UsefulTestCase {
 
     @NotNull
     private AnalyzeExhaust analyze(@NotNull List<JetFile> files) {
-        AnalyzeExhaust analyzeExhaust = AnalyzerFacadeForObjC.INSTANCE.analyzeFiles(
-                project,
-                files,
-                Collections.<AnalyzerScriptParameter>emptyList(),
-                Predicates.<PsiFile>alwaysTrue());
+        AnalyzeExhaust analyzeExhaust = AnalyzerFacadeForObjC.analyzeFiles(project, files);
         analyzeExhaust.throwIfError();
         AnalyzingUtils.throwExceptionOnErrors(analyzeExhaust.getBindingContext());
 

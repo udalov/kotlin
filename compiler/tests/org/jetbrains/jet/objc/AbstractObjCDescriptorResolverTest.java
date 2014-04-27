@@ -16,14 +16,11 @@
 
 package org.jetbrains.jet.objc;
 
-import com.google.common.base.Predicates;
-import com.intellij.psi.PsiFile;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.analyzer.AnalyzeExhaust;
 import org.jetbrains.jet.cli.jvm.compiler.JetCoreEnvironment;
 import org.jetbrains.jet.lang.descriptors.PackageViewDescriptor;
 import org.jetbrains.jet.lang.psi.JetFile;
-import org.jetbrains.jet.lang.resolve.AnalyzerScriptParameter;
 import org.jetbrains.jet.lang.resolve.AnalyzingUtils;
 import org.jetbrains.jet.lang.resolve.objc.AnalyzerFacadeForObjC;
 import org.jetbrains.jet.lang.resolve.objc.ObjCInteropParameters;
@@ -45,12 +42,7 @@ public abstract class AbstractObjCDescriptorResolverTest extends TestCaseWithTmp
         JetCoreEnvironment environment = createEnvironment(getTestRootDisposable());
         ObjCInteropParameters.setArgs(environment.getProject(), header);
 
-        AnalyzeExhaust analyzeExhaust = AnalyzerFacadeForObjC.INSTANCE.analyzeFiles(
-                environment.getProject(),
-                Collections.<JetFile>emptyList(),
-                Collections.<AnalyzerScriptParameter>emptyList(),
-                Predicates.<PsiFile>alwaysFalse()
-        );
+        AnalyzeExhaust analyzeExhaust = AnalyzerFacadeForObjC.analyzeFiles(environment.getProject(), Collections.<JetFile>emptyList());
         analyzeExhaust.throwIfError();
         AnalyzingUtils.throwExceptionOnErrors(analyzeExhaust.getBindingContext());
 
