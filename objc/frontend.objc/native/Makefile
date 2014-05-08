@@ -35,11 +35,11 @@ JAVA_HOME=$(shell /usr/libexec/java_home)
 JAVA_INCLUDE=-I$(JAVA_HOME)/include -I$(JAVA_HOME)/include/darwin
 
 CPP=c++
-CC_FLAGS=-O2 -Wall -std=c++0x $(JAVA_INCLUDE) -Iinclude -stdlib=libstdc++
+CC_FLAGS=-O2 -Wall -std=c++0x $(JAVA_INCLUDE) -Iinclude -stdlib=libc++
 # libclang.dylib and libprotobuf.dylib should be installed via Homebrew:
-# brew install llvm --disable-shared --universal --with-clang
+# brew install llvm --disable-shared --universal --with-clang --without-python
 # brew install protobuf
-LD_FLAGS=-stdlib=libstdc++ -L/usr/local/opt/llvm/lib -L/usr/local/lib -lclang -lprotobuf
+LD_FLAGS=-stdlib=libc++ -L/usr/local/opt/llvm/lib -L/usr/local/opt/protobuf/lib -lclang -lprotobuf
 
 SRC_FILES=$(wildcard *.cc)
 OBJ_FILES=$(patsubst %.cc,$(OUT)/%.o,$(SRC_FILES))
