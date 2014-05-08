@@ -163,7 +163,7 @@ public class InjectorForTopDownAnalyzerForObjC implements InjectorForTopDownAnal
         this.globalJavaResolverContext = new GlobalJavaResolverContext(storageManager, javaClassFinder, virtualFileFinder, deserializedDescriptorResolver, psiBasedExternalAnnotationResolver, traceBasedExternalSignatureResolver, traceBasedErrorReporter, psiBasedMethodSignatureChecker, traceBasedJavaResolverCache, javaPropertyInitializerEvaluator);
         this.lazyJavaPackageFragmentProvider = new LazyJavaPackageFragmentProvider(globalJavaResolverContext, getModuleDescriptor());
         this.javaDescriptorResolver = new JavaDescriptorResolver(lazyJavaPackageFragmentProvider, getModuleDescriptor());
-        this.objCPackageFragmentProvider = new ObjCPackageFragmentProvider();
+        this.objCPackageFragmentProvider = new ObjCPackageFragmentProvider(project, getModuleDescriptor());
         this.bodyResolver = new BodyResolver();
         this.annotationResolver = new AnnotationResolver();
         this.callResolver = new CallResolver();
@@ -214,9 +214,6 @@ public class InjectorForTopDownAnalyzerForObjC implements InjectorForTopDownAnal
         this.lazyTopDownAnalyzer.setOverloadResolver(overloadResolver);
         this.lazyTopDownAnalyzer.setOverrideResolver(overrideResolver);
         this.lazyTopDownAnalyzer.setTrace(bindingTrace);
-
-        this.objCPackageFragmentProvider.setModule(moduleDescriptor);
-        this.objCPackageFragmentProvider.setProject(project);
 
         javaClassFinder.setProject(project);
 
