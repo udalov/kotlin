@@ -31,17 +31,15 @@ import java.util.List;
 import java.util.Map;
 
 public class ObjCTypeResolver {
+    private final ObjCBuiltIns objcBuiltIns;
     private final PackageFragmentDescriptor objcPackage;
+    private final Map<String, JetType> builtInTypes;
 
-    public ObjCTypeResolver(@NotNull PackageFragmentDescriptor objcPackage) {
+    public ObjCTypeResolver(@NotNull ObjCBuiltIns objcBuiltIns, @NotNull PackageFragmentDescriptor objcPackage) {
+        this.objcBuiltIns = objcBuiltIns;
         this.objcPackage = objcPackage;
-    }
-
-    private static final Map<String, JetType> BUILT_IN_TYPES;
-
-    static {
         KotlinBuiltIns builtIns = KotlinBuiltIns.getInstance();
-        BUILT_IN_TYPES = new ContainerUtil.ImmutableMapBuilder<String, JetType>()
+        this.builtInTypes = new ContainerUtil.ImmutableMapBuilder<String, JetType>()
                 .put("V", builtIns.getUnitType())
                 .put("UC", builtIns.getCharType())
                 .put("US", builtIns.getShortType())
@@ -54,6 +52,9 @@ public class ObjCTypeResolver {
                 .put("J", builtIns.getLongType())
                 .put("F", builtIns.getFloatType())
                 .put("D", builtIns.getDoubleType())
+                .put("OI", objcBuiltIns.getObjCObjectClass().getDefaultType())
+                .put("OC", objcBuiltIns.getObjCClassClass().getDefaultType())
+                .put("OS", objcBuiltIns.getObjCSelectorClass().getDefaultType())
                 .build();
     }
 
@@ -110,7 +111,7 @@ public class ObjCTypeResolver {
         public JetType parse() {
             if (at == type.length()) error("No type to parse");
 
-            for (Map.Entry<String, JetType> entry : BUILT_IN_TYPES.entrySet()) {
+            for (Map.Entry<String, JetType> entry : builtInTypes.entrySet()) {
                 if (advance(entry.getKey())) return entry.getValue();
             }
 
@@ -141,25 +142,13 @@ public class ObjCTypeResolver {
 
             if (advance("*V;")) {
                 // Special case for "void *"
-                return ObjCBuiltIns.getInstance().getOpaquePointerType();
-            }
-
-            if (advance("OI")) {
-                return ObjCBuiltIns.getInstance().getObjCObjectClass().getDefaultType();
-            }
-
-            if (advance("OC")) {
-                return ObjCBuiltIns.getInstance().getObjCClassClass().getDefaultType();
-            }
-
-            if (advance("OS")) {
-                return ObjCBuiltIns.getInstance().getObjCSelectorClass().getDefaultType();
+                return objcBuiltIns.getOpaquePointerType();
             }
 
             if (advance("*")) {
                 JetType pointee = parse();
                 expect(";");
-                return ObjCBuiltIns.getInstance().getPointerType(pointee);
+                return objcBuiltIns.getPointerType(pointee);
             }
 
             if (at("X(")) {

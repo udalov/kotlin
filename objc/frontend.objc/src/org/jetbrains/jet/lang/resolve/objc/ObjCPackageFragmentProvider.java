@@ -23,6 +23,7 @@ import org.jetbrains.jet.lang.descriptors.PackageFragmentDescriptor;
 import org.jetbrains.jet.lang.descriptors.PackageFragmentProvider;
 import org.jetbrains.jet.lang.descriptors.impl.MutablePackageFragmentDescriptor;
 import org.jetbrains.jet.lang.resolve.name.FqName;
+import org.jetbrains.jet.lang.resolve.objc.builtins.ObjCBuiltIns;
 import org.jetbrains.jet.utils.UtilsPackage;
 
 import java.io.IOException;
@@ -37,14 +38,14 @@ public class ObjCPackageFragmentProvider implements PackageFragmentProvider {
 
     private final PackageFragmentDescriptor objcPackage;
 
-    public ObjCPackageFragmentProvider(@NotNull Project project, @NotNull ModuleDescriptor module) {
+    public ObjCPackageFragmentProvider(@NotNull Project project, @NotNull ModuleDescriptor module, @NotNull ObjCBuiltIns objcBuiltIns) {
         String args = ObjCInteropParameters.getArgs(project);
         assert args != null : "Header parameter should be saved beforehand";
 
         TranslationUnit translationUnit = indexObjCHeaders(args);
 
         MutablePackageFragmentDescriptor objcPackage = new MutablePackageFragmentDescriptor(module, OBJC_PACKAGE_FQ_NAME);
-        new ObjCDescriptorResolver(objcPackage).processTranslationUnit(translationUnit);
+        new ObjCDescriptorResolver(objcBuiltIns, objcPackage).processTranslationUnit(translationUnit);
         this.objcPackage = objcPackage;
     }
 

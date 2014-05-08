@@ -33,7 +33,6 @@ import org.jetbrains.jet.lang.resolve.*;
 import org.jetbrains.jet.lang.resolve.java.AnalyzerFacadeForJVM;
 import org.jetbrains.jet.lang.resolve.java.mapping.JavaToKotlinClassMap;
 import org.jetbrains.jet.lang.resolve.name.Name;
-import org.jetbrains.jet.lang.resolve.objc.builtins.ObjCBuiltIns;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -67,7 +66,7 @@ public enum AnalyzerFacadeForObjC implements AnalyzerFacade {
         );
 
         module.addFragmentProvider(DependencyKind.SOURCES, injector.getObjCPackageFragmentProvider());
-        module.addFragmentProvider(DependencyKind.BUILT_INS, ObjCBuiltIns.getInstance().getPackageFragmentProvider());
+        module.addFragmentProvider(DependencyKind.BUILT_INS, injector.getObjCBuiltIns().getPackageFragmentProvider());
         module.addFragmentProvider(DependencyKind.BINARIES, injector.getJavaDescriptorResolver().getPackageFragmentProvider());
 
         TopDownAnalysisParameters topDownAnalysisParameters = TopDownAnalysisParameters.create(

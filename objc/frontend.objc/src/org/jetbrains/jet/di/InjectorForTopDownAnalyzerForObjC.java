@@ -28,6 +28,7 @@ import org.jetbrains.jet.lang.resolve.MutablePackageFragmentProvider;
 import org.jetbrains.jet.descriptors.serialization.descriptors.MemberFilter;
 import org.jetbrains.jet.lang.resolve.java.JavaDescriptorResolver;
 import org.jetbrains.jet.lang.resolve.objc.ObjCPackageFragmentProvider;
+import org.jetbrains.jet.lang.resolve.objc.builtins.ObjCBuiltIns;
 import org.jetbrains.jet.lang.resolve.java.JavaClassFinderImpl;
 import org.jetbrains.jet.lang.resolve.java.resolver.TraceBasedExternalSignatureResolver;
 import org.jetbrains.jet.lang.resolve.java.resolver.TraceBasedJavaResolverCache;
@@ -90,6 +91,7 @@ public class InjectorForTopDownAnalyzerForObjC implements InjectorForTopDownAnal
     private final MemberFilter memberFilter;
     private final JavaDescriptorResolver javaDescriptorResolver;
     private final ObjCPackageFragmentProvider objCPackageFragmentProvider;
+    private final ObjCBuiltIns objCBuiltIns;
     private final JavaClassFinderImpl javaClassFinder;
     private final TraceBasedExternalSignatureResolver traceBasedExternalSignatureResolver;
     private final TraceBasedJavaResolverCache traceBasedJavaResolverCache;
@@ -163,7 +165,8 @@ public class InjectorForTopDownAnalyzerForObjC implements InjectorForTopDownAnal
         this.globalJavaResolverContext = new GlobalJavaResolverContext(storageManager, javaClassFinder, virtualFileFinder, deserializedDescriptorResolver, psiBasedExternalAnnotationResolver, traceBasedExternalSignatureResolver, traceBasedErrorReporter, psiBasedMethodSignatureChecker, traceBasedJavaResolverCache, javaPropertyInitializerEvaluator);
         this.lazyJavaPackageFragmentProvider = new LazyJavaPackageFragmentProvider(globalJavaResolverContext, getModuleDescriptor());
         this.javaDescriptorResolver = new JavaDescriptorResolver(lazyJavaPackageFragmentProvider, getModuleDescriptor());
-        this.objCPackageFragmentProvider = new ObjCPackageFragmentProvider(project, getModuleDescriptor());
+        this.objCBuiltIns = new ObjCBuiltIns();
+        this.objCPackageFragmentProvider = new ObjCPackageFragmentProvider(project, getModuleDescriptor(), getObjCBuiltIns());
         this.bodyResolver = new BodyResolver();
         this.annotationResolver = new AnnotationResolver();
         this.callResolver = new CallResolver();
@@ -374,6 +377,10 @@ public class InjectorForTopDownAnalyzerForObjC implements InjectorForTopDownAnal
     
     public ObjCPackageFragmentProvider getObjCPackageFragmentProvider() {
         return this.objCPackageFragmentProvider;
+    }
+    
+    public ObjCBuiltIns getObjCBuiltIns() {
+        return this.objCBuiltIns;
     }
     
 }

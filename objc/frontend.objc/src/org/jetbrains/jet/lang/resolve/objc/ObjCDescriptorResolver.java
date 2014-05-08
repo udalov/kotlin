@@ -38,14 +38,16 @@ import static org.jetbrains.jet.lang.resolve.objc.ObjCIndex.*;
 public class ObjCDescriptorResolver {
     private static final String PROTOCOL_NAME_SUFFIX = "Protocol";
 
+    private final ObjCBuiltIns objcBuiltIns;
     private final ObjCTypeResolver typeResolver;
 
     private final MutablePackageFragmentDescriptor objcPackage;
     private final Map<String, Name> protocolNames = new HashMap<String, Name>();
 
-    public ObjCDescriptorResolver(@NotNull MutablePackageFragmentDescriptor objcPackage) {
+    public ObjCDescriptorResolver(@NotNull ObjCBuiltIns objcBuiltIns, @NotNull MutablePackageFragmentDescriptor objcPackage) {
+        this.objcBuiltIns = objcBuiltIns;
         this.objcPackage = objcPackage;
-        this.typeResolver = new ObjCTypeResolver(objcPackage);
+        this.typeResolver = new ObjCTypeResolver(objcBuiltIns, objcPackage);
     }
 
     public void processTranslationUnit(@NotNull TranslationUnit tu) {
@@ -140,7 +142,7 @@ public class ObjCDescriptorResolver {
             supertypes.add(supertype);
         }
         else {
-            supertypes.add(ObjCBuiltIns.getInstance().getObjCObjectClass().getDefaultType());
+            supertypes.add(objcBuiltIns.getObjCObjectClass().getDefaultType());
         }
 
         for (String baseProtocolName : clazz.getProtocolList()) {
@@ -195,13 +197,13 @@ public class ObjCDescriptorResolver {
         return descriptor;
     }
 
-    private static void resolveClassObject(@NotNull ObjCClassDescriptor descriptor, @NotNull ObjCClassDescriptor metaclass) {
+    private void resolveClassObject(@NotNull ObjCClassDescriptor descriptor, @NotNull ObjCClassDescriptor metaclass) {
         assert descriptor.getKind() == ClassKind.CLASS : "Class objects exist only for Objective-C classes: " + descriptor;
 
         Name name = SpecialNames.getClassObjectName(descriptor.getName());
 
         Collection<JetType> supertypes = Arrays.asList(
-                ObjCBuiltIns.getInstance().getObjCClassClass().getDefaultType(),
+                objcBuiltIns.getObjCClassClass().getDefaultType(),
                 metaclass.getDefaultType(),
                 new DeferredHierarchyRootType(descriptor)
         );
@@ -212,7 +214,7 @@ public class ObjCDescriptorResolver {
         assert result == ClassObjectStatus.OK : result;
     }
 
-    private static class DeferredHierarchyRootType extends ObjCDeferredType {
+    private class DeferredHierarchyRootType extends ObjCDeferredType {
         public DeferredHierarchyRootType(@NotNull final ObjCClassDescriptor descriptor) {
             super(new Function0<JetType>() {
                 @Override
@@ -225,7 +227,7 @@ public class ObjCDescriptorResolver {
                     // If there's ObjCObject in the immediate supertypes of this class, it's a hierarchy root
                     Collection<JetType> supertypes = descriptor.getSupertypes();
                     for (JetType supertype : supertypes) {
-                        if (supertype.getConstructor().getDeclarationDescriptor() == ObjCBuiltIns.getInstance().getObjCObjectClass()) {
+                        if (supertype.getConstructor().getDeclarationDescriptor() == objcBuiltIns.getObjCObjectClass()) {
                             return descriptor;
                         }
                     }

@@ -36,20 +36,9 @@ import java.util.List;
 public class ObjCBuiltIns {
     public static final FqName FQ_NAME = new FqName("jet.objc");
 
-    private static ObjCBuiltIns instance = null;
-
-    @NotNull
-    public static ObjCBuiltIns getInstance() {
-        // TODO: synchronized?
-        if (instance == null) {
-            instance = new ObjCBuiltIns();
-        }
-        return instance;
-    }
-
     private final ObjCBuiltInsPackageFragment objcPackage;
 
-    private ObjCBuiltIns() {
+    public ObjCBuiltIns() {
         ModuleDescriptorImpl module = new ModuleDescriptorImpl(
                 Name.special("<objc built-ins module>"),
                 Collections.<ImportPath>emptyList(),

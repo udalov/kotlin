@@ -29,6 +29,7 @@ import org.jetbrains.jet.lang.resolve.kotlin.VirtualFileFinder
 import org.jetbrains.jet.lang.resolve.lazy.ResolveSession
 import org.jetbrains.jet.lang.resolve.lazy.declarations.DeclarationProviderFactory
 import org.jetbrains.jet.lang.resolve.objc.ObjCPackageFragmentProvider
+import org.jetbrains.jet.lang.resolve.objc.builtins.ObjCBuiltIns
 import org.jetbrains.jet.lang.types.DependencyClassByQualifiedNameResolverDummyImpl
 import org.jetbrains.jet.lang.types.expressions.ExpressionTypingServices
 import org.jetbrains.jet.di.*
@@ -125,6 +126,7 @@ private fun generatorForTopDownAnalyzerForObjC() =
 
             publicField(javaClass<JavaDescriptorResolver>())
             publicField(javaClass<ObjCPackageFragmentProvider>())
+            publicField(javaClass<ObjCBuiltIns>())
 
             fields(
                     javaClass<JavaClassFinderImpl>(),
