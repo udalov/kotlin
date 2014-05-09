@@ -17,6 +17,7 @@
 package org.jetbrains.jet.lang.resolve.objc;
 
 import com.intellij.openapi.project.Project;
+import kotlin.Function0;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.lang.descriptors.ModuleDescriptor;
 import org.jetbrains.jet.lang.descriptors.PackageFragmentDescriptor;
@@ -24,6 +25,8 @@ import org.jetbrains.jet.lang.descriptors.PackageFragmentProvider;
 import org.jetbrains.jet.lang.descriptors.impl.MutablePackageFragmentDescriptor;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.objc.builtins.ObjCBuiltIns;
+import org.jetbrains.jet.storage.LockBasedStorageManager;
+import org.jetbrains.jet.storage.NotNullLazyValue;
 import org.jetbrains.jet.utils.UtilsPackage;
 
 import java.io.IOException;
@@ -36,17 +39,26 @@ import static org.jetbrains.jet.lang.resolve.objc.ObjCIndex.TranslationUnit;
 public class ObjCPackageFragmentProvider implements PackageFragmentProvider {
     public static final FqName OBJC_PACKAGE_FQ_NAME = new FqName("objc");
 
-    private final PackageFragmentDescriptor objcPackage;
+    private final NotNullLazyValue<PackageFragmentDescriptor> objcPackage;
 
-    public ObjCPackageFragmentProvider(@NotNull Project project, @NotNull ModuleDescriptor module, @NotNull ObjCBuiltIns objcBuiltIns) {
-        String args = ObjCInteropParameters.getArgs(project);
-        assert args != null : "Header parameter should be saved beforehand";
+    public ObjCPackageFragmentProvider(
+            @NotNull final Project project,
+            @NotNull final ModuleDescriptor module,
+            @NotNull final ObjCBuiltIns objcBuiltIns
+    ) {
+        this.objcPackage = LockBasedStorageManager.NO_LOCKS.createLazyValue(new Function0<PackageFragmentDescriptor>() {
+            @Override
+            public PackageFragmentDescriptor invoke() {
+                String args = ObjCInteropParameters.getArgs(project);
+                assert args != null : "Header parameter should be saved beforehand";
 
-        TranslationUnit translationUnit = indexObjCHeaders(args);
+                TranslationUnit translationUnit = indexObjCHeaders(args);
 
-        MutablePackageFragmentDescriptor objcPackage = new MutablePackageFragmentDescriptor(module, OBJC_PACKAGE_FQ_NAME);
-        new ObjCDescriptorResolver(objcBuiltIns, objcPackage).processTranslationUnit(translationUnit);
-        this.objcPackage = objcPackage;
+                MutablePackageFragmentDescriptor objcPackage = new MutablePackageFragmentDescriptor(module, OBJC_PACKAGE_FQ_NAME);
+                new ObjCDescriptorResolver(objcBuiltIns, objcPackage).processTranslationUnit(translationUnit);
+                return objcPackage;
+            }
+        });
     }
 
     static {
@@ -70,7 +82,7 @@ public class ObjCPackageFragmentProvider implements PackageFragmentProvider {
     @Override
     public List<PackageFragmentDescriptor> getPackageFragments(@NotNull FqName fqName) {
         return fqName.equals(OBJC_PACKAGE_FQ_NAME) ?
-               Collections.singletonList(objcPackage) :
+               Collections.singletonList(objcPackage.invoke()) :
                Collections.<PackageFragmentDescriptor>emptyList();
     }
 

@@ -18,13 +18,11 @@ package org.jetbrains.jet.lang.resolve.objc.builtins;
 
 import kotlin.Function0;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.jet.lang.PlatformToKotlinClassMap;
 import org.jetbrains.jet.lang.descriptors.ClassDescriptor;
 import org.jetbrains.jet.lang.descriptors.ClassifierDescriptor;
-import org.jetbrains.jet.lang.descriptors.ModuleDescriptorImpl;
-import org.jetbrains.jet.lang.descriptors.PackageFragmentProvider;
+import org.jetbrains.jet.lang.descriptors.ModuleDescriptor;
+import org.jetbrains.jet.lang.descriptors.PackageViewDescriptor;
 import org.jetbrains.jet.lang.descriptors.annotations.Annotations;
-import org.jetbrains.jet.lang.resolve.ImportPath;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.resolve.objc.ObjCDeferredType;
@@ -36,21 +34,19 @@ import java.util.List;
 public class ObjCBuiltIns {
     public static final FqName FQ_NAME = new FqName("jet.objc");
 
-    private final ObjCBuiltInsPackageFragment objcPackage;
+    private final ModuleDescriptor module;
 
-    public ObjCBuiltIns() {
-        ModuleDescriptorImpl module = new ModuleDescriptorImpl(
-                Name.special("<objc built-ins module>"),
-                Collections.<ImportPath>emptyList(),
-                PlatformToKotlinClassMap.EMPTY
-        );
-
-        objcPackage = new ObjCBuiltInsPackageFragment(module);
+    public ObjCBuiltIns(@NotNull ModuleDescriptor module) {
+        this.module = module;
     }
 
     @NotNull
-    public PackageFragmentProvider getPackageFragmentProvider() {
-        return objcPackage.getProvider();
+    private PackageViewDescriptor getPackageView() {
+        // TODO: cache
+        PackageViewDescriptor packageView = module.getPackage(FQ_NAME);
+        // TODO: handle errors gracefully (error types)
+        assert packageView != null : "Package " + FQ_NAME + " not found in " + module;
+        return packageView;
     }
 
     @NotNull
@@ -77,7 +73,7 @@ public class ObjCBuiltIns {
 
     @NotNull
     private ClassDescriptor classByName(@NotNull String name) {
-        ClassifierDescriptor found = objcPackage.getMemberScope().getClassifier(Name.identifier(name));
+        ClassifierDescriptor found = getPackageView().getMemberScope().getClassifier(Name.identifier(name));
         if (!(found instanceof ClassDescriptor)) {
             throw new IllegalStateException("Obj-C built-in class not found: " + name);
         }

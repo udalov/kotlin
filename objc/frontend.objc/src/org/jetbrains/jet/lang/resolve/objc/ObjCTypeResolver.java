@@ -33,29 +33,35 @@ import java.util.Map;
 public class ObjCTypeResolver {
     private final ObjCBuiltIns objcBuiltIns;
     private final PackageFragmentDescriptor objcPackage;
-    private final Map<String, JetType> builtInTypes;
+    private volatile Map<String, JetType> builtInTypes;
 
     public ObjCTypeResolver(@NotNull ObjCBuiltIns objcBuiltIns, @NotNull PackageFragmentDescriptor objcPackage) {
         this.objcBuiltIns = objcBuiltIns;
         this.objcPackage = objcPackage;
-        KotlinBuiltIns builtIns = KotlinBuiltIns.getInstance();
-        this.builtInTypes = new ContainerUtil.ImmutableMapBuilder<String, JetType>()
-                .put("V", builtIns.getUnitType())
-                .put("UC", builtIns.getCharType())
-                .put("US", builtIns.getShortType())
-                .put("UI", builtIns.getIntType())
-                .put("UJ", builtIns.getLongType())
-                .put("C", builtIns.getCharType())
-                .put("Z", builtIns.getBooleanType())
-                .put("S", builtIns.getShortType())
-                .put("I", builtIns.getIntType())
-                .put("J", builtIns.getLongType())
-                .put("F", builtIns.getFloatType())
-                .put("D", builtIns.getDoubleType())
-                .put("OI", objcBuiltIns.getObjCObjectClass().getDefaultType())
-                .put("OC", objcBuiltIns.getObjCClassClass().getDefaultType())
-                .put("OS", objcBuiltIns.getObjCSelectorClass().getDefaultType())
-                .build();
+    }
+
+    private Map<String, JetType> getBuiltInTypesMap() {
+        if (builtInTypes == null) {
+            KotlinBuiltIns builtIns = KotlinBuiltIns.getInstance();
+            builtInTypes = new ContainerUtil.ImmutableMapBuilder<String, JetType>()
+                    .put("V", builtIns.getUnitType())
+                    .put("UC", builtIns.getCharType())
+                    .put("US", builtIns.getShortType())
+                    .put("UI", builtIns.getIntType())
+                    .put("UJ", builtIns.getLongType())
+                    .put("C", builtIns.getCharType())
+                    .put("Z", builtIns.getBooleanType())
+                    .put("S", builtIns.getShortType())
+                    .put("I", builtIns.getIntType())
+                    .put("J", builtIns.getLongType())
+                    .put("F", builtIns.getFloatType())
+                    .put("D", builtIns.getDoubleType())
+                    .put("OI", objcBuiltIns.getObjCObjectClass().getDefaultType())
+                    .put("OC", objcBuiltIns.getObjCClassClass().getDefaultType())
+                    .put("OS", objcBuiltIns.getObjCSelectorClass().getDefaultType())
+                    .build();
+        }
+        return builtInTypes;
     }
 
     @NotNull
@@ -111,7 +117,7 @@ public class ObjCTypeResolver {
         public JetType parse() {
             if (at == type.length()) error("No type to parse");
 
-            for (Map.Entry<String, JetType> entry : builtInTypes.entrySet()) {
+            for (Map.Entry<String, JetType> entry : getBuiltInTypesMap().entrySet()) {
                 if (advance(entry.getKey())) return entry.getValue();
             }
 

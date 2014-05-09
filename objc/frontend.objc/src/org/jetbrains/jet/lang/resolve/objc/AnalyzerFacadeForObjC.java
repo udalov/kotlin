@@ -66,7 +66,6 @@ public enum AnalyzerFacadeForObjC implements AnalyzerFacade {
         );
 
         module.addFragmentProvider(DependencyKind.SOURCES, injector.getObjCPackageFragmentProvider());
-        module.addFragmentProvider(DependencyKind.BUILT_INS, injector.getObjCBuiltIns().getPackageFragmentProvider());
         module.addFragmentProvider(DependencyKind.BINARIES, injector.getJavaDescriptorResolver().getPackageFragmentProvider());
 
         TopDownAnalysisParameters topDownAnalysisParameters = TopDownAnalysisParameters.create(

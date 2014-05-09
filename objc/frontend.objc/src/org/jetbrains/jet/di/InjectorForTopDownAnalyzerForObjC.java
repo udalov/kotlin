@@ -165,7 +165,7 @@ public class InjectorForTopDownAnalyzerForObjC implements InjectorForTopDownAnal
         this.globalJavaResolverContext = new GlobalJavaResolverContext(storageManager, javaClassFinder, virtualFileFinder, deserializedDescriptorResolver, psiBasedExternalAnnotationResolver, traceBasedExternalSignatureResolver, traceBasedErrorReporter, psiBasedMethodSignatureChecker, traceBasedJavaResolverCache, javaPropertyInitializerEvaluator);
         this.lazyJavaPackageFragmentProvider = new LazyJavaPackageFragmentProvider(globalJavaResolverContext, getModuleDescriptor());
         this.javaDescriptorResolver = new JavaDescriptorResolver(lazyJavaPackageFragmentProvider, getModuleDescriptor());
-        this.objCBuiltIns = new ObjCBuiltIns();
+        this.objCBuiltIns = new ObjCBuiltIns(getModuleDescriptor());
         this.objCPackageFragmentProvider = new ObjCPackageFragmentProvider(project, getModuleDescriptor(), getObjCBuiltIns());
         this.bodyResolver = new BodyResolver();
         this.annotationResolver = new AnnotationResolver();

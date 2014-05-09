@@ -538,25 +538,6 @@
       <copy file="dependencies/annotations/kotlin-android-sdk-annotations.jar" todir="${kotlin-home}/lib"/>
     </target>
 
-    <target name="objcBuiltins">
-      <cleandir dir="${output}/objc-builtins"/>
-      <java classname="org.jetbrains.jet.utils.builtinsSerializer.BuiltinsSerializerPackage" failonerror="true" fork="true">
-        <classpath>
-          <path refid="classpath"/>
-          <pathelement location="${kotlin-home}/lib/kotlin-compiler.jar"/>
-        </classpath>
-        <assertions>
-          <enable/>
-        </assertions>
-        <arg value="${output}/objc-builtins"/>
-        <arg value="objc/runtime.objc/src"/>
-        <sysproperty key="include.previous.builtins" value="true"/>
-      </java>
-      <delete>
-        <fileset dir="${output}/objc-builtins/jet" includes="*.kotlin_*"/>
-      </delete>
-    </target>
-
     <target name="objcRuntime">
       <cleandir dir="${output}/classes/runtime.objc"/>
       <javac2 destdir="${output}/classes/runtime.objc" debug="true" debuglevel="lines,vars,source" includeAntRuntime="false" source="${java.target}" target="${java.target}">
@@ -656,15 +637,15 @@
 
     <!-- builds redistributables from sources -->
     <target name="dist"
-            depends="clean,init,prepareDist,preloader,builtins,compiler,objcBuiltins,compilerSources,antTools,jdkAnnotations,androidSdkAnnotations,runtime,runtime_sources,objcRuntime,jslib"/>
+            depends="clean,init,prepareDist,preloader,builtins,compiler,compilerSources,antTools,jdkAnnotations,androidSdkAnnotations,runtime,runtime_sources,objcRuntime,jslib"/>
 
     <!-- builds everything, but classes are reused from project out dir, doesn't run proguard and javadoc -->
     <target name="dist_quick"
-            depends="clean,init,prepareDist,preloader,builtins,compiler_quick,objcBuiltins,antTools,jdkAnnotations,androidSdkAnnotations,runtime,runtime_sources,objcRuntime,jslib"/>
+            depends="clean,init,prepareDist,preloader,builtins,compiler_quick,antTools,jdkAnnotations,androidSdkAnnotations,runtime,runtime_sources,objcRuntime,jslib"/>
 
     <!-- builds compiler jar from project out dir -->
     <target name="dist_quick_compiler_only"
-            depends="init,prepareDist,preloader,builtins,compiler_quick,objcBuiltins"/>
+            depends="init,prepareDist,preloader,builtins,compiler_quick"/>
 
     <target name="zip" depends="dist">
         <zip destfile="${output}/${output.name}.zip">
