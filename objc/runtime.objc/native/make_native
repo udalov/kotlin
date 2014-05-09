@@ -4,8 +4,11 @@
 
 CWD=`dirname $0`
 HOME=$CWD/../../..
+RUNTIME_OBJC=$HOME/out/production/runtime.objc
 
-javah -classpath $HOME/out/production/runtime.objc:$HOME/dependencies/bootstrap-compiler/Kotlin/lib/kotlin-runtime.jar -o $CWD/KotlinNative.h jet.objc.Native
+[ ! -f $RUNTIME_OBJC/kotlin/jvm/objc/Native.class ] && echo "Native.class not found. Launch IDEA Make before building libKotlinNative" && exit 1
+
+javah -classpath $RUNTIME_OBJC:$HOME/dependencies/bootstrap-compiler/Kotlin/lib/kotlin-runtime.jar -o $CWD/KotlinNative.h kotlin.jvm.objc.Native
 
 # Working path on Mac OS X Lion/Mountain Lion with JDK 6:
 # JAVA_INCLUDE=-I/System/Library/Frameworks/JavaVM.framework/Versions/Current/Headers

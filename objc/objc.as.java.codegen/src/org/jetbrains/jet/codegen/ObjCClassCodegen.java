@@ -16,9 +16,6 @@
 
 package org.jetbrains.jet.codegen;
 
-import jet.objc.Native;
-import jet.objc.ObjCObject;
-import jet.objc.helpers.HelpersPackage;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.codegen.state.JetTypeMapper;
 import org.jetbrains.jet.lang.descriptors.*;
@@ -44,13 +41,13 @@ import static org.jetbrains.org.objectweb.asm.Opcodes.*;
 import static org.jetbrains.org.objectweb.asm.Type.*;
 
 public class ObjCClassCodegen {
-    public static final String NATIVE = Type.getType(Native.class).getInternalName();
-    public static final String NATIVE_HELPERS = Type.getType(HelpersPackage.class).getInternalName();
+    public static final String NATIVE = "kotlin/jvm/objc/Native";
+    public static final String NATIVE_HELPERS = "kotlin/jvm/objc/helpers/HelpersPackage";
 
     public static final Type JL_OBJECT_TYPE = Type.getType(Object.class);
     public static final Type JL_STRING_TYPE = Type.getType(String.class);
 
-    public static final Type OBJC_OBJECT_TYPE = Type.getType(ObjCObject.class);
+    public static final Type OBJC_OBJECT_TYPE = Type.getObjectType("kotlin/jvm/objc/ObjCObject");
 
     public static final String OBJC_SEND_MESSAGE_DESCRIPTOR =
             getMethodDescriptor(JL_OBJECT_TYPE, JL_STRING_TYPE, OBJC_OBJECT_TYPE, JL_STRING_TYPE, Type.getType(Object[].class));
@@ -304,7 +301,7 @@ public class ObjCClassCodegen {
         assert type.getSort() == Type.OBJECT : "Unsupported type sort: " + type;
 
         String className = type.getClassName();
-        if ("jet.objc.ObjCClass".equals(className)) {
+        if ("kotlin.jvm.objc.ObjCClass".equals(className)) {
             return "interface " + className;
         }
 

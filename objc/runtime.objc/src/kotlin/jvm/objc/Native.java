@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package jet.objc;
+package kotlin.jvm.objc;
 
 import java.io.File;
 import java.io.InputStream;

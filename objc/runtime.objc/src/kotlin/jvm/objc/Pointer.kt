@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package jet.objc
+package kotlin.jvm.objc
 
 public open class Pointer<T> internal(open val peer: Long) {
     class object {

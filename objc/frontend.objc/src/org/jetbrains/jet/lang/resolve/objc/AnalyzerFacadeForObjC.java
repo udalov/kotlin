@@ -52,8 +52,7 @@ public enum AnalyzerFacadeForObjC implements AnalyzerFacade {
     @NotNull
     public static AnalyzeExhaust analyzeFiles(@NotNull Project project, @NotNull Collection<JetFile> files) {
         List<ImportPath> imports = new ArrayList<ImportPath>();
-        // TODO: kotlin.objc.* or kotlin.jvm.objc.* ?
-        imports.add(new ImportPath("jet.objc.*"));
+        imports.add(new ImportPath("kotlin.jvm.objc.*"));
         imports.addAll(AnalyzerFacadeForJVM.DEFAULT_IMPORTS);
 
         // TODO: shouldn't depend on Java, create another module for this analyzer facade (ObjC + JVM)

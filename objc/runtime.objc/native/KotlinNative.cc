@@ -116,14 +116,14 @@ class JVMDeclarationsCache {
     jmethodID pointerConstructor;
 
     JVMDeclarationsCache(JNIEnv *env): env(env) {
-        objcObjectClass = findClass("jet/objc/ObjCObject");
-        objcSelectorClass = findClass("jet/objc/ObjCSelector");
-        pointerClass = findClass("jet/objc/Pointer");
-        nilClass = findClass("jet/objc/Nil");
+        objcObjectClass = findClass("kotlin/jvm/objc/ObjCObject");
+        objcSelectorClass = findClass("kotlin/jvm/objc/ObjCSelector");
+        pointerClass = findClass("kotlin/jvm/objc/Pointer");
+        nilClass = findClass("kotlin/jvm/objc/Nil");
 
         objcObjectPointerField = env->GetFieldID(objcObjectClass, "pointer", "J");
         pointerPeerField = env->GetFieldID(pointerClass, "peer", "J");
-        nilInstanceField = env->GetStaticFieldID(nilClass, "INSTANCE", "Ljet/objc/Nil;");
+        nilInstanceField = env->GetStaticFieldID(nilClass, "INSTANCE", "Lkotlin/jvm/objc/Nil;");
 
         integerClass = findClass("java/lang/Integer");
         longClass = findClass("java/lang/Long");
@@ -249,7 +249,7 @@ std::string getClassGetName(JNIEnv *env, jobject object) {
 // Dynamic libraries
 // --------------------------------------------------------
 
-JNIEXPORT void JNICALL Java_jet_objc_Native_dlopen(
+JNIEXPORT void JNICALL Java_kotlin_jvm_objc_Native_dlopen(
         JNIEnv *env,
         jclass,
         jstring path
@@ -267,7 +267,7 @@ JNIEXPORT void JNICALL Java_jet_objc_Native_dlopen(
 // Pointers
 // --------------------------------------------------------
 
-JNIEXPORT jlong JNICALL Java_jet_objc_Native_malloc(
+JNIEXPORT jlong JNICALL Java_kotlin_jvm_objc_Native_malloc(
         JNIEnv *,
         jclass,
         jlong bytes
@@ -276,7 +276,7 @@ JNIEXPORT jlong JNICALL Java_jet_objc_Native_malloc(
     return *(jlong *)&memory;
 }
 
-JNIEXPORT void JNICALL Java_jet_objc_Native_free(
+JNIEXPORT void JNICALL Java_kotlin_jvm_objc_Native_free(
         JNIEnv *,
         jclass,
         jlong pointer
@@ -284,7 +284,7 @@ JNIEXPORT void JNICALL Java_jet_objc_Native_free(
     free(*(void **)&pointer);
 }
 
-JNIEXPORT jlong JNICALL Java_jet_objc_Native_getWord(
+JNIEXPORT jlong JNICALL Java_kotlin_jvm_objc_Native_getWord(
         JNIEnv *,
         jclass,
         jlong pointer
@@ -292,7 +292,7 @@ JNIEXPORT jlong JNICALL Java_jet_objc_Native_getWord(
     return *(jlong *)pointer;
 }
 
-JNIEXPORT void JNICALL Java_jet_objc_Native_setWord(
+JNIEXPORT void JNICALL Java_kotlin_jvm_objc_Native_setWord(
         JNIEnv *,
         jclass,
         jlong pointer,
@@ -306,7 +306,7 @@ JNIEXPORT void JNICALL Java_jet_objc_Native_setWord(
 // Objective-C
 // --------------------------------------------------------
 
-JNIEXPORT jlong JNICALL Java_jet_objc_Native_objc_1getClass(
+JNIEXPORT jlong JNICALL Java_kotlin_jvm_objc_Native_objc_1getClass(
         JNIEnv *env,
         jclass,
         jstring name
@@ -610,7 +610,7 @@ Type typeFromReflectString(const std::string& name) {
     else if (name == "float") return Type(TYPE_FLOAT);
     else if (name == "double") return Type(TYPE_DOUBLE);
     else if (name == "void") return Type(TYPE_VOID);
-    else if (name == "interface jet.objc.ObjCClass") return Type(TYPE_CLASS);
+    else if (name == "interface kotlin.jvm.objc.ObjCClass") return Type(TYPE_CLASS);
     else if (name.find("interface kotlin.Function") == 0) {
         // TODO: support returning closures
         fprintf(stderr, "Returning functions from native code is not supported\n");
@@ -623,9 +623,9 @@ Type typeFromReflectString(const std::string& name) {
         }
         std::string className = name.substr(CLASS_PREFIX.length());
 
-        if (className == "jet.objc.Pointer") return Type(TYPE_POINTER);
-        else if (className == "jet.objc.ObjCSelector") return Type(TYPE_SELECTOR);
-        else if (className == "jet.objc.ObjCObject") return Type(TYPE_ID);
+        if (className == "kotlin.jvm.objc.Pointer") return Type(TYPE_POINTER);
+        else if (className == "kotlin.jvm.objc.ObjCSelector") return Type(TYPE_SELECTOR);
+        else if (className == "kotlin.jvm.objc.ObjCObject") return Type(TYPE_ID);
         else {
             // assert(env->CallBooleanMethod(cache->objcObjectClass, cache->classIsAssignableFromMethod, classObject));
             std::replace(className.begin(), className.end(), '.', '/');
@@ -636,7 +636,7 @@ Type typeFromReflectString(const std::string& name) {
     }
 }
 
-JNIEXPORT jobject JNICALL Java_jet_objc_Native_objc_1msgSend(
+JNIEXPORT jobject JNICALL Java_kotlin_jvm_objc_Native_objc_1msgSend(
         JNIEnv *env,
         jclass,
         jstring returnTypeDescriptor,

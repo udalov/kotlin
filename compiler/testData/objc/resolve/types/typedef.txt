@@ -10,19 +10,19 @@ public open class A : objc.NSObject {
     invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: kotlin.Long
     public open fun f_a(): objc.A
     public open fun f_int(): kotlin.Int
-    public open fun f_pa(): jet.objc.Pointer<objc.A>
-    public open fun f_pint(): jet.objc.Pointer<kotlin.Int>
-    public open fun f_ppint(): jet.objc.Pointer<jet.objc.Pointer<kotlin.Int>>
+    public open fun f_pa(): kotlin.jvm.objc.Pointer<objc.A>
+    public open fun f_pint(): kotlin.jvm.objc.Pointer<kotlin.Int>
+    public open fun f_ppint(): kotlin.jvm.objc.Pointer<kotlin.jvm.objc.Pointer<kotlin.Int>>
     
-    public class object <class-object-for-A> : jet.objc.ObjCClass, objc.<metaclass-for-A>, objc.NSObject {
+    public class object <class-object-for-A> : kotlin.jvm.objc.ObjCClass, objc.<metaclass-for-A>, objc.NSObject {
         invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: kotlin.Long
     }
 }
 
-public open class NSObject : jet.objc.ObjCObject {
+public open class NSObject : kotlin.jvm.objc.ObjCObject {
     invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: kotlin.Long
     
-    public class object <class-object-for-NSObject> : jet.objc.ObjCClass, objc.<metaclass-for-NSObject>, objc.NSObject {
+    public class object <class-object-for-NSObject> : kotlin.jvm.objc.ObjCClass, objc.<metaclass-for-NSObject>, objc.NSObject {
         invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: kotlin.Long
     }
 }

@@ -19,10 +19,10 @@ public trait <metaclass-for-DerivedProtocol> : objc.<metaclass-for-BaseProtocol>
     public open fun derivedProtocolMethod(): kotlin.Unit
 }
 
-public open class BaseClass : jet.objc.ObjCObject {
+public open class BaseClass : kotlin.jvm.objc.ObjCObject {
     invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: kotlin.Long
     
-    public class object <class-object-for-BaseClass> : jet.objc.ObjCClass, objc.<metaclass-for-BaseClass>, objc.BaseClass {
+    public class object <class-object-for-BaseClass> : kotlin.jvm.objc.ObjCClass, objc.<metaclass-for-BaseClass>, objc.BaseClass {
         invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: kotlin.Long
         public open override /*1*/ /*fake_override*/ fun baseClassMethod(): kotlin.Unit
     }
@@ -34,7 +34,7 @@ public trait BaseProtocol {
 public open class Derived : objc.BaseClass, objc.BaseProtocol {
     invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: kotlin.Long
     
-    public class object <class-object-for-Derived> : jet.objc.ObjCClass, objc.<metaclass-for-Derived>, objc.BaseClass {
+    public class object <class-object-for-Derived> : kotlin.jvm.objc.ObjCClass, objc.<metaclass-for-Derived>, objc.BaseClass {
         invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: kotlin.Long
         public open override /*1*/ /*fake_override*/ fun baseClassMethod(): kotlin.Unit
         public open override /*1*/ /*fake_override*/ fun baseProtocolMethod(): kotlin.Unit

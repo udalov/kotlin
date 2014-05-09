@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package jet.objc
+package kotlin.jvm.objc
 
 public trait ObjCClass {
     class object {

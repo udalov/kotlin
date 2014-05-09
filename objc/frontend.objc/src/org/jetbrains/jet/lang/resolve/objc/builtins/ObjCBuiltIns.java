@@ -32,7 +32,7 @@ import java.util.Collections;
 import java.util.List;
 
 public class ObjCBuiltIns {
-    public static final FqName FQ_NAME = new FqName("jet.objc");
+    public static final FqName FQ_NAME = new FqName("kotlin.jvm.objc");
 
     private final ModuleDescriptor module;
 

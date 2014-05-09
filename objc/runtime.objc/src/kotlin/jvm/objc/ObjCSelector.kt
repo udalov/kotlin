@@ -14,10 +14,6 @@
  * limitations under the License.
  */
 
-package jet.objc
+package kotlin.jvm.objc
 
-class Nil : ObjCObject(0), ObjCClass {
-    class object {
-        val INSTANCE = Nil()
-    }
-}
+public class ObjCSelector internal(override val peer: Long) : Pointer<Any>(peer)

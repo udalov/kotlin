@@ -11,11 +11,11 @@ public trait <metaclass-for-A> : objc.<metaclass-for-A+First>, objc.<metaclass-f
     public open override /*1*/ /*fake_override*/ fun bar(): kotlin.Unit
 }
 
-public open class A : jet.objc.ObjCObject, objc.A+First, objc.A+Second {
+public open class A : kotlin.jvm.objc.ObjCObject, objc.A+First, objc.A+Second {
     invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: kotlin.Long
     public open override /*1*/ /*fake_override*/ fun foo(): kotlin.Unit
     
-    public class object <class-object-for-A> : jet.objc.ObjCClass, objc.<metaclass-for-A>, objc.A {
+    public class object <class-object-for-A> : kotlin.jvm.objc.ObjCClass, objc.<metaclass-for-A>, objc.A {
         invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: kotlin.Long
         public open override /*1*/ /*fake_override*/ fun bar(): kotlin.Unit
         public open override /*1*/ /*fake_override*/ fun foo(): kotlin.Unit
