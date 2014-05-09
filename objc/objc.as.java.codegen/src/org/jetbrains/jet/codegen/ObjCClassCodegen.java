@@ -170,32 +170,32 @@ public class ObjCClassCodegen {
     }
 
     private void generateStaticInitializer() {
-        newMethod(ACC_PUBLIC | ACC_STATIC, "<clinit>", getMethodDescriptor(VOID_TYPE), new MethodCodegen() {
+        newMethod(ACC_PUBLIC | ACC_STATIC, "<clinit>", "()V", new MethodCodegen() {
             @Override
             public void generate(@NotNull InstructionAdapter v) {
                 if (classObjectAsmType != null) {
                     v.anew(classObjectAsmType);
                     v.dup();
-                    v.invokespecial(classObjectAsmType.getInternalName(), "<init>", "()V");
+                    v.invokespecial(classObjectAsmType.getInternalName(), "<init>", "()V", false);
                     v.putstatic(asmType.getInternalName(), JvmAbi.CLASS_OBJECT_FIELD, classObjectAsmType.getDescriptor());
                 }
                 v.visitLdcInsn(dylib.toString());
-                v.invokestatic(NATIVE_HELPERS, "loadLibrary", getMethodDescriptor(VOID_TYPE, JL_STRING_TYPE));
+                v.invokestatic(NATIVE_HELPERS, "loadLibrary", "(Ljava/lang/String;)V", false);
                 v.areturn(VOID_TYPE);
             }
         });
     }
 
     private void generateConstructor() {
-        final String objcObjectConstructor = getMethodDescriptor(VOID_TYPE, LONG_TYPE);
+        final String objcObjectConstructor = "(J)V";
         if (descriptor.getKind() == ClassKind.CLASS_OBJECT) {
-            newMethod(ACC_PUBLIC, "<init>", getMethodDescriptor(VOID_TYPE), new MethodCodegen() {
+            newMethod(ACC_PUBLIC, "<init>", "()V", new MethodCodegen() {
                 @Override
                 public void generate(@NotNull InstructionAdapter v) {
                     v.load(0, asmType);
                     v.visitLdcInsn(descriptor.getContainingDeclaration().getName().asString());
-                    v.invokestatic(NATIVE, "objc_getClass", getMethodDescriptor(LONG_TYPE, JL_STRING_TYPE));
-                    v.invokespecial(superClassAsmType.getInternalName(), "<init>", objcObjectConstructor);
+                    v.invokestatic(NATIVE, "objc_getClass", "(Ljava/lang/String;)J", false);
+                    v.invokespecial(superClassAsmType.getInternalName(), "<init>", objcObjectConstructor, false);
                     v.areturn(VOID_TYPE);
                 }
             });
@@ -206,7 +206,7 @@ public class ObjCClassCodegen {
                 public void generate(@NotNull InstructionAdapter v) {
                     v.load(0, asmType);
                     v.load(1, LONG_TYPE);
-                    v.invokespecial(superClassAsmType.getInternalName(), "<init>", objcObjectConstructor);
+                    v.invokespecial(superClassAsmType.getInternalName(), "<init>", objcObjectConstructor, false);
                     v.areturn(VOID_TYPE);
                 }
             });
@@ -235,17 +235,13 @@ public class ObjCClassCodegen {
             public void generate(@NotNull InstructionAdapter v) {
                 Type returnType = asmMethod.getReturnType();
                 v.visitLdcInsn(getTypeReflectString(returnType));
-
                 v.load(0, asmType);
-
                 v.visitLdcInsn(getObjCMethodName(method));
-
                 putArgumentsAsNativeValueArray(v);
 
-                v.invokestatic(NATIVE, "objc_msgSend", OBJC_SEND_MESSAGE_DESCRIPTOR);
+                v.invokestatic(NATIVE, "objc_msgSend", OBJC_SEND_MESSAGE_DESCRIPTOR, false);
 
                 StackValue.coerce(JL_OBJECT_TYPE, returnType, v);
-
                 v.areturn(returnType);
             }
 
