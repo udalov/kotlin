@@ -21,9 +21,6 @@ import org.jetbrains.jet.analyzer.AnalyzeExhaust;
 import org.jetbrains.jet.cli.jvm.compiler.JetCoreEnvironment;
 import org.jetbrains.jet.lang.descriptors.PackageViewDescriptor;
 import org.jetbrains.jet.lang.psi.JetFile;
-import org.jetbrains.jet.lang.resolve.AnalyzingUtils;
-import org.jetbrains.jet.lang.resolve.objc.AnalyzerFacadeForObjC;
-import org.jetbrains.jet.lang.resolve.objc.ObjCInteropParameters;
 import org.jetbrains.jet.test.TestCaseWithTmpdir;
 
 import java.io.File;
@@ -40,12 +37,7 @@ public abstract class AbstractObjCDescriptorResolverTest extends TestCaseWithTmp
         File expected = new File(header.substring(0, header.length() - ".h".length()) + ".txt");
 
         JetCoreEnvironment environment = createEnvironment(getTestRootDisposable());
-        ObjCInteropParameters.setArgs(environment.getProject(), header);
-
-        AnalyzeExhaust analyzeExhaust = AnalyzerFacadeForObjC.analyzeFiles(environment.getProject(), Collections.<JetFile>emptyList());
-        analyzeExhaust.throwIfError();
-        AnalyzingUtils.throwExceptionOnErrors(analyzeExhaust.getBindingContext());
-
+        AnalyzeExhaust analyzeExhaust = ObjCTestUtil.analyze(environment.getProject(), Collections.<JetFile>emptyList(), new File(header));
         PackageViewDescriptor descriptor = extractObjCPackageFromAnalyzeExhaust(analyzeExhaust);
 
         // TODO: add a configuration not to show INVISIBLE_FAKE members

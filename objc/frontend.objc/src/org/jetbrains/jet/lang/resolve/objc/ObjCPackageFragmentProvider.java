@@ -17,6 +17,7 @@
 package org.jetbrains.jet.lang.resolve.objc;
 
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.util.Key;
 import kotlin.Function0;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.lang.descriptors.ModuleDescriptor;
@@ -29,6 +30,7 @@ import org.jetbrains.jet.storage.LockBasedStorageManager;
 import org.jetbrains.jet.storage.NotNullLazyValue;
 import org.jetbrains.jet.utils.UtilsPackage;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
@@ -38,6 +40,7 @@ import static org.jetbrains.jet.lang.resolve.objc.ObjCIndex.TranslationUnit;
 
 public class ObjCPackageFragmentProvider implements PackageFragmentProvider {
     public static final FqName OBJC_PACKAGE_FQ_NAME = new FqName("objc");
+    public static final Key<File> OBJC_PROJECT_HEADER_KEY = Key.create("OBJC_PROJECT_HEADER_KEY");
 
     private final NotNullLazyValue<PackageFragmentDescriptor> objcPackage;
 
@@ -49,10 +52,10 @@ public class ObjCPackageFragmentProvider implements PackageFragmentProvider {
         this.objcPackage = LockBasedStorageManager.NO_LOCKS.createLazyValue(new Function0<PackageFragmentDescriptor>() {
             @Override
             public PackageFragmentDescriptor invoke() {
-                String args = ObjCInteropParameters.getArgs(project);
-                assert args != null : "Header parameter should be saved beforehand";
+                File headerFile = project.getUserData(OBJC_PROJECT_HEADER_KEY);
+                assert headerFile != null : "Header parameter should be saved beforehand for project " + project;
 
-                TranslationUnit translationUnit = indexObjCHeaders(args);
+                TranslationUnit translationUnit = indexObjCHeader(headerFile);
 
                 MutablePackageFragmentDescriptor objcPackage = new MutablePackageFragmentDescriptor(module, OBJC_PACKAGE_FQ_NAME);
                 new ObjCDescriptorResolver(objcBuiltIns, objcPackage).processTranslationUnit(translationUnit);
@@ -68,9 +71,9 @@ public class ObjCPackageFragmentProvider implements PackageFragmentProvider {
     private native byte[] buildObjCIndex(@NotNull String args);
 
     @NotNull
-    private TranslationUnit indexObjCHeaders(@NotNull String args) {
+    private TranslationUnit indexObjCHeader(@NotNull File headerFile) {
         try {
-            byte[] bytes = buildObjCIndex(args);
+            byte[] bytes = buildObjCIndex(headerFile.getPath());
             return TranslationUnit.parseFrom(bytes);
         }
         catch (IOException e) {

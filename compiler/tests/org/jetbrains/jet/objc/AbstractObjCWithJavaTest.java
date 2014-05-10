@@ -31,12 +31,9 @@ import org.jetbrains.jet.codegen.ObjCDescriptorCodegen;
 import org.jetbrains.jet.codegen.state.GenerationState;
 import org.jetbrains.jet.lang.descriptors.PackageViewDescriptor;
 import org.jetbrains.jet.lang.psi.JetFile;
-import org.jetbrains.jet.lang.resolve.AnalyzingUtils;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.java.PackageClassUtils;
 import org.jetbrains.jet.lang.resolve.name.FqName;
-import org.jetbrains.jet.lang.resolve.objc.AnalyzerFacadeForObjC;
-import org.jetbrains.jet.lang.resolve.objc.ObjCInteropParameters;
 import org.jetbrains.jet.utils.UtilsPackage;
 
 import java.io.File;
@@ -68,7 +65,6 @@ public abstract class AbstractObjCWithJavaTest extends UsefulTestCase {
     protected void tearDown() throws Exception {
         tmpDir = null;
         project = null;
-        ObjCInteropParameters.clear();
 
         super.tearDown();
     }
@@ -97,13 +93,12 @@ public abstract class AbstractObjCWithJavaTest extends UsefulTestCase {
     @NotNull
     protected String runTestGetOutput(@NotNull String kotlinSource, @NotNull String header, @NotNull File dylib) {
         File headerFile = combineHeaders(KOTLIN_FOUNDATION_HEADER_PATH, header);
-        ObjCInteropParameters.setArgs(project, headerFile.getPath());
 
         List<JetFile> files = Arrays.asList(
                 createJetFile(kotlinSource),
                 createJetFile(KOTLIN_FOUNDATION_SOURCE_PATH)
         );
-        AnalyzeExhaust analyzeExhaust = analyze(files);
+        AnalyzeExhaust analyzeExhaust = analyze(project, files, headerFile);
 
         PackageViewDescriptor objcPackage = extractObjCPackageFromAnalyzeExhaust(analyzeExhaust);
 
@@ -154,15 +149,6 @@ public abstract class AbstractObjCWithJavaTest extends UsefulTestCase {
         File kotlinRuntime = new File("dist/kotlinc/lib/kotlin-runtime.jar");
         assert kotlinRuntime.exists() : "kotlin-runtime.jar should exist before this test, run dist";
         return kotlinRuntime;
-    }
-
-    @NotNull
-    private AnalyzeExhaust analyze(@NotNull List<JetFile> files) {
-        AnalyzeExhaust analyzeExhaust = AnalyzerFacadeForObjC.analyzeFiles(project, files);
-        analyzeExhaust.throwIfError();
-        AnalyzingUtils.throwExceptionOnErrors(analyzeExhaust.getBindingContext());
-
-        return analyzeExhaust;
     }
 
     private void generate(@NotNull List<JetFile> files, @NotNull AnalyzeExhaust analyzeExhaust, @NotNull BindingContext objcBinding) {
