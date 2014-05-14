@@ -16,7 +16,7 @@
 #     Compile (linking to the .dylib) and run tests
 #
 #  5. make javah
-#     Launch javah on the compiled ObjCResolveFacade class (found in out/)
+#     Launch javah on the compiled ObjCResolveNative class (found in out/)
 #     to produce a C header Indexer.h
 #
 # ----------------------------------------------------------------------------
@@ -70,7 +70,7 @@ dylib: $(OBJ_FILES)
 	$(CXX) $(LDFLAGS) -dynamiclib -o $(DYLIB) $^
 
 javah:
-	@javah -classpath ../../../out/production/frontend.objc:../../../out/production/descriptors:../../../dependencies/bootstrap-compiler/Kotlin/lib/kotlin-runtime.jar:../../../ideaSDK/core/intellij-core.jar -o Indexer.h org.jetbrains.jet.lang.resolve.objc.ObjCPackageFragmentProvider
+	@javah -classpath ../../../out/production/frontend.objc -o Indexer.h org.jetbrains.jet.lang.resolve.objc.ObjCResolveNative
 
 $(OUT)/%.o: %.cc
 	$(CXX) $(CXXFLAGS) -c $^ -o $@

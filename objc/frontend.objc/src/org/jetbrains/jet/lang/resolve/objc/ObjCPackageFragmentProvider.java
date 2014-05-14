@@ -64,16 +64,10 @@ public class ObjCPackageFragmentProvider implements PackageFragmentProvider {
         });
     }
 
-    static {
-        System.loadLibrary("KotlinNativeIndexer");
-    }
-
-    private native byte[] buildObjCIndex(@NotNull String args);
-
     @NotNull
-    private TranslationUnit indexObjCHeader(@NotNull File headerFile) {
+    private static TranslationUnit indexObjCHeader(@NotNull File headerFile) {
         try {
-            byte[] bytes = buildObjCIndex(headerFile.getPath());
+            byte[] bytes = ObjCResolveNative.buildObjCIndex(headerFile.getPath());
             return TranslationUnit.parseFrom(bytes);
         }
         catch (IOException e) {
