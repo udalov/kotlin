@@ -37,9 +37,9 @@ JAVA_INCLUDE=-I$(JAVA_HOME)/include -I$(JAVA_HOME)/include/darwin
 CXX=c++
 CXXFLAGS=-O2 -Wall -std=c++0x $(JAVA_INCLUDE) -Iinclude -stdlib=libc++
 # libclang.dylib and libprotobuf.dylib should be installed via Homebrew:
-# brew install llvm --disable-shared --universal --with-clang --without-python
+# brew install llvm --with-clang
 # brew install protobuf
-LDFLAGS=-stdlib=libc++ -L/usr/local/opt/llvm/lib -L/usr/local/opt/protobuf/lib -lclang -lprotobuf
+LDFLAGS=-Wl,-rpath,/usr/local/opt/llvm/lib -L/usr/local/opt/llvm/lib -L/usr/local/opt/protobuf/lib -lclang -lprotobuf
 
 SRC_FILES=$(wildcard *.cc)
 OBJ_FILES=$(patsubst %.cc,$(OUT)/%.o,$(SRC_FILES))
@@ -48,7 +48,6 @@ DYLIB=$(OUT)/lib$(PROJECT_NAME).dylib
 
 TEST_FILES=$(wildcard tests/*.cc)
 TEST_EXE=$(OUT)/tests
-TEST_ENV=DYLD_LIBRARY_PATH=/usr/local/opt/llvm/lib
 
 
 # ----------------------------------------------------------------------------
@@ -84,4 +83,4 @@ clean:
 
 test: mkdir dylib
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) -I. -L$(OUT) -l$(PROJECT_NAME) $(TEST_FILES) -o $(TEST_EXE)
-	$(TEST_ENV) $(TEST_EXE)
+	$(TEST_EXE)
