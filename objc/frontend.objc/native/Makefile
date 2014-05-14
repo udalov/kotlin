@@ -34,12 +34,12 @@ PROJECT_NAME=KotlinNativeIndexer
 JAVA_HOME=$(shell /usr/libexec/java_home)
 JAVA_INCLUDE=-I$(JAVA_HOME)/include -I$(JAVA_HOME)/include/darwin
 
-CPP=c++
-CC_FLAGS=-O2 -Wall -std=c++0x $(JAVA_INCLUDE) -Iinclude -stdlib=libc++
+CXX=c++
+CXXFLAGS=-O2 -Wall -std=c++0x $(JAVA_INCLUDE) -Iinclude -stdlib=libc++
 # libclang.dylib and libprotobuf.dylib should be installed via Homebrew:
 # brew install llvm --disable-shared --universal --with-clang --without-python
 # brew install protobuf
-LD_FLAGS=-stdlib=libc++ -L/usr/local/opt/llvm/lib -L/usr/local/opt/protobuf/lib -lclang -lprotobuf
+LDFLAGS=-stdlib=libc++ -L/usr/local/opt/llvm/lib -L/usr/local/opt/protobuf/lib -lclang -lprotobuf
 
 SRC_FILES=$(wildcard *.cc)
 OBJ_FILES=$(patsubst %.cc,$(OUT)/%.o,$(SRC_FILES))
@@ -67,13 +67,13 @@ mkdir:
 	@mkdir -p $(OUT)
 
 dylib: $(OBJ_FILES)
-	$(CPP) $(LD_FLAGS) -dynamiclib -o $(DYLIB) $^
+	$(CXX) $(LDFLAGS) -dynamiclib -o $(DYLIB) $^
 
 javah:
 	@javah -classpath ../../../out/production/frontend.objc:../../../out/production/descriptors:../../../dependencies/bootstrap-compiler/Kotlin/lib/kotlin-runtime.jar:../../../ideaSDK/core/intellij-core.jar -o Indexer.h org.jetbrains.jet.lang.resolve.objc.ObjCPackageFragmentProvider
 
 $(OUT)/%.o: %.cc
-	$(CPP) $(CC_FLAGS) -c $^ -o $@
+	$(CXX) $(CXXFLAGS) -c $^ -o $@
 
 
 
@@ -83,5 +83,5 @@ clean:
 
 
 test: mkdir dylib
-	$(CPP) $(CC_FLAGS) $(LD_FLAGS) -I. -L$(OUT) -l$(PROJECT_NAME) $(TEST_FILES) -o $(TEST_EXE)
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) -I. -L$(OUT) -l$(PROJECT_NAME) $(TEST_FILES) -o $(TEST_EXE)
 	$(TEST_ENV) $(TEST_EXE)
