@@ -62,7 +62,7 @@ const std::map<CXTypeKind, std::string>& initializePrimitiveTypesMap() {
 // TODO: write a long explanation
 void serializeType(const CXType& type, std::string& result) {
     // TODO: BlockPointer
-    // TODO: enums, structs: they are unexposed by clang
+    // TODO: enums, structs: are they exposed by libclang?
     // TODO: ConstantArray (in structs?)
     // TODO: Record (for 'va_list' only?)
 
