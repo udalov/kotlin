@@ -15,7 +15,6 @@
     <orderEntry type="module" module-name="descriptor.loader.java" />
     <orderEntry type="library" name="protobuf-java" level="project" />
     <orderEntry type="module" module-name="serialization" />
-    <orderEntry type="library" scope="RUNTIME" name="objc-builtins" level="project" />
   </component>
 </module>
 
