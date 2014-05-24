@@ -188,7 +188,8 @@ public class ExpressionTypingVisitorForStatements extends ExpressionTypingVisito
 
     @Override
     public JetTypeInfo visitTypedef(@NotNull JetTypedef typedef, ExpressionTypingContext context) {
-        return super.visitTypedef(typedef, context); // TODO
+        context.trace.report(UNSUPPORTED.on(typedef, "Typedefs are not supported"));
+        return super.visitTypedef(typedef, context);
     }
 
     @Override
@@ -384,7 +385,7 @@ public class ExpressionTypingVisitorForStatements extends ExpressionTypingVisito
     }
 
     @Override
-    public JetTypeInfo visitUnaryExpression(@NotNull JetUnaryExpression expression, ExpressionTypingContext context) {
-        return basic.visitUnaryExpression(expression, context, true);
+    public JetTypeInfo visitLabeledExpression(@NotNull JetLabeledExpression expression, ExpressionTypingContext context) {
+        return basic.visitLabeledExpression(expression, context, true);
     }
 }

@@ -19,29 +19,32 @@ package org.jetbrains.jet.lang.psi;
 import com.intellij.lang.ASTNode;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.tree.TokenSet;
-import com.intellij.psi.util.PsiTreeUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.JetNodeTypes;
-import org.jetbrains.jet.lang.psi.stubs.PsiJetClassBodyStub;
+import org.jetbrains.jet.lang.psi.stubs.PsiJetPlaceHolderStub;
 import org.jetbrains.jet.lang.psi.stubs.elements.JetStubElementTypes;
 import org.jetbrains.jet.lexer.JetTokens;
 
+import java.util.Arrays;
 import java.util.List;
 
-public class JetClassBody extends JetElementImplStub<PsiJetClassBodyStub> implements JetDeclarationContainer {
+import static org.jetbrains.jet.lang.psi.stubs.elements.JetStubElementTypes.*;
+
+public class JetClassBody extends JetElementImplStub<PsiJetPlaceHolderStub<JetClassBody>> implements JetDeclarationContainer {
+
     public JetClassBody(@NotNull ASTNode node) {
         super(node);
     }
 
-    public JetClassBody(@NotNull PsiJetClassBodyStub stub) {
-        super(stub, JetStubElementTypes.CLASS_BODY);
+    public JetClassBody(@NotNull PsiJetPlaceHolderStub<JetClassBody> stub) {
+        super(stub, CLASS_BODY);
     }
 
     @Override
     @NotNull
     public List<JetDeclaration> getDeclarations() {
-        return PsiTreeUtil.getChildrenOfTypeAsList(this, JetDeclaration.class);
+        return Arrays.asList(getStubOrPsiChildren(DECLARATION_TYPES, JetDeclaration.ARRAY_FACTORY));
     }
 
     @Override
@@ -56,18 +59,17 @@ public class JetClassBody extends JetElementImplStub<PsiJetClassBodyStub> implem
 
     @NotNull
     public List<JetProperty> getProperties() {
-        return findChildrenByType(JetNodeTypes.PROPERTY);
+        return getStubOrPsiChildrenAsList(JetStubElementTypes.PROPERTY);
     }
 
     @Nullable
     public JetClassObject getClassObject() {
-        return (JetClassObject) findChildByType(JetNodeTypes.CLASS_OBJECT);
+        return getStubOrPsiChild(CLASS_OBJECT);
     }
 
     @NotNull
     public List<JetClassObject> getAllClassObjects() {
-        //noinspection unchecked
-        return (List) findChildrenByType(JetNodeTypes.CLASS_OBJECT);
+        return getStubOrPsiChildrenAsList(JetStubElementTypes.CLASS_OBJECT);
     }
 
     @Nullable

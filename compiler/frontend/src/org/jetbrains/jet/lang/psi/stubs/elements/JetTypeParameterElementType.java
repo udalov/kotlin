@@ -16,8 +16,6 @@
 
 package org.jetbrains.jet.lang.psi.stubs.elements;
 
-import com.intellij.lang.ASTNode;
-import com.intellij.psi.stubs.IndexSink;
 import com.intellij.psi.stubs.StubElement;
 import com.intellij.psi.stubs.StubInputStream;
 import com.intellij.psi.stubs.StubOutputStream;
@@ -34,33 +32,18 @@ import java.io.IOException;
 
 public class JetTypeParameterElementType extends JetStubElementType<PsiJetTypeParameterStub, JetTypeParameter> {
     public JetTypeParameterElementType(@NotNull @NonNls String debugName) {
-        super(debugName);
-    }
-
-    @Override
-    public JetTypeParameter createPsiFromAst(@NotNull ASTNode node) {
-        return new JetTypeParameter(node);
-    }
-
-    @Override
-    public JetTypeParameter createPsi(@NotNull PsiJetTypeParameterStub stub) {
-        return new JetTypeParameter(stub);
+        super(debugName, JetTypeParameter.class, PsiJetTypeParameterStub.class);
     }
 
     @Override
     public PsiJetTypeParameterStub createStub(@NotNull JetTypeParameter psi, StubElement parentStub) {
-        JetTypeReference extendsBound = psi.getExtendsBound();
-        return new PsiJetTypeParameterStubImpl(parentStub,
-                psi.getName(),
-                extendsBound != null ? extendsBound.getText() : null,
-                psi.getVariance() == Variance.IN_VARIANCE,
-                psi.getVariance() == Variance.OUT_VARIANCE);
+        return new PsiJetTypeParameterStubImpl(parentStub, StringRef.fromString(psi.getName()),
+                                               psi.getVariance() == Variance.IN_VARIANCE, psi.getVariance() == Variance.OUT_VARIANCE);
     }
 
     @Override
     public void serialize(@NotNull PsiJetTypeParameterStub stub, @NotNull StubOutputStream dataStream) throws IOException {
         dataStream.writeName(stub.getName());
-        dataStream.writeName(stub.getExtendBoundTypeText());
         dataStream.writeBoolean(stub.isInVariance());
         dataStream.writeBoolean(stub.isOutVariance());
     }
@@ -69,16 +52,9 @@ public class JetTypeParameterElementType extends JetStubElementType<PsiJetTypePa
     @Override
     public PsiJetTypeParameterStub deserialize(@NotNull StubInputStream dataStream, StubElement parentStub) throws IOException {
         StringRef name = dataStream.readName();
-        StringRef extendBoundTypeText = dataStream.readName();
         boolean isInVariance = dataStream.readBoolean();
         boolean isOutVariance = dataStream.readBoolean();
 
-        return new PsiJetTypeParameterStubImpl(parentStub,
-                name, extendBoundTypeText, isInVariance, isOutVariance);
-    }
-
-    @Override
-    public void indexStub(@NotNull PsiJetTypeParameterStub stub, @NotNull IndexSink sink) {
-        // No index
+        return new PsiJetTypeParameterStubImpl(parentStub, name, isInVariance, isOutVariance);
     }
 }

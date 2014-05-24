@@ -177,7 +177,7 @@ public class AnnotationDescriptorDeserializer extends BaseDescriptorDeserializer
     @NotNull
     private static ClassDescriptor resolveClass(@NotNull JvmClassName className, DependencyClassByQualifiedNameResolver classResolver) {
         ClassDescriptor annotationClass = classResolver.resolveClass(className.getFqNameForClassNameWithoutDollars());
-        return annotationClass != null ? annotationClass : ErrorUtils.getErrorClass();
+        return annotationClass != null ? annotationClass : ErrorUtils.createErrorClass(className.getInternalName());
     }
 
     @NotNull

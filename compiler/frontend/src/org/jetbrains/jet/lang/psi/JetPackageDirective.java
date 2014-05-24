@@ -22,6 +22,8 @@ import com.intellij.util.containers.ContainerUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.psi.psiUtil.PsiUtilPackage;
+import org.jetbrains.jet.lang.psi.stubs.PsiJetPlaceHolderStub;
+import org.jetbrains.jet.lang.psi.stubs.elements.JetStubElementTypes;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.resolve.name.SpecialNames;
@@ -29,17 +31,21 @@ import org.jetbrains.jet.lang.resolve.name.SpecialNames;
 import java.util.Collections;
 import java.util.List;
 
-public class JetPackageDirective extends JetReferenceExpression {
+public class JetPackageDirective extends JetModifierListOwnerStub<PsiJetPlaceHolderStub<JetPackageDirective>> implements JetReferenceExpression {
     private String qualifiedNameCache = null;
 
     public JetPackageDirective(@NotNull ASTNode node) {
         super(node);
     }
 
+    public JetPackageDirective(@NotNull PsiJetPlaceHolderStub<JetPackageDirective> stub) {
+        super(stub, JetStubElementTypes.PACKAGE_DIRECTIVE);
+    }
+
     // This should be either JetSimpleNameExpression, or JetDotQualifiedExpression
     @Nullable
     public JetExpression getPackageNameExpression() {
-        return findChildByClass(JetExpression.class);
+        return JetStubbedPsiUtil.getStubOrPsiChild(this, JetStubElementTypes.INSIDE_DIRECTIVE_EXPRESSIONS, JetExpression.ARRAY_FACTORY);
     }
 
     @NotNull
@@ -136,6 +142,11 @@ public class JetPackageDirective extends JetReferenceExpression {
     @Override
     public void subtreeChanged() {
         qualifiedNameCache = null;
+    }
+
+    @Override
+    public <R, D> R accept(@NotNull JetVisitor<R, D> visitor, D data) {
+        return visitor.visitPackageDirective(this, data);
     }
 }
 

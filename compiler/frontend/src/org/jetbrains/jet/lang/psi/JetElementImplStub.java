@@ -19,6 +19,8 @@ package org.jetbrains.jet.lang.psi;
 import com.intellij.extapi.psi.StubBasedPsiElementBase;
 import com.intellij.lang.ASTNode;
 import com.intellij.lang.Language;
+import com.intellij.psi.*;
+import com.intellij.psi.impl.source.resolve.reference.ReferenceProvidersRegistry;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiElementVisitor;
 import com.intellij.psi.PsiFile;
@@ -26,7 +28,11 @@ import com.intellij.psi.StubBasedPsiElement;
 import com.intellij.psi.stubs.IStubElementType;
 import com.intellij.psi.stubs.StubElement;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.jet.lang.psi.stubs.elements.JetStubElementType;
 import org.jetbrains.jet.plugin.JetLanguage;
+
+import java.util.Arrays;
+import java.util.List;
 
 public class JetElementImplStub<T extends StubElement> extends StubBasedPsiElementBase<T>
         implements JetElement, StubBasedPsiElement<T> {
@@ -81,5 +87,25 @@ public class JetElementImplStub<T extends StubElement> extends StubBasedPsiEleme
     @Override
     public <R, D> R accept(@NotNull JetVisitor<R, D> visitor, D data) {
         return visitor.visitJetElement(this, data);
+    }
+
+    @Override
+    public PsiReference getReference() {
+        PsiReference[] references = getReferences();
+        if (references.length == 1) return references[0];
+        else return null;
+    }
+
+    @NotNull
+    @Override
+    public PsiReference[] getReferences() {
+        return ReferenceProvidersRegistry.getReferencesFromProviders(this, PsiReferenceService.Hints.NO_HINTS);
+    }
+
+    @NotNull
+    protected <PsiT extends JetElementImplStub<?>, StubT extends StubElement> List<PsiT> getStubOrPsiChildrenAsList(
+            @NotNull JetStubElementType<StubT, PsiT> elementType
+    ) {
+        return Arrays.asList(getStubOrPsiChildren(elementType, elementType.getArrayFactory()));
     }
 }

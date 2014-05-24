@@ -33,16 +33,17 @@ enum class FunctionKind(
     K_MEMBER_FUNCTION : FunctionKind("KMemberFunction", true, "ExtensionFunction")
     K_EXTENSION_FUNCTION : FunctionKind("KExtensionFunction", true, "ExtensionFunction")
 
-    fun getFileName() = classNamePrefix + "s.kt"
-    fun getImplFileName() = (if (isReflection()) "reflect/" else "") + classNamePrefix + "sImpl.kt"
+    fun getFileName() = (if (isReflection()) "reflect/" else "") + classNamePrefix + "s.kt"
     fun getClassName(i: Int) = classNamePrefix + i
-    fun getImplClassName(i: Int) = classNamePrefix + "Impl" + i
     fun getSuperClassName(i: Int) = superClassNamePrefix?.plus(i)
+    fun getPackage() = if (isReflection()) "kotlin.reflect" else "kotlin"
 
-    private fun isReflection() = superClassNamePrefix != null
+    fun isReflection() = name() startsWith "K"
 }
 
-abstract class GenerateFunctionsBase(out: PrintWriter, val kind: FunctionKind): BuiltInsSourceGenerator(out) {
+class GenerateFunctions(out: PrintWriter, val kind: FunctionKind) : BuiltInsSourceGenerator(out) {
+    override fun getPackage() = kind.getPackage()
+
     fun generateTypeParameters(i: Int, variance: Boolean) {
         out.print("<")
         if (kind.hasReceiverParameter) {
@@ -58,9 +59,7 @@ abstract class GenerateFunctionsBase(out: PrintWriter, val kind: FunctionKind): 
         if (variance) out.print("out ")
         out.print("R>")
     }
-}
 
-class GenerateFunctions(out: PrintWriter, kind: FunctionKind) : GenerateFunctionsBase(out, kind) {
     override fun generateBody() {
         for (i in 0..MAX_PARAM_COUNT) {
             out.print("public trait " + kind.getClassName(i))
@@ -98,32 +97,5 @@ class GenerateFunctions(out: PrintWriter, kind: FunctionKind) : GenerateFunction
             }
         }
         out.println("): R")
-    }
-}
-
-class GenerateFunctionsImpl(out: PrintWriter, kind: FunctionKind) : GenerateFunctionsBase(out, kind) {
-    override fun getPackage() = when (kind) {
-        FUNCTION, EXTENSION_FUNCTION -> "kotlin"
-        K_FUNCTION, K_MEMBER_FUNCTION, K_EXTENSION_FUNCTION -> "kotlin.reflect"
-    }
-
-    override fun generateBody() {
-        out.println("import java.io.Serializable")
-        out.println()
-        for (i in 0..MAX_PARAM_COUNT) {
-            out.print("public abstract class " + kind.getImplClassName(i))
-            generateTypeParameters(i, true)
-            out.print(" : ")
-            out.print(kind.getClassName(i))
-            generateTypeParameters(i, false)
-            out.println(", Serializable {")
-            generateToStringForFunctionImpl()
-            out.println("}")
-        }
-    }
-
-    fun generateToStringForFunctionImpl() {
-        // TODO: don't generate this in every function, create a common superclass for all functions / extension functions
-        out.println("    override fun toString() = \"\${getClass().getGenericSuperclass()}\"")
     }
 }

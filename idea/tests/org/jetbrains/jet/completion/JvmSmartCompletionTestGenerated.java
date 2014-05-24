@@ -71,6 +71,16 @@ public class JvmSmartCompletionTestGenerated extends AbstractJvmSmartCompletionT
         doTest("idea/testData/completion/smart/AutoNotNullType.kt");
     }
     
+    @TestMetadata("AutoNotNullType2.kt")
+    public void testAutoNotNullType2() throws Exception {
+        doTest("idea/testData/completion/smart/AutoNotNullType2.kt");
+    }
+    
+    @TestMetadata("AutoNotNullTypeForConstructorParameter.kt")
+    public void testAutoNotNullTypeForConstructorParameter() throws Exception {
+        doTest("idea/testData/completion/smart/AutoNotNullTypeForConstructorParameter.kt");
+    }
+    
     @TestMetadata("AutoNotNullTypeWithQualifier.kt")
     public void testAutoNotNullTypeWithQualifier() throws Exception {
         doTest("idea/testData/completion/smart/AutoNotNullTypeWithQualifier.kt");
@@ -89,6 +99,11 @@ public class JvmSmartCompletionTestGenerated extends AbstractJvmSmartCompletionT
     @TestMetadata("BeforeArgumentWithBinaryOperation3.kt")
     public void testBeforeArgumentWithBinaryOperation3() throws Exception {
         doTest("idea/testData/completion/smart/BeforeArgumentWithBinaryOperation3.kt");
+    }
+    
+    @TestMetadata("BooleanExpected.kt")
+    public void testBooleanExpected() throws Exception {
+        doTest("idea/testData/completion/smart/BooleanExpected.kt");
     }
     
     @TestMetadata("ChainedCall.kt")
@@ -116,6 +131,11 @@ public class JvmSmartCompletionTestGenerated extends AbstractJvmSmartCompletionT
         doTest("idea/testData/completion/smart/ConstructorForGenericType.kt");
     }
     
+    @TestMetadata("ConstructorForJavaClass.kt")
+    public void testConstructorForJavaClass() throws Exception {
+        doTest("idea/testData/completion/smart/ConstructorForJavaClass.kt");
+    }
+    
     @TestMetadata("ConstructorForNullable.kt")
     public void testConstructorForNullable() throws Exception {
         doTest("idea/testData/completion/smart/ConstructorForNullable.kt");
@@ -129,6 +149,11 @@ public class JvmSmartCompletionTestGenerated extends AbstractJvmSmartCompletionT
     @TestMetadata("EnumMembers.kt")
     public void testEnumMembers() throws Exception {
         doTest("idea/testData/completion/smart/EnumMembers.kt");
+    }
+    
+    @TestMetadata("EqOperator.kt")
+    public void testEqOperator() throws Exception {
+        doTest("idea/testData/completion/smart/EqOperator.kt");
     }
     
     @TestMetadata("FunctionReference1.kt")
@@ -166,9 +191,89 @@ public class JvmSmartCompletionTestGenerated extends AbstractJvmSmartCompletionT
         doTest("idea/testData/completion/smart/FunctionReference9.kt");
     }
     
+    @TestMetadata("GenericMethodArgument.kt")
+    public void testGenericMethodArgument() throws Exception {
+        doTest("idea/testData/completion/smart/GenericMethodArgument.kt");
+    }
+    
+    @TestMetadata("IfCondition.kt")
+    public void testIfCondition() throws Exception {
+        doTest("idea/testData/completion/smart/IfCondition.kt");
+    }
+    
+    @TestMetadata("IfValue1.kt")
+    public void testIfValue1() throws Exception {
+        doTest("idea/testData/completion/smart/IfValue1.kt");
+    }
+    
+    @TestMetadata("IfValue2.kt")
+    public void testIfValue2() throws Exception {
+        doTest("idea/testData/completion/smart/IfValue2.kt");
+    }
+    
+    @TestMetadata("IfValue3.kt")
+    public void testIfValue3() throws Exception {
+        doTest("idea/testData/completion/smart/IfValue3.kt");
+    }
+    
+    @TestMetadata("IfValue4.kt")
+    public void testIfValue4() throws Exception {
+        doTest("idea/testData/completion/smart/IfValue4.kt");
+    }
+    
+    @TestMetadata("IfValueInBlock1.kt")
+    public void testIfValueInBlock1() throws Exception {
+        doTest("idea/testData/completion/smart/IfValueInBlock1.kt");
+    }
+    
+    @TestMetadata("IfValueInBlock2.kt")
+    public void testIfValueInBlock2() throws Exception {
+        doTest("idea/testData/completion/smart/IfValueInBlock2.kt");
+    }
+    
+    @TestMetadata("InElvisOperator1.kt")
+    public void testInElvisOperator1() throws Exception {
+        doTest("idea/testData/completion/smart/InElvisOperator1.kt");
+    }
+    
+    @TestMetadata("InElvisOperator2.kt")
+    public void testInElvisOperator2() throws Exception {
+        doTest("idea/testData/completion/smart/InElvisOperator2.kt");
+    }
+    
+    @TestMetadata("InElvisOperator3.kt")
+    public void testInElvisOperator3() throws Exception {
+        doTest("idea/testData/completion/smart/InElvisOperator3.kt");
+    }
+    
+    @TestMetadata("InElvisOperator4.kt")
+    public void testInElvisOperator4() throws Exception {
+        doTest("idea/testData/completion/smart/InElvisOperator4.kt");
+    }
+    
+    @TestMetadata("InElvisOperator5.kt")
+    public void testInElvisOperator5() throws Exception {
+        doTest("idea/testData/completion/smart/InElvisOperator5.kt");
+    }
+    
+    @TestMetadata("InElvisOperator6.kt")
+    public void testInElvisOperator6() throws Exception {
+        doTest("idea/testData/completion/smart/InElvisOperator6.kt");
+    }
+    
+    @TestMetadata("InaccessibleConstructor.kt")
+    public void testInaccessibleConstructor() throws Exception {
+        doTest("idea/testData/completion/smart/InaccessibleConstructor.kt");
+    }
+    
     @TestMetadata("InsideIdentifier.kt")
     public void testInsideIdentifier() throws Exception {
         doTest("idea/testData/completion/smart/InsideIdentifier.kt");
+    }
+    
+    @TestMetadata("InvokeFunctionVariable.kt")
+    public void testInvokeFunctionVariable() throws Exception {
+        doTest("idea/testData/completion/smart/InvokeFunctionVariable.kt");
     }
     
     @TestMetadata("JavaEnumMembers.kt")
@@ -246,14 +351,29 @@ public class JvmSmartCompletionTestGenerated extends AbstractJvmSmartCompletionT
         doTest("idea/testData/completion/smart/NoNothing.kt");
     }
     
+    @TestMetadata("NoPrivateOverload.kt")
+    public void testNoPrivateOverload() throws Exception {
+        doTest("idea/testData/completion/smart/NoPrivateOverload.kt");
+    }
+    
     @TestMetadata("NoSillyAssignment.kt")
     public void testNoSillyAssignment() throws Exception {
         doTest("idea/testData/completion/smart/NoSillyAssignment.kt");
     }
     
+    @TestMetadata("NotEqOperator.kt")
+    public void testNotEqOperator() throws Exception {
+        doTest("idea/testData/completion/smart/NotEqOperator.kt");
+    }
+    
     @TestMetadata("NotSillyAssignment.kt")
     public void testNotSillyAssignment() throws Exception {
         doTest("idea/testData/completion/smart/NotSillyAssignment.kt");
+    }
+    
+    @TestMetadata("Null.kt")
+    public void testNull() throws Exception {
+        doTest("idea/testData/completion/smart/Null.kt");
     }
     
     @TestMetadata("NullableThis.kt")
@@ -274,6 +394,21 @@ public class JvmSmartCompletionTestGenerated extends AbstractJvmSmartCompletionT
     @TestMetadata("OverloadedMethodCallArgument2.kt")
     public void testOverloadedMethodCallArgument2() throws Exception {
         doTest("idea/testData/completion/smart/OverloadedMethodCallArgument2.kt");
+    }
+    
+    @TestMetadata("OverloadedMethodCallArgument3.kt")
+    public void testOverloadedMethodCallArgument3() throws Exception {
+        doTest("idea/testData/completion/smart/OverloadedMethodCallArgument3.kt");
+    }
+    
+    @TestMetadata("PrivateConstructorForAbstract.kt")
+    public void testPrivateConstructorForAbstract() throws Exception {
+        doTest("idea/testData/completion/smart/PrivateConstructorForAbstract.kt");
+    }
+    
+    @TestMetadata("ProtectedConstructorForAbstract.kt")
+    public void testProtectedConstructorForAbstract() throws Exception {
+        doTest("idea/testData/completion/smart/ProtectedConstructorForAbstract.kt");
     }
     
     @TestMetadata("QualifiedOverloadedMethodCallArgument1.kt")
@@ -314,6 +449,11 @@ public class JvmSmartCompletionTestGenerated extends AbstractJvmSmartCompletionT
     @TestMetadata("QualifiedThisOfExtensionLambda3.kt")
     public void testQualifiedThisOfExtensionLambda3() throws Exception {
         doTest("idea/testData/completion/smart/QualifiedThisOfExtensionLambda3.kt");
+    }
+    
+    @TestMetadata("SAMExpected1.kt")
+    public void testSAMExpected1() throws Exception {
+        doTest("idea/testData/completion/smart/SAMExpected1.kt");
     }
     
     @TestMetadata("SkipUnresolvedTypes.kt")

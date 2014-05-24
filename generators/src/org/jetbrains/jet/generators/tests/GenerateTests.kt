@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2013 JetBrains s.r.o.
+ * Copyright 2010-2014 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -107,10 +107,13 @@ import org.jetbrains.jet.plugin.codeInsight.AbstractJetInspectionTest
 import org.jetbrains.jet.plugin.debugger.AbstractKotlinSteppingTest
 import org.jetbrains.jet.completion.AbstractMultiFileJvmBasicCompletionTest
 import org.jetbrains.jet.plugin.refactoring.introduce.introduceVariable.AbstractJetExtractionTest
+import org.jetbrains.jet.formatter.AbstractJetTypingIndentationTestBase
 import org.jetbrains.jet.plugin.debugger.evaluate.AbstractKotlinEvaluateExpressionTest
 import org.jetbrains.jet.plugin.debugger.evaluate.AbstractSelectExpressionForDebuggerTest
 import org.jetbrains.jet.plugin.debugger.evaluate.AbstractCodeFragmentCompletionTest
 import org.jetbrains.jet.plugin.debugger.evaluate.AbstractCodeFragmentHighlightingTest
+import org.jetbrains.jet.plugin.stubs.AbstractLazyResolveByStubTest
+import org.jetbrains.jet.plugin.stubs.AbstractMultiFileHighlightingTest
 
 fun main(args: Array<String>) {
     System.setProperty("java.awt.headless", "true")
@@ -141,6 +144,8 @@ fun main(args: Array<String>) {
 
         testClass(javaClass<AbstractJetParsingTest>()) {
             model("psi", testMethod = "doParsingTest", pattern = "^(.*)\\.kts?$")
+            model("parseCodeFragment/expression", testMethod = "doExpressionCodeFragmentParsingTest", extension = "kt")
+            model("parseCodeFragment/block", testMethod = "doBlockCodeFragmentParsingTest", extension = "kt")
         }
 
         GenerateRangesCodegenTestData.main(array<String>())
@@ -206,6 +211,7 @@ fun main(args: Array<String>) {
             model("loadJava/compiledJavaIncludeObjectMethods", extension = "java", testMethod = "doTestCompiledJavaIncludeObjectMethods")
             model("loadJava/compiledKotlin", testMethod = "doTestCompiledKotlin")
             model("loadJava/javaAgainstKotlin", extension = "txt", testMethod = "doTestJavaAgainstKotlin")
+            model("loadJava/kotlinAgainstCompiledJavaWithKotlin", extension = "kt", testMethod = "doTestKotlinAgainstCompiledJavaWithKotlin", recursive = false)
             model("loadJava/sourceJava", extension = "java", testMethod = "doTestSourceJava")
         }
 
@@ -281,7 +287,8 @@ fun main(args: Array<String>) {
         }
 
         testClass(javaClass<AbstractCodeFragmentHighlightingTest>()) {
-            model("checker/codeFragments", extension = "kt")
+            model("checker/codeFragments", extension = "kt", recursive = false)
+            model("checker/codeFragments/imports", testMethod = "doTestWithImport", extension = "kt")
         }
 
         testClass(javaClass<AbstractJetJsCheckerTest>()) {
@@ -397,6 +404,8 @@ fun main(args: Array<String>) {
             model("intentions/replaceWithDotQualifiedMethodCall", testMethod = "doTestReplaceWithDotQualifiedMethodCall")
             model("intentions/replaceWithInfixFunctionCall", testMethod = "doTestReplaceWithInfixFunctionCall")
             model("intentions/removeCurlyBracesFromTemplate", testMethod = "doTestRemoveCurlyFromTemplate")
+            model("intentions/convertToStringTemplateIntention", testMethod = "doTestConvertToStringTemplate")
+            model("intentions/convertToConcatenatedStringIntention", testMethod = "doTestConvertToConcatenatedStringIntention")
             model("intentions/insertCurlyBracestsToTemplate", testMethod = "doTestInsertCurlyToTemplate")
             model("intentions/moveLambdaInsideParentheses", testMethod = "doTestMoveLambdaInsideParentheses")
             model("intentions/moveLambdaOutsideParentheses", testMethod = "doTestMoveLambdaOutsideParentheses")
@@ -423,6 +432,10 @@ fun main(args: Array<String>) {
             model("intentions/convertIfToAssert", testMethod = "doTestConvertIfWithThrowToAssertIntention")
             model("intentions/makeTypeExplicitInLambda", testMethod = "doTestMakeTypeExplicitInLambda")
             model("intentions/makeTypeImplicitInLambda", testMethod = "doTestMakeTypeImplicitInLambda")
+            model("intentions/invertIfCondition", testMethod = "doTestInvertIfCondition")
+            model("intentions/operatorToFunction", testMethod = "doTestOperatorToFunction")
+            model("intentions/convertToForEachLoop", testMethod = "doTestConvertToForEachLoop")
+            model("intentions/convertToForEachFunctionCall", testMethod = "doTestConvertToForEachFunctionCall")
         }
 
         testClass(javaClass<AbstractJetInspectionTest>()) {
@@ -522,6 +535,13 @@ fun main(args: Array<String>) {
                   testMethod = "doTestInverted", testClassName = "FormatterInverted")
         }
 
+        testClass(javaClass<AbstractJetTypingIndentationTestBase>()) {
+            model("indentationOnNewline", pattern = """^([^\.]+)\.after\.kt.*$""", testMethod = "doNewlineTest",
+                  testClassName = "DirectSettings")
+            model("indentationOnNewline", pattern = """^([^\.]+)\.after\.inv\.kt.*$""", testMethod = "doNewlineTestWithInvert",
+                  testClassName = "InvertedSettings")
+        }
+
         testClass(javaClass<AbstractDiagnosticMessageTest>()) {
             model("diagnosticMessage")
         }
@@ -593,7 +613,11 @@ fun main(args: Array<String>) {
         }
 
         testClass(javaClass<AbstractMultiFileJvmBasicCompletionTest>()) {
-            model("completion/basic/multifile", pattern = """^([^\.]+)\.kt$""")
+            model("completion/basic/multifile", extension = null, recursive = false)
+        }
+
+        testClass(javaClass<AbstractMultiFileHighlightingTest>()) {
+            model("multiFileHighlighting", recursive = false)
         }
 
         testClass(javaClass<AbstractJetExtractionTest>()) {
@@ -603,6 +627,13 @@ fun main(args: Array<String>) {
 
         testClass(javaClass<AbstractSelectExpressionForDebuggerTest>()) {
             model("debugger/selectExpression")
+        }
+    }
+
+    testGroup("idea/tests", "compiler/testData") {
+        testClass(javaClass<AbstractLazyResolveByStubTest>()) {
+            model("loadJava/compiledKotlin", testMethod = "doTestCheckingPrimaryConstructorsAndAccessors")
+            model("loadJava/compiledJavaCompareWithKotlin", testMethod = "doTestNotCheckingPrimaryConstructors")
         }
     }
 

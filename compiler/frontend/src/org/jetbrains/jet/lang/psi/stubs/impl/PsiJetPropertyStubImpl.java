@@ -16,7 +16,6 @@
 
 package org.jetbrains.jet.lang.psi.stubs.impl;
 
-import com.intellij.psi.stubs.StubBase;
 import com.intellij.psi.stubs.StubElement;
 import com.intellij.util.io.StringRef;
 import org.jetbrains.annotations.Nullable;
@@ -25,38 +24,47 @@ import org.jetbrains.jet.lang.psi.stubs.PsiJetPropertyStub;
 import org.jetbrains.jet.lang.psi.stubs.elements.JetStubElementTypes;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 
-public class PsiJetPropertyStubImpl extends StubBase<JetProperty> implements PsiJetPropertyStub {
+public class PsiJetPropertyStubImpl extends JetStubBaseImpl<JetProperty> implements PsiJetPropertyStub {
     private final StringRef name;
     private final boolean isVar;
     private final boolean isTopLevel;
+    private final boolean hasDelegate;
+    private final boolean hasDelegateExpression;
+    private final boolean hasInitializer;
+    private final boolean hasReceiverTypeRef;
+    private final boolean hasReturnTypeRef;
     private final FqName fqName;
-    private final StringRef typeText;
-    private final StringRef inferenceBodyText;
 
     public PsiJetPropertyStubImpl(
-            StubElement parent, StringRef name,
-            boolean isVar, boolean isTopLevel, @Nullable FqName fqName, StringRef typeText, StringRef inferenceBodyText
+            StubElement parent,
+            StringRef name,
+            boolean isVar,
+            boolean isTopLevel,
+            boolean hasDelegate,
+            boolean hasDelegateExpression,
+            boolean hasInitializer,
+            boolean hasReceiverTypeRef,
+            boolean hasReturnTypeRef,
+            @Nullable FqName fqName
     ) {
         super(parent, JetStubElementTypes.PROPERTY);
 
         if (isTopLevel && fqName == null) {
             throw new IllegalArgumentException("fqName shouldn't be null for top level properties");
         }
+        if (hasDelegateExpression && !hasDelegate) {
+            throw new IllegalArgumentException("Can't have delegate expression without delegate");
+        }
 
         this.name = name;
         this.isVar = isVar;
         this.isTopLevel = isTopLevel;
+        this.hasDelegate = hasDelegate;
+        this.hasDelegateExpression = hasDelegateExpression;
+        this.hasInitializer = hasInitializer;
+        this.hasReceiverTypeRef = hasReceiverTypeRef;
+        this.hasReturnTypeRef = hasReturnTypeRef;
         this.fqName = fqName;
-        this.typeText = typeText;
-        this.inferenceBodyText = inferenceBodyText;
-    }
-
-    public PsiJetPropertyStubImpl(StubElement parent, String name,
-            boolean isVar, boolean isTopLevel, @Nullable FqName topFQName,
-            String typeText, String inferenceBodyText
-    ) {
-        this(parent, StringRef.fromString(name),
-             isVar, isTopLevel, topFQName, StringRef.fromString(typeText), StringRef.fromString(inferenceBodyText));
     }
 
     @Override
@@ -69,6 +77,31 @@ public class PsiJetPropertyStubImpl extends StubBase<JetProperty> implements Psi
         return isTopLevel;
     }
 
+    @Override
+    public boolean hasDelegate() {
+        return hasDelegate;
+    }
+
+    @Override
+    public boolean hasDelegateExpression() {
+        return hasDelegateExpression;
+    }
+
+    @Override
+    public boolean hasInitializer() {
+        return hasInitializer;
+    }
+
+    @Override
+    public boolean hasReceiverTypeRef() {
+        return hasReceiverTypeRef;
+    }
+
+    @Override
+    public boolean hasReturnTypeRef() {
+        return hasReturnTypeRef;
+    }
+
     @Nullable
     @Override
     public FqName getFqName() {
@@ -76,39 +109,7 @@ public class PsiJetPropertyStubImpl extends StubBase<JetProperty> implements Psi
     }
 
     @Override
-    public String getTypeText() {
-        return StringRef.toString(typeText);
-    }
-
-    @Override
-    public String getInferenceBodyText() {
-        return StringRef.toString(inferenceBodyText);
-    }
-
-    @Override
     public String getName() {
         return StringRef.toString(name);
-    }
-
-    @Override
-    public String toString() {
-        StringBuilder builder = new StringBuilder();
-
-        builder.append("PsiJetPropertyStubImpl[");
-
-        builder.append(isVar() ? "var " : "val ");
-
-        if (isTopLevel()) {
-            assert fqName != null;
-            builder.append("top ").append("fqName=").append(fqName.toString()).append(" ");
-        }
-
-        builder.append("name=").append(getName());
-        builder.append(" typeText=").append(getTypeText());
-        builder.append(" bodyText=").append(getInferenceBodyText());
-
-        builder.append("]");
-
-        return builder.toString();
     }
 }

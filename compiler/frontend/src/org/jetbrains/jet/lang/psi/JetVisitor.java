@@ -90,6 +90,10 @@ public class JetVisitor<R, D> extends PsiElementVisitor {
         return visitJetElement(annotationEntry, data);
     }
 
+    public R visitConstructorCalleeExpression(@NotNull JetConstructorCalleeExpression constructorCalleeExpression, D data) {
+        return visitJetElement(constructorCalleeExpression, data);
+    }
+
     public R visitTypeParameterList(@NotNull JetTypeParameterList list, D data) {
         return visitJetElement(list, data);
     }
@@ -170,6 +174,10 @@ public class JetVisitor<R, D> extends PsiElementVisitor {
         return visitExpression(expression, data);
     }
 
+    public R visitLabeledExpression(@NotNull JetLabeledExpression expression, D data) {
+        return visitExpressionWithLabel(expression, data);
+    }
+
     public R visitPrefixExpression(@NotNull JetPrefixExpression expression, D data) {
         return visitUnaryExpression(expression, data);
     }
@@ -187,10 +195,10 @@ public class JetVisitor<R, D> extends PsiElementVisitor {
     }
 
     public R visitReturnExpression(@NotNull JetReturnExpression expression, D data) {
-        return visitLabelQualifiedExpression(expression, data);
+        return visitExpressionWithLabel(expression, data);
     }
 
-    public R visitLabelQualifiedExpression(@NotNull JetLabelQualifiedExpression expression, D data) {
+    public R visitExpressionWithLabel(@NotNull JetExpressionWithLabel expression, D data) {
         return visitExpression(expression, data);
     }
 
@@ -199,11 +207,11 @@ public class JetVisitor<R, D> extends PsiElementVisitor {
     }
 
     public R visitBreakExpression(@NotNull JetBreakExpression expression, D data) {
-        return visitLabelQualifiedExpression(expression, data);
+        return visitExpressionWithLabel(expression, data);
     }
 
     public R visitContinueExpression(@NotNull JetContinueExpression expression, D data) {
-        return visitLabelQualifiedExpression(expression, data);
+        return visitExpressionWithLabel(expression, data);
     }
 
     public R visitIfExpression(@NotNull JetIfExpression expression, D data) {
@@ -287,11 +295,11 @@ public class JetVisitor<R, D> extends PsiElementVisitor {
     }
 
     public R visitThisExpression(@NotNull JetThisExpression expression, D data) {
-        return visitLabelQualifiedExpression(expression, data);
+        return visitExpressionWithLabel(expression, data);
     }
 
     public R visitSuperExpression(@NotNull JetSuperExpression expression, D data) {
-        return visitLabelQualifiedExpression(expression, data);
+        return visitExpressionWithLabel(expression, data);
     }
 
     public R visitParenthesizedExpression(@NotNull JetParenthesizedExpression expression, D data) {
@@ -404,5 +412,9 @@ public class JetVisitor<R, D> extends PsiElementVisitor {
 
     public R visitEscapeStringTemplateEntry(@NotNull JetEscapeStringTemplateEntry entry, D data) {
         return visitStringTemplateEntry(entry, data);
+    }
+
+    public R visitPackageDirective(@NotNull JetPackageDirective directive, D data) {
+        return visitExpression(directive, data);
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2013 JetBrains s.r.o.
+ * Copyright 2010-2014 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,15 +31,14 @@ import com.intellij.psi.tree.IElementType;
 import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.util.codeInsight.CommentUtilCore;
 import com.intellij.util.containers.ContainerUtil;
+import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.JetNodeTypes;
 import org.jetbrains.jet.kdoc.psi.api.KDocElement;
 import org.jetbrains.jet.lang.parsing.JetExpressionParsing;
 import org.jetbrains.jet.lang.psi.psiUtil.PsiUtilPackage;
-import org.jetbrains.jet.lang.resolve.ImportPath;
 import org.jetbrains.jet.lang.resolve.name.FqName;
-import org.jetbrains.jet.lang.resolve.name.FqNameUnsafe;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.resolve.name.SpecialNames;
 import org.jetbrains.jet.lang.types.expressions.OperatorConventions;
@@ -107,8 +106,8 @@ public class JetPsiUtil {
                 }
             }
         }
-        else if (expression instanceof JetPrefixExpression) {
-            JetExpression baseExpression = getBaseExpressionIfLabeledExpression((JetPrefixExpression) expression);
+        else if (expression instanceof JetLabeledExpression) {
+            JetExpression baseExpression = ((JetLabeledExpression) expression).getBaseExpression();
             if (baseExpression != null) {
                 expression = baseExpression;
             }
@@ -122,18 +121,6 @@ public class JetPsiUtil {
                     innerExpression, deparenthesizeBinaryExpressionWithTypeRHS, typeResolutionStrategy) : null;
         }
         return expression;
-    }
-
-    @Nullable
-    public static JetExpression getBaseExpressionIfLabeledExpression(@NotNull JetPrefixExpression expression) {
-        if (isLabeledExpression(expression)) {
-            return expression.getBaseExpression();
-        }
-        return null;
-    }
-
-    public static boolean isLabeledExpression(JetPrefixExpression expression) {
-        return JetTokens.LABELS.contains(expression.getOperationReference().getReferencedNameElementType());
     }
 
     @NotNull
@@ -239,27 +226,6 @@ public class JetPsiUtil {
     }
 
     @Nullable
-    @IfNotParsed
-    public static ImportPath getImportPath(@NotNull JetImportDirective importDirective) {
-        if (PsiTreeUtil.hasErrorElements(importDirective)) {
-            return null;
-        }
-
-        FqName importFqn = getFQName(importDirective.getImportedReference());
-        if (importFqn == null) {
-            return null;
-        }
-
-        Name alias = null;
-        String aliasName = importDirective.getAliasName();
-        if (aliasName != null) {
-            alias = Name.identifier(aliasName);
-        }
-
-        return new ImportPath(importFqn, importDirective.isAllUnder(), alias);
-    }
-
-    @Nullable
     public static <T extends PsiElement> T getDirectParentOfTypeForBlock(@NotNull JetBlockExpression block, @NotNull Class<T> aClass) {
         T parent = PsiTreeUtil.getParentOfType(block, aClass);
         if (parent instanceof JetIfExpression) {
@@ -322,7 +288,7 @@ public class JetPsiUtil {
     public static void deleteClass(@NotNull JetClassOrObject clazz) {
         CheckUtil.checkWritable(clazz);
         JetFile file = clazz.getContainingJetFile();
-        if (isLocal(clazz) || file.getDeclarations().size() > 1) {
+        if (clazz.isLocal() || file.getDeclarations().size() > 1) {
             PsiElement parent = clazz.getParent();
             CodeEditUtil.removeChild(parent.getNode(), clazz.getNode());
         }
@@ -422,22 +388,18 @@ public class JetPsiUtil {
     }
 
     @Nullable
+    @Contract("null, _ -> null")
     public static PsiElement getTopmostParentOfTypes(@Nullable PsiElement element, @NotNull Class<? extends PsiElement>... parentTypes) {
-        if (element == null) {
-            return null;
+        PsiElement answer = PsiTreeUtil.getParentOfType(element, parentTypes);
+
+        do {
+            PsiElement next = PsiTreeUtil.getParentOfType(answer, parentTypes);
+            if (next == null) break;
+            answer = next;
         }
+        while (true);
 
-        PsiElement result = null;
-        PsiElement parent = element.getParent();
-        while (parent != null) {
-            if (PsiTreeUtil.instanceOf(parent, parentTypes)) {
-                result = parent;
-            }
-
-            parent = parent.getParent();
-        }
-
-        return result;
+        return answer;
     }
 
     public static boolean isNullConstant(@NotNull JetExpression expression) {
@@ -455,42 +417,6 @@ public class JetPsiUtil {
 
     public static boolean isBackingFieldReference(@Nullable JetElement element) {
         return element instanceof JetSimpleNameExpression && isBackingFieldReference((JetSimpleNameExpression)element);
-    }
-
-    @Nullable
-    private static FqName getFQName(@Nullable JetExpression expression) {
-        if (expression == null) {
-            return null;
-        }
-
-        if (expression instanceof JetDotQualifiedExpression) {
-            JetDotQualifiedExpression dotQualifiedExpression = (JetDotQualifiedExpression) expression;
-            FqName parentFqn = getFQName(dotQualifiedExpression.getReceiverExpression());
-            Name child = getName(dotQualifiedExpression.getSelectorExpression());
-
-            return parentFqn != null && child != null ? parentFqn.child(child) : null;
-        }
-        else if (expression instanceof JetSimpleNameExpression) {
-            JetSimpleNameExpression simpleNameExpression = (JetSimpleNameExpression) expression;
-            return FqName.topLevel(simpleNameExpression.getReferencedNameAsName());
-        }
-        else {
-            throw new IllegalArgumentException("Can't construct fqn for: " + expression.getClass().toString());
-        }
-    }
-
-    @Nullable
-    private static Name getName(@Nullable JetExpression expression) {
-        if (expression == null) {
-            return null;
-        }
-
-        if (expression instanceof JetSimpleNameExpression) {
-            return ((JetSimpleNameExpression) expression).getReferencedNameAsName();
-        }
-        else {
-            throw new IllegalArgumentException("Can't construct name for: " + expression.getClass().toString());
-        }
     }
 
     @Nullable
@@ -530,7 +456,7 @@ public class JetPsiUtil {
 
     @Nullable
     public static JetClass getClassIfParameterIsProperty(@NotNull JetParameter jetParameter) {
-        if (jetParameter.getValOrVarNode() != null) {
+        if (jetParameter.hasValOrVarNode()) {
             PsiElement parent = jetParameter.getParent();
             if (parent instanceof JetParameterList && parent.getParent() instanceof JetClass) {
                 return (JetClass) parent.getParent();
@@ -563,7 +489,7 @@ public class JetPsiUtil {
             return maxPriority - 1;
         }
 
-        if (expression instanceof JetPrefixExpression) return maxPriority - 2;
+        if (expression instanceof JetPrefixExpression || expression instanceof JetLabeledExpression) return maxPriority - 2;
 
         if (expression instanceof JetDeclaration || expression instanceof JetStatementExpression || expression instanceof JetIfExpression) {
             return 0;
@@ -617,7 +543,7 @@ public class JetPsiUtil {
         IElementType parentOperation = getOperation(parentExpression);
 
         // 'return (@label{...})' case
-        if (parentExpression instanceof JetReturnExpression && innerOperation == JetTokens.LABEL_IDENTIFIER) {
+        if (parentExpression instanceof JetReturnExpression && innerExpression instanceof JetLabeledExpression) {
             return true;
         }
 

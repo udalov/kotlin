@@ -26,8 +26,8 @@ import com.intellij.psi.util.*;
 import kotlin.Function1;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.jet.analyzer.AnalyzerPackage;
 import org.jetbrains.jet.di.InjectorForBodyResolve;
-import org.jetbrains.jet.di.InjectorForMacros;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.descriptors.annotations.Annotated;
 import org.jetbrains.jet.lang.psi.*;
@@ -38,6 +38,7 @@ import org.jetbrains.jet.lang.resolve.lazy.descriptors.LazyClassDescriptor;
 import org.jetbrains.jet.lang.resolve.lazy.descriptors.LazyPackageDescriptor;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.Name;
+import org.jetbrains.jet.lang.resolve.scopes.ChainedScope;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
 import org.jetbrains.jet.lang.types.TypeConstructor;
 import org.jetbrains.jet.lang.types.TypeUtils;
@@ -95,7 +96,7 @@ public class ResolveElementCache {
                 JetTypeParameter.class,
                 JetTypeConstraint.class,
                 JetPackageDirective.class,
-                JetExpressionCodeFragment.class);
+                JetCodeFragment.class);
 
         if (elementOfAdditionalResolve != null && !(elementOfAdditionalResolve instanceof JetParameter)) {
             if (elementOfAdditionalResolve instanceof JetPackageDirective) {
@@ -162,8 +163,8 @@ public class ResolveElementCache {
         else if (resolveElement instanceof JetTypeConstraint) {
             typeConstraintAdditionalResolve(resolveSession, (JetTypeConstraint) resolveElement);
         }
-        else if (resolveElement instanceof JetExpressionCodeFragment) {
-            codeFragmentAdditionalResolve(resolveSession, (JetExpressionCodeFragment) resolveElement, trace);
+        else if (resolveElement instanceof JetCodeFragment) {
+            codeFragmentAdditionalResolve(resolveSession, (JetCodeFragment) resolveElement, trace);
         }
         else if (PsiTreeUtil.getParentOfType(resolveElement, JetPackageDirective.class) != null) {
             packageRefAdditionalResolve(resolveSession, trace, resolveElement);
@@ -214,11 +215,11 @@ public class ResolveElementCache {
 
     private void codeFragmentAdditionalResolve(
             ResolveSession resolveSession,
-            JetExpressionCodeFragment codeFragment,
+            JetCodeFragment codeFragment,
             BindingTrace trace
     ) {
-        JetExpression codeFragmentExpression = codeFragment.getExpression();
-        if (codeFragmentExpression == null) return;
+        JetElement codeFragmentExpression = codeFragment.getContentElement();
+        if (!(codeFragmentExpression instanceof JetExpression)) return;
 
         PsiElement contextElement = codeFragment.getContext();
         if (!(contextElement instanceof JetExpression)) return;
@@ -228,14 +229,22 @@ public class ResolveElementCache {
 
         JetScope scopeForContextElement = contextForElement.get(BindingContext.RESOLUTION_SCOPE, contextExpression);
         if (scopeForContextElement != null) {
-            DataFlowInfo dataFlowInfoForContextElement = contextForElement.get(BindingContext.EXPRESSION_DATA_FLOW_INFO, contextExpression);
-            InjectorForMacros injectorForMacros = new InjectorForMacros(codeFragment.getProject(), resolveSession.getModuleDescriptor());
-            injectorForMacros.getExpressionTypingServices().getType(
+            JetScope codeFragmentScope = resolveSession.getScopeProvider().getFileScope(codeFragment);
+            ChainedScope chainedScope = new ChainedScope(
+                    scopeForContextElement.getContainingDeclaration(),
+                    "Scope for resolve code fragment",
                     scopeForContextElement,
-                    codeFragmentExpression,
-                    TypeUtils.NO_EXPECTED_TYPE,
+                    codeFragmentScope
+            );
+
+            DataFlowInfo dataFlowInfoForContextElement = contextForElement.get(BindingContext.EXPRESSION_DATA_FLOW_INFO, contextExpression);
+            AnalyzerPackage.computeTypeInContext(
+                    (JetExpression) codeFragmentExpression,
+                    chainedScope,
+                    trace,
                     dataFlowInfoForContextElement == null ? DataFlowInfo.EMPTY : dataFlowInfoForContextElement,
-                    trace
+                    TypeUtils.NO_EXPECTED_TYPE,
+                    resolveSession.getModuleDescriptor()
             );
         }
     }
@@ -348,9 +357,7 @@ public class ResolveElementCache {
         LazyClassDescriptor classOrObjectDescriptor = (LazyClassDescriptor) resolveSession.resolveToDescriptor(classOrObject);
 
         BodyResolver bodyResolver = createBodyResolver(resolveSession, trace, file);
-        bodyResolver.resolveAnonymousInitializers(createEmptyContext(resolveSession), classOrObject,
-                                                  classOrObjectDescriptor.getUnsubstitutedPrimaryConstructor(),
-                                                  classOrObjectDescriptor.getScopeForInitializerResolution());
+        bodyResolver.resolveAnonymousInitializer(createEmptyContext(resolveSession), classInitializer, classOrObjectDescriptor);
 
         return true;
     }
@@ -494,6 +501,11 @@ public class ResolveElementCache {
         }
 
         @Override
+        public Map<JetClassInitializer, ClassDescriptorWithResolutionScopes> getAnonymousInitializers() {
+            return Collections.emptyMap();
+        }
+
+        @Override
         public Map<JetProperty, PropertyDescriptor> getProperties() {
             return Collections.emptyMap();
         }
@@ -523,10 +535,6 @@ public class ResolveElementCache {
         @Override
         public TopDownAnalysisParameters getTopDownAnalysisParameters() {
             return topDownAnalysisParameters;
-        }
-
-        @Override
-        public void setTopDownAnalysisParameters(TopDownAnalysisParameters parameters) {
         }
 
         @Override

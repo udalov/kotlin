@@ -12,20 +12,12 @@ inline fun unsupported() {
         object BInner {}
     }<!>
 
-    val s = <!NOT_YET_SUPPORTED_IN_INLINE!>object {
-        fun a() {
-            val sInner = object {
-                fun aInner() {}
-            }
-        }
-    }<!>
-
     <!NOT_YET_SUPPORTED_IN_INLINE!>fun local() {
         fun localInner() {}
     }<!>
 }
 
-inline fun unsupportedDefault(<!NOT_YET_SUPPORTED_IN_INLINE!>s : Int = 10<!>) {
+inline fun unsupportedDefault(<!NOT_YET_SUPPORTED_IN_INLINE!>s : ()->Unit = {}<!>) {
 
 }
 

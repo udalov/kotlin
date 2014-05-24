@@ -78,7 +78,7 @@ public class LazyJavaClassMemberScope(
 
         val valueParameters = resolveValueParameters(c, constructorDescriptor, constructor.getValueParameters())
         val effectiveSignature = c.externalSignatureResolver.resolveAlternativeMethodSignature(
-                constructor, false, null, null, valueParameters, Collections.emptyList(), false)
+                constructor, false, null, null, valueParameters.descriptors, Collections.emptyList(), false)
 
         constructorDescriptor.initialize(
                 classDescriptor.getTypeConstructor().getParameters(),
@@ -87,6 +87,7 @@ public class LazyJavaClassMemberScope(
                 isStaticClass
         )
         constructorDescriptor.setHasStableParameterNames(effectiveSignature.hasStableParameterNames())
+        constructorDescriptor.setHasSynthesizedParameterNames(valueParameters.hasSynthesizedNames)
 
         constructorDescriptor.setReturnType(classDescriptor.getDefaultType())
 
@@ -110,6 +111,7 @@ public class LazyJavaClassMemberScope(
         val typeParameters = classDescriptor.getTypeConstructor().getParameters()
         val valueParameters = if (isAnnotation) createAnnotationConstructorParameters(constructorDescriptor)
                               else Collections.emptyList<ValueParameterDescriptor>()
+        constructorDescriptor.setHasSynthesizedParameterNames(false)
 
         constructorDescriptor.initialize(typeParameters, valueParameters, getConstructorVisibility(classDescriptor), jClass.isStatic())
         constructorDescriptor.setHasStableParameterNames(true)
@@ -130,7 +132,7 @@ public class LazyJavaClassMemberScope(
         val methods = jClass.getMethods()
         val result = ArrayList<ValueParameterDescriptor>(methods.size())
 
-        for ((index, method) in methods.withIndices_tmp()) {
+        for ((index, method) in methods.withIndices()) {
             assert(method.getValueParameters().isEmpty(), "Annotation method can't have parameters: " + method)
 
             val jReturnType = method.getReturnType() ?: throw AssertionError("Annotation method has no return type: " + method)

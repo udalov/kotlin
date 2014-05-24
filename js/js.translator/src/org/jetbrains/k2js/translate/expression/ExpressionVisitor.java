@@ -20,7 +20,6 @@ import com.google.dart.compiler.backend.js.ast.*;
 import com.intellij.psi.tree.IElementType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.jet.JetNodeTypes;
 import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor;
 import org.jetbrains.jet.lang.descriptors.FunctionDescriptor;
 import org.jetbrains.jet.lang.descriptors.VariableDescriptor;
@@ -72,18 +71,7 @@ public final class ExpressionVisitor extends TranslatorVisitor<JsNode> {
     private static JsNode translateConstantExpression(@NotNull JetConstantExpression expression, @NotNull TranslationContext context) {
         CompileTimeConstant<?> compileTimeValue = context.bindingContext().get(BindingContext.COMPILE_TIME_VALUE, expression);
 
-        // TODO: workaround for default parameters translation. Will be fixed later.
-        // public fun parseInt(s: String, radix:Int = 10): Int = js.noImpl
-        if (compileTimeValue == null) {
-            if (expression.getNode().getElementType() == JetNodeTypes.BOOLEAN_CONSTANT) {
-                return JsLiteral.getBoolean(Boolean.valueOf(expression.getText()));
-            }
-            else if (expression.getNode().getElementType() == JetNodeTypes.INTEGER_CONSTANT) {
-                return context.program().getNumberLiteral(Integer.parseInt(expression.getText()));
-            }
-        }
-
-        assert compileTimeValue != null;
+        assert compileTimeValue != null : message(expression, "Expression is not compile time value: " + expression.getText() + " ");
 
         if (compileTimeValue instanceof NullValue) {
             return JsLiteral.NULL;
@@ -304,24 +292,22 @@ public final class ExpressionVisitor extends TranslatorVisitor<JsNode> {
     }
 
     @Override
+    public JsNode visitLabeledExpression(
+            @NotNull JetLabeledExpression expression, TranslationContext context
+    ) {
+        JetExpression baseExpression = expression.getBaseExpression();
+        assert baseExpression != null;
+        return new JsLabel(context.scope().declareName(getReferencedName(expression.getTargetLabel())),
+                             convertToStatement(baseExpression.accept(this, context))).source(expression);
+    }
+
+    @Override
     @NotNull
     public JsNode visitPrefixExpression(
             @NotNull JetPrefixExpression expression,
             @NotNull TranslationContext context
     ) {
-        JetSimpleNameExpression operationReference = expression.getOperationReference();
-        IElementType operationToken = operationReference.getReferencedNameElementType();
-        JsNode result;
-        if (JetTokens.LABELS.contains(operationToken)) {
-            JetExpression baseExpression = expression.getBaseExpression();
-            assert baseExpression != null;
-            result = new JsLabel(context.scope().declareName(getReferencedName(operationReference)),
-                                        convertToStatement(baseExpression.accept(this, context)));
-        }
-        else {
-            result = UnaryOperationTranslator.translate(expression, context);
-        }
-        return result.source(expression);
+        return UnaryOperationTranslator.translate(expression, context).source(expression);
     }
 
     @Override
@@ -377,7 +363,7 @@ public final class ExpressionVisitor extends TranslatorVisitor<JsNode> {
         return name.charAt(0) == '@' ? name.substring(1) + '$' : name;
     }
 
-    private static String getTargetLabel(JetLabelQualifiedExpression expression, TranslationContext context) {
+    private static String getTargetLabel(JetExpressionWithLabel expression, TranslationContext context) {
         JetSimpleNameExpression labelElement = expression.getTargetLabel();
         if (labelElement == null) {
             return null;

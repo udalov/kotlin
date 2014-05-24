@@ -16,25 +16,28 @@
 
 package org.jetbrains.jet.codegen.binding;
 
-import com.intellij.openapi.util.Ref;
+import com.intellij.openapi.project.Project;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.util.PsiTreeUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.org.objectweb.asm.Type;
+import org.jetbrains.jet.codegen.ClassBuilderFactories;
 import org.jetbrains.jet.codegen.PackageCodegen;
+import org.jetbrains.jet.codegen.state.GenerationState;
+import org.jetbrains.jet.lang.descriptors.ClassDescriptor;
 import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor;
+import org.jetbrains.jet.lang.descriptors.ModuleDescriptor;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.BindingContextUtils;
 import org.jetbrains.jet.lang.resolve.BindingTrace;
-import org.jetbrains.jet.lang.resolve.DelegatingBindingTrace;
 import org.jetbrains.jet.lang.resolve.java.JvmAbi;
 import org.jetbrains.jet.lang.resolve.java.JvmClassName;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.Name;
-import org.jetbrains.jet.util.slicedmap.WritableSlice;
+import org.jetbrains.org.objectweb.asm.Type;
 
+import java.util.ArrayList;
 import java.util.Collection;
 
 import static org.jetbrains.jet.lang.resolve.BindingContextUtils.descriptorToDeclaration;
@@ -45,9 +48,9 @@ public final class PsiCodegenPredictor {
     }
 
     public static boolean checkPredictedNameFromPsi(
-            @NotNull BindingTrace bindingTrace, @NotNull DeclarationDescriptor descriptor, @Nullable Type nameFromDescriptors
+            @NotNull BindingContext bindingContext, @NotNull DeclarationDescriptor descriptor, @Nullable Type nameFromDescriptors
     ) {
-        PsiElement element = descriptorToDeclaration(bindingTrace.getBindingContext(), descriptor);
+        PsiElement element = descriptorToDeclaration(bindingContext, descriptor);
         if (element instanceof JetDeclaration) {
             String classNameFromPsi = getPredefinedJvmInternalName((JetDeclaration) element);
             assert classNameFromPsi == null || Type.getObjectType(classNameFromPsi).equals(nameFromDescriptors) :
@@ -66,7 +69,7 @@ public final class PsiCodegenPredictor {
         // TODO: Method won't work for declarations inside class objects
         // TODO: Method won't give correct class name for traits implementations
 
-        JetDeclaration parentDeclaration = PsiTreeUtil.getParentOfType(declaration, JetDeclaration.class);
+        JetDeclaration parentDeclaration = JetStubbedPsiUtil.getContainingDeclaration(declaration);
         if (parentDeclaration instanceof JetClassObject) {
             assert declaration instanceof JetObjectDeclaration : "Only object declarations can be children of JetClassObject: " + declaration;
             return getPredefinedJvmInternalName(parentDeclaration);
@@ -142,27 +145,24 @@ public final class PsiCodegenPredictor {
 
     @Nullable
     public static JetFile getFileForCodegenNamedClass(
+            @NotNull ModuleDescriptor module,
             @NotNull BindingContext context,
             @NotNull Collection<JetFile> allPackageFiles,
-            @NotNull final String classInternalName
+            @NotNull String classInternalName
     ) {
-        final Ref<DeclarationDescriptor> resultingDescriptor = Ref.create();
+        Project project = allPackageFiles.iterator().next().getProject();
+        GenerationState state = new GenerationState(project, ClassBuilderFactories.THROW_EXCEPTION, module, context,
+                                                    new ArrayList<JetFile>(allPackageFiles));
+        state.beforeCompile();
 
-        DelegatingBindingTrace trace = new DelegatingBindingTrace(context, "trace in PsiCodegenPredictor") {
-            @Override
-            public <K, V> void record(WritableSlice<K, V> slice, K key, V value) {
-                super.record(slice, key, value);
-                if (slice == CodegenBinding.ASM_TYPE && key instanceof DeclarationDescriptor && value instanceof Type) {
-                    if (classInternalName.equals(((Type) value).getInternalName())) {
-                        resultingDescriptor.set((DeclarationDescriptor) key);
-                    }
-                }
+        BindingTrace trace = state.getBindingTrace();
+        for (ClassDescriptor classDescriptor : trace.getKeys(CodegenBinding.ASM_TYPE)) {
+            Type type = trace.get(CodegenBinding.ASM_TYPE, classDescriptor);
+            if (type != null && classInternalName.equals(type.getInternalName())) {
+                return BindingContextUtils.getContainingFile(trace.getBindingContext(), classDescriptor);
             }
-        };
+        }
 
-        CodegenBinding.initTrace(trace, allPackageFiles);
-
-        return resultingDescriptor.isNull() ? null
-               : BindingContextUtils.getContainingFile(trace.getBindingContext(), resultingDescriptor.get());
+        return null;
     }
 }

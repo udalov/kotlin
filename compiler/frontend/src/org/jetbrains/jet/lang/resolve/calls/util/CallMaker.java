@@ -23,10 +23,10 @@ import com.intellij.psi.impl.source.tree.LeafPsiElement;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.psi.*;
-import org.jetbrains.jet.lang.resolve.BindingContext;
-import org.jetbrains.jet.lang.resolve.scopes.receivers.ExpressionReceiver;
 import org.jetbrains.jet.lang.resolve.scopes.receivers.ReceiverValue;
 import org.jetbrains.jet.lang.psi.Call.CallType;
+import org.jetbrains.jet.lang.psi.debugText.DebugTextPackage;
+import org.jetbrains.jet.lang.resolve.scopes.receivers.ReceiverValue;
 
 import java.util.Collections;
 import java.util.List;
@@ -73,18 +73,18 @@ public class CallMaker {
 
     private static class CallImpl implements Call {
 
-        private final PsiElement callElement;
+        private final JetElement callElement;
         private final ReceiverValue explicitReceiver;
         private final ASTNode callOperationNode;
         private final JetExpression calleeExpression;
         private final List<? extends ValueArgument> valueArguments;
         private final Call.CallType callType;
 
-        protected CallImpl(@NotNull PsiElement callElement, @NotNull ReceiverValue explicitReceiver, @Nullable ASTNode callOperationNode, @Nullable JetExpression calleeExpression, @NotNull List<? extends ValueArgument> valueArguments) {
+        protected CallImpl(@NotNull JetElement callElement, @NotNull ReceiverValue explicitReceiver, @Nullable ASTNode callOperationNode, @Nullable JetExpression calleeExpression, @NotNull List<? extends ValueArgument> valueArguments) {
             this(callElement, explicitReceiver, callOperationNode, calleeExpression, valueArguments, CallType.DEFAULT);
         }
 
-        protected CallImpl(@NotNull PsiElement callElement, @NotNull ReceiverValue explicitReceiver, @Nullable ASTNode callOperationNode,
+        protected CallImpl(@NotNull JetElement callElement, @NotNull ReceiverValue explicitReceiver, @Nullable ASTNode callOperationNode,
                 @Nullable JetExpression calleeExpression, @NotNull List<? extends ValueArgument> valueArguments, @NotNull CallType callType) {
             this.callElement = callElement;
             this.explicitReceiver = explicitReceiver;
@@ -124,7 +124,7 @@ public class CallMaker {
 
         @NotNull
         @Override
-        public PsiElement getCallElement() {
+        public JetElement getCallElement() {
             return callElement;
         }
 
@@ -287,13 +287,13 @@ public class CallMaker {
 
             @NotNull
             @Override
-            public PsiElement getCallElement() {
+            public JetElement getCallElement() {
                 return callElement;
             }
 
             @Override
             public String toString() {
-                return callElement.getText();
+                return DebugTextPackage.getDebugText(callElement);
             }
 
             @NotNull

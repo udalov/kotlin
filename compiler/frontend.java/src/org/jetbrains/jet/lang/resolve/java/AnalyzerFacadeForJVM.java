@@ -50,7 +50,9 @@ public enum AnalyzerFacadeForJVM implements AnalyzerFacade {
     public static final List<ImportPath> DEFAULT_IMPORTS = ImmutableList.of(
             new ImportPath("java.lang.*"),
             new ImportPath("kotlin.*"),
-            new ImportPath("kotlin.io.*"));
+            new ImportPath("kotlin.io.*"),
+            new ImportPath("kotlin.reflect.*")
+    );
 
     public static class JvmSetup extends BasicSetup {
 
@@ -121,7 +123,6 @@ public enum AnalyzerFacadeForJVM implements AnalyzerFacade {
             Collection<JetFile> files,
             BindingTrace trace,
             Predicate<PsiFile> filesToAnalyzeCompletely,
-            boolean storeContextForBodiesResolve,
             ModuleDescriptorImpl module,
             MemberFilter memberFilter
     ) {
@@ -138,11 +139,8 @@ public enum AnalyzerFacadeForJVM implements AnalyzerFacade {
                                                                                          memberFilter);
         try {
             module.addFragmentProvider(DependencyKind.BINARIES, injector.getJavaDescriptorResolver().getPackageFragmentProvider());
-            TopDownAnalysisContext topDownAnalysisContext = injector.getTopDownAnalyzer().analyzeFiles(topDownAnalysisParameters, files);
-            BodiesResolveContext bodiesResolveContext = storeContextForBodiesResolve ?
-                                                        new CachedBodiesResolveContext(topDownAnalysisContext) :
-                                                        null;
-            return AnalyzeExhaust.success(trace.getBindingContext(), bodiesResolveContext, module);
+            injector.getTopDownAnalyzer().analyzeFiles(topDownAnalysisParameters, files);
+            return AnalyzeExhaust.success(trace.getBindingContext(), module);
         }
         finally {
             injector.destroy();

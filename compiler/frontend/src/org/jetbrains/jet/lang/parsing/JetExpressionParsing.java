@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2013 JetBrains s.r.o.
+ * Copyright 2010-2014 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -67,7 +67,7 @@ public class JetExpressionParsing extends AbstractJetParsing {
             // Prefix
             MINUS, PLUS, MINUSMINUS, PLUSPLUS,
             EXCL, EXCLEXCL, // Joining complex tokens makes it necessary to put EXCLEXCL here
-            LBRACKET, LABEL_IDENTIFIER, AT, ATAT,
+            LBRACKET, LABEL_IDENTIFIER,
             // Atomic
 
             COLONCOLON, // callable reference
@@ -138,7 +138,7 @@ public class JetExpressionParsing extends AbstractJetParsing {
         POSTFIX(PLUSPLUS, MINUSMINUS, EXCLEXCL,
                 DOT, SAFE_ACCESS), // typeArguments? valueArguments : typeArguments : arrayAccess
 
-        PREFIX(MINUS, PLUS, MINUSMINUS, PLUSPLUS, EXCL, LABEL_IDENTIFIER, AT, ATAT) { // attributes
+        PREFIX(MINUS, PLUS, MINUSMINUS, PLUSPLUS, EXCL, LABEL_IDENTIFIER) { // attributes
 
             @Override
             public void parseHigherPrecedence(JetExpressionParsing parser) {
@@ -320,6 +320,17 @@ public class JetExpressionParsing extends AbstractJetParsing {
     }
 
     /*
+     * label prefixExpression
+     */
+    private void parseLabeledExpression() {
+        assert _at(LABEL_IDENTIFIER);
+        PsiBuilder.Marker expression = mark();
+        parseLabel();
+        parsePrefixExpression();
+        expression.done(LABELED_EXPRESSION);
+    }
+
+    /*
      * operation? prefixExpression
      */
     private void parsePrefixExpression() {
@@ -338,7 +349,11 @@ public class JetExpressionParsing extends AbstractJetParsing {
         }
         else {
             myBuilder.disableJoiningComplexTokens();
-            if (atSet(Precedence.PREFIX.getOperations())) {
+            if (at(LABEL_IDENTIFIER)) {
+                myBuilder.restoreJoiningComplexTokensState();
+                parseLabeledExpression();
+            }
+            else if (atSet(Precedence.PREFIX.getOperations())) {
                 PsiBuilder.Marker expression = mark();
 
                 parseOperationReference();
@@ -498,19 +513,17 @@ public class JetExpressionParsing extends AbstractJetParsing {
      */
     protected boolean parseCallWithClosure() {
         boolean success = false;
-        //        while (!myBuilder.newlineBeforeCurrentToken()
-        //                && (at(LBRACE)
-        while ((at(LBRACE)
-                || atSet(LABELS) && lookahead(1) == LBRACE)) {
+        while ((at(LBRACE) || at(LABEL_IDENTIFIER) && lookahead(1) == LBRACE)) {
             if (!at(LBRACE)) {
-                assert _atSet(LABELS);
-                parsePrefixExpression();
+                assert _at(LABEL_IDENTIFIER);
+                parseLabeledExpression();
             }
             else {
                 parseFunctionLiteral();
             }
             success = true;
         }
+
         return success;
     }
 
@@ -1398,14 +1411,14 @@ public class JetExpressionParsing extends AbstractJetParsing {
         if (at(LBRACE)) {
             parseFunctionLiteral(true);
         }
-        else if (atSet(LABELS) && lookahead(1) == LBRACE ) {
+        else if (at(LABEL_IDENTIFIER) && lookahead(1) == LBRACE ) {
             PsiBuilder.Marker mark = mark();
 
-            parseOperationReference();
+            parseLabel();
 
             parseFunctionLiteral(true);
 
-            mark.done(PREFIX_EXPRESSION);
+            mark.done(LABELED_EXPRESSION);
         }
         else {
             parseExpression();
@@ -1556,7 +1569,7 @@ public class JetExpressionParsing extends AbstractJetParsing {
 
         advance(); // BREAK_KEYWORD or CONTINUE_KEYWORD
 
-        parseLabel();
+        parseLabelOnTheSameLine();
 
         marker.done(type);
     }
@@ -1571,7 +1584,7 @@ public class JetExpressionParsing extends AbstractJetParsing {
 
         advance(); // RETURN_KEYWORD
 
-        parseLabel();
+        parseLabelOnTheSameLine();
 
         if (atSet(EXPRESSION_FIRST) && !at(EOL_OR_SEMICOLON)) parseExpression();
 
@@ -1579,18 +1592,33 @@ public class JetExpressionParsing extends AbstractJetParsing {
     }
 
     /*
-     * labels
+     * label?
+     */
+    private void parseLabelOnTheSameLine() {
+        if (!eol() && at(LABEL_IDENTIFIER)) {
+            parseLabel();
+        }
+    }
+
+    /*
+     * label
      */
     private void parseLabel() {
-        if (!eol() && atSet(LABELS)) {
-            PsiBuilder.Marker labelWrap = mark();
+        assert _at(LABEL_IDENTIFIER);
 
-            PsiBuilder.Marker mark = mark();
-            advance(); // LABELS
-            mark.done(LABEL_REFERENCE);
-
-            labelWrap.done(LABEL_QUALIFIER);
+        String labelText = myBuilder.getTokenText();
+        if ("@".equals(labelText)) {
+            errorAndAdvance("Label must be named");
+            return;
         }
+
+        PsiBuilder.Marker labelWrap = mark();
+
+        PsiBuilder.Marker mark = mark();
+        advance(); // LABEL_IDENTIFIER
+        mark.done(LABEL);
+
+        labelWrap.done(LABEL_QUALIFIER);
     }
 
     /*
@@ -1685,7 +1713,7 @@ public class JetExpressionParsing extends AbstractJetParsing {
         advance(); // THIS_KEYWORD
         thisReference.done(REFERENCE_EXPRESSION);
 
-        parseLabel();
+        parseLabelOnTheSameLine();
 
         mark.done(THIS_EXPRESSION);
     }
@@ -1719,7 +1747,7 @@ public class JetExpressionParsing extends AbstractJetParsing {
             }
             myBuilder.restoreNewlinesState();
         }
-        parseLabel();
+        parseLabelOnTheSameLine();
 
         mark.done(SUPER_EXPRESSION);
     }
@@ -1733,22 +1761,24 @@ public class JetExpressionParsing extends AbstractJetParsing {
         PsiBuilder.Marker list = mark();
 
         myBuilder.disableNewlines();
-        expect(LPAR, "Expecting an argument list", EXPRESSION_FOLLOW);
 
-        if (!at(RPAR)) {
-            while (true) {
-                while (at(COMMA)) errorAndAdvance("Expecting an argument");
-                parseValueArgument();
-                if (!at(COMMA)) break;
-                advance(); // COMMA
-                if (at(RPAR)) {
-                    error("Expecting an argument");
-                    break;
+        if (expect(LPAR, "Expecting an argument list", EXPRESSION_FOLLOW)) {
+            if (!at(RPAR)) {
+                while (true) {
+                    while (at(COMMA)) errorAndAdvance("Expecting an argument");
+                    parseValueArgument();
+                    if (!at(COMMA)) break;
+                    advance(); // COMMA
+                    if (at(RPAR)) {
+                        error("Expecting an argument");
+                        break;
+                    }
                 }
             }
+
+            expect(RPAR, "Expecting ')'", EXPRESSION_FOLLOW);
         }
 
-        expect(RPAR, "Expecting ')'", EXPRESSION_FOLLOW);
         myBuilder.restoreNewlinesState();
 
         list.done(VALUE_ARGUMENT_LIST);

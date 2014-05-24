@@ -96,9 +96,9 @@ public class DebugInfoUtil {
                         if (EXCLUDED.contains(referencedNameElementType)) {
                             return;
                         }
-                        if (JetTokens.LABELS.contains(referencedNameElementType)) return;
                     }
-                    else if (nameExpression.getReferencedNameElementType() == JetTokens.THIS_KEYWORD) {
+                    if (elementType == JetNodeTypes.LABEL ||
+                            nameExpression.getReferencedNameElementType() == JetTokens.THIS_KEYWORD) {
                         return;
                     }
                 }
@@ -130,6 +130,11 @@ public class DebugInfoUtil {
 
                 boolean resolved = target != null;
                 boolean markedWithError = markedWithErrorElements.containsKey(expression);
+                if (expression instanceof JetArrayAccessExpression &&
+                    markedWithErrorElements.containsKey(((JetArrayAccessExpression) expression).getArrayExpression())) {
+                    // if 'foo' in 'foo[i]' is unresolved it means 'foo[i]' is unresolved (otherwise 'foo[i]' is marked as 'missing unresolved')
+                    markedWithError = true;
+                }
                 JetType expressionType = bindingContext.get(EXPRESSION_TYPE, expression);
                 DiagnosticFactory factory = markedWithErrorElements.get(expression);
                 if (declarationDescriptor != null &&

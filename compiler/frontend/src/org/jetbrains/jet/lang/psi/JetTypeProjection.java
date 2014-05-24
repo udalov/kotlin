@@ -18,40 +18,37 @@ package org.jetbrains.jet.lang.psi;
 
 import com.intellij.lang.ASTNode;
 import com.intellij.psi.PsiElement;
+import com.intellij.psi.tree.IElementType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.jet.JetNodeTypes;
-import org.jetbrains.jet.lexer.JetModifierKeywordToken;
+import org.jetbrains.jet.lang.psi.stubs.PsiJetTypeProjectionStub;
+import org.jetbrains.jet.lang.psi.stubs.elements.JetStubElementTypes;
 import org.jetbrains.jet.lexer.JetTokens;
 
-import java.util.Collections;
-import java.util.List;
+public class JetTypeProjection extends JetModifierListOwnerStub<PsiJetTypeProjectionStub> {
 
-public class JetTypeProjection extends JetElementImpl implements JetModifierListOwner {
     public JetTypeProjection(@NotNull ASTNode node) {
         super(node);
     }
 
-    @Override
-    public JetModifierList getModifierList() {
-        return (JetModifierList) findChildByType(JetNodeTypes.MODIFIER_LIST);
-    }
-
-    @Override
-    public boolean hasModifier(JetModifierKeywordToken modifier) {
-        JetModifierList modifierList = getModifierList();
-        return modifierList != null && modifierList.hasModifier(modifier);
+    public JetTypeProjection(@NotNull PsiJetTypeProjectionStub stub) {
+        super(stub, JetStubElementTypes.TYPE_PROJECTION);
     }
 
     @NotNull
     public JetProjectionKind getProjectionKind() {
+        PsiJetTypeProjectionStub stub = getStub();
+        if (stub != null) {
+            return stub.getProjectionKind();
+        }
+
         ASTNode projectionNode = getProjectionNode();
-        if (projectionNode == null) return JetProjectionKind.NONE;
-
-        if (projectionNode.getElementType() == JetTokens.IN_KEYWORD) return JetProjectionKind.IN;
-        if (projectionNode.getElementType() == JetTokens.OUT_KEYWORD) return JetProjectionKind.OUT;
-        if (projectionNode.getElementType() == JetTokens.MUL) return JetProjectionKind.STAR;
-
+        IElementType token = projectionNode != null ? projectionNode.getElementType() : null;
+        for (JetProjectionKind projectionKind : JetProjectionKind.values()) {
+            if (projectionKind.getToken() == token) {
+                return projectionKind;
+            }
+        }
         throw new IllegalStateException(projectionNode.getText());
     }
 
@@ -62,7 +59,7 @@ public class JetTypeProjection extends JetElementImpl implements JetModifierList
 
     @Nullable
     public JetTypeReference getTypeReference() {
-        return (JetTypeReference) findChildByType(JetNodeTypes.TYPE_REFERENCE);
+        return getStubOrPsiChild(JetStubElementTypes.TYPE_REFERENCE);
     }
 
     @Nullable
@@ -84,21 +81,5 @@ public class JetTypeProjection extends JetElementImpl implements JetModifierList
         }
 
         return null;
-    }
-
-    @NotNull
-    @Override
-    public List<JetAnnotationEntry> getAnnotationEntries() {
-        JetModifierList modifierList = getModifierList();
-        if (modifierList == null) return Collections.emptyList();
-        return modifierList.getAnnotationEntries();
-    }
-
-    @NotNull
-    @Override
-    public List<JetAnnotation> getAnnotations() {
-        JetModifierList modifierList = getModifierList();
-        if (modifierList == null) return Collections.emptyList();
-        return modifierList.getAnnotations();
     }
 }

@@ -16,7 +16,6 @@
 
 package org.jetbrains.jet.lang.psi.stubs.impl;
 
-import com.intellij.psi.stubs.StubBase;
 import com.intellij.psi.stubs.StubElement;
 import com.intellij.util.io.StringRef;
 import org.jetbrains.annotations.Nullable;
@@ -25,32 +24,17 @@ import org.jetbrains.jet.lang.psi.stubs.PsiJetTypeParameterStub;
 import org.jetbrains.jet.lang.psi.stubs.elements.JetStubElementTypes;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 
-public class PsiJetTypeParameterStubImpl extends StubBase<JetTypeParameter> implements PsiJetTypeParameterStub {
+public class PsiJetTypeParameterStubImpl extends JetStubBaseImpl<JetTypeParameter> implements PsiJetTypeParameterStub {
     private final StringRef name;
-    private final StringRef extendBoundTypeText;
     private final boolean isInVariance;
     private final boolean isOutVariance;
 
-    public PsiJetTypeParameterStubImpl(
-            StubElement parent, StringRef name, StringRef extendBoundTypeText, boolean isInVariance, boolean isOutVariance
-    ) {
+    public PsiJetTypeParameterStubImpl(StubElement parent, StringRef name, boolean isInVariance, boolean isOutVariance) {
         super(parent, JetStubElementTypes.TYPE_PARAMETER);
 
         this.name = name;
-        this.extendBoundTypeText = extendBoundTypeText;
         this.isInVariance = isInVariance;
         this.isOutVariance = isOutVariance;
-    }
-
-    public PsiJetTypeParameterStubImpl(
-            StubElement parent, String name, String extendBoundTypeText, boolean isInVariance, boolean isOutVariance
-    ) {
-        this(parent, StringRef.fromString(name), StringRef.fromString(extendBoundTypeText), isInVariance, isOutVariance);
-    }
-
-    @Override
-    public String getExtendBoundTypeText() {
-        return StringRef.toString(extendBoundTypeText);
     }
 
     @Override
@@ -66,27 +50,6 @@ public class PsiJetTypeParameterStubImpl extends StubBase<JetTypeParameter> impl
     @Override
     public String getName() {
         return StringRef.toString(name);
-    }
-
-    @Override
-    public String toString() {
-        StringBuilder builder = new StringBuilder();
-        builder.append("PsiJetTypeParameterStubImpl[");
-
-        if (isInVariance()) {
-            builder.append("in ");
-        }
-
-        if (isOutVariance()) {
-            builder.append("out ");
-        }
-
-        builder.append("name=").append(getName());
-        builder.append(" extendText=").append(getExtendBoundTypeText());
-
-        builder.append("]");
-
-        return builder.toString();
     }
 
     @Nullable

@@ -21,16 +21,21 @@ import com.intellij.psi.PsiElement;
 import com.intellij.psi.util.PsiTreeUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.jet.JetNodeTypes;
+import org.jetbrains.jet.lang.psi.stubs.PsiJetPropertyAccessorStub;
+import org.jetbrains.jet.lang.psi.stubs.elements.JetStubElementTypes;
 import org.jetbrains.jet.lexer.JetTokens;
 
 import java.util.Collections;
 import java.util.List;
 
-public class JetPropertyAccessor extends JetDeclarationImpl
+public class JetPropertyAccessor extends JetDeclarationStub<PsiJetPropertyAccessorStub>
         implements JetDeclarationWithBody, JetModifierListOwner, JetWithExpressionInitializer {
     public JetPropertyAccessor(@NotNull ASTNode node) {
         super(node);
+    }
+
+    public JetPropertyAccessor(@NotNull PsiJetPropertyAccessorStub stub) {
+        super(stub, JetStubElementTypes.PROPERTY_ACCESSOR);
     }
 
     @Override
@@ -39,16 +44,24 @@ public class JetPropertyAccessor extends JetDeclarationImpl
     }
 
     public boolean isSetter() {
+        PsiJetPropertyAccessorStub stub = getStub();
+        if (stub != null) {
+            return !stub.isGetter();
+        }
         return findChildByType(JetTokens.SET_KEYWORD) != null;
     }
 
     public boolean isGetter() {
+        PsiJetPropertyAccessorStub stub = getStub();
+        if (stub != null) {
+            return stub.isGetter();
+        }
         return findChildByType(JetTokens.GET_KEYWORD) != null;
     }
 
     @Nullable
     public JetParameter getParameter() {
-        JetParameterList parameterList = (JetParameterList) findChildByType(JetNodeTypes.VALUE_PARAMETER_LIST);
+        JetParameterList parameterList = getStubOrPsiChild(JetStubElementTypes.VALUE_PARAMETER_LIST);
         if (parameterList == null) return null;
         List<JetParameter> parameters = parameterList.getParameters();
         if (parameters.isEmpty()) return null;
@@ -76,6 +89,15 @@ public class JetPropertyAccessor extends JetDeclarationImpl
         return getEqualsToken() == null;
     }
 
+    @Override
+    public boolean hasBody() {
+        PsiJetPropertyAccessorStub stub = getStub();
+        if (stub != null) {
+            return stub.hasBody();
+        }
+        return getBodyExpression() != null;
+    }
+
     @Nullable
     public PsiElement getEqualsToken() {
         return findChildByType(JetTokens.EQ);
@@ -94,7 +116,7 @@ public class JetPropertyAccessor extends JetDeclarationImpl
 
     @Nullable
     public JetTypeReference getReturnTypeReference() {
-        return findChildByClass(JetTypeReference.class);
+        return getStubOrPsiChild(JetStubElementTypes.TYPE_REFERENCE);
     }
 
     @NotNull
@@ -110,5 +132,10 @@ public class JetPropertyAccessor extends JetDeclarationImpl
     @Override
     public JetExpression getInitializer() {
         return PsiTreeUtil.getNextSiblingOfType(getEqualsToken(), JetExpression.class);
+    }
+
+    @Override
+    public boolean hasInitializer() {
+        return getInitializer() != null;
     }
 }

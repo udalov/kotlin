@@ -19,15 +19,26 @@ package org.jetbrains.jet.lang.psi;
 import com.intellij.lang.ASTNode;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.jet.lang.psi.stubs.PsiJetPlaceHolderStub;
+import org.jetbrains.jet.lang.psi.stubs.elements.JetStubElementTypes;
 
-public class JetConstructorCalleeExpression extends JetExpressionImpl {
+public class JetConstructorCalleeExpression extends JetExpressionImplStub<PsiJetPlaceHolderStub<JetConstructorCalleeExpression>> {
     public JetConstructorCalleeExpression(@NotNull ASTNode node) {
         super(node);
     }
 
+    public JetConstructorCalleeExpression(@NotNull PsiJetPlaceHolderStub<JetConstructorCalleeExpression> stub) {
+        super(stub, JetStubElementTypes.CONSTRUCTOR_CALLEE);
+    }
+
+    @Override
+    public <R, D> R accept(@NotNull JetVisitor<R, D> visitor, D data) {
+        return visitor.visitConstructorCalleeExpression(this, data);
+    }
+
     @Nullable @IfNotParsed
     public JetTypeReference getTypeReference() {
-        return findChildByClass(JetTypeReference.class);
+        return getStubOrPsiChild(JetStubElementTypes.TYPE_REFERENCE);
     }
 
     @Nullable @IfNotParsed

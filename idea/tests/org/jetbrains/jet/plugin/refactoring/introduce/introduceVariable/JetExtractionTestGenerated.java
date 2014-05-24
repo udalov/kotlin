@@ -128,6 +128,11 @@ public class JetExtractionTestGenerated extends AbstractJetExtractionTest {
             doIntroduceVariableTest("idea/testData/refactoring/introduceVariable/ManyOccurrences.kt");
         }
         
+        @TestMetadata("noConflictWithInnerVariable.kt")
+        public void testNoConflictWithInnerVariable() throws Exception {
+            doIntroduceVariableTest("idea/testData/refactoring/introduceVariable/noConflictWithInnerVariable.kt");
+        }
+        
         @TestMetadata("nonEquivalentReceivers.kt")
         public void testNonEquivalentReceivers() throws Exception {
             doIntroduceVariableTest("idea/testData/refactoring/introduceVariable/nonEquivalentReceivers.kt");
@@ -186,7 +191,7 @@ public class JetExtractionTestGenerated extends AbstractJetExtractionTest {
     }
     
     @TestMetadata("idea/testData/refactoring/extractFunction")
-    @InnerTestClasses({ExtractFunction.Basic.class, ExtractFunction.ControlFlow.class, ExtractFunction.Parameters.class})
+    @InnerTestClasses({ExtractFunction.Basic.class, ExtractFunction.ControlFlow.class, ExtractFunction.Parameters.class, ExtractFunction.TypeParameters.class})
     public static class ExtractFunction extends AbstractJetExtractionTest {
         public void testAllFilesPresentInExtractFunction() throws Exception {
             JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), "org.jetbrains.jet.generators.tests.TestsPackage", new File("idea/testData/refactoring/extractFunction"), Pattern.compile("^(.+)\\.kt$"), true);
@@ -196,6 +201,16 @@ public class JetExtractionTestGenerated extends AbstractJetExtractionTest {
         public static class Basic extends AbstractJetExtractionTest {
             public void testAllFilesPresentInBasic() throws Exception {
                 JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), "org.jetbrains.jet.generators.tests.TestsPackage", new File("idea/testData/refactoring/extractFunction/basic"), Pattern.compile("^(.+)\\.kt$"), true);
+            }
+            
+            @TestMetadata("fragmentWithComment.kt")
+            public void testFragmentWithComment() throws Exception {
+                doExtractFunctionTest("idea/testData/refactoring/extractFunction/basic/fragmentWithComment.kt");
+            }
+            
+            @TestMetadata("fragmentWithMultilineComment.kt")
+            public void testFragmentWithMultilineComment() throws Exception {
+                doExtractFunctionTest("idea/testData/refactoring/extractFunction/basic/fragmentWithMultilineComment.kt");
             }
             
             @TestMetadata("localClassFunctionRef.kt")
@@ -228,6 +243,11 @@ public class JetExtractionTestGenerated extends AbstractJetExtractionTest {
                 doExtractFunctionTest("idea/testData/refactoring/extractFunction/basic/misdirectedRef.kt");
             }
             
+            @TestMetadata("noConflictWithInnerFunction.kt")
+            public void testNoConflictWithInnerFunction() throws Exception {
+                doExtractFunctionTest("idea/testData/refactoring/extractFunction/basic/noConflictWithInnerFunction.kt");
+            }
+            
             @TestMetadata("privateMemberRef.kt")
             public void testPrivateMemberRef() throws Exception {
                 doExtractFunctionTest("idea/testData/refactoring/extractFunction/basic/privateMemberRef.kt");
@@ -241,7 +261,7 @@ public class JetExtractionTestGenerated extends AbstractJetExtractionTest {
         }
         
         @TestMetadata("idea/testData/refactoring/extractFunction/controlFlow")
-        @InnerTestClasses({ControlFlow.ConditionalJumps.class, ControlFlow.Default.class, ControlFlow.DefiniteReturns.class, ControlFlow.EvaluateExpression.class, ControlFlow.OutputValues.class, ControlFlow.Unextractable.class})
+        @InnerTestClasses({ControlFlow.ConditionalJumps.class, ControlFlow.Default.class, ControlFlow.DefiniteReturns.class, ControlFlow.EvaluateExpression.class, ControlFlow.OutputValues.class, ControlFlow.Throws.class, ControlFlow.Unextractable.class})
         public static class ControlFlow extends AbstractJetExtractionTest {
             public void testAllFilesPresentInControlFlow() throws Exception {
                 JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), "org.jetbrains.jet.generators.tests.TestsPackage", new File("idea/testData/refactoring/extractFunction/controlFlow"), Pattern.compile("^(.+)\\.kt$"), true);
@@ -412,6 +432,39 @@ public class JetExtractionTestGenerated extends AbstractJetExtractionTest {
                 
             }
             
+            @TestMetadata("idea/testData/refactoring/extractFunction/controlFlow/throws")
+            public static class Throws extends AbstractJetExtractionTest {
+                public void testAllFilesPresentInThrows() throws Exception {
+                    JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), "org.jetbrains.jet.generators.tests.TestsPackage", new File("idea/testData/refactoring/extractFunction/controlFlow/throws"), Pattern.compile("^(.+)\\.kt$"), true);
+                }
+                
+                @TestMetadata("breakWithThrow.kt")
+                public void testBreakWithThrow() throws Exception {
+                    doExtractFunctionTest("idea/testData/refactoring/extractFunction/controlFlow/throws/breakWithThrow.kt");
+                }
+                
+                @TestMetadata("continueWithThrow.kt")
+                public void testContinueWithThrow() throws Exception {
+                    doExtractFunctionTest("idea/testData/refactoring/extractFunction/controlFlow/throws/continueWithThrow.kt");
+                }
+                
+                @TestMetadata("evalExpressionWithThrow.kt")
+                public void testEvalExpressionWithThrow() throws Exception {
+                    doExtractFunctionTest("idea/testData/refactoring/extractFunction/controlFlow/throws/evalExpressionWithThrow.kt");
+                }
+                
+                @TestMetadata("nonValuedReturnWithThrow.kt")
+                public void testNonValuedReturnWithThrow() throws Exception {
+                    doExtractFunctionTest("idea/testData/refactoring/extractFunction/controlFlow/throws/nonValuedReturnWithThrow.kt");
+                }
+                
+                @TestMetadata("returnWithThrow.kt")
+                public void testReturnWithThrow() throws Exception {
+                    doExtractFunctionTest("idea/testData/refactoring/extractFunction/controlFlow/throws/returnWithThrow.kt");
+                }
+                
+            }
+            
             @TestMetadata("idea/testData/refactoring/extractFunction/controlFlow/unextractable")
             public static class Unextractable extends AbstractJetExtractionTest {
                 public void testAllFilesPresentInUnextractable() throws Exception {
@@ -426,11 +479,6 @@ public class JetExtractionTestGenerated extends AbstractJetExtractionTest {
                 @TestMetadata("evalExpressionWithReturn.kt")
                 public void testEvalExpressionWithReturn() throws Exception {
                     doExtractFunctionTest("idea/testData/refactoring/extractFunction/controlFlow/unextractable/evalExpressionWithReturn.kt");
-                }
-                
-                @TestMetadata("evalExpressionWithThrow.kt")
-                public void testEvalExpressionWithThrow() throws Exception {
-                    doExtractFunctionTest("idea/testData/refactoring/extractFunction/controlFlow/unextractable/evalExpressionWithThrow.kt");
                 }
                 
                 @TestMetadata("jumpsAndReturns.kt")
@@ -478,6 +526,7 @@ public class JetExtractionTestGenerated extends AbstractJetExtractionTest {
                 suite.addTestSuite(DefiniteReturns.class);
                 suite.addTestSuite(EvaluateExpression.class);
                 suite.addTestSuite(OutputValues.class);
+                suite.addTestSuite(Throws.class);
                 suite.addTestSuite(Unextractable.class);
                 return suite;
             }
@@ -618,12 +667,81 @@ public class JetExtractionTestGenerated extends AbstractJetExtractionTest {
             }
         }
         
+        @TestMetadata("idea/testData/refactoring/extractFunction/typeParameters")
+        public static class TypeParameters extends AbstractJetExtractionTest {
+            public void testAllFilesPresentInTypeParameters() throws Exception {
+                JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), "org.jetbrains.jet.generators.tests.TestsPackage", new File("idea/testData/refactoring/extractFunction/typeParameters"), Pattern.compile("^(.+)\\.kt$"), true);
+            }
+            
+            @TestMetadata("localClassInBound.kt")
+            public void testLocalClassInBound() throws Exception {
+                doExtractFunctionTest("idea/testData/refactoring/extractFunction/typeParameters/localClassInBound.kt");
+            }
+            
+            @TestMetadata("localClassInTypeConstraint.kt")
+            public void testLocalClassInTypeConstraint() throws Exception {
+                doExtractFunctionTest("idea/testData/refactoring/extractFunction/typeParameters/localClassInTypeConstraint.kt");
+            }
+            
+            @TestMetadata("simpleTypeParameter.kt")
+            public void testSimpleTypeParameter() throws Exception {
+                doExtractFunctionTest("idea/testData/refactoring/extractFunction/typeParameters/simpleTypeParameter.kt");
+            }
+            
+            @TestMetadata("simpleTypeParameterWithConstraint.kt")
+            public void testSimpleTypeParameterWithConstraint() throws Exception {
+                doExtractFunctionTest("idea/testData/refactoring/extractFunction/typeParameters/simpleTypeParameterWithConstraint.kt");
+            }
+            
+            @TestMetadata("typeParamInArgument.kt")
+            public void testTypeParamInArgument() throws Exception {
+                doExtractFunctionTest("idea/testData/refactoring/extractFunction/typeParameters/typeParamInArgument.kt");
+            }
+            
+            @TestMetadata("typeParametersAndConstraintsCombined1.kt")
+            public void testTypeParametersAndConstraintsCombined1() throws Exception {
+                doExtractFunctionTest("idea/testData/refactoring/extractFunction/typeParameters/typeParametersAndConstraintsCombined1.kt");
+            }
+            
+            @TestMetadata("typeParametersAndConstraintsCombined2.kt")
+            public void testTypeParametersAndConstraintsCombined2() throws Exception {
+                doExtractFunctionTest("idea/testData/refactoring/extractFunction/typeParameters/typeParametersAndConstraintsCombined2.kt");
+            }
+            
+            @TestMetadata("typeParametersAndConstraintsCombined3.kt")
+            public void testTypeParametersAndConstraintsCombined3() throws Exception {
+                doExtractFunctionTest("idea/testData/refactoring/extractFunction/typeParameters/typeParametersAndConstraintsCombined3.kt");
+            }
+            
+            @TestMetadata("typeParametersCombined1.kt")
+            public void testTypeParametersCombined1() throws Exception {
+                doExtractFunctionTest("idea/testData/refactoring/extractFunction/typeParameters/typeParametersCombined1.kt");
+            }
+            
+            @TestMetadata("typeParametersCombined2.kt")
+            public void testTypeParametersCombined2() throws Exception {
+                doExtractFunctionTest("idea/testData/refactoring/extractFunction/typeParameters/typeParametersCombined2.kt");
+            }
+            
+            @TestMetadata("typeParametersCombined3.kt")
+            public void testTypeParametersCombined3() throws Exception {
+                doExtractFunctionTest("idea/testData/refactoring/extractFunction/typeParameters/typeParametersCombined3.kt");
+            }
+            
+            @TestMetadata("typeParametersCombinedAndThis.kt")
+            public void testTypeParametersCombinedAndThis() throws Exception {
+                doExtractFunctionTest("idea/testData/refactoring/extractFunction/typeParameters/typeParametersCombinedAndThis.kt");
+            }
+            
+        }
+        
         public static Test innerSuite() {
             TestSuite suite = new TestSuite("ExtractFunction");
             suite.addTestSuite(ExtractFunction.class);
             suite.addTestSuite(Basic.class);
             suite.addTest(ControlFlow.innerSuite());
             suite.addTest(Parameters.innerSuite());
+            suite.addTestSuite(TypeParameters.class);
             return suite;
         }
     }

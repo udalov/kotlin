@@ -20,14 +20,13 @@ import com.intellij.psi.PsiElement;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.codegen.*;
-import org.jetbrains.jet.codegen.binding.BindingTraceAware;
 import org.jetbrains.jet.codegen.binding.CalculatedClosure;
 import org.jetbrains.jet.codegen.binding.CodegenBinding;
 import org.jetbrains.jet.codegen.context.CodegenContext;
 import org.jetbrains.jet.codegen.signature.BothSignatureWriter;
-import org.jetbrains.jet.codegen.signature.JvmMethodParameterKind;
-import org.jetbrains.jet.codegen.signature.JvmMethodParameterSignature;
-import org.jetbrains.jet.codegen.signature.JvmMethodSignature;
+import org.jetbrains.jet.lang.resolve.java.jvmSignature.JvmMethodParameterKind;
+import org.jetbrains.jet.lang.resolve.java.jvmSignature.JvmMethodParameterSignature;
+import org.jetbrains.jet.lang.resolve.java.jvmSignature.JvmMethodSignature;
 import org.jetbrains.jet.config.IncrementalCompilation;
 import org.jetbrains.jet.descriptors.serialization.descriptors.DeserializedCallableMemberDescriptor;
 import org.jetbrains.jet.lang.descriptors.*;
@@ -36,7 +35,6 @@ import org.jetbrains.jet.lang.psi.JetDelegatorToSuperCall;
 import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.BindingContextUtils;
-import org.jetbrains.jet.lang.resolve.BindingTrace;
 import org.jetbrains.jet.lang.resolve.DescriptorUtils;
 import org.jetbrains.jet.lang.resolve.java.AsmTypeConstants;
 import org.jetbrains.jet.lang.resolve.java.JvmAbi;
@@ -47,25 +45,30 @@ import org.jetbrains.jet.lang.resolve.name.FqNameUnsafe;
 import org.jetbrains.jet.lang.types.*;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 import org.jetbrains.org.objectweb.asm.Type;
+import org.jetbrains.org.objectweb.asm.commons.Method;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.jetbrains.jet.codegen.AsmUtil.boxType;
-import static org.jetbrains.jet.codegen.AsmUtil.getTraitImplThisParameterType;
-import static org.jetbrains.jet.codegen.CodegenUtil.*;
+import static org.jetbrains.jet.codegen.AsmUtil.*;
+import static org.jetbrains.jet.codegen.JvmCodegenUtil.*;
 import static org.jetbrains.jet.codegen.binding.CodegenBinding.*;
 import static org.jetbrains.jet.lang.resolve.BindingContextUtils.isVarCapturedInClosure;
 import static org.jetbrains.jet.lang.resolve.DescriptorUtils.*;
 import static org.jetbrains.org.objectweb.asm.Opcodes.*;
 
-public class JetTypeMapper extends BindingTraceAware {
-
+public class JetTypeMapper {
+    private final BindingContext bindingContext;
     private final ClassBuilderMode classBuilderMode;
 
-    public JetTypeMapper(BindingTrace bindingTrace, ClassBuilderMode mode) {
-        super(bindingTrace);
-        classBuilderMode = mode;
+    public JetTypeMapper(@NotNull BindingContext bindingContext, @NotNull ClassBuilderMode classBuilderMode) {
+        this.bindingContext = bindingContext;
+        this.classBuilderMode = classBuilderMode;
+    }
+
+    @NotNull
+    public BindingContext getBindingContext() {
+        return bindingContext;
     }
 
     private enum JetTypeMapperMode {
@@ -259,15 +262,11 @@ public class JetTypeMapper extends BindingTraceAware {
                 signatureVisitor.writeArrayEnd();
             }
 
-            if (memberType.getConstructor().getDeclarationDescriptor() instanceof TypeParameterDescriptor) {
-                return AsmTypeConstants.getType(Object[].class);
-            }
-
             return Type.getType("[" + boxType(mapType(memberType, kind)).getDescriptor());
         }
 
         if (descriptor instanceof ClassDescriptor) {
-            Type asmType = getAsmType(bindingTrace, (ClassDescriptor) descriptor);
+            Type asmType = getAsmType(bindingContext, (ClassDescriptor) descriptor);
             writeGenericType(signatureVisitor, asmType, jetType, howThisTypeIsUsed, projectionsAllowed);
             return asmType;
         }
@@ -286,7 +285,7 @@ public class JetTypeMapper extends BindingTraceAware {
 
     @NotNull
     public Type mapTraitImpl(@NotNull ClassDescriptor descriptor) {
-        return Type.getObjectType(getAsmType(bindingTrace, descriptor).getInternalName() + JvmAbi.TRAIT_IMPL_SUFFIX);
+        return Type.getObjectType(getAsmType(bindingContext, descriptor).getInternalName() + JvmAbi.TRAIT_IMPL_SUFFIX);
     }
 
     @NotNull
@@ -581,6 +580,19 @@ public class JetTypeMapper extends BindingTraceAware {
         }
 
         return sw.makeJvmMethodSignature(mapFunctionName(f));
+    }
+
+    @NotNull
+    public Method mapDefaultMethod(@NotNull FunctionDescriptor functionDescriptor, @NotNull OwnerKind kind, @NotNull CodegenContext<?> context) {
+        Method jvmSignature = mapSignature(functionDescriptor, kind).getAsmMethod();
+        Type ownerType = mapOwner(functionDescriptor, isCallInsideSameModuleAsDeclared(functionDescriptor, context));
+        String descriptor = jvmSignature.getDescriptor().replace(")", "I)");
+        boolean isConstructor = "<init>".equals(jvmSignature.getName());
+        if (!isStatic(kind) && !isConstructor) {
+            descriptor = descriptor.replace("(", "(" + ownerType.getDescriptor());
+        }
+
+        return new Method(isConstructor ? "<init>" : jvmSignature.getName() + JvmAbi.DEFAULT_PARAMS_IMPL_SUFFIX, descriptor);
     }
 
     /**

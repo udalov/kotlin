@@ -16,11 +16,31 @@
 
 package org.jetbrains.jet.lang.psi;
 
-import com.intellij.psi.PsiCodeFragment;
+import com.intellij.openapi.project.Project;
+import com.intellij.psi.PsiElement;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.jet.JetNodeTypes;
 import org.jetbrains.jet.lang.types.JetType;
+import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 
-public interface JetTypeCodeFragment extends PsiCodeFragment {
+public class JetTypeCodeFragment extends JetCodeFragment {
+    public JetTypeCodeFragment(Project project, String name, CharSequence text, PsiElement context) {
+        super(project, name, text, JetNodeTypes.TYPE_CODE_FRAGMENT, context);
+    }
+
     @Nullable
-    JetType getType();
+    public JetType getType() {
+        JetElement typeReference = getContentElement();
+        if (typeReference instanceof JetTypeReference) {
+            //TODO return the actual type
+            return KotlinBuiltIns.getInstance().getAnyType();
+        }
+        return null;
+    }
+
+    @Nullable
+    @Override
+    public JetElement getContentElement() {
+        return findChildByClass(JetTypeReference.class);
+    }
 }

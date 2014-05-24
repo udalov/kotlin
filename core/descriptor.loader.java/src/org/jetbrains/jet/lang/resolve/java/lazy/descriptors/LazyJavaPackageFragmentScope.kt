@@ -1,3 +1,19 @@
+/*
+ * Copyright 2010-2014 JetBrains s.r.o.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.jetbrains.jet.lang.resolve.java.lazy.descriptors
 
 import org.jetbrains.jet.lang.descriptors.*
@@ -38,8 +54,12 @@ public abstract class LazyJavaPackageFragmentScope(
             val cached = c.javaResolverCache.getClass(jClass)
             if (cached != null)
                 cached
-            else
-                LazyJavaClassDescriptor(c.withTypes(TypeParameterResolver.EMPTY), packageFragment, fqName, jClass)
+            else {
+                val classDescriptor = c.javaClassResolver.resolveClass(jClass)
+                assert(classDescriptor == null || classDescriptor.getContainingDeclaration() == packageFragment,
+                       "Wrong package fragment for $classDescriptor, expected $packageFragment")
+                classDescriptor
+            }
         }
     }
 
@@ -90,7 +110,7 @@ public class LazyPackageFragmentScopeForJavaPackage(
     override fun computeMemberIndex(): MemberIndex = computeMemberIndexForSamConstructors(EMPTY_MEMBER_INDEX)
 
     override fun getAllClassNames(): Collection<Name> {
-        return jPackage.getClasses().iterator()
+        return jPackage.getClasses().stream()
                 .filter { c -> c.getOriginKind() != JavaClass.OriginKind.KOTLIN_LIGHT_CLASS }
                 .map { c -> c.getName() }.toList()
     }
@@ -126,7 +146,7 @@ public class LazyPackageFragmentScopeForJavaClass(
 
     // We do not filter by hasStaticMembers() because it's slow (e.g. it triggers light class generation),
     // and there's no harm in having some names in the result that can not be resolved
-    override fun getSubPackages(): Collection<FqName> = jClass.getInnerClasses().iterator()
+    override fun getSubPackages(): Collection<FqName> = jClass.getInnerClasses().stream()
                                                                 .filter { c -> c.isStatic() }
                                                                 .map { c -> c.getFqName().sure("Nested class has no fqName: $c}") }.toList()
 }

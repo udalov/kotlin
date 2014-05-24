@@ -19,7 +19,6 @@ package org.jetbrains.jet.lang.types.expressions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.intellij.lang.ASTNode;
-import com.intellij.psi.PsiElement;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.*;
@@ -35,21 +34,16 @@ import org.jetbrains.jet.lang.resolve.calls.autocasts.DataFlowInfo;
 import org.jetbrains.jet.lang.resolve.calls.inference.*;
 import org.jetbrains.jet.lang.resolve.calls.model.MutableDataFlowInfoForArguments;
 import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCall;
-import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCallWithTrace;
 import org.jetbrains.jet.lang.resolve.calls.results.OverloadResolutionResults;
 import org.jetbrains.jet.lang.resolve.calls.tasks.ResolutionCandidate;
 import org.jetbrains.jet.lang.resolve.calls.tasks.TracingStrategy;
 import org.jetbrains.jet.lang.resolve.calls.util.CallMaker;
 import org.jetbrains.jet.lang.resolve.name.Name;
-import org.jetbrains.jet.lang.resolve.scopes.JetScope;
 import org.jetbrains.jet.lang.resolve.scopes.receivers.ReceiverValue;
 import org.jetbrains.jet.lang.types.*;
 import org.jetbrains.jet.lexer.JetTokens;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static org.jetbrains.jet.lang.resolve.BindingContext.CALL;
 import static org.jetbrains.jet.lang.resolve.BindingContext.RESOLVED_CALL;
@@ -98,11 +92,10 @@ public class ControlStructureTypingUtils {
                 function, Annotations.EMPTY, false, Variance.INVARIANT,
                 Name.identifierNoValidate("<TYPE-PARAMETER-FOR-" + constructionName + "-RESOLVE>"), 0);
 
-        JetType type = new JetTypeImpl(typeParameter.getTypeConstructor(), JetScope.EMPTY);
-        JetType nullableType = new JetTypeImpl(
-                Annotations.EMPTY, typeParameter.getTypeConstructor(), true, Collections.<TypeProjection>emptyList(), JetScope.EMPTY);
+        JetType type = typeParameter.getDefaultType();
+        JetType nullableType = TypeUtils.makeNullable(type);
 
-        List<ValueParameterDescriptor> valueParameters = Lists.newArrayList();
+        List<ValueParameterDescriptor> valueParameters = new ArrayList<ValueParameterDescriptor>(argumentNames.size());
         for (int i = 0; i < argumentNames.size(); i++) {
             JetType argumentType = isArgumentNullable.get(i) ? nullableType : type;
             ValueParameterDescriptorImpl valueParameter = new ValueParameterDescriptorImpl(
@@ -228,7 +221,7 @@ public class ControlStructureTypingUtils {
 
             @NotNull
             @Override
-            public PsiElement getCallElement() {
+            public JetElement getCallElement() {
                 return expression;
             }
 
@@ -324,14 +317,14 @@ public class ControlStructureTypingUtils {
         return new ThrowingOnErrorTracingStrategy("resolve " + constructionName + " as a call") {
             @Override
             public <D extends CallableDescriptor> void bindReference(
-                    @NotNull BindingTrace trace, @NotNull ResolvedCallWithTrace<D> resolvedCall
+                    @NotNull BindingTrace trace, @NotNull ResolvedCall<D> resolvedCall
             ) {
                 //do nothing
             }
 
             @Override
             public <D extends CallableDescriptor> void bindResolvedCall(
-                    @NotNull BindingTrace trace, @NotNull ResolvedCallWithTrace<D> resolvedCall
+                    @NotNull BindingTrace trace, @NotNull ResolvedCall<D> resolvedCall
             ) {
                 trace.record(RESOLVED_CALL, call.getCalleeExpression(), resolvedCall);
                 trace.record(CALL, call.getCalleeExpression(), call);
@@ -387,14 +380,14 @@ public class ControlStructureTypingUtils {
 
         @Override
         public <D extends CallableDescriptor> void unresolvedReferenceWrongReceiver(
-                @NotNull BindingTrace trace, @NotNull Collection<ResolvedCallWithTrace<D>> candidates
+                @NotNull BindingTrace trace, @NotNull Collection<? extends ResolvedCall<D>> candidates
         ) {
             throwError();
         }
 
         @Override
         public <D extends CallableDescriptor> void recordAmbiguity(
-                @NotNull BindingTrace trace, @NotNull Collection<ResolvedCallWithTrace<D>> candidates
+                @NotNull BindingTrace trace, @NotNull Collection<? extends ResolvedCall<D>> candidates
         ) {
             throwError();
         }
@@ -432,21 +425,21 @@ public class ControlStructureTypingUtils {
 
         @Override
         public <D extends CallableDescriptor> void ambiguity(
-                @NotNull BindingTrace trace, @NotNull Collection<ResolvedCallWithTrace<D>> descriptors
+                @NotNull BindingTrace trace, @NotNull Collection<? extends ResolvedCall<D>> descriptors
         ) {
             throwError();
         }
 
         @Override
         public <D extends CallableDescriptor> void noneApplicable(
-                @NotNull BindingTrace trace, @NotNull Collection<ResolvedCallWithTrace<D>> descriptors
+                @NotNull BindingTrace trace, @NotNull Collection<? extends ResolvedCall<D>> descriptors
         ) {
             throwError();
         }
 
         @Override
         public <D extends CallableDescriptor> void cannotCompleteResolve(
-                @NotNull BindingTrace trace, @NotNull Collection<ResolvedCallWithTrace<D>> descriptors
+                @NotNull BindingTrace trace, @NotNull Collection<? extends ResolvedCall<D>> descriptors
         ) {
             throwError();
         }

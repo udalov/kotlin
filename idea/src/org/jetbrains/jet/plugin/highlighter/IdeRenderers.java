@@ -16,46 +16,34 @@
 
 package org.jetbrains.jet.plugin.highlighter;
 
-import com.intellij.psi.PsiElement;
-import com.intellij.psi.util.PsiTreeUtil;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-import org.jetbrains.jet.lang.descriptors.*;
-import org.jetbrains.jet.lang.diagnostics.Diagnostic;
-import org.jetbrains.jet.lang.diagnostics.DiagnosticWithParameters1;
-import org.jetbrains.jet.lang.diagnostics.Errors;
-import org.jetbrains.jet.lang.psi.JetValueArgument;
-import org.jetbrains.jet.lang.psi.ValueArgument;
-import org.jetbrains.jet.lang.resolve.DescriptorUtils;
+import org.jetbrains.jet.lang.descriptors.CallableMemberDescriptor;
 import org.jetbrains.jet.lang.resolve.calls.inference.InferenceErrorData;
 import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCall;
-import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCallImpl;
-import org.jetbrains.jet.lang.resolve.calls.model.ResolvedValueArgument;
-import org.jetbrains.jet.lang.resolve.name.FqName;
-import org.jetbrains.jet.lang.resolve.name.FqNameUnsafe;
 import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.renderer.DescriptorRenderer;
 import org.jetbrains.jet.renderer.Renderer;
 
 import java.util.Collection;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
 
 import static org.jetbrains.jet.lang.diagnostics.rendering.Renderers.*;
+import static org.jetbrains.jet.plugin.highlighter.renderersUtil.RenderersUtilPackage.renderResolvedCall;
 
 public class IdeRenderers {
     private static final String RED_TEMPLATE = "<font color=red><b>%s</b></font>";
     private static final String STRONG_TEMPLATE = "<b>%s</b>";
 
+    @NotNull
     public static String strong(Object o) {
         return String.format(STRONG_TEMPLATE, o);
     }
 
+    @NotNull
     public static String error(Object o) {
         return String.format(RED_TEMPLATE, o);
     }
 
+    @NotNull
     public static String strong(Object o, boolean error) {
         return String.format(error ? RED_TEMPLATE : STRONG_TEMPLATE, o);
     }
@@ -85,84 +73,14 @@ public class IdeRenderers {
 
     public static final Renderer<Collection<? extends ResolvedCall<?>>> HTML_NONE_APPLICABLE_CALLS =
             new Renderer<Collection<? extends ResolvedCall<?>>>() {
-                @Nullable
-                private ValueParameterDescriptor findParameterByArgumentExpression(ResolvedCall<?> call, JetValueArgument argument) {
-                    for (Map.Entry<ValueParameterDescriptor, ResolvedValueArgument> entry : call.getValueArguments().entrySet()) {
-                        for (ValueArgument va : entry.getValue().getArguments()) {
-                            if (va == argument) {
-                                return entry.getKey();
-                            }
-                        }
-                    }
-                    return null;
-                }
-
-                private Set<ValueParameterDescriptor> getParametersToHighlight(ResolvedCall<?> call) {
-                    Set<ValueParameterDescriptor> parameters = new HashSet<ValueParameterDescriptor>();
-                    if (call instanceof ResolvedCallImpl) {
-                        Iterable<Diagnostic> diagnostics = ((ResolvedCallImpl)call).getTrace().getBindingContext().getDiagnostics();
-                        for (Diagnostic diagnostic : diagnostics) {
-                            if (diagnostic.getFactory() == Errors.TOO_MANY_ARGUMENTS) {
-                                parameters.add(null);
-                            } else if (diagnostic.getFactory() == Errors.NO_VALUE_FOR_PARAMETER) {
-                                ValueParameterDescriptor parameter =
-                                        ((DiagnosticWithParameters1<PsiElement, ValueParameterDescriptor>)diagnostic).getA();
-                                parameters.add(parameter);
-                            } else {
-                                JetValueArgument argument = PsiTreeUtil.getParentOfType(diagnostic.getPsiElement(), JetValueArgument.class, false);
-                                if (argument != null) {
-                                    ValueParameterDescriptor parameter = findParameterByArgumentExpression(call, argument);
-                                    if (parameter != null) {
-                                        parameters.add(parameter);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    return parameters;
-                }
 
                 @NotNull
                 @Override
                 public String render(@NotNull Collection<? extends ResolvedCall<?>> calls) {
                     StringBuilder stringBuilder = new StringBuilder("");
-                    for (ResolvedCall<?> call : calls) {
+                    for (ResolvedCall<?> resolvedCall : calls) {
                         stringBuilder.append("<li>");
-                        CallableDescriptor funDescriptor = call.getResultingDescriptor();
-                        Set<ValueParameterDescriptor> parametersToHighlight = getParametersToHighlight(call);
-
-                        DescriptorRenderer htmlRenderer = DescriptorRenderer.HTML;
-                        ReceiverParameterDescriptor receiverParameter = funDescriptor.getReceiverParameter();
-                        if (receiverParameter != null) {
-                            stringBuilder.append(htmlRenderer.renderType(receiverParameter.getType())).append(".");
-                        }
-                        stringBuilder.append(funDescriptor.getName()).append("(");
-                        boolean first = true;
-                        for (ValueParameterDescriptor parameter : funDescriptor.getValueParameters()) {
-                            if (!first) {
-                                stringBuilder.append(", ");
-                            }
-                            JetType type = parameter.getType();
-                            JetType varargElementType = parameter.getVarargElementType();
-                            if (varargElementType != null) {
-                                type = varargElementType;
-                            }
-                            String paramString = (varargElementType != null ? "<b>vararg</b> " : "") + htmlRenderer.renderType(type);
-                            if (parameter.hasDefaultValue()) {
-                                paramString += " = ...";
-                            }
-                            if (parametersToHighlight.contains(parameter)) {
-                                paramString = String.format(RED_TEMPLATE, paramString);
-                            }
-                            stringBuilder.append(paramString);
-
-                            first = false;
-                        }
-                        stringBuilder.append(parametersToHighlight.contains(null) ? String.format(RED_TEMPLATE, ")") : ")");
-                        stringBuilder.append(" <i>defined in</i> ");
-                        DeclarationDescriptor containingDeclaration = funDescriptor.getContainingDeclaration();
-                        FqNameUnsafe fqName = DescriptorUtils.getFqName(containingDeclaration);
-                        stringBuilder.append(FqName.ROOT.equalsTo(fqName) ? "root package" : fqName.asString());
+                        stringBuilder.append(renderResolvedCall(resolvedCall));
                         stringBuilder.append("</li>");
                     }
                     return stringBuilder.toString();

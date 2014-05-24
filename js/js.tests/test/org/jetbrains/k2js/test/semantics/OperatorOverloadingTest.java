@@ -87,6 +87,10 @@ public final class OperatorOverloadingTest extends SingleFileTranslationTest {
         fooBoxTest();
     }
 
+    public void testCompareToByName() throws Exception {
+        fooBoxTest();
+    }
+
 
     public void testPlusAndMinusAsAnExpression() throws Exception {
         fooBoxTest();
@@ -115,5 +119,9 @@ public final class OperatorOverloadingTest extends SingleFileTranslationTest {
 
     public void testOverloadUnaryOperationsViaExtensionFunctions() throws Exception {
         fooBoxTest();
+    }
+
+    public void testOverloadByLambda() throws Exception {
+        checkFooBoxIsOk();
     }
 }

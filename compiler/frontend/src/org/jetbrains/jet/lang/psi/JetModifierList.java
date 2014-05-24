@@ -19,10 +19,11 @@ package org.jetbrains.jet.lang.psi;
 import com.google.common.collect.Lists;
 import com.intellij.lang.ASTNode;
 import com.intellij.psi.PsiElement;
+import com.intellij.psi.stubs.IStubElementType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.jet.JetNodeTypes;
-import org.jetbrains.jet.lexer.JetKeywordToken;
+import org.jetbrains.jet.lang.psi.stubs.PsiJetModifierListStub;
+import org.jetbrains.jet.lang.psi.stubs.elements.JetStubElementTypes;
 import org.jetbrains.jet.lexer.JetModifierKeywordToken;
 import org.jetbrains.jet.lexer.JetToken;
 
@@ -30,7 +31,12 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-public class JetModifierList extends JetElementImpl {
+public abstract class JetModifierList extends JetElementImplStub<PsiJetModifierListStub> {
+
+    public JetModifierList(@NotNull PsiJetModifierListStub stub, @NotNull IStubElementType nodeType) {
+        super(stub, nodeType);
+    }
+
     public JetModifierList(@NotNull ASTNode node) {
         super(node);
     }
@@ -42,12 +48,12 @@ public class JetModifierList extends JetElementImpl {
 
     @NotNull
     public List<JetAnnotation> getAnnotations() {
-        return findChildrenByType(JetNodeTypes.ANNOTATION);
+        return getStubOrPsiChildrenAsList(JetStubElementTypes.ANNOTATION);
     }
 
     @NotNull
     public List<JetAnnotationEntry> getAnnotationEntries() {
-        List<JetAnnotationEntry> entries = findChildrenByType(JetNodeTypes.ANNOTATION_ENTRY);
+        List<JetAnnotationEntry> entries = getStubOrPsiChildrenAsList(JetStubElementTypes.ANNOTATION_ENTRY);
         List<JetAnnotationEntry> answer = entries.isEmpty() ? null : Lists.newArrayList(entries);
         for (JetAnnotation annotation : getAnnotations()) {
             if (answer == null) answer = new ArrayList<JetAnnotationEntry>();
@@ -71,6 +77,10 @@ public class JetModifierList extends JetElementImpl {
     }
 
     public boolean hasModifier(JetModifierKeywordToken token) {
+        PsiJetModifierListStub stub = getStub();
+        if (stub != null) {
+            return stub.hasModifier(token);
+        }
         return getModifierNode(token) != null;
     }
 

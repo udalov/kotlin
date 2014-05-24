@@ -33,6 +33,7 @@ import com.intellij.psi.PsiPackage
 import com.intellij.psi.JavaDirectoryService
 import com.intellij.psi.PsiDirectory
 import org.jetbrains.jet.lang.psi.stubs.PsiJetClassOrObjectStub
+import org.jetbrains.jet.lang.types.expressions.OperatorConventions
 
 public fun JetCallElement.getCallNameExpression(): JetSimpleNameExpression? {
     val calleeExpression = getCalleeExpression()
@@ -84,7 +85,7 @@ public fun PsiElement.getParentByTypeAndBranch<T: PsiElement>(
 public fun JetClassOrObject.effectiveDeclarations(): List<JetDeclaration> =
         when(this) {
             is JetClass ->
-                getDeclarations() + getPrimaryConstructorParameters().filter { p -> p.getValOrVarNode() != null }
+                getDeclarations() + getPrimaryConstructorParameters().filter { p -> p.hasValOrVarNode() }
             else ->
                 getDeclarations()
         }
@@ -94,8 +95,8 @@ public fun JetClass.isAbstract(): Boolean = isTrait() || hasModifier(JetTokens.A
 [suppress("UNCHECKED_CAST")]
 public fun <T: PsiElement> PsiElement.replaced(newElement: T): T = replace(newElement) as T
 
-public fun JetElement.blockExpressionsOrSingle(): Iterator<JetElement> =
-        if (this is JetBlockExpression) getStatements().iterator() else SingleIterator(this)
+public fun JetElement.blockExpressionsOrSingle(): Stream<JetElement> =
+        if (this is JetBlockExpression) getStatements().stream() else listOf(this).stream()
 
 public fun JetElement.outermostLastBlockElement(predicate: (JetElement) -> Boolean = { true }): JetElement? {
     return JetPsiUtil.getOutermostLastBlockElement(this) { e -> e != null && predicate(e) }
@@ -215,7 +216,7 @@ public fun PsiElement.parameterIndex(): Int {
  * ([[JetQualifiedExpression]] or [[JetUserType]] or original expression)
  */
 public fun JetSimpleNameExpression.getQualifiedElement(): JetElement {
-    val baseExpression = (getParent() as? JetCallExpression) ?: this
+    val baseExpression: JetElement = (getParent() as? JetCallExpression) ?: this
     val parent = baseExpression.getParent()
     return when (parent) {
         is JetQualifiedExpression -> if (parent.getSelectorExpression().isAncestor(baseExpression)) parent else baseExpression
@@ -264,4 +265,51 @@ public fun PsiElement.isInsideOf(elements: Iterable<PsiElement>): Boolean = elem
 public tailRecursive fun PsiElement.getOutermostParentContainedIn(container: PsiElement): PsiElement? {
     val parent = getParent()
     return if (parent == container) this else parent?.getOutermostParentContainedIn(container)
+}
+
+public fun JetSimpleNameExpression.getReceiverExpression(): JetExpression? {
+    val parent = getParent()
+    when {
+        parent is JetQualifiedExpression && !isImportDirectiveExpression() -> {
+            val receiverExpression = parent.getReceiverExpression()
+            // Name expression can't be receiver for itself
+            if (receiverExpression != this) {
+                return receiverExpression
+            }
+        }
+        parent is JetCallExpression -> {
+            //This is in case `a().b()`
+            val callExpression = (parent as JetCallExpression)
+            val grandParent = callExpression.getParent()
+            if (grandParent is JetQualifiedExpression) {
+                val parentsReceiver = grandParent.getReceiverExpression()
+                if (parentsReceiver != callExpression) {
+                    return parentsReceiver
+                }
+            }
+        }
+        parent is JetBinaryExpression && parent.getOperationReference() == this -> {
+            return if (parent.getOperationToken() in OperatorConventions.IN_OPERATIONS) parent.getRight() else parent.getLeft()
+        }
+        parent is JetUnaryExpression && parent.getOperationReference() == this -> {
+            return parent.getBaseExpression()!!
+        }
+        parent is JetUserType -> {
+            val qualifier = parent.getQualifier()
+            if (qualifier != null) {
+                return qualifier.getReferenceExpression()!!
+            }
+        }
+    }
+    return null
+}
+
+public fun JetSimpleNameExpression.isImportDirectiveExpression(): Boolean {
+    val parent = getParent()
+    if (parent == null) {
+        return false
+    }
+    else {
+        return parent is JetImportDirective || parent.getParent() is JetImportDirective
+    }
 }

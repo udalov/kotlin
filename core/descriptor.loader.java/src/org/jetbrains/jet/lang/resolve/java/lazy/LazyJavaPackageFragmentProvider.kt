@@ -1,3 +1,19 @@
+/*
+ * Copyright 2010-2014 JetBrains s.r.o.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.jetbrains.jet.lang.resolve.java.lazy
 
 import org.jetbrains.jet.lang.descriptors.ModuleDescriptor
@@ -11,7 +27,7 @@ import org.jetbrains.jet.lang.resolve.java.resolver.DescriptorResolverUtils
 import org.jetbrains.jet.lang.resolve.java.resolver.JavaPackageFragmentProvider
 import org.jetbrains.jet.lang.resolve.java.lazy.descriptors.LazyJavaPackageFragment
 import org.jetbrains.jet.lang.resolve.kotlin.KotlinJvmBinaryClass
-import org.jetbrains.jet.lang.resolve.scopes.JetScope
+import org.jetbrains.jet.lang.resolve.java.lazy.descriptors.LazyJavaClassDescriptor
 
 public class LazyJavaPackageFragmentProvider(
         outerContext: GlobalJavaResolverContext,
@@ -43,15 +59,40 @@ public class LazyJavaPackageFragmentProvider(
         }
         else {
             val jClass = c.findJavaClass(fqName)
-            if (jClass != null && DescriptorResolverUtils.hasStaticMembers(jClass)) {
-                val correspondingClass = c.javaClassResolver.resolveClass(jClass)
-                if (correspondingClass != null) LazyPackageFragmentForJavaClass(c, _module, jClass) else null
+            if (jClass != null) {
+                packageFragmentsForClasses(jClass)
             }
             else null
         }
     }
 
+    private val topLevelClasses = c.storageManager.createMemoizedFunctionWithNullableValues @lambda {
+        (jClass: JavaClass): LazyJavaClassDescriptor? ->
+        val fqName = jClass.getFqName()
+        if (fqName == null) return@lambda null
+
+        val packageFragment = getPackageFragment(fqName.parent())
+        if (packageFragment == null) return@lambda null
+
+        LazyJavaClassDescriptor(
+                c.withTypes(TypeParameterResolver.EMPTY),
+                packageFragment,
+                fqName,
+                jClass
+        )
+    }
+
+    private val packageFragmentsForClasses: MemoizedFunctionToNullable<JavaClass, LazyPackageFragmentForJavaClass> = c.storageManager.createMemoizedFunctionWithNullableValues {
+        jClass ->
+        if (DescriptorResolverUtils.hasStaticMembers(jClass)) {
+            val correspondingClass = c.javaClassResolver.resolveClass(jClass)
+            if (correspondingClass != null) LazyPackageFragmentForJavaClass(c, _module, jClass) else null
+        }
+        else null
+    }
+
     override fun getPackageFragment(fqName: FqName) = _packageFragments(fqName)
+    fun getPackageFragment(javaClass: JavaClass) = packageFragmentsForClasses(javaClass)
 
     override fun getPackageFragments(fqName: FqName) = getPackageFragment(fqName)?.let {listOf(it)}.orEmpty()
 
@@ -60,6 +101,7 @@ public class LazyJavaPackageFragmentProvider(
     override fun getClassNamesInPackage(packageName: FqName) = getPackageFragment(packageName)?.getMemberScope()?.getAllClassNames().orEmpty()
 
     fun getClass(fqName: FqName): ClassDescriptor? = c.javaClassResolver.resolveClassByFqName(fqName)
+    fun getClass(javaClass: JavaClass): ClassDescriptor? = c.javaClassResolver.resolveClass(javaClass)
 
     internal val resolveKotlinBinaryClass = c.storageManager.createMemoizedFunctionWithNullableValues {
         (kotlinClass: KotlinJvmBinaryClass) -> c.deserializedDescriptorResolver.resolveClass(kotlinClass)
@@ -78,18 +120,13 @@ public class LazyJavaPackageFragmentProvider(
                     return c.javaResolverCache.getClassResolvedFromSource(fqName)
                 }
             }
-            val resolvedClassifier = getContainingScope(javaClass)?.getClassifier(javaClass.getName())
-            return resolvedClassifier as? ClassDescriptor ?: c.javaResolverCache.getClass(javaClass)
-        }
-
-        private fun getContainingScope(javaClass: JavaClass): JetScope? {
             val outerClass = javaClass.getOuterClass()
-            if (outerClass != null) {
-                return resolveClass(outerClass)?.getUnsubstitutedInnerClassesScope()
+            if (outerClass == null) {
+                return c.lookupBinaryClass(javaClass) ?: topLevelClasses(javaClass)
             }
-            else {
-                return getPackageFragment(javaClass.getFqName()!!.parent())?.getMemberScope()
-            }
+            val outerClassScope = resolveClass(outerClass)?.getUnsubstitutedInnerClassesScope()
+            val nestedClass = outerClassScope?.getClassifier(javaClass.getName()) as? ClassDescriptor
+            return nestedClass ?: c.javaResolverCache.getClass(javaClass)
         }
 
         override fun resolveClassByFqName(fqName: FqName): ClassDescriptor? {

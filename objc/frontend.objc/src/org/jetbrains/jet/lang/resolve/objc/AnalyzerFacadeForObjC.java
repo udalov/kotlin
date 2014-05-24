@@ -73,7 +73,7 @@ public enum AnalyzerFacadeForObjC implements AnalyzerFacade {
 
         try {
             injector.getTopDownAnalyzer().analyzeFiles(topDownAnalysisParameters, files);
-            return AnalyzeExhaust.success(trace.getBindingContext(), null, module);
+            return AnalyzeExhaust.success(trace.getBindingContext(), module);
         } finally {
             injector.destroy();
         }

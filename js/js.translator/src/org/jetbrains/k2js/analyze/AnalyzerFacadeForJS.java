@@ -24,7 +24,6 @@ import com.intellij.psi.PsiFile;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.analyzer.AnalyzeExhaust;
-import org.jetbrains.jet.analyzer.AnalyzerFacadeForEverything;
 import org.jetbrains.jet.context.ContextPackage;
 import org.jetbrains.jet.context.GlobalContextImpl;
 import org.jetbrains.jet.di.InjectorForLazyResolve;
@@ -50,7 +49,9 @@ public final class AnalyzerFacadeForJS {
     public static final List<ImportPath> DEFAULT_IMPORTS = ImmutableList.of(
             new ImportPath("js.*"),
             new ImportPath("java.lang.*"),
-            new ImportPath("kotlin.*"));
+            new ImportPath("kotlin.*"),
+            new ImportPath("kotlin.reflect.*")
+    );
 
     private AnalyzerFacadeForJS() {
     }
@@ -71,19 +72,13 @@ public final class AnalyzerFacadeForJS {
         return analyzeFiles(files, Predicates.<PsiFile>alwaysTrue(), config).getBindingContext();
     }
 
-    @NotNull
-    public static AnalyzeExhaust analyzeFiles(
-            @NotNull Collection<JetFile> files,
-            @NotNull Predicate<PsiFile> filesToAnalyzeCompletely, @NotNull Config config) {
-        return analyzeFiles(files, filesToAnalyzeCompletely, config, false);
-    }
-
     //TODO: refactor
     @NotNull
     public static AnalyzeExhaust analyzeFiles(
             @NotNull Collection<JetFile> files,
-            @NotNull Predicate<PsiFile> filesToAnalyzeCompletely, @NotNull Config config,
-            boolean storeContextForBodiesResolve) {
+            @NotNull Predicate<PsiFile> filesToAnalyzeCompletely,
+            @NotNull Config config
+    ) {
         Project project = config.getProject();
 
         ModuleDescriptorImpl owner = createJsModule("<module>");
@@ -108,30 +103,12 @@ public final class AnalyzerFacadeForJS {
             Collection<JetFile> allFiles = libraryModule != null ?
                                            files :
                                            Config.withJsLibAdded(files, config);
-            TopDownAnalysisContext topDownAnalysisContext =
-                    injector.getTopDownAnalyzer().analyzeFiles(topDownAnalysisParameters, allFiles);
-            BodiesResolveContext bodiesResolveContext = storeContextForBodiesResolve ?
-                                                        new CachedBodiesResolveContext(topDownAnalysisContext) :
-                                                        null;
-            return AnalyzeExhaust.success(trace.getBindingContext(), bodiesResolveContext, owner);
+            injector.getTopDownAnalyzer().analyzeFiles(topDownAnalysisParameters, allFiles);
+            return AnalyzeExhaust.success(trace.getBindingContext(), owner);
         }
         finally {
             injector.destroy();
         }
-    }
-
-    @NotNull
-    public static AnalyzeExhaust analyzeBodiesInFiles(
-            @NotNull Predicate<PsiFile> filesToAnalyzeCompletely,
-            @NotNull Config config,
-            @NotNull BindingTrace traceContext,
-            @NotNull BodiesResolveContext bodiesResolveContext,
-            @NotNull ModuleDescriptor module) {
-        Predicate<PsiFile> completely = Predicates.and(notLibFiles(config.getLibFiles()), filesToAnalyzeCompletely);
-
-        return AnalyzerFacadeForEverything.analyzeBodiesInFilesWithJavaIntegration(
-                config.getProject(), completely, traceContext, bodiesResolveContext,
-                module);
     }
 
     public static void checkForErrors(@NotNull Collection<JetFile> allFiles, @NotNull BindingContext bindingContext) {

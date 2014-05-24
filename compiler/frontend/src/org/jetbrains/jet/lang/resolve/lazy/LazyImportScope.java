@@ -24,13 +24,15 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.TestOnly;
 import org.jetbrains.jet.lang.descriptors.*;
+import org.jetbrains.jet.lang.psi.JetCodeFragment;
 import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.psi.JetImportDirective;
+import org.jetbrains.jet.lang.psi.JetImportList;
+import org.jetbrains.jet.lang.psi.debugText.DebugTextPackage;
 import org.jetbrains.jet.lang.resolve.BindingTrace;
 import org.jetbrains.jet.lang.resolve.Importer;
 import org.jetbrains.jet.lang.resolve.ImportsResolver;
 import org.jetbrains.jet.lang.resolve.JetModuleUtil;
-import org.jetbrains.jet.lang.resolve.name.LabelName;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.resolve.scopes.*;
 import org.jetbrains.jet.storage.MemoizedFunctionToNotNull;
@@ -89,7 +91,7 @@ public class LazyImportScope implements JetScope, LazyEntity {
 
                     WritableScope directiveImportScope = new WritableScopeImpl(
                             JetScope.EMPTY, packageDescriptor, RedeclarationHandler.DO_NOTHING,
-                            "Scope for import '" + directive.getText() + "' resolve in " + toString());
+                            "Scope for import '" + DebugTextPackage.getDebugText(directive) + "' resolve in " + toString());
                     directiveImportScope.changeLockLevel(WritableScope.LockLevel.BOTH);
 
                     Importer.StandardImporter importer = new Importer.StandardImporter(directiveImportScope);
@@ -161,10 +163,19 @@ public class LazyImportScope implements JetScope, LazyEntity {
             @NotNull BindingTrace traceForImportResolve,
             @NotNull String debugName
     ) {
+        List<JetImportDirective> importDirectives;
+        if (jetFile instanceof JetCodeFragment) {
+            JetImportList importList = ((JetCodeFragment) jetFile).importsAsImportList();
+            importDirectives = importList != null ? importList.getImports() : Collections.<JetImportDirective>emptyList();
+        }
+        else {
+            importDirectives = jetFile.getImportDirectives();
+        }
+
         return new LazyImportScope(
                 resolveSession,
                 packageDescriptor,
-                Lists.reverse(jetFile.getImportDirectives()),
+                Lists.reverse(importDirectives),
                 traceForImportResolve,
                 debugName,
                 packageDescriptor.getFqName().isRoot());
@@ -173,13 +184,17 @@ public class LazyImportScope implements JetScope, LazyEntity {
     @Override
     public void forceResolveAllContents() {
         for (JetImportDirective importDirective : importsProvider.getAllImports()) {
-            getImportScope(importDirective, LookupMode.EVERYTHING);
+            forceResolveImportDirective(importDirective);
+        }
+    }
 
-            ImportResolveStatus status = importedScopesProvider.invoke(importDirective).importResolveStatus;
-            if (status != null && !status.descriptors.isEmpty()) {
-                JetScope fileScope = resolveSession.getScopeProvider().getFileScope(importDirective.getContainingJetFile());
-                ImportsResolver.reportUselessImport(importDirective, fileScope, status.descriptors, traceForImportResolve);
-            }
+    public void forceResolveImportDirective(@NotNull JetImportDirective importDirective) {
+        getImportScope(importDirective, LookupMode.EVERYTHING);
+
+        ImportResolveStatus status = importedScopesProvider.invoke(importDirective).importResolveStatus;
+        if (status != null && !status.descriptors.isEmpty()) {
+            JetScope fileScope = resolveSession.getScopeProvider().getFileScope(importDirective.getContainingJetFile());
+            ImportsResolver.reportUselessImport(importDirective, fileScope, status.descriptors, traceForImportResolve);
         }
     }
 
@@ -299,7 +314,7 @@ public class LazyImportScope implements JetScope, LazyEntity {
 
     @NotNull
     @Override
-    public Collection<DeclarationDescriptor> getDeclarationsByLabel(@NotNull LabelName labelName) {
+    public Collection<DeclarationDescriptor> getDeclarationsByLabel(@NotNull Name labelName) {
         return Collections.emptyList();
     }
 

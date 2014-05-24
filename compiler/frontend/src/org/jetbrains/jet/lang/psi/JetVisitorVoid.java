@@ -89,6 +89,10 @@ public class JetVisitorVoid extends JetVisitor<Void, Void> {
         super.visitAnnotationEntry(annotationEntry, null);
     }
 
+    public void visitConstructorCalleeExpression(@NotNull JetConstructorCalleeExpression constructorCalleeExpression) {
+        super.visitConstructorCalleeExpression(constructorCalleeExpression, null);
+    }
+
     public void visitTypeParameterList(@NotNull JetTypeParameterList list) {
         super.visitTypeParameterList(list, null);
     }
@@ -169,6 +173,10 @@ public class JetVisitorVoid extends JetVisitor<Void, Void> {
         super.visitReferenceExpression(expression, null);
     }
 
+    public void visitLabeledExpression(@NotNull JetLabeledExpression expression) {
+        super.visitLabeledExpression(expression, null);
+    }
+
     public void visitPrefixExpression(@NotNull JetPrefixExpression expression) {
         super.visitPrefixExpression(expression, null);
     }
@@ -189,8 +197,8 @@ public class JetVisitorVoid extends JetVisitor<Void, Void> {
         super.visitReturnExpression(expression, null);
     }
 
-    public void visitLabelQualifiedExpression(@NotNull JetLabelQualifiedExpression expression) {
-        super.visitLabelQualifiedExpression(expression, null);
+    public void visitExpressionWithLabel(@NotNull JetExpressionWithLabel expression) {
+        super.visitExpressionWithLabel(expression, null);
     }
 
     public void visitThrowExpression(@NotNull JetThrowExpression expression) {
@@ -399,6 +407,10 @@ public class JetVisitorVoid extends JetVisitor<Void, Void> {
 
     public void visitEscapeStringTemplateEntry(@NotNull JetEscapeStringTemplateEntry entry) {
         super.visitEscapeStringTemplateEntry(entry, null);
+    }
+
+    public void visitPackageDirective(@NotNull JetPackageDirective directive) {
+        super.visitPackageDirective(directive, null);
     }
 
     // hidden methods
@@ -627,6 +639,12 @@ public class JetVisitorVoid extends JetVisitor<Void, Void> {
     }
 
     @Override
+    public final Void visitLabeledExpression(@NotNull JetLabeledExpression expression, Void data) {
+        visitLabeledExpression(expression);
+        return null;
+    }
+
+    @Override
     public final Void visitPrefixExpression(@NotNull JetPrefixExpression expression, Void data) {
         visitPrefixExpression(expression);
         return null;
@@ -657,8 +675,8 @@ public class JetVisitorVoid extends JetVisitor<Void, Void> {
     }
 
     @Override
-    public final Void visitLabelQualifiedExpression(@NotNull JetLabelQualifiedExpression expression, Void data) {
-        visitLabelQualifiedExpression(expression);
+    public final Void visitExpressionWithLabel(@NotNull JetExpressionWithLabel expression, Void data) {
+        visitExpressionWithLabel(expression);
         return null;
     }
 
@@ -971,6 +989,12 @@ public class JetVisitorVoid extends JetVisitor<Void, Void> {
     @Override
     public final Void visitEscapeStringTemplateEntry(@NotNull JetEscapeStringTemplateEntry entry, Void data) {
         visitEscapeStringTemplateEntry(entry);
+        return null;
+    }
+
+    @Override
+    public Void visitPackageDirective(@NotNull JetPackageDirective directive, Void data) {
+        visitPackageDirective(directive);
         return null;
     }
 }

@@ -19,16 +19,22 @@ package org.jetbrains.jet.lang.psi;
 import com.intellij.lang.ASTNode;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.jet.lang.psi.stubs.PsiJetPlaceHolderStub;
+import org.jetbrains.jet.lang.psi.stubs.elements.JetStubElementTypes;
 import org.jetbrains.jet.lexer.JetTokens;
 
 import java.util.Collections;
 import java.util.List;
 
-public class JetNullableType extends JetTypeElement {
+public class JetNullableType extends JetElementImplStub<PsiJetPlaceHolderStub<JetNullableType>> implements JetTypeElement {
     public JetNullableType(@NotNull ASTNode node) {
         super(node);
     }
-    
+
+    public JetNullableType(@NotNull PsiJetPlaceHolderStub<JetNullableType> stub) {
+        super(stub, JetStubElementTypes.NULLABLE_TYPE);
+    }
+
     @NotNull
     public ASTNode getQuestionMarkNode() {
         return getNode().findChildByType(JetTokens.QUEST);
@@ -49,6 +55,6 @@ public class JetNullableType extends JetTypeElement {
     @Nullable
     @IfNotParsed
     public JetTypeElement getInnerType() {
-        return findChildByClass(JetTypeElement.class);
+        return JetStubbedPsiUtil.getStubOrPsiChild(this, JetStubElementTypes.TYPE_ELEMENT_TYPES, JetTypeElement.ARRAY_FACTORY);
     }
 }

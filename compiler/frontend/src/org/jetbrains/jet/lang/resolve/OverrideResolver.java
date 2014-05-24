@@ -19,7 +19,6 @@ package org.jetbrains.jet.lang.resolve;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import com.intellij.lang.ASTNode;
 import com.intellij.psi.PsiElement;
 import com.intellij.util.Function;
 import com.intellij.util.containers.ContainerUtil;
@@ -182,13 +181,20 @@ public class OverrideResolver {
         return new Function1<CallableMemberDescriptor, Unit>() {
             @Override
             public Unit invoke(@NotNull CallableMemberDescriptor descriptor) {
-                DeclarationDescriptor reportOn = descriptor.getKind() == FAKE_OVERRIDE || descriptor.getKind() == DELEGATION
-                                                 ? DescriptorUtils.getParentOfType(descriptor, ClassDescriptor.class)
-                                                 : descriptor;
+                DeclarationDescriptor reportOn;
+                if (descriptor.getKind() == FAKE_OVERRIDE || descriptor.getKind() == DELEGATION) {
+                    reportOn = DescriptorUtils.getParentOfType(descriptor, ClassDescriptor.class);
+                }
+                else if (descriptor instanceof PropertyAccessorDescriptor && ((PropertyAccessorDescriptor) descriptor).isDefault()) {
+                    reportOn = ((PropertyAccessorDescriptor) descriptor).getCorrespondingProperty();
+                }
+                else {
+                    reportOn = descriptor;
+                }
                 //noinspection ConstantConditions
                 PsiElement element = BindingContextUtils.descriptorToDeclaration(trace.getBindingContext(), reportOn);
                 if (element instanceof JetDeclaration) {
-                    trace.report(CANNOT_INFER_VISIBILITY.on((JetDeclaration) element));
+                    trace.report(CANNOT_INFER_VISIBILITY.on((JetDeclaration) element, descriptor));
                 }
                 return Unit.VALUE;
             }
@@ -383,38 +389,66 @@ public class OverrideResolver {
         Set<CallableMemberDescriptor> relevantDirectlyOverridden =
                 getRelevantDirectlyOverridden(overriddenDeclarationsByDirectParent, allFilteredOverriddenDeclarations);
 
-        int implCount = countImplementations(relevantDirectlyOverridden);
-        if (implCount == 0) {
-            collectNotSynthesizedDescriptorsByModality(allFilteredOverriddenDeclarations, abstractNoImpl, Modality.ABSTRACT);
+        List<CallableMemberDescriptor> implementations = collectImplementations(relevantDirectlyOverridden);
+        if (implementations.size() == 1 && isReturnTypeOkForOverride(descriptor, implementations.get(0))) return;
+
+        List<CallableMemberDescriptor> abstractOverridden = new ArrayList<CallableMemberDescriptor>(allFilteredOverriddenDeclarations.size());
+        List<CallableMemberDescriptor> concreteOverridden = new ArrayList<CallableMemberDescriptor>(allFilteredOverriddenDeclarations.size());
+        filterNotSynthesizedDescriptorsByModality(allFilteredOverriddenDeclarations, abstractOverridden, concreteOverridden);
+
+        if (implementations.isEmpty()) {
+            abstractNoImpl.addAll(abstractOverridden);
         }
-        else if (implCount > 1) {
-            collectNotSynthesizedDescriptorsByModality(allFilteredOverriddenDeclarations, manyImpl, Modality.OPEN, Modality.FINAL);
+        else if (implementations.size() > 1) {
+            manyImpl.addAll(concreteOverridden);
+        }
+        else {
+            abstractNoImpl.addAll(collectAbstractMethodsWithMoreSpecificReturnType(abstractOverridden, implementations.get(0)));
         }
     }
 
-    private static int countImplementations(@NotNull Set<CallableMemberDescriptor> relevantDirectlyOverridden) {
-        int implCount = 0;
+    @NotNull
+    private static List<CallableMemberDescriptor> collectImplementations(@NotNull Set<CallableMemberDescriptor> relevantDirectlyOverridden) {
+        List<CallableMemberDescriptor> result = new ArrayList<CallableMemberDescriptor>(relevantDirectlyOverridden.size());
         for (CallableMemberDescriptor overriddenDescriptor : relevantDirectlyOverridden) {
             if (overriddenDescriptor.getModality() != Modality.ABSTRACT) {
-                implCount++;
+                result.add(overriddenDescriptor);
             }
         }
-        return implCount;
+        return result;
     }
 
-    private static void collectNotSynthesizedDescriptorsByModality(
+    private static void filterNotSynthesizedDescriptorsByModality(
             @NotNull Set<CallableMemberDescriptor> allOverriddenDeclarations,
-            @NotNull Set<CallableMemberDescriptor> result,
-            Modality... modalities
+            @NotNull List<CallableMemberDescriptor> abstractOverridden,
+            @NotNull List<CallableMemberDescriptor> concreteOverridden
     ) {
-        Set<Modality> modalitySet = Sets.newHashSet(modalities);
         for (CallableMemberDescriptor overridden : allOverriddenDeclarations) {
-            if (modalitySet.contains(overridden.getModality())) {
-                if (!CallResolverUtil.isOrOverridesSynthesized(overridden)) {
-                    result.add(overridden);
+            if (!CallResolverUtil.isOrOverridesSynthesized(overridden)) {
+                if (overridden.getModality() == Modality.ABSTRACT) {
+                    abstractOverridden.add(overridden);
+                }
+                else {
+                    concreteOverridden.add(overridden);
                 }
             }
         }
+    }
+
+    @NotNull
+    private static List<CallableMemberDescriptor> collectAbstractMethodsWithMoreSpecificReturnType(
+            @NotNull List<CallableMemberDescriptor> abstractOverridden,
+            @NotNull CallableMemberDescriptor implementation
+    ) {
+        List<CallableMemberDescriptor> result = new ArrayList<CallableMemberDescriptor>(abstractOverridden.size());
+        for (CallableMemberDescriptor abstractMember : abstractOverridden) {
+            if (!isReturnTypeOkForOverride(abstractMember, implementation)) {
+                result.add(abstractMember);
+            }
+        }
+        assert !result.isEmpty() : "Implementation (" + implementation + ") doesn't have the most specific type, " +
+                                   "but none of the other overridden methods does either: " + abstractOverridden;
+        return result;
     }
 
     @NotNull
@@ -452,16 +486,13 @@ public class OverrideResolver {
         are overridden by some other function and corresponding directly overridden descriptor is not relevant.
         */
 
-        Map<CallableMemberDescriptor, Set<CallableMemberDescriptor>> relevantOverriddenByParent = Maps.newLinkedHashMap(overriddenByParent);
-
-        for (Map.Entry<CallableMemberDescriptor, Set<CallableMemberDescriptor>> entry : overriddenByParent.entrySet()) {
-            CallableMemberDescriptor directlyOverridden = entry.getKey();
-            Set<CallableMemberDescriptor> declarationSet = entry.getValue();
-            if (!isRelevant(declarationSet, relevantOverriddenByParent.values(), allFilteredOverriddenDeclarations)) {
-                relevantOverriddenByParent.remove(directlyOverridden);
+        for (Iterator<Map.Entry<CallableMemberDescriptor, Set<CallableMemberDescriptor>>> iterator =
+                     overriddenByParent.entrySet().iterator(); iterator.hasNext(); ) {
+            if (!isRelevant(iterator.next().getValue(), overriddenByParent.values(), allFilteredOverriddenDeclarations)) {
+                iterator.remove();
             }
         }
-        return relevantOverriddenByParent.keySet();
+        return overriddenByParent.keySet();
     }
 
     private static boolean isRelevant(
@@ -553,20 +584,20 @@ public class OverrideResolver {
         }
 
         JetModifierList modifierList = member.getModifierList();
-        final ASTNode overrideNode = modifierList != null ? modifierList.getModifierNode(JetTokens.OVERRIDE_KEYWORD) : null;
+        boolean hasOverrideNode = modifierList != null && modifierList.hasModifier(JetTokens.OVERRIDE_KEYWORD);
         Set<? extends CallableMemberDescriptor> overriddenDescriptors = declared.getOverriddenDescriptors();
 
-        if (overrideNode != null) {
+        if (hasOverrideNode) {
             checkOverridesForMemberMarkedOverride(declared, true, new CheckOverrideReportStrategy() {
                 private boolean finalOverriddenError = false;
                 private boolean typeMismatchError = false;
                 private boolean kindMismatchError = false;
 
                 @Override
-                public void overridingFinalMember( @NotNull CallableMemberDescriptor overridden) {
+                public void overridingFinalMember(@NotNull CallableMemberDescriptor overridden) {
                     if (!finalOverriddenError) {
                         finalOverriddenError = true;
-                        trace.report(OVERRIDING_FINAL_MEMBER.on(overrideNode.getPsi(), overridden, overridden.getContainingDeclaration()));
+                        trace.report(OVERRIDING_FINAL_MEMBER.on(member, overridden, overridden.getContainingDeclaration()));
                     }
                 }
 

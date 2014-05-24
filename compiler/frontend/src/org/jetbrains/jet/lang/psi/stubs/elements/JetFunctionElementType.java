@@ -25,6 +25,7 @@ import com.intellij.psi.stubs.StubOutputStream;
 import com.intellij.util.io.StringRef;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.jet.lang.psi.JetDeclaration;
 import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.psi.JetNamedFunction;
 import org.jetbrains.jet.lang.psi.stubs.PsiJetFunctionStub;
@@ -37,27 +38,7 @@ import java.io.IOException;
 public class JetFunctionElementType extends JetStubElementType<PsiJetFunctionStub, JetNamedFunction> {
 
     public JetFunctionElementType(@NotNull @NonNls String debugName) {
-        super(debugName);
-    }
-
-    @Override
-    public JetNamedFunction createPsiFromAst(@NotNull ASTNode node) {
-        return new JetNamedFunction(node);
-    }
-
-    @Override
-    public JetNamedFunction createPsi(@NotNull PsiJetFunctionStub stub) {
-        return new JetNamedFunction(stub);
-    }
-
-    @Override
-    public boolean shouldCreateStub(ASTNode node) {
-        if (super.shouldCreateStub(node)) {
-            PsiElement psi = node.getPsi();
-            return psi instanceof JetNamedFunction;
-        }
-
-        return false;
+        super(debugName, JetNamedFunction.class, PsiJetFunctionStub.class);
     }
 
     @Override
@@ -65,7 +46,10 @@ public class JetFunctionElementType extends JetStubElementType<PsiJetFunctionStu
         boolean isTopLevel = psi.getParent() instanceof JetFile;
         boolean isExtension = psi.getReceiverTypeRef() != null;
         FqName fqName = ResolveSessionUtils.safeFqNameForLazyResolve(psi);
-        return new PsiJetFunctionStubImpl(parentStub, psi.getName(), isTopLevel, fqName, isExtension);
+        boolean hasBlockBody = psi.hasBlockBody();
+        boolean hasBody = psi.hasBody();
+        return new PsiJetFunctionStubImpl(parentStub, StringRef.fromString(psi.getName()), isTopLevel, fqName,
+                                          isExtension, hasBlockBody, hasBody, psi.hasTypeParameterListBeforeFunctionName());
     }
 
     @Override
@@ -77,6 +61,9 @@ public class JetFunctionElementType extends JetStubElementType<PsiJetFunctionStu
         dataStream.writeName(fqName != null ? fqName.asString() : null);
 
         dataStream.writeBoolean(stub.isExtension());
+        dataStream.writeBoolean(stub.hasBlockBody());
+        dataStream.writeBoolean(stub.hasBody());
+        dataStream.writeBoolean(stub.hasTypeParameterListBeforeFunctionName());
     }
 
     @NotNull
@@ -89,8 +76,12 @@ public class JetFunctionElementType extends JetStubElementType<PsiJetFunctionStu
         FqName fqName = fqNameAsString != null ? new FqName(fqNameAsString.toString()) : null;
 
         boolean isExtension = dataStream.readBoolean();
+        boolean hasBlockBody = dataStream.readBoolean();
+        boolean hasBody = dataStream.readBoolean();
+        boolean hasTypeParameterListBeforeFunctionName = dataStream.readBoolean();
 
-        return new PsiJetFunctionStubImpl(parentStub, name, isTopLevel, fqName, isExtension);
+        return new PsiJetFunctionStubImpl(parentStub, name, isTopLevel, fqName, isExtension, hasBlockBody, hasBody,
+                                          hasTypeParameterListBeforeFunctionName);
     }
 
     @Override

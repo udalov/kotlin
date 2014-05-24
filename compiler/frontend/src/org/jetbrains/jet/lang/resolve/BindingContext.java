@@ -21,6 +21,7 @@ import com.intellij.psi.PsiElement;
 import jet.runtime.typeinfo.KotlinSignature;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.annotations.ReadOnly;
 import org.jetbrains.annotations.TestOnly;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.descriptors.annotations.AnnotationDescriptor;
@@ -131,7 +132,6 @@ public interface BindingContext {
 
     WritableSlice<JetExpression, Boolean> VARIABLE_REASSIGNMENT = Slices.createSimpleSetSlice();
     WritableSlice<ValueParameterDescriptor, Boolean> AUTO_CREATED_IT = Slices.createSimpleSetSlice();
-    WritableSlice<JetExpression, DeclarationDescriptor> VARIABLE_ASSIGNMENT = Slices.createSimpleSlice();
 
     /**
      * Has type of current expression has been already resolved
@@ -142,9 +142,6 @@ public interface BindingContext {
     WritableSlice<VariableDescriptor, CaptureKind> CAPTURED_IN_CLOSURE = new BasicWritableSlice<VariableDescriptor, CaptureKind>(DO_NOTHING);
 
     WritableSlice<CallableMemberDescriptor, Boolean> NEED_SYNTHETIC_ACCESSOR = new BasicWritableSlice<CallableMemberDescriptor, Boolean>(DO_NOTHING);
-
-    //    enum DeferredTypeKey {DEFERRED_TYPE_KEY}
-    //    WritableSlice<DeferredTypeKey, Collection<DeferredType>> DEFERRED_TYPES = Slices.createSimpleSlice();
 
     WritableSlice<Box<DeferredType>, Boolean> DEFERRED_TYPE = Slices.createCollectiveSetSlice();
 
@@ -165,7 +162,7 @@ public interface BindingContext {
             PsiElement declarationPsiElement = map.get(BindingContextUtils.DESCRIPTOR_TO_DECLARATION, propertyDescriptor);
             if (declarationPsiElement instanceof JetParameter) {
                 JetParameter jetParameter = (JetParameter) declarationPsiElement;
-                return jetParameter.getValOrVarNode() != null ||
+                return jetParameter.hasValOrVarNode() ||
                        backingFieldRequired; // this part is unused because we do not allow access to constructor parameters in member bodies
             }
             if (propertyDescriptor.getModality() == Modality.ABSTRACT) return false;
@@ -265,6 +262,7 @@ public interface BindingContext {
 
     // slice.isCollective() must be true
     @NotNull
+    @ReadOnly
     <K, V> Collection<K> getKeys(WritableSlice<K, V> slice);
 
     /** This method should be used only for debug and testing */

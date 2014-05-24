@@ -41,14 +41,14 @@ public class KotlinImportOptimizer() : ImportOptimizer {
         val directives = jetFile.getImportDirectives()
 
         val directivesBeforeCurrent = ArrayList<JetImportDirective>()
-        val directivesAfterCurrent = jetFile.getImportDirectives()
+        val directivesAfterCurrent = ArrayList(jetFile.getImportDirectives())
 
         ApplicationManager.getApplication()!!.runWriteAction(Runnable {
             // Remove only unnecessary imports
             for (anImport in directives) {
                 directivesAfterCurrent.remove(anImport)
 
-                val importPath = JetPsiUtil.getImportPath(anImport)
+                val importPath = anImport.getImportPath()
                 if (importPath == null) {
                     continue
                 }

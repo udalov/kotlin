@@ -19,23 +19,13 @@ package org.jetbrains.jet.lang.psi;
 import com.intellij.lang.ASTNode;
 import com.intellij.navigation.ItemPresentation;
 import com.intellij.navigation.ItemPresentationProviders;
-import com.intellij.util.ArrayFactory;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.jet.JetNodeTypes;
 import org.jetbrains.jet.lang.psi.stubs.PsiJetParameterStub;
 import org.jetbrains.jet.lang.psi.stubs.elements.JetStubElementTypes;
 import org.jetbrains.jet.lexer.JetTokens;
 
 public class JetParameter extends JetNamedDeclarationStub<PsiJetParameterStub> {
-    public static final JetParameter[] EMPTY_ARRAY = new JetParameter[0];
-
-    public static final ArrayFactory<JetParameter> ARRAY_FACTORY = new ArrayFactory<JetParameter>() {
-        @Override
-        public JetParameter[] create(int count) {
-            return count == 0 ? EMPTY_ARRAY : new JetParameter[count];
-        }
-    };
 
     public JetParameter(@NotNull ASTNode node) {
         super(node);
@@ -52,11 +42,23 @@ public class JetParameter extends JetNamedDeclarationStub<PsiJetParameterStub> {
 
     @Nullable
     public JetTypeReference getTypeReference() {
-        return (JetTypeReference) findChildByType(JetNodeTypes.TYPE_REFERENCE);
+        return getStubOrPsiChild(JetStubElementTypes.TYPE_REFERENCE);
+    }
+
+    public boolean hasDefaultValue() {
+        PsiJetParameterStub stub = getStub();
+        if (stub != null) {
+            return stub.hasDefaultValue();
+        }
+        return getDefaultValue() != null;
     }
 
     @Nullable
     public JetExpression getDefaultValue() {
+        PsiJetParameterStub stub = getStub();
+        if (stub != null && !stub.hasDefaultValue()) {
+            return null;
+        }
         boolean passedEQ = false;
         ASTNode child = getNode().getFirstChildNode();
         while (child != null) {
@@ -80,17 +82,24 @@ public class JetParameter extends JetNamedDeclarationStub<PsiJetParameterStub> {
     }
 
     public boolean isVarArg() {
+        JetModifierList modifierList = getModifierList();
+        return modifierList != null && modifierList.hasModifier(JetTokens.VARARG_KEYWORD);
+    }
+
+    public boolean hasValOrVarNode() {
         PsiJetParameterStub stub = getStub();
         if (stub != null) {
-            return stub.isVarArg();
+            return stub.hasValOrValNode();
         }
-
-        JetModifierList modifierList = getModifierList();
-        return modifierList != null && modifierList.getModifierNode(JetTokens.VARARG_KEYWORD) != null;
+        return getValOrVarNode() != null;
     }
 
     @Nullable
     public ASTNode getValOrVarNode() {
+        PsiJetParameterStub stub = getStub();
+        if (stub != null && !stub.hasValOrValNode()) {
+            return null;
+        }
         ASTNode val = getNode().findChildByType(JetTokens.VAL_KEYWORD);
         if (val != null) return val;
 

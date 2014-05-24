@@ -36,7 +36,9 @@ public class DescriptorRendererBuilder {
     private boolean normalizedVisibilities = false;
     private boolean showInternalKeyword = true;
     private boolean prettyFunctionTypes = true;
+    private boolean uninferredTypeParameterAsName = false;
     private boolean includePropertyConstant = false;
+    private boolean includeSynthesizedParameterNames = true;
     @NotNull
     private DescriptorRenderer.OverrideRenderingPolicy overrideRenderingPolicy = DescriptorRenderer.OverrideRenderingPolicy.RENDER_OPEN;
     @NotNull
@@ -144,17 +146,29 @@ public class DescriptorRendererBuilder {
         return this;
     }
 
+    @NotNull
+    public DescriptorRendererBuilder setUninferredTypeParameterAsName(boolean uninferredTypeParameterAsName) {
+        this.uninferredTypeParameterAsName = uninferredTypeParameterAsName;
+        return this;
+    }
+
     public DescriptorRendererBuilder setIncludePropertyConstant(boolean includePropertyConstant) {
         this.includePropertyConstant = includePropertyConstant;
         return this;
     }
 
+    public DescriptorRendererBuilder setIncludeSynthesizedParameterNames(boolean includeSynthesizedParameterNames) {
+        this.includeSynthesizedParameterNames = includeSynthesizedParameterNames;
+        return this;
+    }
+
     @NotNull
     public DescriptorRenderer build() {
-        return new DescriptorRendererImpl(shortNames, withDefinedIn, modifiers, startFromName, debugMode, classWithPrimaryConstructor,
-                                          verbose, unitReturnType, normalizedVisibilities, showInternalKeyword, prettyFunctionTypes,
-                                          overrideRenderingPolicy, valueParametersHandler, textFormat, excludedAnnotationClasses,
-                                          includePropertyConstant);
+        return new DescriptorRendererImpl(
+                shortNames, withDefinedIn, modifiers, startFromName, debugMode, classWithPrimaryConstructor, verbose, unitReturnType,
+                normalizedVisibilities, showInternalKeyword, prettyFunctionTypes, uninferredTypeParameterAsName,
+                overrideRenderingPolicy, valueParametersHandler, textFormat, excludedAnnotationClasses, includePropertyConstant,
+                includeSynthesizedParameterNames);
     }
 
 }

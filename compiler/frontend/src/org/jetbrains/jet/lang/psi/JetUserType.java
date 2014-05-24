@@ -21,17 +21,27 @@ import com.intellij.lang.ASTNode;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.JetNodeTypes;
+import org.jetbrains.jet.lang.psi.stubs.PsiJetUserTypeStub;
+import org.jetbrains.jet.lang.psi.stubs.elements.JetStubElementTypes;
 import org.jetbrains.jet.lexer.JetTokens;
 
 import java.util.Collections;
 import java.util.List;
 
-public class JetUserType extends JetTypeElement {
+public class JetUserType extends JetElementImplStub<PsiJetUserTypeStub> implements JetTypeElement {
     public JetUserType(@NotNull ASTNode node) {
         super(node);
     }
 
+    public JetUserType(@NotNull PsiJetUserTypeStub stub) {
+        super(stub, JetStubElementTypes.USER_TYPE);
+    }
+
     public boolean isAbsoluteInRootPackage() {
+        PsiJetUserTypeStub stub = getStub();
+        if (stub != null) {
+            return stub.isAbsoluteInRootPackage();
+        }
         return findChildByType(JetTokens.PACKAGE_KEYWORD) != null;
     }
 
@@ -41,7 +51,7 @@ public class JetUserType extends JetTypeElement {
     }
 
     public JetTypeArgumentList getTypeArgumentList() {
-        return (JetTypeArgumentList) findChildByType(JetNodeTypes.TYPE_ARGUMENT_LIST);
+        return getStubOrPsiChild(JetStubElementTypes.TYPE_ARGUMENT_LIST);
     }
 
     @NotNull
@@ -62,18 +72,18 @@ public class JetUserType extends JetTypeElement {
     }
 
     @Nullable @IfNotParsed
-    public JetSimpleNameExpression getReferenceExpression() {
-        return (JetSimpleNameExpression) findChildByType(JetNodeTypes.REFERENCE_EXPRESSION);
+    public JetNameReferenceExpression getReferenceExpression() {
+        return getStubOrPsiChild(JetStubElementTypes.REFERENCE_EXPRESSION);
     }
 
     @Nullable
     public JetUserType getQualifier() {
-        return (JetUserType) findChildByType(JetNodeTypes.USER_TYPE);
+        return getStubOrPsiChild(JetStubElementTypes.USER_TYPE);
     }
 
     @Nullable
     public String getReferencedName() {
-        JetSimpleNameExpression referenceExpression = getReferenceExpression();
+        JetNameReferenceExpression referenceExpression = getReferenceExpression();
         return referenceExpression == null ? null : referenceExpression.getReferencedName();
     }
 }

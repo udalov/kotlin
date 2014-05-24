@@ -19,12 +19,18 @@ package org.jetbrains.jet.lang.psi;
 import com.intellij.lang.ASTNode;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.JetNodeTypes;
+import org.jetbrains.jet.lang.psi.stubs.PsiJetPlaceHolderStub;
+import org.jetbrains.jet.lang.psi.stubs.elements.JetStubElementTypes;
 
 import java.util.List;
 
-public class JetTypeConstraintList extends JetElementImpl {
+public class JetTypeConstraintList extends JetElementImplStub<PsiJetPlaceHolderStub<JetTypeConstraintList>> {
     public JetTypeConstraintList(@NotNull ASTNode node) {
         super(node);
+    }
+
+    public JetTypeConstraintList(@NotNull PsiJetPlaceHolderStub<JetTypeConstraintList> stub) {
+        super(stub, JetStubElementTypes.TYPE_CONSTRAINT_LIST);
     }
 
     @Override
@@ -34,6 +40,6 @@ public class JetTypeConstraintList extends JetElementImpl {
 
     @NotNull
     public List<JetTypeConstraint> getConstraints() {
-        return findChildrenByType(JetNodeTypes.TYPE_CONSTRAINT);
+        return getStubOrPsiChildrenAsList(JetStubElementTypes.TYPE_CONSTRAINT);
     }
 }

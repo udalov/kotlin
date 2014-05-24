@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2013 JetBrains s.r.o.
+ * Copyright 2010-2014 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package org.jetbrains.jet.plugin.quickfix;
 
 import com.google.common.collect.Sets;
 import com.intellij.extapi.psi.ASTDelegatePsiElement;
+import com.intellij.ide.util.PsiElementListCellRenderer;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiWhiteSpace;
@@ -37,8 +38,11 @@ import org.jetbrains.jet.lang.types.DeferredType;
 import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.lang.types.checker.JetTypeChecker;
 import org.jetbrains.jet.plugin.caches.resolve.ResolvePackage;
+import org.jetbrains.jet.plugin.presentation.JetClassPresenter;
 import org.jetbrains.jet.plugin.references.BuiltInsReferenceResolver;
 
+import javax.swing.*;
+import java.awt.*;
 import java.util.List;
 import java.util.Set;
 
@@ -63,7 +67,7 @@ public class QuickFixUtil {
     public static JetType getDeclarationReturnType(JetNamedDeclaration declaration) {
         PsiFile file = declaration.getContainingFile();
         if (!(file instanceof JetFile)) return null;
-        BindingContext bindingContext = ResolvePackage.getAnalysisResults((JetFile) file).getBindingContext();
+        BindingContext bindingContext = ResolvePackage.getBindingContext((JetFile) file);
         DeclarationDescriptor descriptor = bindingContext.get(BindingContext.DECLARATION_TO_DESCRIPTOR, declaration);
         if (!(descriptor instanceof CallableDescriptor)) return null;
         JetType type = ((CallableDescriptor) descriptor).getReturnType();
@@ -102,7 +106,7 @@ public class QuickFixUtil {
 
     @Nullable
     public static JetParameterList getParameterListOfCallee(@NotNull JetCallExpression callExpression) {
-        BindingContext context = ResolvePackage.getAnalysisResults(callExpression.getContainingJetFile()).getBindingContext();
+        BindingContext context = ResolvePackage.getBindingContext(callExpression.getContainingJetFile());
         ResolvedCall<?> resolvedCall = context.get(BindingContext.RESOLVED_CALL, callExpression.getCalleeExpression());
         if (resolvedCall == null) return null;
         PsiElement declaration = BindingContextUtils.descriptorToDeclaration(context, resolvedCall.getCandidateDescriptor());
@@ -232,5 +236,30 @@ public class QuickFixUtil {
         }
 
         return usedParameters;
+    }
+
+    static class ClassCandidateListCellRenderer extends PsiElementListCellRenderer<JetClass> {
+        private final JetClassPresenter presenter = new JetClassPresenter();
+
+        @Override
+        public String getElementText(JetClass element) {
+            return presenter.getPresentation(element).getPresentableText();
+        }
+
+        @Nullable
+        @Override
+        protected String getContainerText(JetClass element, String name) {
+            return presenter.getPresentation(element).getLocationString();
+        }
+
+        @Override
+        protected int getIconFlags() {
+            return 0;
+        }
+
+        @Override
+        public Component getListCellRendererComponent(JList list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
+            return super.getListCellRendererComponent(list, ((ClassCandidate) value).getJetClass(), index, isSelected, cellHasFocus);
+        }
     }
 }

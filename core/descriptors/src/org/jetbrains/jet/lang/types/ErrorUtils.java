@@ -16,18 +16,19 @@
 
 package org.jetbrains.jet.lang.types;
 
+import kotlin.Function1;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.PlatformToKotlinClassMap;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.descriptors.annotations.Annotations;
+import org.jetbrains.jet.lang.descriptors.impl.ClassDescriptorImpl;
+import org.jetbrains.jet.lang.descriptors.impl.ConstructorDescriptorImpl;
 import org.jetbrains.jet.lang.descriptors.impl.PropertyDescriptorImpl;
 import org.jetbrains.jet.lang.descriptors.impl.TypeParameterDescriptorImpl;
 import org.jetbrains.jet.lang.resolve.ImportPath;
-import org.jetbrains.jet.lang.resolve.name.LabelName;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
-import org.jetbrains.jet.lang.types.error.ErrorClassDescriptor;
 import org.jetbrains.jet.lang.types.error.ErrorSimpleFunctionDescriptorImpl;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 import org.jetbrains.jet.utils.Printer;
@@ -82,7 +83,7 @@ public class ErrorUtils {
 
         @Override
         public ClassifierDescriptor getClassifier(@NotNull Name name) {
-            return ERROR_CLASS;
+            return createErrorClass(name.asString());
         }
 
         @NotNull
@@ -121,7 +122,7 @@ public class ErrorUtils {
 
         @NotNull
         @Override
-        public Collection<DeclarationDescriptor> getDeclarationsByLabel(@NotNull LabelName labelName) {
+        public Collection<DeclarationDescriptor> getDeclarationsByLabel(@NotNull Name labelName) {
             return Collections.emptyList();
         }
 
@@ -193,7 +194,7 @@ public class ErrorUtils {
 
         @NotNull
         @Override
-        public Collection<DeclarationDescriptor> getDeclarationsByLabel(@NotNull LabelName labelName) {
+        public Collection<DeclarationDescriptor> getDeclarationsByLabel(@NotNull Name labelName) {
             throw new IllegalStateException();
         }
 
@@ -226,7 +227,54 @@ public class ErrorUtils {
         }
     }
 
-    private static final ErrorClassDescriptor ERROR_CLASS = new ErrorClassDescriptor("");
+    private static final ErrorClassDescriptor ERROR_CLASS = new ErrorClassDescriptor(null);
+
+    private static class ErrorClassDescriptor extends ClassDescriptorImpl {
+        public ErrorClassDescriptor(@Nullable String name) {
+            super(getErrorModule(), Name.special(name == null ? "<ERROR CLASS>" : "<ERROR CLASS: " + name + ">"),
+                  Modality.OPEN, Collections.<JetType>emptyList());
+
+            ConstructorDescriptorImpl errorConstructor = ConstructorDescriptorImpl.create(this, Annotations.EMPTY, true);
+            errorConstructor.initialize(Collections.<TypeParameterDescriptor>emptyList(), Collections.<ValueParameterDescriptor>emptyList(),
+                                        Visibilities.INTERNAL, false);
+            JetScope memberScope = createErrorScope(getName().asString());
+            errorConstructor.setReturnType(
+                    new ErrorTypeImpl(
+                            TypeConstructorImpl.createForClass(
+                                    this, Annotations.EMPTY, false,
+                                    getName().asString(),
+                                    Collections.<TypeParameterDescriptorImpl>emptyList(),
+                                    Collections.singleton(KotlinBuiltIns.getInstance().getAnyType())
+                            ),
+                            memberScope
+                    )
+            );
+
+            initialize(memberScope, Collections.<ConstructorDescriptor>singleton(errorConstructor), errorConstructor);
+        }
+
+        @NotNull
+        @Override
+        public ClassDescriptor substitute(@NotNull TypeSubstitutor substitutor) {
+            return this;
+        }
+
+        @Override
+        public String toString() {
+            return getName().asString();
+        }
+
+        @NotNull
+        @Override
+        public JetScope getMemberScope(@NotNull List<? extends TypeProjection> typeArguments) {
+            return createErrorScope("Error scope for class " + getName() + " with arguments: " + typeArguments);
+        }
+    }
+
+    @NotNull
+    public static ClassDescriptor createErrorClass(@NotNull String debugMessage) {
+        return new ErrorClassDescriptor(debugMessage);
+    }
 
     @NotNull
     public static JetScope createErrorScope(@NotNull String debugMessage) {
@@ -268,7 +316,7 @@ public class ErrorUtils {
 
     @NotNull
     private static SimpleFunctionDescriptor createErrorFunction(@NotNull ErrorScope ownerScope) {
-        ErrorSimpleFunctionDescriptorImpl function = new ErrorSimpleFunctionDescriptorImpl(ownerScope);
+        ErrorSimpleFunctionDescriptorImpl function = new ErrorSimpleFunctionDescriptorImpl(ERROR_CLASS, ownerScope);
         function.initialize(
                 null,
                 ReceiverParameterDescriptor.NO_RECEIVER_PARAMETER,
@@ -298,14 +346,9 @@ public class ErrorUtils {
 
     @NotNull
     private static TypeConstructor createErrorTypeConstructorWithCustomDebugName(@NotNull String debugName) {
-        return new TypeConstructorImpl(ERROR_CLASS, Annotations.EMPTY, false, debugName,
+        return TypeConstructorImpl.createForClass(ERROR_CLASS, Annotations.EMPTY, false, debugName,
                                 Collections.<TypeParameterDescriptorImpl>emptyList(),
                                 Collections.singleton(KotlinBuiltIns.getInstance().getAnyType()));
-    }
-
-    @NotNull
-    public static ClassDescriptor getErrorClass() {
-        return ERROR_CLASS;
     }
 
     public static boolean containsErrorType(@Nullable JetType type) {
@@ -390,6 +433,40 @@ public class ErrorUtils {
     @NotNull
     public static ModuleDescriptor getErrorModule() {
         return ERROR_MODULE;
+    }
+
+    public static boolean isUninferredParameter(@Nullable JetType type) {
+        return type instanceof UninferredParameterType;
+    }
+
+    public static boolean containsUninferredParameter(@Nullable JetType type) {
+        return TypeUtils.containsSpecialType(type, new Function1<JetType, Boolean>() {
+            @Override
+            public Boolean invoke(JetType argumentType) {
+                return isUninferredParameter(argumentType);
+            }
+        });
+    }
+
+    public static UninferredParameterType createUninferredParameterType(@NotNull TypeParameterDescriptor typeParameterDescriptor) {
+        return new UninferredParameterType(typeParameterDescriptor);
+    }
+
+    public static class UninferredParameterType extends ErrorTypeImpl {
+        private final TypeParameterDescriptor typeParameterDescriptor;
+
+        private UninferredParameterType(
+                @NotNull TypeParameterDescriptor descriptor
+        ) {
+            super(createErrorTypeConstructorWithCustomDebugName("CANT_INFER_TYPE_PARAMETER: " + descriptor.getName()),
+                  createErrorScope("Scope for error type for not inferred parameter: " + descriptor.getName()));
+            typeParameterDescriptor = descriptor;
+        }
+
+        @NotNull
+        public TypeParameterDescriptor getTypeParameterDescriptor() {
+            return typeParameterDescriptor;
+        }
     }
 
     private ErrorUtils() {}

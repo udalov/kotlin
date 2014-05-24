@@ -26,10 +26,10 @@ import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.lang.psi.JetClass;
 import org.jetbrains.jet.lang.psi.JetEnumEntry;
-import org.jetbrains.jet.lang.psi.JetPsiUtil;
 import org.jetbrains.jet.lang.psi.psiUtil.PsiUtilPackage;
 import org.jetbrains.jet.lang.psi.stubs.PsiJetClassStub;
 import org.jetbrains.jet.lang.psi.stubs.impl.PsiJetClassStubImpl;
+import org.jetbrains.jet.lang.psi.stubs.impl.Utils;
 import org.jetbrains.jet.lang.resolve.lazy.ResolveSessionUtils;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 
@@ -38,22 +38,19 @@ import java.util.List;
 
 public class JetClassElementType extends JetStubElementType<PsiJetClassStub, JetClass> {
     public JetClassElementType(@NotNull @NonNls String debugName) {
-        super(debugName);
+        super(debugName, JetClass.class, PsiJetClassStub.class);
     }
 
+    @NotNull
     @Override
     public JetClass createPsi(@NotNull PsiJetClassStub stub) {
         return !stub.isEnumEntry() ? new JetClass(stub) : new JetEnumEntry(stub);
     }
 
+    @NotNull
     @Override
     public JetClass createPsiFromAst(@NotNull ASTNode node) {
         return node.getElementType() != JetStubElementTypes.ENUM_ENTRY ? new JetClass(node) : new JetEnumEntry(node);
-    }
-
-    @Override
-    public boolean shouldCreateStub(ASTNode node) {
-        return true;
     }
 
     @Override
@@ -62,18 +59,9 @@ public class JetClassElementType extends JetStubElementType<PsiJetClassStub, Jet
         boolean isEnumEntry = psi instanceof JetEnumEntry;
         List<String> superNames = PsiUtilPackage.getSuperNames(psi);
         return new PsiJetClassStubImpl(
-                getStubType(isEnumEntry),
-                parentStub,
-                fqName != null ? fqName.asString() : null,
-                psi.getName(),
-                superNames,
-                psi.isTrait(),
-                psi.isEnum(),
-                isEnumEntry,
-                psi.isAnnotation(),
-                psi.isInner(),
-                JetPsiUtil.isLocal(psi)
-        );
+                getStubType(isEnumEntry), parentStub, StringRef.fromString(fqName != null ? fqName.asString() : null),
+                StringRef.fromString(psi.getName()), Utils.instance$.wrapStrings(superNames), psi.isTrait(), isEnumEntry,
+                psi.isLocal(), psi.isTopLevel());
     }
 
     @Override
@@ -82,11 +70,9 @@ public class JetClassElementType extends JetStubElementType<PsiJetClassStub, Jet
         FqName fqName = stub.getFqName();
         dataStream.writeName(fqName == null ? null : fqName.asString());
         dataStream.writeBoolean(stub.isTrait());
-        dataStream.writeBoolean(stub.isEnumClass());
         dataStream.writeBoolean(stub.isEnumEntry());
-        dataStream.writeBoolean(stub.isAnnotation());
-        dataStream.writeBoolean(stub.isInner());
         dataStream.writeBoolean(stub.isLocal());
+        dataStream.writeBoolean(stub.isTopLevel());
 
         List<String> superNames = stub.getSuperNames();
         dataStream.writeVarInt(superNames.size());
@@ -101,11 +87,9 @@ public class JetClassElementType extends JetStubElementType<PsiJetClassStub, Jet
         StringRef name = dataStream.readName();
         StringRef qualifiedName = dataStream.readName();
         boolean isTrait = dataStream.readBoolean();
-        boolean isEnumClass = dataStream.readBoolean();
         boolean isEnumEntry = dataStream.readBoolean();
-        boolean isAnnotation = dataStream.readBoolean();
-        boolean isInner = dataStream.readBoolean();
         boolean isLocal = dataStream.readBoolean();
+        boolean isTopLevel = dataStream.readBoolean();
 
         int superCount = dataStream.readVarInt();
         StringRef[] superNames = StringRef.createArray(superCount);
@@ -114,7 +98,7 @@ public class JetClassElementType extends JetStubElementType<PsiJetClassStub, Jet
         }
 
         return new PsiJetClassStubImpl(getStubType(isEnumEntry), parentStub, qualifiedName, name, superNames,
-                                       isTrait, isEnumClass, isEnumEntry, isAnnotation, isInner, isLocal);
+                                       isTrait, isEnumEntry, isLocal, isTopLevel);
     }
 
     @Override

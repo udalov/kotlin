@@ -16,9 +16,7 @@
 
 package org.jetbrains.jet.lang.psi.stubs.impl;
 
-import com.intellij.psi.stubs.StubBase;
 import com.intellij.psi.stubs.StubElement;
-import com.intellij.util.ArrayUtil;
 import com.intellij.util.io.StringRef;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -27,29 +25,25 @@ import org.jetbrains.jet.lang.psi.stubs.PsiJetFunctionStub;
 import org.jetbrains.jet.lang.psi.stubs.elements.JetStubElementTypes;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 
-public class PsiJetFunctionStubImpl extends StubBase<JetNamedFunction> implements PsiJetFunctionStub {
+public class PsiJetFunctionStubImpl extends JetStubBaseImpl<JetNamedFunction> implements PsiJetFunctionStub {
 
     private final StringRef nameRef;
     private final boolean isTopLevel;
     private final boolean isExtension;
     private final FqName fqName;
-
-    public PsiJetFunctionStubImpl(
-            @NotNull StubElement parent,
-            @Nullable String name,
-            boolean isTopLevel,
-            @Nullable FqName fqName,
-            boolean isExtension
-    ) {
-        this(parent, StringRef.fromString(name), isTopLevel, fqName, isExtension);
-    }
+    private final boolean hasBlockBody;
+    private final boolean hasBody;
+    private final boolean hasTypeParameterListBeforeFunctionName;
 
     public PsiJetFunctionStubImpl(
             @NotNull StubElement parent,
             @Nullable StringRef nameRef,
             boolean isTopLevel,
             @Nullable FqName fqName,
-            boolean isExtension
+            boolean isExtension,
+            boolean hasBlockBody,
+            boolean hasBody,
+            boolean hasTypeParameterListBeforeFunctionName
     ) {
         super(parent, JetStubElementTypes.FUNCTION);
 
@@ -61,6 +55,9 @@ public class PsiJetFunctionStubImpl extends StubBase<JetNamedFunction> implement
         this.fqName = fqName;
         this.isTopLevel = isTopLevel;
         this.isExtension = isExtension;
+        this.hasBlockBody = hasBlockBody;
+        this.hasBody = hasBody;
+        this.hasTypeParameterListBeforeFunctionName = hasTypeParameterListBeforeFunctionName;
     }
 
     @Override
@@ -78,32 +75,19 @@ public class PsiJetFunctionStubImpl extends StubBase<JetNamedFunction> implement
         return isExtension;
     }
 
-    @NotNull
     @Override
-    public String[] getAnnotations() {
-        // TODO (stubs)
-        return ArrayUtil.EMPTY_STRING_ARRAY;
+    public boolean hasBlockBody() {
+        return hasBlockBody;
     }
 
     @Override
-    public String toString() {
-        StringBuilder builder = new StringBuilder();
-        builder.append("PsiJetFunctionStubImpl[");
+    public boolean hasBody() {
+        return hasBody;
+    }
 
-        if (isTopLevel()) {
-            assert fqName != null;
-            builder.append("top ").append("fqName=").append(fqName.toString()).append(" ");
-        }
-
-        if (isExtension()) {
-            builder.append("ext ");
-        }
-
-        builder.append("name=").append(getName());
-
-        builder.append("]");
-
-        return builder.toString();
+    @Override
+    public boolean hasTypeParameterListBeforeFunctionName() {
+        return hasTypeParameterListBeforeFunctionName;
     }
 
     @Nullable

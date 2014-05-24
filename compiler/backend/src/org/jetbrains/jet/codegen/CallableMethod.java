@@ -22,9 +22,9 @@ import org.jetbrains.org.objectweb.asm.Type;
 import org.jetbrains.org.objectweb.asm.commons.InstructionAdapter;
 import org.jetbrains.org.objectweb.asm.commons.Method;
 import org.jetbrains.org.objectweb.asm.util.Printer;
-import org.jetbrains.jet.codegen.signature.JvmMethodParameterKind;
-import org.jetbrains.jet.codegen.signature.JvmMethodParameterSignature;
-import org.jetbrains.jet.codegen.signature.JvmMethodSignature;
+import org.jetbrains.jet.lang.resolve.java.jvmSignature.JvmMethodParameterKind;
+import org.jetbrains.jet.lang.resolve.java.jvmSignature.JvmMethodParameterSignature;
+import org.jetbrains.jet.lang.resolve.java.jvmSignature.JvmMethodSignature;
 import org.jetbrains.jet.codegen.state.GenerationState;
 import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCall;
 import org.jetbrains.jet.lang.resolve.java.JvmAbi;
@@ -128,14 +128,13 @@ public class CallableMethod implements Callable {
         return generateCalleeType;
     }
 
-    private void invokeDefault(InstructionAdapter v, int mask) {
+    private void invokeDefault(InstructionAdapter v) {
         if (defaultImplOwner == null || defaultImplParam == null) {
             throw new IllegalStateException();
         }
 
         Method method = getAsmMethod();
 
-        v.iconst(mask);
         String desc = method.getDescriptor().replace(")", "I)");
         if ("<init>".equals(method.getName())) {
             v.visitMethodInsn(INVOKESPECIAL, defaultImplOwner.getInternalName(), "<init>", desc);
@@ -151,10 +150,9 @@ public class CallableMethod implements Callable {
     public void invokeDefaultWithNotNullAssertion(
             @NotNull InstructionAdapter v,
             @NotNull GenerationState state,
-            @NotNull ResolvedCall resolvedCall,
-            int mask
+            @NotNull ResolvedCall resolvedCall
     ) {
-        invokeDefault(v, mask);
+        invokeDefault(v);
         AsmUtil.genNotNullAssertionForMethod(v, state, resolvedCall);
     }
 

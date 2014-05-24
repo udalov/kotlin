@@ -22,6 +22,7 @@ import com.intellij.util.ArrayUtil;
 import kotlin.Function0;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.jet.backend.common.DataClassMethodGenerator;
 import org.jetbrains.jet.codegen.binding.CalculatedClosure;
 import org.jetbrains.jet.codegen.binding.CodegenBinding;
 import org.jetbrains.jet.codegen.binding.MutableClosure;
@@ -41,12 +42,15 @@ import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.BindingContextUtils;
 import org.jetbrains.jet.lang.resolve.DescriptorUtils;
-import org.jetbrains.jet.lang.resolve.OverrideResolver;
 import org.jetbrains.jet.lang.resolve.calls.CallResolverUtil;
 import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCall;
 import org.jetbrains.jet.lang.resolve.java.AsmTypeConstants;
 import org.jetbrains.jet.lang.resolve.java.JvmAbi;
 import org.jetbrains.jet.lang.resolve.java.JvmAnnotationNames;
+import org.jetbrains.jet.lang.resolve.java.jvmSignature.JvmClassSignature;
+import org.jetbrains.jet.lang.resolve.java.jvmSignature.JvmMethodParameterKind;
+import org.jetbrains.jet.lang.resolve.java.jvmSignature.JvmMethodParameterSignature;
+import org.jetbrains.jet.lang.resolve.java.jvmSignature.JvmMethodSignature;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.types.*;
 import org.jetbrains.jet.lang.types.checker.JetTypeChecker;
@@ -59,7 +63,7 @@ import org.jetbrains.org.objectweb.asm.commons.Method;
 import java.util.*;
 
 import static org.jetbrains.jet.codegen.AsmUtil.*;
-import static org.jetbrains.jet.codegen.CodegenUtil.*;
+import static org.jetbrains.jet.codegen.JvmCodegenUtil.*;
 import static org.jetbrains.jet.codegen.binding.CodegenBinding.*;
 import static org.jetbrains.jet.descriptors.serialization.NameSerializationUtil.createNameResolver;
 import static org.jetbrains.jet.lang.resolve.BindingContextUtils.descriptorToDeclaration;
@@ -245,18 +249,18 @@ public class ImplementationBodyCodegen extends ClassBodyCodegen {
 
         boolean isLocalOrAnonymousClass = isObjectLiteral ||
                                           !(parentDescriptor instanceof PackageFragmentDescriptor || parentDescriptor instanceof ClassDescriptor);
-        // Do not emit enclosing method in "light-classes mode" since currently we genenerate local light classes as if they're top level
-        if (isLocalOrAnonymousClass && getState().getClassBuilderMode() != ClassBuilderMode.LIGHT_CLASSES) {
+        // Do not emit enclosing method in "light-classes mode" since currently we generate local light classes as if they're top level
+        if (isLocalOrAnonymousClass && state.getClassBuilderMode() != ClassBuilderMode.LIGHT_CLASSES) {
             String outerClassName = getOuterClassName(descriptor, typeMapper);
-            FunctionDescriptor function = DescriptorUtils.getParentOfType(descriptor, FunctionDescriptor.class);
+            FunctionDescriptor function = AsmUtil.isDeclarationInsideInlineFunction(descriptor)
+                                          ? null
+                                          : DescriptorUtils.getParentOfType(descriptor, FunctionDescriptor.class);
 
             if (function != null) {
                 Method method = typeMapper.mapSignature(function).getAsmMethod();
                 v.visitOuterClass(outerClassName, method.getName(), method.getDescriptor());
             }
             else {
-                assert isObjectLiteral
-                        : "Function descriptor could be null only for object literal in package: " + descriptor.getName();
                 v.visitOuterClass(outerClassName, null, null);
             }
         }
@@ -512,7 +516,7 @@ public class ImplementationBodyCodegen extends ClassBodyCodegen {
         int access = descriptor.getKind() == ClassKind.TRAIT ?
                      ACC_PUBLIC | ACC_ABSTRACT :
                      ACC_PUBLIC;
-        if (CodegenUtil.getDeclaredFunctionByRawSignature(descriptor, Name.identifier("toArray"), builtIns.getArray()) == null) {
+        if (JvmCodegenUtil.getDeclaredFunctionByRawSignature(descriptor, Name.identifier("toArray"), builtIns.getArray()) == null) {
             MethodVisitor mv = v.getVisitor().visitMethod(access, "toArray", "()[Ljava/lang/Object;", null, null);
 
             if (descriptor.getKind() != ClassKind.TRAIT) {
@@ -551,7 +555,7 @@ public class ImplementationBodyCodegen extends ClassBodyCodegen {
             @NotNull ClassifierDescriptor returnedClassifier,
             @NotNull ClassifierDescriptor... valueParameterClassifiers
     ) {
-        if (CodegenUtil.getDeclaredFunctionByRawSignature(
+        if (JvmCodegenUtil.getDeclaredFunctionByRawSignature(
                 descriptor, Name.identifier(name), returnedClassifier, valueParameterClassifiers) == null) {
             int access = descriptor.getKind() == ClassKind.TRAIT ?
                          ACC_PUBLIC | ACC_ABSTRACT :
@@ -619,336 +623,262 @@ public class ImplementationBodyCodegen extends ClassBodyCodegen {
         return classifier;
     }
 
-    private List<PropertyDescriptor> getDataProperties() {
-        ArrayList<PropertyDescriptor> result = Lists.newArrayList();
-        for (JetParameter parameter : getPrimaryConstructorParameters()) {
-            if (parameter.getValOrVarNode() != null) {
-                result.add(bindingContext.get(BindingContext.PRIMARY_CONSTRUCTOR_PARAMETER, parameter));
-            }
-        }
-        return result;
-    }
-
     private void generateFunctionsForDataClasses() {
         if (!KotlinBuiltIns.getInstance().isData(descriptor)) return;
 
-        generateComponentFunctionsForDataClasses();
-        generateCopyFunctionForDataClasses();
-
-        List<PropertyDescriptor> properties = getDataProperties();
-        if (!properties.isEmpty()) {
-            generateDataClassToStringIfNeeded(properties);
-            generateDataClassHashCodeIfNeeded(properties);
-            generateDataClassEqualsIfNeeded(properties);
-        }
+        new DataClassMethodGeneratorImpl(myClass, bindingContext).generate();
     }
 
-    private void generateCopyFunctionForDataClasses() {
-        FunctionDescriptor copyFunction = bindingContext.get(BindingContext.DATA_CLASS_COPY_FUNCTION, descriptor);
-        if (copyFunction != null) {
-            generateCopyFunction(copyFunction);
-        }
-    }
-
-    private void generateDataClassToStringIfNeeded(@NotNull List<PropertyDescriptor> properties) {
-        ClassDescriptor stringClass = KotlinBuiltIns.getInstance().getString();
-        if (!hasDeclaredNonTrivialMember("toString", stringClass)) {
-            generateDataClassToStringMethod(properties);
-        }
-    }
-
-    private void generateDataClassHashCodeIfNeeded(@NotNull List<PropertyDescriptor> properties) {
-        ClassDescriptor intClass = KotlinBuiltIns.getInstance().getInt();
-        if (!hasDeclaredNonTrivialMember("hashCode", intClass)) {
-            generateDataClassHashCodeMethod(properties);
-        }
-    }
-
-    private void generateDataClassEqualsIfNeeded(@NotNull List<PropertyDescriptor> properties) {
-        ClassDescriptor booleanClass = KotlinBuiltIns.getInstance().getBoolean();
-        ClassDescriptor anyClass = KotlinBuiltIns.getInstance().getAny();
-        if (!hasDeclaredNonTrivialMember("equals", booleanClass, anyClass)) {
-            generateDataClassEqualsMethod(properties);
-        }
-    }
-
-    /**
-     * @return true if the class has a declared member with the given name anywhere in its hierarchy besides Any
-     */
-    private boolean hasDeclaredNonTrivialMember(
-            @NotNull String name,
-            @NotNull ClassDescriptor returnedClassifier,
-            @NotNull ClassDescriptor... valueParameterClassifiers
-    ) {
-        FunctionDescriptor function =
-                getDeclaredFunctionByRawSignature(descriptor, Name.identifier(name), returnedClassifier, valueParameterClassifiers);
-        if (function == null) {
-            return false;
+    private class DataClassMethodGeneratorImpl extends DataClassMethodGenerator {
+        DataClassMethodGeneratorImpl(
+                JetClassOrObject klass,
+                BindingContext bindingContext
+        ) {
+            super(klass, bindingContext);
         }
 
-        if (function.getKind() == CallableMemberDescriptor.Kind.DECLARATION) {
-            return true;
-        }
+        @Override
+        public void generateEqualsMethod(@NotNull List<PropertyDescriptor> properties) {
+            MethodVisitor mv = v.getVisitor().visitMethod(ACC_PUBLIC, "equals", "(Ljava/lang/Object;)Z", null, null);
+            InstructionAdapter iv = new InstructionAdapter(mv);
 
-        for (CallableDescriptor overridden : OverrideResolver.getOverriddenDeclarations(function)) {
-            if (overridden instanceof CallableMemberDescriptor
-                && ((CallableMemberDescriptor) overridden).getKind() == CallableMemberDescriptor.Kind.DECLARATION
-                && !overridden.getContainingDeclaration().equals(KotlinBuiltIns.getInstance().getAny())) {
-                return true;
-            }
-        }
+            mv.visitCode();
+            Label eq = new Label();
+            Label ne = new Label();
 
-        return false;
-    }
+            iv.load(0, OBJECT_TYPE);
+            iv.load(1, AsmTypeConstants.OBJECT_TYPE);
+            iv.ifacmpeq(eq);
 
-    private void generateDataClassEqualsMethod(@NotNull List<PropertyDescriptor> properties) {
-        MethodVisitor mv = v.getVisitor().visitMethod(ACC_PUBLIC, "equals", "(Ljava/lang/Object;)Z", null, null);
-        InstructionAdapter iv = new InstructionAdapter(mv);
-
-        mv.visitCode();
-        Label eq = new Label();
-        Label ne = new Label();
-
-        iv.load(0, OBJECT_TYPE);
-        iv.load(1, AsmTypeConstants.OBJECT_TYPE);
-        iv.ifacmpeq(eq);
-
-        iv.load(1, AsmTypeConstants.OBJECT_TYPE);
-        iv.instanceOf(classAsmType);
-        iv.ifeq(ne);
-
-        iv.load(1, AsmTypeConstants.OBJECT_TYPE);
-        iv.checkcast(classAsmType);
-        iv.store(2, AsmTypeConstants.OBJECT_TYPE);
-
-        for (PropertyDescriptor propertyDescriptor : properties) {
-            Type asmType = typeMapper.mapType(propertyDescriptor);
-
-            genPropertyOnStack(iv, propertyDescriptor, 0);
-            genPropertyOnStack(iv, propertyDescriptor, 2);
-
-            if (asmType.getSort() == Type.ARRAY) {
-                Type elementType = correctElementType(asmType);
-                if (elementType.getSort() == Type.OBJECT || elementType.getSort() == Type.ARRAY) {
-                    iv.invokestatic("java/util/Arrays", "equals", "([Ljava/lang/Object;[Ljava/lang/Object;)Z");
-                }
-                else {
-                    iv.invokestatic("java/util/Arrays", "equals", "([" + elementType.getDescriptor() + "[" + elementType.getDescriptor() + ")Z");
-                }
-            }
-            else {
-                StackValue value = genEqualsForExpressionsOnStack(iv, JetTokens.EQEQ, asmType, asmType);
-                value.put(Type.BOOLEAN_TYPE, iv);
-            }
-
+            iv.load(1, AsmTypeConstants.OBJECT_TYPE);
+            iv.instanceOf(classAsmType);
             iv.ifeq(ne);
-        }
 
-        iv.mark(eq);
-        iv.iconst(1);
-        iv.areturn(Type.INT_TYPE);
+            iv.load(1, AsmTypeConstants.OBJECT_TYPE);
+            iv.checkcast(classAsmType);
+            iv.store(2, AsmTypeConstants.OBJECT_TYPE);
 
-        iv.mark(ne);
-        iv.iconst(0);
-        iv.areturn(Type.INT_TYPE);
+            for (PropertyDescriptor propertyDescriptor : properties) {
+                Type asmType = typeMapper.mapType(propertyDescriptor);
 
-        FunctionCodegen.endVisit(mv, "equals", myClass);
-    }
+                genPropertyOnStack(iv, propertyDescriptor, 0);
+                genPropertyOnStack(iv, propertyDescriptor, 2);
 
-    private void generateDataClassHashCodeMethod(@NotNull List<PropertyDescriptor> properties) {
-        MethodVisitor mv = v.getVisitor().visitMethod(ACC_PUBLIC, "hashCode", "()I", null, null);
-        InstructionAdapter iv = new InstructionAdapter(mv);
-
-        mv.visitCode();
-        boolean first = true;
-        for (PropertyDescriptor propertyDescriptor : properties) {
-            if (!first) {
-                iv.iconst(31);
-                iv.mul(Type.INT_TYPE);
-            }
-
-            genPropertyOnStack(iv, propertyDescriptor, 0);
-
-            Label ifNull = null;
-            Type asmType = typeMapper.mapType(propertyDescriptor);
-            if (!isPrimitive(asmType)) {
-                ifNull = new Label();
-                iv.dup();
-                iv.ifnull(ifNull);
-            }
-
-            genHashCode(mv, iv, asmType);
-
-            if (ifNull != null) {
-                Label end = new Label();
-                iv.goTo(end);
-                iv.mark(ifNull);
-                iv.pop();
-                iv.iconst(0);
-                iv.mark(end);
-            }
-
-            if (first) {
-                first = false;
-            }
-            else {
-                iv.add(Type.INT_TYPE);
-            }
-        }
-
-        mv.visitInsn(IRETURN);
-
-        FunctionCodegen.endVisit(mv, "hashCode", myClass);
-    }
-
-    private void generateDataClassToStringMethod(@NotNull List<PropertyDescriptor> properties) {
-        MethodVisitor mv = v.getVisitor().visitMethod(ACC_PUBLIC, "toString", "()Ljava/lang/String;", null, null);
-        InstructionAdapter iv = new InstructionAdapter(mv);
-
-        mv.visitCode();
-        genStringBuilderConstructor(iv);
-
-        boolean first = true;
-        for (PropertyDescriptor propertyDescriptor : properties) {
-            if (first) {
-                iv.aconst(descriptor.getName() + "(" + propertyDescriptor.getName().asString()+"=");
-                first = false;
-            }
-            else {
-                iv.aconst(", " + propertyDescriptor.getName().asString()+"=");
-            }
-            genInvokeAppendMethod(iv, JAVA_STRING_TYPE);
-
-            Type type = genPropertyOnStack(iv, propertyDescriptor, 0);
-
-            if (type.getSort() == Type.ARRAY) {
-                Type elementType = correctElementType(type);
-                if (elementType.getSort() == Type.OBJECT || elementType.getSort() == Type.ARRAY) {
-                    iv.invokestatic("java/util/Arrays", "toString", "([Ljava/lang/Object;)Ljava/lang/String;");
-                    type = JAVA_STRING_TYPE;
+                if (asmType.getSort() == Type.ARRAY) {
+                    Type elementType = correctElementType(asmType);
+                    if (elementType.getSort() == Type.OBJECT || elementType.getSort() == Type.ARRAY) {
+                        iv.invokestatic("java/util/Arrays", "equals", "([Ljava/lang/Object;[Ljava/lang/Object;)Z");
+                    }
+                    else {
+                        iv.invokestatic("java/util/Arrays", "equals", "([" + elementType.getDescriptor() + "[" + elementType.getDescriptor() + ")Z");
+                    }
                 }
                 else {
-                    if (elementType.getSort() != Type.CHAR) {
-                        iv.invokestatic("java/util/Arrays", "toString", "(" + type.getDescriptor() + ")Ljava/lang/String;");
+                    StackValue value = genEqualsForExpressionsOnStack(iv, JetTokens.EQEQ, asmType, asmType);
+                    value.put(Type.BOOLEAN_TYPE, iv);
+                }
+
+                iv.ifeq(ne);
+            }
+
+            iv.mark(eq);
+            iv.iconst(1);
+            iv.areturn(Type.INT_TYPE);
+
+            iv.mark(ne);
+            iv.iconst(0);
+            iv.areturn(Type.INT_TYPE);
+
+            FunctionCodegen.endVisit(mv, "equals", myClass);
+        }
+
+        @Override
+        public void generateHashCodeMethod(@NotNull List<PropertyDescriptor> properties) {
+            MethodVisitor mv = v.getVisitor().visitMethod(ACC_PUBLIC, "hashCode", "()I", null, null);
+            InstructionAdapter iv = new InstructionAdapter(mv);
+
+            mv.visitCode();
+            boolean first = true;
+            for (PropertyDescriptor propertyDescriptor : properties) {
+                if (!first) {
+                    iv.iconst(31);
+                    iv.mul(Type.INT_TYPE);
+                }
+
+                genPropertyOnStack(iv, propertyDescriptor, 0);
+
+                Label ifNull = null;
+                Type asmType = typeMapper.mapType(propertyDescriptor);
+                if (!isPrimitive(asmType)) {
+                    ifNull = new Label();
+                    iv.dup();
+                    iv.ifnull(ifNull);
+                }
+
+                genHashCode(mv, iv, asmType);
+
+                if (ifNull != null) {
+                    Label end = new Label();
+                    iv.goTo(end);
+                    iv.mark(ifNull);
+                    iv.pop();
+                    iv.iconst(0);
+                    iv.mark(end);
+                }
+
+                if (first) {
+                    first = false;
+                }
+                else {
+                    iv.add(Type.INT_TYPE);
+                }
+            }
+
+            mv.visitInsn(IRETURN);
+
+            FunctionCodegen.endVisit(mv, "hashCode", myClass);
+        }
+
+        @Override
+        public void generateToStringMethod(@NotNull List<PropertyDescriptor> properties) {
+            MethodVisitor mv = v.getVisitor().visitMethod(ACC_PUBLIC, "toString", "()Ljava/lang/String;", null, null);
+            InstructionAdapter iv = new InstructionAdapter(mv);
+
+            mv.visitCode();
+            genStringBuilderConstructor(iv);
+
+            boolean first = true;
+            for (PropertyDescriptor propertyDescriptor : properties) {
+                if (first) {
+                    iv.aconst(descriptor.getName() + "(" + propertyDescriptor.getName().asString()+"=");
+                    first = false;
+                }
+                else {
+                    iv.aconst(", " + propertyDescriptor.getName().asString()+"=");
+                }
+                genInvokeAppendMethod(iv, JAVA_STRING_TYPE);
+
+                Type type = genPropertyOnStack(iv, propertyDescriptor, 0);
+
+                if (type.getSort() == Type.ARRAY) {
+                    Type elementType = correctElementType(type);
+                    if (elementType.getSort() == Type.OBJECT || elementType.getSort() == Type.ARRAY) {
+                        iv.invokestatic("java/util/Arrays", "toString", "([Ljava/lang/Object;)Ljava/lang/String;");
                         type = JAVA_STRING_TYPE;
                     }
-                }
-            }
-            genInvokeAppendMethod(iv, type);
-        }
-
-        iv.aconst(")");
-        genInvokeAppendMethod(iv, JAVA_STRING_TYPE);
-
-        iv.invokevirtual("java/lang/StringBuilder", "toString", "()Ljava/lang/String;");
-        iv.areturn(JAVA_STRING_TYPE);
-
-        FunctionCodegen.endVisit(mv, "toString", myClass);
-    }
-
-    private Type genPropertyOnStack(InstructionAdapter iv, PropertyDescriptor propertyDescriptor, int index) {
-        iv.load(index, classAsmType);
-        //noinspection ConstantConditions
-        Method method = typeMapper.mapSignature(propertyDescriptor.getGetter()).getAsmMethod();
-
-        iv.invokevirtual(classAsmType.getInternalName(), method.getName(), method.getDescriptor());
-        return method.getReturnType();
-    }
-
-    private void generateComponentFunctionsForDataClasses() {
-        if (!myClass.hasPrimaryConstructor() || !KotlinBuiltIns.getInstance().isData(descriptor)) return;
-
-        ConstructorDescriptor constructor = descriptor.getConstructors().iterator().next();
-
-        for (ValueParameterDescriptor parameter : constructor.getValueParameters()) {
-            FunctionDescriptor function = bindingContext.get(BindingContext.DATA_CLASS_COMPONENT_FUNCTION, parameter);
-            if (function != null) {
-                generateComponentFunction(function, parameter);
-            }
-        }
-    }
-
-    private void generateComponentFunction(@NotNull FunctionDescriptor function, @NotNull final ValueParameterDescriptor parameter) {
-        functionCodegen.generateMethod(myClass, typeMapper.mapSignature(function), function, new FunctionGenerationStrategy() {
-            @Override
-            public void generateBody(
-                    @NotNull MethodVisitor mv,
-                    @NotNull JvmMethodSignature signature,
-                    @NotNull MethodContext context,
-                    @Nullable MemberCodegen<?> parentCodegen
-            ) {
-                Type componentType = signature.getReturnType();
-                InstructionAdapter iv = new InstructionAdapter(mv);
-                if (!componentType.equals(Type.VOID_TYPE)) {
-                    iv.load(0, classAsmType);
-                    String desc = "()" + componentType.getDescriptor();
-                    iv.invokevirtual(classAsmType.getInternalName(), PropertyCodegen.getterName(parameter.getName()), desc);
-                }
-                iv.areturn(componentType);
-            }
-        });
-    }
-
-    private void generateCopyFunction(@NotNull final FunctionDescriptor function) {
-        JvmMethodSignature methodSignature = typeMapper.mapSignature(function);
-
-        final Type thisDescriptorType = typeMapper.mapType(descriptor);
-
-        functionCodegen.generateMethod(myClass, methodSignature, function, new FunctionGenerationStrategy() {
-            @Override
-            public void generateBody(
-                    @NotNull MethodVisitor mv,
-                    @NotNull JvmMethodSignature signature,
-                    @NotNull MethodContext context,
-                    @Nullable MemberCodegen<?> parentCodegen
-            ) {
-                InstructionAdapter iv = new InstructionAdapter(mv);
-
-                iv.anew(thisDescriptorType);
-                iv.dup();
-
-                ConstructorDescriptor constructor = DescriptorUtils.getConstructorOfDataClass(descriptor);
-                assert function.getValueParameters().size() == constructor.getValueParameters().size() :
-                        "Number of parameters of copy function and constructor are different. " +
-                        "Copy: " + function.getValueParameters().size() + ", " +
-                        "constructor: " + constructor.getValueParameters().size();
-
-                MutableClosure closure = ImplementationBodyCodegen.this.context.closure;
-                if (closure != null && closure.getCaptureThis() != null) {
-                    Type type = typeMapper.mapType(enclosingClassDescriptor(bindingContext, descriptor));
-                    iv.load(0, classAsmType);
-                    iv.getfield(classAsmType.getInternalName(), CAPTURED_THIS_FIELD, type.getDescriptor());
-                }
-
-                int parameterIndex = 1; // localVariable 0 = this
-                for (ValueParameterDescriptor parameterDescriptor : function.getValueParameters()) {
-                    Type type = typeMapper.mapType(parameterDescriptor.getType());
-                    iv.load(parameterIndex, type);
-                    parameterIndex += type.getSize();
-                }
-
-                String constructorJvmDescriptor = typeMapper.mapToCallableMethod(constructor).getAsmMethod().getDescriptor();
-                iv.invokespecial(thisDescriptorType.getInternalName(), "<init>", constructorJvmDescriptor);
-
-                iv.areturn(thisDescriptorType);
-            }
-        });
-
-        functionCodegen.generateDefaultIfNeeded(
-                context.intoFunction(function), methodSignature, function, OwnerKind.IMPLEMENTATION,
-                new DefaultParameterValueLoader() {
-                    @Override
-                    public void putValueOnStack(ValueParameterDescriptor valueParameter, ExpressionCodegen codegen) {
-                        assert KotlinBuiltIns.getInstance().isData((ClassDescriptor) function.getContainingDeclaration())
-                                : "Function container should be annotated with [data]: " + function;
-                        PropertyDescriptor property = bindingContext.get(BindingContext.VALUE_PARAMETER_AS_PROPERTY, valueParameter);
-                        assert property != null : "Copy function doesn't correspond to any property: " + function;
-                        codegen.v.load(0, thisDescriptorType);
-                        Type propertyType = typeMapper.mapType(property);
-                        codegen.intermediateValueForProperty(property, false, null).put(propertyType, codegen.v);
+                    else {
+                        if (elementType.getSort() != Type.CHAR) {
+                            iv.invokestatic("java/util/Arrays", "toString", "(" + type.getDescriptor() + ")Ljava/lang/String;");
+                            type = JAVA_STRING_TYPE;
+                        }
                     }
                 }
-        );
+                genInvokeAppendMethod(iv, type);
+            }
+
+            iv.aconst(")");
+            genInvokeAppendMethod(iv, JAVA_STRING_TYPE);
+
+            iv.invokevirtual("java/lang/StringBuilder", "toString", "()Ljava/lang/String;");
+            iv.areturn(JAVA_STRING_TYPE);
+
+            FunctionCodegen.endVisit(mv, "toString", myClass);
+        }
+
+        private Type genPropertyOnStack(InstructionAdapter iv, PropertyDescriptor propertyDescriptor, int index) {
+            iv.load(index, classAsmType);
+            //noinspection ConstantConditions
+            Method method = typeMapper.mapSignature(propertyDescriptor.getGetter()).getAsmMethod();
+
+            iv.invokevirtual(classAsmType.getInternalName(), method.getName(), method.getDescriptor());
+            return method.getReturnType();
+        }
+
+        @Override
+        public void generateComponentFunction(@NotNull FunctionDescriptor function, @NotNull final ValueParameterDescriptor parameter) {
+            functionCodegen.generateMethod(myClass, typeMapper.mapSignature(function), function, new FunctionGenerationStrategy() {
+                @Override
+                public void generateBody(
+                        @NotNull MethodVisitor mv,
+                        @NotNull JvmMethodSignature signature,
+                        @NotNull MethodContext context,
+                        @Nullable MemberCodegen<?> parentCodegen
+                ) {
+                    Type componentType = signature.getReturnType();
+                    InstructionAdapter iv = new InstructionAdapter(mv);
+                    if (!componentType.equals(Type.VOID_TYPE)) {
+                        iv.load(0, classAsmType);
+                        String desc = "()" + componentType.getDescriptor();
+                        iv.invokevirtual(classAsmType.getInternalName(), PropertyCodegen.getterName(parameter.getName()), desc);
+                    }
+                    iv.areturn(componentType);
+                }
+            });
+        }
+
+        @Override
+        public void generateCopyFunction(@NotNull final FunctionDescriptor function, @NotNull List<JetParameter> constructorParameters) {
+            JvmMethodSignature methodSignature = typeMapper.mapSignature(function);
+
+            final Type thisDescriptorType = typeMapper.mapType(descriptor);
+
+            functionCodegen.generateMethod(myClass, methodSignature, function, new FunctionGenerationStrategy() {
+                @Override
+                public void generateBody(
+                        @NotNull MethodVisitor mv,
+                        @NotNull JvmMethodSignature signature,
+                        @NotNull MethodContext context,
+                        @Nullable MemberCodegen<?> parentCodegen
+                ) {
+                    InstructionAdapter iv = new InstructionAdapter(mv);
+
+                    iv.anew(thisDescriptorType);
+                    iv.dup();
+
+                    ConstructorDescriptor constructor = DescriptorUtils.getConstructorOfDataClass(descriptor);
+                    assert function.getValueParameters().size() == constructor.getValueParameters().size() :
+                            "Number of parameters of copy function and constructor are different. " +
+                            "Copy: " + function.getValueParameters().size() + ", " +
+                            "constructor: " + constructor.getValueParameters().size();
+
+                    MutableClosure closure = ImplementationBodyCodegen.this.context.closure;
+                    if (closure != null && closure.getCaptureThis() != null) {
+                        Type type = typeMapper.mapType(enclosingClassDescriptor(bindingContext, descriptor));
+                        iv.load(0, classAsmType);
+                        iv.getfield(classAsmType.getInternalName(), CAPTURED_THIS_FIELD, type.getDescriptor());
+                    }
+
+                    int parameterIndex = 1; // localVariable 0 = this
+                    for (ValueParameterDescriptor parameterDescriptor : function.getValueParameters()) {
+                        Type type = typeMapper.mapType(parameterDescriptor.getType());
+                        iv.load(parameterIndex, type);
+                        parameterIndex += type.getSize();
+                    }
+
+                    String constructorJvmDescriptor = typeMapper.mapToCallableMethod(constructor).getAsmMethod().getDescriptor();
+                    iv.invokespecial(thisDescriptorType.getInternalName(), "<init>", constructorJvmDescriptor);
+
+                    iv.areturn(thisDescriptorType);
+                }
+            });
+
+            functionCodegen.generateDefaultIfNeeded(
+                    context.intoFunction(function), methodSignature, function, OwnerKind.IMPLEMENTATION,
+                    new DefaultParameterValueLoader() {
+                        @Override
+                        public void putValueOnStack(ValueParameterDescriptor valueParameter, ExpressionCodegen codegen) {
+                            assert KotlinBuiltIns.getInstance().isData((ClassDescriptor) function.getContainingDeclaration())
+                                    : "Function container should be annotated with [data]: " + function;
+                            PropertyDescriptor property = bindingContext.get(BindingContext.VALUE_PARAMETER_AS_PROPERTY, valueParameter);
+                            assert property != null : "Copy function doesn't correspond to any property: " + function;
+                            codegen.v.load(0, thisDescriptorType);
+                            Type propertyType = typeMapper.mapType(property);
+                            codegen.intermediateValueForProperty(property, false, null).put(propertyType, codegen.v);
+                        }
+                    },
+                    null
+            );
+        }
     }
 
     private void generateEnumMethodsAndConstInitializers() {
@@ -1210,7 +1140,7 @@ public class ImplementationBodyCodegen extends ClassBodyCodegen {
         );
 
         functionCodegen.generateDefaultIfNeeded(constructorContext, constructorSignature, constructorDescriptor,
-                                                OwnerKind.IMPLEMENTATION, DefaultParameterValueLoader.DEFAULT);
+                                                OwnerKind.IMPLEMENTATION, DefaultParameterValueLoader.DEFAULT, null);
 
         CallableMethod callableMethod = typeMapper.mapToCallableMethod(constructorDescriptor);
         FunctionCodegen.generateConstructorWithoutParametersIfNeeded(state, callableMethod, constructorDescriptor, v);
@@ -1231,6 +1161,14 @@ public class ImplementationBodyCodegen extends ClassBodyCodegen {
 
         InstructionAdapter iv = codegen.v;
 
+        if (closure != null) {
+            List<FieldInfo> argsFromClosure = ClosureCodegen.calculateConstructorParameters(typeMapper, closure, classAsmType);
+            int k = 1;
+            for (FieldInfo info : argsFromClosure) {
+                k = AsmUtil.genAssignInstanceFieldFromParam(info, k, iv);
+            }
+        }
+
         if (superCall == null) {
             genSimpleSuperCall(iv);
         }
@@ -1239,14 +1177,6 @@ public class ImplementationBodyCodegen extends ClassBodyCodegen {
         }
         else {
             generateDelegatorToConstructorCall(iv, codegen, constructorDescriptor);
-        }
-
-        if (closure != null) {
-            List<FieldInfo> argsFromClosure = ClosureCodegen.calculateConstructorParameters(typeMapper, closure, classAsmType);
-            int k = 1;
-            for (FieldInfo info : argsFromClosure) {
-                k = AsmUtil.genAssignInstanceFieldFromParam(info, k, iv);
-            }
         }
 
         int n = 0;
@@ -1263,7 +1193,7 @@ public class ImplementationBodyCodegen extends ClassBodyCodegen {
         int curParam = 0;
         List<JetParameter> constructorParameters = getPrimaryConstructorParameters();
         for (JetParameter parameter : constructorParameters) {
-            if (parameter.getValOrVarNode() != null) {
+            if (parameter.hasValOrVarNode()) {
                 VariableDescriptor descriptor = paramDescrs.get(curParam);
                 Type type = typeMapper.mapType(descriptor);
                 iv.load(0, classAsmType);

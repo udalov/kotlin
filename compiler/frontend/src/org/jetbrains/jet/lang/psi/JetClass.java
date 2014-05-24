@@ -49,7 +49,7 @@ public class JetClass extends JetTypeParameterListOwnerStub<PsiJetClassStub> imp
     @NotNull
     @Override
     public List<JetDeclaration> getDeclarations() {
-        JetClassBody body = (JetClassBody) findChildByType(JetNodeTypes.CLASS_BODY);
+        JetClassBody body = getBody();
         if (body == null) return Collections.emptyList();
 
         return body.getDeclarations();
@@ -62,7 +62,7 @@ public class JetClass extends JetTypeParameterListOwnerStub<PsiJetClassStub> imp
 
     @Nullable
     public JetParameterList getPrimaryConstructorParameterList() {
-        return (JetParameterList) findChildByType(JetNodeTypes.VALUE_PARAMETER_LIST);
+        return getStubOrPsiChild(JetStubElementTypes.VALUE_PARAMETER_LIST);
     }
 
     @NotNull
@@ -75,7 +75,7 @@ public class JetClass extends JetTypeParameterListOwnerStub<PsiJetClassStub> imp
     @Override
     @Nullable
     public JetDelegationSpecifierList getDelegationSpecifierList() {
-        return (JetDelegationSpecifierList) findChildByType(JetNodeTypes.DELEGATION_SPECIFIER_LIST);
+        return getStubOrPsiChild(JetStubElementTypes.DELEGATION_SPECIFIER_LIST);
     }
 
     @Override
@@ -87,7 +87,7 @@ public class JetClass extends JetTypeParameterListOwnerStub<PsiJetClassStub> imp
 
     @Nullable
     public JetModifierList getPrimaryConstructorModifierList() {
-        return (JetModifierList) findChildByType(JetNodeTypes.PRIMARY_CONSTRUCTOR_MODIFIER_LIST);
+        return getStubOrPsiChild(JetStubElementTypes.PRIMARY_CONSTRUCTOR_MODIFIER_LIST);
     }
 
     @Override
@@ -111,7 +111,7 @@ public class JetClass extends JetTypeParameterListOwnerStub<PsiJetClassStub> imp
 
     @Override
     public JetClassBody getBody() {
-        return (JetClassBody) findChildByType(JetNodeTypes.CLASS_BODY);
+        return getStubOrPsiChild(JetStubElementTypes.CLASS_BODY);
     }
 
     @Nullable
@@ -138,29 +138,14 @@ public class JetClass extends JetTypeParameterListOwnerStub<PsiJetClassStub> imp
     }
 
     public boolean isEnum() {
-        PsiJetClassStub stub = getStub();
-        if (stub != null) {
-            return stub.isEnumClass();
-        }
-
         return hasModifier(JetTokens.ENUM_KEYWORD);
     }
 
     public boolean isAnnotation() {
-        PsiJetClassStub stub = getStub();
-        if (stub != null) {
-            return stub.isAnnotation();
-        }
-
         return hasModifier(JetTokens.ANNOTATION_KEYWORD);
     }
 
     public boolean isInner() {
-        PsiJetClassStub stub = getStub();
-        if (stub != null) {
-            return stub.isInner();
-        }
-
         return hasModifier(JetTokens.INNER_KEYWORD);
     }
 
@@ -209,5 +194,19 @@ public class JetClass extends JetTypeParameterListOwnerStub<PsiJetClassStub> imp
     @Override
     public ItemPresentation getPresentation() {
         return ItemPresentationProviders.getItemPresentation(this);
+    }
+
+    @Override
+    public boolean isTopLevel() {
+        return getContainingFile() == getParent();
+    }
+
+    @Override
+    public boolean isLocal() {
+        PsiJetClassStub stub = getStub();
+        if (stub != null) {
+            return stub.isLocal();
+        }
+        return JetPsiUtil.isLocal(this);
     }
 }

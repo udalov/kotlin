@@ -229,18 +229,11 @@ public class JetControlFlowProcessor {
         }
 
         @Override
-        public void visitLabelQualifiedExpressionVoid(@NotNull JetLabelQualifiedExpression expression, CFPContext context) {
-            String labelName = expression.getLabelName();
-            JetExpression labeledExpression = expression.getLabeledExpression();
-            if (labelName != null && labeledExpression != null) {
-                visitLabeledExpression(labelName, labeledExpression, context);
-            }
-        }
-
-        private void visitLabeledExpression(@NotNull String labelName, @NotNull JetExpression labeledExpression, CFPContext context) {
-            JetExpression deparenthesized = JetPsiUtil.deparenthesize(labeledExpression);
-            if (deparenthesized != null) {
-                generateInstructions(labeledExpression, context);
+        public void visitLabeledExpressionVoid(@NotNull JetLabeledExpression expression, CFPContext context) {
+            mark(expression);
+            JetExpression baseExpression = expression.getBaseExpression();
+            if (baseExpression != null) {
+                generateInstructions(baseExpression, context);
             }
         }
 
@@ -374,11 +367,7 @@ public class JetControlFlowProcessor {
             IElementType operationType = operationSign.getReferencedNameElementType();
             JetExpression baseExpression = expression.getBaseExpression();
             if (baseExpression == null) return;
-            if (JetTokens.LABELS.contains(operationType)) {
-                String referencedName = operationSign.getReferencedName();
-                visitLabeledExpression(referencedName.substring(1), baseExpression, context);
-            }
-            else if (JetTokens.EXCLEXCL == operationType) {
+            if (JetTokens.EXCLEXCL == operationType) {
                 generateInstructions(baseExpression, NOT_IN_CONDITION);
                 builder.predefinedOperation(expression, NOT_NULL_ASSERTION);
             }
@@ -665,7 +654,7 @@ public class JetControlFlowProcessor {
             }
         }
 
-        private JetElement getCorrespondingLoop(JetLabelQualifiedExpression expression) {
+        private JetElement getCorrespondingLoop(JetExpressionWithLabel expression) {
             String labelName = expression.getLabelName();
             JetElement loop;
             if (labelName != null) {
@@ -689,7 +678,7 @@ public class JetControlFlowProcessor {
             return loop;
         }
 
-        private void checkJumpDoesNotCrossFunctionBoundary(@NotNull JetLabelQualifiedExpression jumpExpression, @NotNull JetElement jumpTarget) {
+        private void checkJumpDoesNotCrossFunctionBoundary(@NotNull JetExpressionWithLabel jumpExpression, @NotNull JetElement jumpTarget) {
             BindingContext bindingContext = trace.getBindingContext();
 
             FunctionDescriptor labelExprEnclosingFunc = BindingContextUtils.getEnclosingFunctionDescriptor(bindingContext, jumpExpression);
@@ -708,8 +697,7 @@ public class JetControlFlowProcessor {
             JetSimpleNameExpression labelElement = expression.getTargetLabel();
             JetElement subroutine;
             String labelName = expression.getLabelName();
-            if (labelElement != null) {
-                assert labelName != null;
+            if (labelElement != null && labelName != null) {
                 PsiElement labeledElement = trace.get(BindingContext.LABEL_TARGET, labelElement);
                 if (labeledElement != null) {
                     assert labeledElement instanceof JetElement;
@@ -995,7 +983,7 @@ public class JetControlFlowProcessor {
                 generateInstructions(specifier, context);
             }
             List<JetDeclaration> declarations = classOrObject.getDeclarations();
-            if (JetPsiUtil.isLocal(classOrObject)) {
+            if (classOrObject.isLocal()) {
                 for (JetDeclaration declaration : declarations) {
                     generateInstructions(declaration, context);
                 }

@@ -29,10 +29,8 @@ import com.intellij.psi.impl.PsiFileFactoryImpl;
 import com.intellij.testFramework.LightVirtualFile;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.org.objectweb.asm.Type;
 import org.jetbrains.jet.OutputFile;
 import org.jetbrains.jet.analyzer.AnalyzeExhaust;
-import org.jetbrains.jet.cli.common.arguments.CompilerArgumentsUtil;
 import org.jetbrains.jet.cli.common.messages.AnalyzerWithCompilerReport;
 import org.jetbrains.jet.cli.common.messages.MessageCollector;
 import org.jetbrains.jet.cli.common.messages.MessageCollectorToString;
@@ -63,6 +61,7 @@ import org.jetbrains.jet.plugin.JetLanguage;
 import org.jetbrains.jet.storage.ExceptionTracker;
 import org.jetbrains.jet.storage.LockBasedStorageManager;
 import org.jetbrains.jet.utils.UtilsPackage;
+import org.jetbrains.org.objectweb.asm.Type;
 
 import java.io.File;
 import java.io.PrintWriter;
@@ -71,6 +70,7 @@ import java.lang.reflect.Field;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -249,7 +249,7 @@ public class ReplInterpreter {
 
         BindingContext bindingContext = AnalyzeExhaust.success(trace.getBindingContext(), module).getBindingContext();
         GenerationState generationState = new GenerationState(psiFile.getProject(), ClassBuilderFactories.BINARIES,
-                                                              bindingContext, Collections.singletonList(psiFile), CompilerArgumentsUtil.DEFAULT_INLINE_FLAG);
+                                                              module, bindingContext, Collections.singletonList(psiFile));
 
         compileScript(psiFile.getScript(), scriptClassType, earlierScripts, generationState,
                       CompilationErrorHandler.THROW_EXCEPTION);
@@ -341,15 +341,12 @@ public class ReplInterpreter {
             @NotNull GenerationState state,
             @NotNull List<Pair<ScriptDescriptor, Type>> earlierScripts
     ) {
-        for (Pair<ScriptDescriptor, Type> t : earlierScripts) {
-            ScriptDescriptor earlierDescriptor = t.first;
-            Type earlierClassType = t.second;
-            registerClassNameForScript(state.getBindingTrace(), earlierDescriptor, earlierClassType);
-        }
+        List<ScriptDescriptor> earlierScriptDescriptors = new ArrayList<ScriptDescriptor>(earlierScripts.size());
+        for (Pair<ScriptDescriptor, Type> pair : earlierScripts) {
+            ScriptDescriptor earlierDescriptor = pair.first;
+            Type earlierClassType = pair.second;
 
-        List<ScriptDescriptor> earlierScriptDescriptors = Lists.newArrayList();
-        for (Pair<ScriptDescriptor, Type> t : earlierScripts) {
-            ScriptDescriptor earlierDescriptor = t.first;
+            registerClassNameForScript(state.getBindingTrace(), earlierDescriptor, earlierClassType);
             earlierScriptDescriptors.add(earlierDescriptor);
         }
         state.setEarlierScriptsForReplInterpreter(earlierScriptDescriptors);

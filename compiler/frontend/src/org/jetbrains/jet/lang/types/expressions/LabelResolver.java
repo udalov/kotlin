@@ -16,21 +16,21 @@
 
 package org.jetbrains.jet.lang.types.expressions;
 
+import com.google.common.collect.Lists;
 import com.intellij.psi.PsiElement;
-import com.intellij.util.containers.Stack;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.BindingContextUtils;
+import org.jetbrains.jet.lang.resolve.BindingTrace;
 import org.jetbrains.jet.lang.resolve.DescriptorResolver;
-import org.jetbrains.jet.lang.resolve.name.LabelName;
+import org.jetbrains.jet.lang.resolve.calls.context.ResolutionContext;
+import org.jetbrains.jet.lang.resolve.name.Name;
 
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
+import java.util.List;
 
 import static org.jetbrains.jet.lang.diagnostics.Errors.LABEL_NAME_CLASH;
 import static org.jetbrains.jet.lang.diagnostics.Errors.UNRESOLVED_REFERENCE;
@@ -38,112 +38,148 @@ import static org.jetbrains.jet.lang.resolve.BindingContext.LABEL_TARGET;
 import static org.jetbrains.jet.lang.resolve.BindingContext.REFERENCE_TARGET;
 
 public class LabelResolver {
-
-    @NotNull
-    public static LabelResolver create() {
-        return new LabelResolver();
-    }
-
-    private final Map<LabelName, Stack<JetElement>> labeledElements = new HashMap<LabelName, Stack<JetElement>>();
+    
+    public static LabelResolver INSTANCE = new LabelResolver();
 
     private LabelResolver() {}
 
-    public void enterLabeledElement(@NotNull LabelName labelName, @NotNull JetExpression labeledExpression) {
-        JetExpression cacheExpression = getCachingExpression(labeledExpression);
-        if (cacheExpression != null) {
-            Stack<JetElement> stack = labeledElements.get(labelName);
-            if (stack == null) {
-                stack = new Stack<JetElement>();
-                labeledElements.put(labelName, stack);
+    @NotNull
+    private List<JetElement> getElementsByLabelName(@NotNull Name labelName, @NotNull JetSimpleNameExpression labelExpression) {
+        List<JetElement> elements = Lists.newArrayList();
+        PsiElement parent = labelExpression.getParent();
+        while (parent != null) {
+            Name name = getLabelNameIfAny(parent);
+            if (name != null && name.equals(labelName)) {
+                elements.add(getExpressionUnderLabel((JetExpression) parent));
             }
-            stack.push(cacheExpression);
+            parent = parent.getParent();
         }
+        return elements;
     }
 
-    public void exitLabeledElement(@NotNull JetExpression expression) {
-        JetExpression cacheExpression = getCachingExpression(expression);
-
-        // TODO : really suboptimal
-        for (Iterator<Map.Entry<LabelName,Stack<JetElement>>> mapIter = labeledElements.entrySet().iterator(); mapIter.hasNext(); ) {
-            Map.Entry<LabelName, Stack<JetElement>> entry = mapIter.next();
-            Stack<JetElement> stack = entry.getValue();
-            for (Iterator<JetElement> stackIter = stack.iterator(); stackIter.hasNext(); ) {
-                JetElement recorded = stackIter.next();
-                if (recorded == cacheExpression) {
-                    stackIter.remove();
-                }
-            }
-            if (stack.isEmpty()) {
-                mapIter.remove();
+    @Nullable
+    private Name getLabelNameIfAny(@NotNull PsiElement element) {
+        if (element instanceof JetLabeledExpression) {
+            String labelName = ((JetLabeledExpression) element).getLabelName();
+            if (labelName != null) {
+                return Name.identifier(labelName);
             }
         }
+        if (element instanceof JetFunctionLiteralExpression) {
+            return getCallerName((JetFunctionLiteralExpression) element);
+        }
+        return null;
     }
 
     @NotNull
-    private JetExpression getCachingExpression(@NotNull JetExpression labeledExpression) {
-        JetExpression expression = JetPsiUtil.deparenthesize(labeledExpression);
+    private JetExpression getExpressionUnderLabel(@NotNull JetExpression labeledExpression) {
+        JetExpression expression = JetPsiUtil.safeDeparenthesize(labeledExpression, true);
         if (expression instanceof JetFunctionLiteralExpression) {
-            expression = ((JetFunctionLiteralExpression) expression).getFunctionLiteral();
+            return ((JetFunctionLiteralExpression) expression).getFunctionLiteral();
         }
         return expression;
     }
 
     @Nullable
-    private JetElement resolveControlLabel(@NotNull LabelName labelName, @NotNull JetSimpleNameExpression labelExpression, boolean reportUnresolved, ExpressionTypingContext context) {
-        Collection<DeclarationDescriptor> declarationsByLabel = context.scope.getDeclarationsByLabel(labelName);
-        int size = declarationsByLabel.size();
+    private Name getCallerName(@NotNull JetFunctionLiteralExpression expression) {
+        JetCallExpression callExpression = getContainingCallExpression(expression);
+        if (callExpression == null) return null;
 
-        if (size == 1) {
-            DeclarationDescriptor declarationDescriptor = declarationsByLabel.iterator().next();
-            JetElement element;
-            if (declarationDescriptor instanceof FunctionDescriptor || declarationDescriptor instanceof ClassDescriptor) {
-                element = (JetElement) BindingContextUtils.descriptorToDeclaration(context.trace.getBindingContext(), declarationDescriptor);
-            }
-            else {
-                throw new UnsupportedOperationException(declarationDescriptor.getClass().toString()); // TODO
-            }
-            context.trace.record(LABEL_TARGET, labelExpression, element);
-            return element;
+        JetExpression calleeExpression = callExpression.getCalleeExpression();
+        if (calleeExpression instanceof JetSimpleNameExpression) {
+            JetSimpleNameExpression nameExpression = (JetSimpleNameExpression) calleeExpression;
+            return nameExpression.getReferencedNameAsName();
         }
-        else if (size == 0) {
-            return resolveNamedLabel(labelName, labelExpression, reportUnresolved, context);
-        }
-        BindingContextUtils.reportAmbiguousLabel(context.trace, labelExpression, declarationsByLabel);
+
         return null;
     }
 
     @Nullable
-    public JetElement resolveLabel(JetLabelQualifiedExpression expression, ExpressionTypingContext context) {
-        JetSimpleNameExpression labelElement = expression.getTargetLabel();
-        if (labelElement != null) {
-            LabelName labelName = new LabelName(expression.getLabelName());
-            return resolveControlLabel(labelName, labelElement, true, context);
+    private JetCallExpression getContainingCallExpression(@NotNull JetFunctionLiteralExpression expression) {
+        PsiElement parent = expression.getParent();
+        if (parent instanceof JetCallExpression) {
+            // f {}
+            return (JetCallExpression) parent;
+        }
+
+        if (parent instanceof JetValueArgument) {
+            // f ({}) or f(p = {})
+            JetValueArgument argument = (JetValueArgument) parent;
+            PsiElement argList = argument.getParent();
+            if (argList == null) return null;
+            PsiElement call = argList.getParent();
+            if (call instanceof JetCallExpression) {
+                return (JetCallExpression) call;
+            }
         }
         return null;
     }
 
-    private JetElement resolveNamedLabel(@NotNull LabelName labelName, @NotNull JetSimpleNameExpression labelExpression, boolean reportUnresolved, ExpressionTypingContext context) {
-        Stack<JetElement> stack = labeledElements.get(labelName);
-        if (stack == null || stack.isEmpty()) {
-            if (reportUnresolved) {
-                context.trace.report(UNRESOLVED_REFERENCE.on(labelExpression, labelExpression));
-            }
-            return null;
-        }
-        else if (stack.size() > 1) {
-            context.trace.report(LABEL_NAME_CLASH.on(labelExpression));
-        }
+    @Nullable
+    public JetElement resolveControlLabel(
+            @NotNull JetExpressionWithLabel expression,
+            @NotNull ResolutionContext context
+    ) {
+        JetSimpleNameExpression labelElement = expression.getTargetLabel();
+        String name = expression.getLabelName();
+        if (labelElement == null || name == null) return null;
 
-        JetElement result = stack.peek();
-        context.trace.record(LABEL_TARGET, labelExpression, result);
-        return result;
-    }
-
-    public LabeledReceiverResolutionResult resolveThisLabel(JetReferenceExpression thisReference, JetSimpleNameExpression targetLabel,
-            ExpressionTypingContext context, LabelName labelName) {
+        Name labelName = Name.identifier(name);
         Collection<DeclarationDescriptor> declarationsByLabel = context.scope.getDeclarationsByLabel(labelName);
         int size = declarationsByLabel.size();
-        assert targetLabel != null;
+
+        if (size > 1) {
+            BindingContextUtils.reportAmbiguousLabel(context.trace, labelElement, declarationsByLabel);
+            return null;
+        }
+        if (size == 0) {
+            JetElement element = resolveNamedLabel(labelName, labelElement, context.trace);
+            if (element == null) {
+                context.trace.report(UNRESOLVED_REFERENCE.on(labelElement, labelElement));
+            }
+            return element;
+        }
+        DeclarationDescriptor declarationDescriptor = declarationsByLabel.iterator().next();
+        JetElement element;
+        if (declarationDescriptor instanceof FunctionDescriptor || declarationDescriptor instanceof ClassDescriptor) {
+            element = (JetElement) BindingContextUtils.descriptorToDeclaration(context.trace.getBindingContext(), declarationDescriptor);
+        }
+        else {
+            throw new UnsupportedOperationException(declarationDescriptor.getClass().toString()); // TODO
+        }
+        context.trace.record(LABEL_TARGET, labelElement, element);
+        return element;
+    }
+
+    private JetElement resolveNamedLabel(
+            @NotNull Name labelName, 
+            @NotNull JetSimpleNameExpression labelExpression, 
+            @NotNull BindingTrace trace
+    ) {
+        List<JetElement> list = getElementsByLabelName(labelName, labelExpression);
+        if (list.isEmpty()) return null;
+
+        if (list.size() > 1) {
+            trace.report(LABEL_NAME_CLASH.on(labelExpression));
+        }
+
+        JetElement result = list.get(0);
+        trace.record(LABEL_TARGET, labelExpression, result);
+        return result;
+    }
+    
+    @NotNull
+    public LabeledReceiverResolutionResult resolveThisOrSuperLabel(
+            @NotNull JetInstanceExpressionWithLabel expression,
+            @NotNull ResolutionContext context,
+            @NotNull Name labelName
+    ) {
+        JetReferenceExpression referenceExpression = expression.getInstanceReference();
+        JetSimpleNameExpression targetLabel = expression.getTargetLabel();
+        assert targetLabel != null : expression;
+
+        Collection<DeclarationDescriptor> declarationsByLabel = context.scope.getDeclarationsByLabel(labelName);
+        int size = declarationsByLabel.size();
         if (size == 1) {
             DeclarationDescriptor declarationDescriptor = declarationsByLabel.iterator().next();
             ReceiverParameterDescriptor thisReceiver;
@@ -165,7 +201,7 @@ public class LabelResolver {
             PsiElement element = BindingContextUtils.descriptorToDeclaration(context.trace.getBindingContext(), declarationDescriptor);
             assert element != null : "No PSI element for descriptor: " + declarationDescriptor;
             context.trace.record(LABEL_TARGET, targetLabel, element);
-            context.trace.record(REFERENCE_TARGET, thisReference, declarationDescriptor);
+            context.trace.record(REFERENCE_TARGET, referenceExpression, declarationDescriptor);
 
             if (declarationDescriptor instanceof ClassDescriptor) {
                 ClassDescriptor classDescriptor = (ClassDescriptor) declarationDescriptor;
@@ -177,7 +213,7 @@ public class LabelResolver {
             return LabeledReceiverResolutionResult.labelResolutionSuccess(thisReceiver);
         }
         else if (size == 0) {
-            JetElement element = resolveNamedLabel(labelName, targetLabel, false, context);
+            JetElement element = resolveNamedLabel(labelName, targetLabel, context.trace);
             if (element instanceof JetFunctionLiteral) {
                 DeclarationDescriptor declarationDescriptor =
                         context.trace.getBindingContext().get(BindingContext.DECLARATION_TO_DESCRIPTOR, element);
@@ -185,7 +221,7 @@ public class LabelResolver {
                     ReceiverParameterDescriptor thisReceiver = ((FunctionDescriptor) declarationDescriptor).getReceiverParameter();
                     if (thisReceiver != null) {
                         context.trace.record(LABEL_TARGET, targetLabel, element);
-                        context.trace.record(REFERENCE_TARGET, thisReference, declarationDescriptor);
+                        context.trace.record(REFERENCE_TARGET, referenceExpression, declarationDescriptor);
                     }
                     return LabeledReceiverResolutionResult.labelResolutionSuccess(thisReceiver);
                 }

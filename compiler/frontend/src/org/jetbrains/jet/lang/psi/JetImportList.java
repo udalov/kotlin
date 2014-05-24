@@ -17,15 +17,20 @@
 package org.jetbrains.jet.lang.psi;
 
 import com.intellij.lang.ASTNode;
-import com.intellij.psi.util.PsiTreeUtil;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.jet.lang.psi.stubs.PsiJetPlaceHolderStub;
+import org.jetbrains.jet.lang.psi.stubs.elements.JetStubElementTypes;
 
 import java.util.List;
 
-public class JetImportList extends JetElementImpl {
+public class JetImportList extends JetElementImplStub<PsiJetPlaceHolderStub<JetImportList>> {
 
     public JetImportList(@NotNull ASTNode node) {
         super(node);
+    }
+
+    public JetImportList(@NotNull PsiJetPlaceHolderStub<JetImportList> stub) {
+        super(stub, JetStubElementTypes.IMPORT_LIST);
     }
 
     @Override
@@ -35,6 +40,6 @@ public class JetImportList extends JetElementImpl {
 
     @NotNull
     public List<JetImportDirective> getImports() {
-        return PsiTreeUtil.getChildrenOfTypeAsList(this, JetImportDirective.class);
+        return getStubOrPsiChildrenAsList(JetStubElementTypes.IMPORT_DIRECTIVE);
     }
 }

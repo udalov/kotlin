@@ -39,6 +39,31 @@ public class JetFormatterTestGenerated extends AbstractJetFormatterTest {
             JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), "org.jetbrains.jet.generators.tests.TestsPackage", new File("idea/testData/formatter"), Pattern.compile("^([^\\.]+)\\.after\\.kt.*$"), true);
         }
         
+        @TestMetadata("ArrayAccess.after.kt")
+        public void testArrayAccess() throws Exception {
+            doTest("idea/testData/formatter/ArrayAccess.after.kt");
+        }
+        
+        @TestMetadata("BinaryExpressionAlignmentSpread.after.kt")
+        public void testBinaryExpressionAlignmentSpread() throws Exception {
+            doTest("idea/testData/formatter/BinaryExpressionAlignmentSpread.after.kt");
+        }
+        
+        @TestMetadata("BinaryExpressions.after.kt")
+        public void testBinaryExpressions() throws Exception {
+            doTest("idea/testData/formatter/BinaryExpressions.after.kt");
+        }
+        
+        @TestMetadata("BinaryExpressionsBoolean.after.kt")
+        public void testBinaryExpressionsBoolean() throws Exception {
+            doTest("idea/testData/formatter/BinaryExpressionsBoolean.after.kt");
+        }
+        
+        @TestMetadata("BinaryExpressionsWithoutAlignment.after.kt")
+        public void testBinaryExpressionsWithoutAlignment() throws Exception {
+            doTest("idea/testData/formatter/BinaryExpressionsWithoutAlignment.after.kt");
+        }
+        
         @TestMetadata("BlockFor.after.kt")
         public void testBlockFor() throws Exception {
             doTest("idea/testData/formatter/BlockFor.after.kt");
@@ -74,6 +99,16 @@ public class JetFormatterTestGenerated extends AbstractJetFormatterTest {
             doTest("idea/testData/formatter/ConsecutiveCalls.after.kt");
         }
         
+        @TestMetadata("ConsecutiveSafeCallsIndent.after.kt")
+        public void testConsecutiveSafeCallsIndent() throws Exception {
+            doTest("idea/testData/formatter/ConsecutiveSafeCallsIndent.after.kt");
+        }
+        
+        @TestMetadata("DelegationList.after.kt")
+        public void testDelegationList() throws Exception {
+            doTest("idea/testData/formatter/DelegationList.after.kt");
+        }
+        
         @TestMetadata("DoWhileLineBreak.after.kt")
         public void testDoWhileLineBreak() throws Exception {
             doTest("idea/testData/formatter/DoWhileLineBreak.after.kt");
@@ -87,6 +122,11 @@ public class JetFormatterTestGenerated extends AbstractJetFormatterTest {
         @TestMetadata("ElseOnNewLine.after.kt")
         public void testElseOnNewLine() throws Exception {
             doTest("idea/testData/formatter/ElseOnNewLine.after.kt");
+        }
+        
+        @TestMetadata("Elvis.after.kt")
+        public void testElvis() throws Exception {
+            doTest("idea/testData/formatter/Elvis.after.kt");
         }
         
         @TestMetadata("EmptyLineAfterPackage.after.kt")
@@ -122,6 +162,11 @@ public class JetFormatterTestGenerated extends AbstractJetFormatterTest {
         @TestMetadata("FunctionLineBreak.after.kt")
         public void testFunctionLineBreak() throws Exception {
             doTest("idea/testData/formatter/FunctionLineBreak.after.kt");
+        }
+        
+        @TestMetadata("FunctionLiteralsInChainCalls.after.kt")
+        public void testFunctionLiteralsInChainCalls() throws Exception {
+            doTest("idea/testData/formatter/FunctionLiteralsInChainCalls.after.kt");
         }
         
         @TestMetadata("FunctionWithInference.after.kt")
@@ -179,6 +224,11 @@ public class JetFormatterTestGenerated extends AbstractJetFormatterTest {
             doTest("idea/testData/formatter/LoopParameterWithExplicitType.after.kt");
         }
         
+        @TestMetadata("Multideclaration.after.kt")
+        public void testMultideclaration() throws Exception {
+            doTest("idea/testData/formatter/Multideclaration.after.kt");
+        }
+        
         @TestMetadata("MultilineFunctionLiteral.after.kt")
         public void testMultilineFunctionLiteral() throws Exception {
             doTest("idea/testData/formatter/MultilineFunctionLiteral.after.kt");
@@ -209,6 +259,11 @@ public class JetFormatterTestGenerated extends AbstractJetFormatterTest {
             doTest("idea/testData/formatter/RemoveSpacesAroundOperations.after.kt");
         }
         
+        @TestMetadata("ReturnExpression.after.kt")
+        public void testReturnExpression() throws Exception {
+            doTest("idea/testData/formatter/ReturnExpression.after.kt");
+        }
+        
         @TestMetadata("RightBracketOnNewLine.after.kt")
         public void testRightBracketOnNewLine() throws Exception {
             doTest("idea/testData/formatter/RightBracketOnNewLine.after.kt");
@@ -234,6 +289,16 @@ public class JetFormatterTestGenerated extends AbstractJetFormatterTest {
             doTest("idea/testData/formatter/SpaceAroundExtendColon.after.kt");
         }
         
+        @TestMetadata("SpaceAroundExtendColonInEnums.after.kt")
+        public void testSpaceAroundExtendColonInEnums() throws Exception {
+            doTest("idea/testData/formatter/SpaceAroundExtendColonInEnums.after.kt");
+        }
+        
+        @TestMetadata("SpaceAroundExtendColonInObjects.after.kt")
+        public void testSpaceAroundExtendColonInObjects() throws Exception {
+            doTest("idea/testData/formatter/SpaceAroundExtendColonInObjects.after.kt");
+        }
+        
         @TestMetadata("SpaceBeforeFunctionLiteral.after.kt")
         public void testSpaceBeforeFunctionLiteral() throws Exception {
             doTest("idea/testData/formatter/SpaceBeforeFunctionLiteral.after.kt");
@@ -247,6 +312,16 @@ public class JetFormatterTestGenerated extends AbstractJetFormatterTest {
         @TestMetadata("SpacesAroundUnaryOperations.after.kt")
         public void testSpacesAroundUnaryOperations() throws Exception {
             doTest("idea/testData/formatter/SpacesAroundUnaryOperations.after.kt");
+        }
+        
+        @TestMetadata("SpacesInDeclarations.after.kt")
+        public void testSpacesInDeclarations() throws Exception {
+            doTest("idea/testData/formatter/SpacesInDeclarations.after.kt");
+        }
+        
+        @TestMetadata("SpacesInQualifiedExpressions.after.kt")
+        public void testSpacesInQualifiedExpressions() throws Exception {
+            doTest("idea/testData/formatter/SpacesInQualifiedExpressions.after.kt");
         }
         
         @TestMetadata("TryCatchLineBreak.after.kt")
@@ -402,6 +477,21 @@ public class JetFormatterTestGenerated extends AbstractJetFormatterTest {
             JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), "org.jetbrains.jet.generators.tests.TestsPackage", new File("idea/testData/formatter"), Pattern.compile("^([^\\.]+)\\.after\\.inv\\.kt.*$"), true);
         }
         
+        @TestMetadata("BinaryExpressions.after.inv.kt")
+        public void testBinaryExpressions() throws Exception {
+            doTestInverted("idea/testData/formatter/BinaryExpressions.after.inv.kt");
+        }
+        
+        @TestMetadata("BinaryExpressionsBoolean.after.inv.kt")
+        public void testBinaryExpressionsBoolean() throws Exception {
+            doTestInverted("idea/testData/formatter/BinaryExpressionsBoolean.after.inv.kt");
+        }
+        
+        @TestMetadata("BinaryExpressionsWithoutAlignment.after.inv.kt")
+        public void testBinaryExpressionsWithoutAlignment() throws Exception {
+            doTestInverted("idea/testData/formatter/BinaryExpressionsWithoutAlignment.after.inv.kt");
+        }
+        
         @TestMetadata("CatchFinallyOnNewLine.after.inv.kt")
         public void testCatchFinallyOnNewLine() throws Exception {
             doTestInverted("idea/testData/formatter/CatchFinallyOnNewLine.after.inv.kt");
@@ -417,6 +507,11 @@ public class JetFormatterTestGenerated extends AbstractJetFormatterTest {
             doTestInverted("idea/testData/formatter/ColonSpaces.after.inv.kt");
         }
         
+        @TestMetadata("DelegationList.after.inv.kt")
+        public void testDelegationList() throws Exception {
+            doTestInverted("idea/testData/formatter/DelegationList.after.inv.kt");
+        }
+        
         @TestMetadata("DoWhileLineBreak.after.inv.kt")
         public void testDoWhileLineBreak() throws Exception {
             doTestInverted("idea/testData/formatter/DoWhileLineBreak.after.inv.kt");
@@ -425,6 +520,16 @@ public class JetFormatterTestGenerated extends AbstractJetFormatterTest {
         @TestMetadata("ElseOnNewLine.after.inv.kt")
         public void testElseOnNewLine() throws Exception {
             doTestInverted("idea/testData/formatter/ElseOnNewLine.after.inv.kt");
+        }
+        
+        @TestMetadata("Elvis.after.inv.kt")
+        public void testElvis() throws Exception {
+            doTestInverted("idea/testData/formatter/Elvis.after.inv.kt");
+        }
+        
+        @TestMetadata("EmptyBlocks.after.inv.kt")
+        public void testEmptyBlocks() throws Exception {
+            doTestInverted("idea/testData/formatter/EmptyBlocks.after.inv.kt");
         }
         
         @TestMetadata("ForLineBreak.after.inv.kt")
@@ -475,6 +580,16 @@ public class JetFormatterTestGenerated extends AbstractJetFormatterTest {
         @TestMetadata("SpaceAroundExtendColon.after.inv.kt")
         public void testSpaceAroundExtendColon() throws Exception {
             doTestInverted("idea/testData/formatter/SpaceAroundExtendColon.after.inv.kt");
+        }
+        
+        @TestMetadata("SpaceAroundExtendColonInEnums.after.inv.kt")
+        public void testSpaceAroundExtendColonInEnums() throws Exception {
+            doTestInverted("idea/testData/formatter/SpaceAroundExtendColonInEnums.after.inv.kt");
+        }
+        
+        @TestMetadata("SpaceAroundExtendColonInObjects.after.inv.kt")
+        public void testSpaceAroundExtendColonInObjects() throws Exception {
+            doTestInverted("idea/testData/formatter/SpaceAroundExtendColonInObjects.after.inv.kt");
         }
         
         @TestMetadata("SpacesAroundOperations.after.inv.kt")

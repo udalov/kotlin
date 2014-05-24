@@ -1,3 +1,19 @@
+/*
+ * Copyright 2010-2014 JetBrains s.r.o.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.jetbrains.jet.plugin.completion.smart
 
 import com.intellij.codeInsight.completion.InsertHandler
@@ -8,16 +24,19 @@ import org.jetbrains.jet.lang.psi.JetFile
 import org.jetbrains.jet.plugin.codeInsight.ShortenReferences
 import java.util.HashSet
 import com.intellij.codeInsight.lookup.LookupElementDecorator
-import org.jetbrains.jet.plugin.completion.handlers.WithTailCharInsertHandler
 import com.intellij.codeInsight.lookup.AutoCompletionPolicy
 import org.jetbrains.jet.lang.descriptors.FunctionDescriptor
 import org.jetbrains.jet.lang.types.JetType
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns
 import org.jetbrains.jet.lang.types.checker.JetTypeChecker
 import com.intellij.codeInsight.lookup.LookupElementPresentation
-import org.jetbrains.jet.plugin.completion.handlers.WithTailStringInsertHandler
 import java.util.ArrayList
 import org.jetbrains.jet.plugin.completion.*
+import com.intellij.openapi.util.Key
+import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor
+import org.jetbrains.jet.plugin.project.ResolveSessionForBodies
+import org.jetbrains.jet.lang.resolve.BindingContext
+import org.jetbrains.jet.plugin.completion.handlers.WithTailInsertHandler
 
 class ArtificialElementInsertHandler(
         val textBeforeCaret: String, val textAfterCaret: String, val shortenRefs: Boolean) : InsertHandler<LookupElement>{
@@ -50,13 +69,19 @@ fun LookupElement.addTail(tail: Tail?): LookupElement {
 
         Tail.COMMA -> object: LookupElementDecorator<LookupElement>(this) {
             override fun handleInsert(context: InsertionContext) {
-                WithTailCharInsertHandler(',', true /*TODO: use code style option*/).handleInsert(context, getDelegate())
+                WithTailInsertHandler(",", spaceBefore = false, spaceAfter = true /*TODO: use code style option*/).handleInsert(context, getDelegate())
             }
         }
 
-        Tail.PARENTHESIS -> object: LookupElementDecorator<LookupElement>(this) {
+        Tail.RPARENTH -> object: LookupElementDecorator<LookupElement>(this) {
             override fun handleInsert(context: InsertionContext) {
-                WithTailCharInsertHandler(')', false).handleInsert(context, getDelegate())
+                handlers.WithTailInsertHandler(")", spaceBefore = false, spaceAfter = false).handleInsert(context, getDelegate())
+            }
+        }
+
+        Tail.ELSE -> object: LookupElementDecorator<LookupElement>(this) {
+            override fun handleInsert(context: InsertionContext) {
+                handlers.WithTailInsertHandler("else", spaceBefore = true, spaceAfter = true).handleInsert(context, getDelegate())
             }
         }
     }
@@ -66,6 +91,13 @@ fun LookupElement.addTail(matchedExpectedInfos: Collection<ExpectedInfo>): Looku
     = addTail(mergeTails(matchedExpectedInfos.map { it.tail }))
 
 fun LookupElement.suppressAutoInsertion() = AutoCompletionPolicy.NEVER_AUTOCOMPLETE.applyPolicy(this)
+
+val KEEP_OLD_ARGUMENT_LIST_ON_TAB_KEY = Key<Unit>("KEEP_OLD_ARGUMENT_LIST_ON_TAB_KEY")
+
+fun LookupElement.keepOldArgumentListOnTab(): LookupElement {
+    putUserData(KEEP_OLD_ARGUMENT_LIST_ON_TAB_KEY, Unit.VALUE)
+    return this
+}
 
 enum class ExpectedInfoClassification {
     MATCHES
@@ -105,7 +137,7 @@ fun MutableCollection<LookupElement>.addLookupElementsForNullable(factory: () ->
                 presentation.setItemText("!! " + presentation.getItemText())
             }
             override fun handleInsert(context: InsertionContext) {
-                WithTailStringInsertHandler("!!").handleInsert(context, getDelegate())
+                WithTailInsertHandler("!!", spaceBefore = false, spaceAfter = false).handleInsert(context, getDelegate())
             }
         }
         lookupElement = lookupElement!!.suppressAutoInsertion()
@@ -120,7 +152,7 @@ fun MutableCollection<LookupElement>.addLookupElementsForNullable(factory: () ->
                 presentation.setItemText("?: " + presentation.getItemText())
             }
             override fun handleInsert(context: InsertionContext) {
-                WithTailStringInsertHandler(" ?: ").handleInsert(context, getDelegate()) //TODO: code style
+                handlers.WithTailInsertHandler("?:", spaceBefore = true, spaceAfter = true).handleInsert(context, getDelegate()) //TODO: code style
             }
         }
         lookupElement = lookupElement!!.suppressAutoInsertion()
@@ -129,11 +161,15 @@ fun MutableCollection<LookupElement>.addLookupElementsForNullable(factory: () ->
 }
 
 fun functionType(function: FunctionDescriptor): JetType? {
-    return KotlinBuiltIns.getInstance().getKFunctionType(function.getAnnotations(),
-                                                         null,
-                                                         function.getValueParameters().map { it.getType() },
-                                                         function.getReturnType() ?: return null,
-                                                         function.getReceiverParameter() != null)
+    return KotlinBuiltIns.getInstance().getFunctionType(function.getAnnotations(),
+                                                        null,
+                                                        function.getValueParameters().map { it.getType() },
+                                                        function.getReturnType() ?: return null)
+}
+
+fun createLookupElement(descriptor: DeclarationDescriptor, resolveSession: ResolveSessionForBodies, bindingContext: BindingContext): LookupElement {
+    val element = DescriptorLookupConverter.createLookupElement(resolveSession, bindingContext, descriptor)
+    return if (descriptor is FunctionDescriptor && descriptor.getValueParameters().isNotEmpty()) element.keepOldArgumentListOnTab() else element
 }
 
 fun JetType.isSubtypeOf(expectedType: JetType) = !isError() && JetTypeChecker.INSTANCE.isSubtypeOf(this, expectedType)

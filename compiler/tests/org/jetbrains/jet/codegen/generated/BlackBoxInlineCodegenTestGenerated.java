@@ -36,6 +36,26 @@ public class BlackBoxInlineCodegenTestGenerated extends AbstractBlackBoxCodegenT
         JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), "org.jetbrains.jet.generators.tests.TestsPackage", new File("compiler/testData/codegen/boxInline"), Pattern.compile("^([^\\.]+)$"), false);
     }
     
+    @TestMetadata("anonymousObjectOnCallSite")
+    public void testAnonymousObjectOnCallSite() throws Exception {
+        doTestMultiFileWithInlineCheck("compiler/testData/codegen/boxInline/anonymousObjectOnCallSite");
+    }
+    
+    @TestMetadata("anonymousObjectOnCallSiteSuperParams")
+    public void testAnonymousObjectOnCallSiteSuperParams() throws Exception {
+        doTestMultiFileWithInlineCheck("compiler/testData/codegen/boxInline/anonymousObjectOnCallSiteSuperParams");
+    }
+    
+    @TestMetadata("anonymousObjectOnDeclarationSite")
+    public void testAnonymousObjectOnDeclarationSite() throws Exception {
+        doTestMultiFileWithInlineCheck("compiler/testData/codegen/boxInline/anonymousObjectOnDeclarationSite");
+    }
+    
+    @TestMetadata("anonymousObjectOnDeclarationSiteSuperParams")
+    public void testAnonymousObjectOnDeclarationSiteSuperParams() throws Exception {
+        doTestMultiFileWithInlineCheck("compiler/testData/codegen/boxInline/anonymousObjectOnDeclarationSiteSuperParams");
+    }
+    
     @TestMetadata("builders")
     public void testBuilders() throws Exception {
         doTestMultiFileWithInlineCheck("compiler/testData/codegen/boxInline/builders");
@@ -71,6 +91,11 @@ public class BlackBoxInlineCodegenTestGenerated extends AbstractBlackBoxCodegenT
         doTestMultiFileWithInlineCheck("compiler/testData/codegen/boxInline/closureChain");
     }
     
+    @TestMetadata("defaultMethod")
+    public void testDefaultMethod() throws Exception {
+        doTestMultiFileWithInlineCheck("compiler/testData/codegen/boxInline/defaultMethod");
+    }
+    
     @TestMetadata("extension")
     public void testExtension() throws Exception {
         doTestMultiFileWithInlineCheck("compiler/testData/codegen/boxInline/extension");
@@ -104,6 +129,11 @@ public class BlackBoxInlineCodegenTestGenerated extends AbstractBlackBoxCodegenT
     @TestMetadata("inlineChain")
     public void testInlineChain() throws Exception {
         doTestMultiFileWithInlineCheck("compiler/testData/codegen/boxInline/inlineChain");
+    }
+    
+    @TestMetadata("inlineInDefaultParameter")
+    public void testInlineInDefaultParameter() throws Exception {
+        doTestMultiFileWithInlineCheck("compiler/testData/codegen/boxInline/inlineInDefaultParameter");
     }
     
     @TestMetadata("lambdaClassClash")
@@ -199,6 +229,11 @@ public class BlackBoxInlineCodegenTestGenerated extends AbstractBlackBoxCodegenT
     @TestMetadata("simpleCapturingInPackage")
     public void testSimpleCapturingInPackage() throws Exception {
         doTestMultiFileWithInlineCheck("compiler/testData/codegen/boxInline/simpleCapturingInPackage");
+    }
+    
+    @TestMetadata("simpleDefaultMethod")
+    public void testSimpleDefaultMethod() throws Exception {
+        doTestMultiFileWithInlineCheck("compiler/testData/codegen/boxInline/simpleDefaultMethod");
     }
     
     @TestMetadata("simpleDouble")

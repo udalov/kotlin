@@ -184,8 +184,10 @@ public interface Errors {
     DiagnosticFactory1<JetTypeReference, JetType> FINAL_UPPER_BOUND = DiagnosticFactory1.create(WARNING);
     DiagnosticFactory1<JetTypeReference, JetType> FINAL_CLASS_OBJECT_UPPER_BOUND = DiagnosticFactory1.create(ERROR);
 
-    DiagnosticFactory1<PsiElement, TypeParameterDescriptor> CONFLICTING_UPPER_BOUNDS = DiagnosticFactory1.create(ERROR);
-    DiagnosticFactory1<PsiElement, TypeParameterDescriptor> CONFLICTING_CLASS_OBJECT_UPPER_BOUNDS = DiagnosticFactory1.create(ERROR);
+    DiagnosticFactory1<PsiNameIdentifierOwner, TypeParameterDescriptor> CONFLICTING_UPPER_BOUNDS =
+            DiagnosticFactory1.create(ERROR, NAME_IDENTIFIER);
+    DiagnosticFactory1<PsiNameIdentifierOwner, TypeParameterDescriptor> CONFLICTING_CLASS_OBJECT_UPPER_BOUNDS
+            = DiagnosticFactory1.create(ERROR, NAME_IDENTIFIER);
 
     DiagnosticFactory2<JetSimpleNameExpression, JetTypeConstraint, JetTypeParameterListOwner> NAME_IN_CONSTRAINT_IS_NOT_A_TYPE_PARAMETER =
             DiagnosticFactory2.create(ERROR);
@@ -215,9 +217,10 @@ public interface Errors {
     DiagnosticFactory2<JetAnnotationEntry, CallableMemberDescriptor, DeclarationDescriptor> DATA_CLASS_OVERRIDE_CONFLICT =
             DiagnosticFactory2.create(ERROR);
 
-    DiagnosticFactory0<JetDeclaration> CANNOT_INFER_VISIBILITY = DiagnosticFactory0.create(ERROR, DECLARATION);
+    DiagnosticFactory1<JetDeclaration, CallableMemberDescriptor> CANNOT_INFER_VISIBILITY = DiagnosticFactory1.create(ERROR, DECLARATION);
 
-    DiagnosticFactory2<PsiElement, CallableMemberDescriptor, DeclarationDescriptor> OVERRIDING_FINAL_MEMBER = DiagnosticFactory2.create(ERROR);
+    DiagnosticFactory2<JetNamedDeclaration, CallableMemberDescriptor, DeclarationDescriptor> OVERRIDING_FINAL_MEMBER =
+            DiagnosticFactory2.create(ERROR, OVERRIDE_MODIFIER);
 
     DiagnosticFactory3<JetModifierListOwner, Visibility, CallableMemberDescriptor, DeclarationDescriptor> CANNOT_WEAKEN_ACCESS_PRIVILEGE =
             DiagnosticFactory3.create(ERROR, VISIBILITY_MODIFIER);
@@ -367,7 +370,9 @@ public interface Errors {
     DiagnosticFactory1<PsiElement, InferenceErrorData> TYPE_INFERENCE_UPPER_BOUND_VIOLATED = DiagnosticFactory1.create(ERROR);
     DiagnosticFactory2<JetExpression, JetType, JetType> TYPE_INFERENCE_EXPECTED_TYPE_MISMATCH = DiagnosticFactory2.create(ERROR);
 
-    // Callable references
+    // Reflection
+
+    DiagnosticFactory0<PsiElement> REFLECTION_TYPES_NOT_LOADED = DiagnosticFactory0.create(ERROR);
 
     DiagnosticFactory1<JetExpression, CallableMemberDescriptor> EXTENSION_IN_CLASS_REFERENCE_NOT_ALLOWED = DiagnosticFactory1.create(ERROR);
     DiagnosticFactory0<JetExpression> CALLABLE_REFERENCE_LHS_NOT_A_CLASS = DiagnosticFactory0.create(ERROR);
@@ -429,9 +434,9 @@ public interface Errors {
     DiagnosticFactory0<JetSimpleNameExpression> LABEL_NAME_CLASH = DiagnosticFactory0.create(WARNING);
     DiagnosticFactory0<JetSimpleNameExpression> AMBIGUOUS_LABEL = DiagnosticFactory0.create(ERROR);
 
-    DiagnosticFactory0<JetLabelQualifiedExpression> BREAK_OR_CONTINUE_OUTSIDE_A_LOOP = DiagnosticFactory0.create(ERROR);
-    DiagnosticFactory0<JetLabelQualifiedExpression> BREAK_OR_CONTINUE_JUMPS_ACROSS_FUNCTION_BOUNDARY = DiagnosticFactory0.create(ERROR);
-    DiagnosticFactory1<JetLabelQualifiedExpression, String> NOT_A_LOOP_LABEL = DiagnosticFactory1.create(ERROR);
+    DiagnosticFactory0<JetExpressionWithLabel> BREAK_OR_CONTINUE_OUTSIDE_A_LOOP = DiagnosticFactory0.create(ERROR);
+    DiagnosticFactory0<JetExpressionWithLabel> BREAK_OR_CONTINUE_JUMPS_ACROSS_FUNCTION_BOUNDARY = DiagnosticFactory0.create(ERROR);
+    DiagnosticFactory1<JetExpressionWithLabel, String> NOT_A_LOOP_LABEL = DiagnosticFactory1.create(ERROR);
     DiagnosticFactory1<JetReturnExpression, String> NOT_A_RETURN_LABEL = DiagnosticFactory1.create(ERROR);
 
     // Control flow / Data flow

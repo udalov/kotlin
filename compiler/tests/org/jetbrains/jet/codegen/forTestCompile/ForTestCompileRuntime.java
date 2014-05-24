@@ -17,7 +17,6 @@
 package org.jetbrains.jet.codegen.forTestCompile;
 
 import com.intellij.openapi.util.io.FileUtil;
-import com.intellij.util.containers.ContainerUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.JetTestUtils;
 import org.jetbrains.jet.cli.common.ExitCode;
@@ -38,6 +37,7 @@ import java.util.regex.Pattern;
 public class ForTestCompileRuntime {
     private static final String BUILT_INS_SRC_PATH = "core/builtins/src";
     private static final String RUNTIME_JVM_SRC_PATH = "core/runtime.jvm/src";
+    private static final String REFLECTION_SRC_PATH = "core/reflection/src";
 
     private ForTestCompileRuntime() {
     }
@@ -57,11 +57,11 @@ public class ForTestCompileRuntime {
     }
 
     private static void compileBuiltIns(@NotNull File destDir) throws IOException {
-        String src = BUILT_INS_SRC_PATH + File.pathSeparator + RUNTIME_JVM_SRC_PATH;
+        String src = BUILT_INS_SRC_PATH + File.pathSeparator + RUNTIME_JVM_SRC_PATH + File.pathSeparator + REFLECTION_SRC_PATH;
         compileKotlinToJvm("built-ins", destDir, src, src);
 
         JetTestUtils.compileJavaFiles(
-                ContainerUtil.concat(javaFilesUnder(BUILT_INS_SRC_PATH), javaFilesUnder(RUNTIME_JVM_SRC_PATH)),
+                javaFilesUnder(RUNTIME_JVM_SRC_PATH),
                 Arrays.asList(
                         "-classpath", destDir.getPath(),
                         "-d", destDir.getPath()

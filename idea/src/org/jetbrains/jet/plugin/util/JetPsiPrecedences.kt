@@ -31,7 +31,7 @@ public object JetPsiPrecedences {
     private val precedence: Map<IElementType, Int>
     {
         val builder = HashMap<IElementType, Int>()
-        for ((i, record) in JetExpressionParsing.Precedence.values().withIndices_tmp()) {
+        for ((i, record) in JetExpressionParsing.Precedence.values().withIndices()) {
             for (elementType in record.getOperations().getTypes()) {
                 builder[elementType] = i
             }
@@ -46,6 +46,7 @@ public object JetPsiPrecedences {
     public fun getPrecedence(expression: JetExpression): Int {
         return when (expression) {
             is JetAnnotatedExpression,
+            is JetLabeledExpression,
             is JetPrefixExpression -> PRECEDENCE_OF_PREFIX_EXPRESSION
             is JetPostfixExpression -> PRECEDENCE_OF_POSTFIX_EXPRESSION
             is JetOperationExpression -> {
@@ -59,5 +60,9 @@ public object JetPsiPrecedences {
             }
             else -> PRECEDENCE_OF_ATOMIC_EXPRESSION
         }
+    }
+
+    public fun isTighter(subject: Int, tighterThan: Int): Boolean {
+        return subject < tighterThan
     }
 }

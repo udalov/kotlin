@@ -19,6 +19,7 @@ package org.jetbrains.jet.lang.resolve;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Multimap;
 import com.intellij.psi.PsiElement;
+import com.intellij.psi.util.PsiTreeUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.*;
@@ -34,6 +35,7 @@ import java.util.Collection;
 import java.util.List;
 
 import static org.jetbrains.jet.lang.diagnostics.Errors.MANY_CLASS_OBJECTS;
+import static org.jetbrains.jet.lang.diagnostics.Errors.UNSUPPORTED;
 
 public class LazyTopDownAnalyzer {
 
@@ -124,13 +126,24 @@ public class LazyTopDownAnalyzer {
 
                                 c.addFile(file);
 
-                                DescriptorResolver.resolvePackageHeader(packageDirective, moduleDescriptor, trace);
+                                packageDirective.accept(this);
                                 DescriptorResolver.registerFileInPackage(trace, file);
 
                                 registerDeclarations(file.getDeclarations());
 
                                 topLevelFqNames.put(file.getPackageFqName(), packageDirective);
                             }
+                        }
+
+                        @Override
+                        public void visitPackageDirective(@NotNull JetPackageDirective directive) {
+                            DescriptorResolver.resolvePackageHeader(directive, moduleDescriptor, trace);
+                        }
+
+                        @Override
+                        public void visitImportDirective(@NotNull JetImportDirective importDirective) {
+                            LazyImportScope importScope = resolveSession.getScopeProvider().getExplicitImportsScopeForFile(importDirective.getContainingJetFile());
+                            importScope.forceResolveImportDirective(importDirective);
                         }
 
                         private void visitClassOrObject(@NotNull JetClassOrObject classOrObject) {
@@ -167,7 +180,7 @@ public class LazyTopDownAnalyzer {
 
                         private void registerPrimaryConstructorParameters(@NotNull JetClass klass) {
                             for (JetParameter jetParameter : klass.getPrimaryConstructorParameters()) {
-                                if (jetParameter.getValOrVarNode() != null) {
+                                if (jetParameter.hasValOrVarNode()) {
                                     c.getPrimaryConstructorParameterProperties().put(
                                             jetParameter,
                                             (PropertyDescriptor) resolveSession.resolveToDescriptor(jetParameter)
@@ -194,6 +207,21 @@ public class LazyTopDownAnalyzer {
                         @Override
                         public void visitAnonymousInitializer(@NotNull JetClassInitializer initializer) {
                             registerScope(c, resolveSession, initializer);
+                            JetClassOrObject classOrObject = PsiTreeUtil.getParentOfType(initializer, JetClassOrObject.class);
+                            c.getAnonymousInitializers().put(
+                                    initializer,
+                                    (ClassDescriptorWithResolutionScopes) resolveSession.resolveToDescriptor(classOrObject)
+                            );
+                        }
+
+                        @Override
+                        public void visitTypedef(@NotNull JetTypedef typedef) {
+                            trace.report(UNSUPPORTED.on(typedef, "Typedefs are not supported"));
+                        }
+
+                        @Override
+                        public void visitMultiDeclaration(@NotNull JetMultiDeclaration multiDeclaration) {
+                            // Ignore: multi-declarations are only allowed locally
                         }
 
                         @Override

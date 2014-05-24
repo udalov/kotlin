@@ -28,13 +28,9 @@ import org.jetbrains.jet.lang.descriptors.annotations.Annotations;
 import org.jetbrains.jet.lang.descriptors.impl.*;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.*;
-import org.jetbrains.jet.lang.resolve.name.LabelName;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
-import org.jetbrains.jet.lang.types.CommonSupertypes;
-import org.jetbrains.jet.lang.types.DeferredType;
-import org.jetbrains.jet.lang.types.JetType;
-import org.jetbrains.jet.lang.types.JetTypeInfo;
+import org.jetbrains.jet.lang.types.*;
 import org.jetbrains.jet.lang.types.checker.JetTypeChecker;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 import org.jetbrains.jet.util.slicedmap.WritableSlice;
@@ -104,13 +100,7 @@ public class ClosureExpressionsTypingVisitor extends ExpressionTypingVisitor {
 
     @Override
     public JetTypeInfo visitFunctionLiteralExpression(@NotNull JetFunctionLiteralExpression expression, ExpressionTypingContext context) {
-        JetBlockExpression bodyExpression = expression.getFunctionLiteral().getBodyExpression();
-        if (bodyExpression == null) return null;
-
-        Name callerName = getCallerName(expression);
-        if (callerName != null) {
-            context.labelResolver.enterLabeledElement(new LabelName(callerName.asString()), expression);
-        }
+        if (!expression.getFunctionLiteral().hasBody()) return null;
 
         JetType expectedType = context.expectedType;
         boolean functionTypeExpected = !noExpectedType(expectedType) && KotlinBuiltIns.getInstance().isFunctionOrExtensionFunctionType(
@@ -129,46 +119,7 @@ public class ClosureExpressionsTypingVisitor extends ExpressionTypingVisitor {
             return JetTypeInfo.create(resultType, context.dataFlowInfo);
         }
 
-        if (callerName != null) {
-            context.labelResolver.exitLabeledElement(expression);
-        }
-
         return DataFlowUtils.checkType(resultType, expression, context, context.dataFlowInfo);
-    }
-
-    @Nullable
-    private static Name getCallerName(@NotNull JetFunctionLiteralExpression expression) {
-        JetCallExpression callExpression = getContainingCallExpression(expression);
-        if (callExpression == null) return null;
-
-        JetExpression calleeExpression = callExpression.getCalleeExpression();
-        if (calleeExpression instanceof JetSimpleNameExpression) {
-            JetSimpleNameExpression nameExpression = (JetSimpleNameExpression) calleeExpression;
-            return nameExpression.getReferencedNameAsName();
-        }
-
-        return null;
-    }
-
-    @Nullable
-    private static JetCallExpression getContainingCallExpression(JetFunctionLiteralExpression expression) {
-        PsiElement parent = expression.getParent();
-        if (parent instanceof JetCallExpression) {
-            // f {}
-            return (JetCallExpression) parent;
-        }
-
-        if (parent instanceof JetValueArgument) {
-            // f ({}) or f(p = {})
-            JetValueArgument argument = (JetValueArgument) parent;
-            PsiElement argList = argument.getParent();
-            if (argList == null) return null;
-            PsiElement call = argList.getParent();
-            if (call instanceof JetCallExpression) {
-                return (JetCallExpression) call;
-            }
-        }
-        return null;
     }
 
     @NotNull
@@ -276,7 +227,7 @@ public class ClosureExpressionsTypingVisitor extends ExpressionTypingVisitor {
             }
         }
         else {
-            if (expectedType == null || expectedType == DONT_CARE || expectedType == CANT_INFER_TYPE_PARAMETER) {
+            if (expectedType == null || expectedType == DONT_CARE || ErrorUtils.isUninferredParameter(expectedType)) {
                 context.trace.report(CANNOT_INFER_PARAMETER_TYPE.on(declaredParameter));
             }
             if (expectedType != null) {

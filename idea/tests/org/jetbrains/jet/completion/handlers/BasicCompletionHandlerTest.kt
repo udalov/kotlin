@@ -1,3 +1,19 @@
+/*
+ * Copyright 2010-2014 JetBrains s.r.o.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.jetbrains.jet.completion.handlers
 
 import com.intellij.codeInsight.completion.CompletionType
@@ -9,6 +25,12 @@ public class BasicCompletionHandlerTest : CompletionHandlerTestBase(){
     override val testDataRelativePath: String = "/completion/handlers"
 
     fun testClassCompletionImport() = doTest(2, "SortedSet", null, '\n')
+
+    fun testClassCompletionInMiddle() = doTest(1, "TimeZone", " (java.util)", '\t')
+
+    fun testClassCompletionInImport() = doTest(1, "TimeZone", " (java.util)", '\t')
+
+    fun testClassCompletionInLambda() = doTest(1, "String", " (kotlin)", '\n')
 
     fun testDoNotInsertImportForAlreadyImported() = doTest()
 
@@ -109,4 +131,8 @@ public class BasicCompletionHandlerTest : CompletionHandlerTestBase(){
     }
 
     fun testObject() = doTest()
+
+    fun testEnumMember() = doTest(1, "A", null, '\n')
+    fun testEnumMember1() = doTest(1, "A", null, '\n')
+    fun testClassFromClassObject() = doTest(1, "Some", null, '\n')
 }

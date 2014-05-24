@@ -24,6 +24,7 @@ import org.jetbrains.jet.lang.descriptors.ClassDescriptor;
 import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor;
 import org.jetbrains.jet.lang.descriptors.PackageViewDescriptor;
 import org.jetbrains.jet.lang.resolve.BindingContext;
+import org.jetbrains.jet.lang.resolve.BindingTrace;
 import org.jetbrains.jet.lang.resolve.BindingTraceContext;
 import org.jetbrains.jet.lang.resolve.java.JvmAbi;
 import org.jetbrains.jet.lang.resolve.objc.ObjCMetaclassDescriptor;
@@ -39,21 +40,23 @@ public class ObjCDescriptorCodegen {
     public static final String METACLASS_SUFFIX = "$metaclass";
 
     private final JetTypeMapper typeMapper;
+    private final BindingTrace bindingTrace;
 
     public ObjCDescriptorCodegen() {
-        this.typeMapper = new JetTypeMapper(new BindingTraceContext(), ClassBuilderMode.FULL);
+        this.bindingTrace = new BindingTraceContext();
+        this.typeMapper = new JetTypeMapper(bindingTrace.getBindingContext(), ClassBuilderMode.FULL);
     }
 
     @NotNull
     public BindingContext getBindingContext() {
-        return typeMapper.getBindingContext();
+        return bindingTrace.getBindingContext();
     }
 
     // This is needed to make JetTypeMapper correctly map class objects
     private void recordFQNForClassObject(@NotNull ClassDescriptor classDescriptor, @NotNull ClassDescriptor classObject) {
         String internalName = typeMapper.mapClass(classDescriptor).getInternalName();
         Type classObjectType = Type.getObjectType(internalName + JvmAbi.CLASS_OBJECT_SUFFIX);
-        typeMapper.getBindingTrace().record(CodegenBinding.ASM_TYPE, classObject, classObjectType);
+        bindingTrace.record(CodegenBinding.ASM_TYPE, classObject, classObjectType);
     }
 
     private void writeClassFile(@NotNull ClassDescriptor descriptor, @NotNull File outputDir, @NotNull byte[] bytes) {
@@ -98,7 +101,7 @@ public class ObjCDescriptorCodegen {
             if (descriptor instanceof ObjCMetaclassDescriptor) {
                 String internalName = typeMapper.mapClass(((ObjCMetaclassDescriptor) descriptor).getClassDescriptor()).getInternalName();
                 Type metaclassType = Type.getObjectType(internalName + METACLASS_SUFFIX);
-                typeMapper.getBindingTrace().record(CodegenBinding.ASM_TYPE, descriptor, metaclassType);
+                bindingTrace.record(CodegenBinding.ASM_TYPE, descriptor, metaclassType);
             }
         }
 

@@ -20,7 +20,8 @@ import com.google.common.collect.Lists;
 import com.intellij.lang.ASTNode;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.jet.JetNodeTypes;
+import org.jetbrains.jet.lang.psi.stubs.PsiJetPlaceHolderStub;
+import org.jetbrains.jet.lang.psi.stubs.elements.JetStubElementTypes;
 import org.jetbrains.jet.lexer.JetToken;
 import org.jetbrains.jet.lexer.JetTokens;
 
@@ -28,12 +29,16 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-public class JetFunctionType extends JetTypeElement {
+public class JetFunctionType extends JetElementImplStub<PsiJetPlaceHolderStub<JetFunctionType>> implements JetTypeElement {
 
     public static final JetToken RETURN_TYPE_SEPARATOR = JetTokens.ARROW;
 
     public JetFunctionType(@NotNull ASTNode node) {
         super(node);
+    }
+
+    public JetFunctionType(@NotNull PsiJetPlaceHolderStub<JetFunctionType> stub) {
+        super(stub, JetStubElementTypes.FUNCTION_TYPE);
     }
 
     @NotNull
@@ -61,7 +66,7 @@ public class JetFunctionType extends JetTypeElement {
 
     @Nullable
     public JetParameterList getParameterList() {
-        return (JetParameterList) findChildByType(JetNodeTypes.VALUE_PARAMETER_LIST);
+        return getStubOrPsiChild(JetStubElementTypes.VALUE_PARAMETER_LIST);
     }
 
     @NotNull
@@ -72,7 +77,7 @@ public class JetFunctionType extends JetTypeElement {
 
     @Nullable
     public JetTypeReference getReceiverTypeRef() {
-        JetFunctionTypeReceiver receiverDeclaration = (JetFunctionTypeReceiver) findChildByType(JetNodeTypes.FUNCTION_TYPE_RECEIVER);
+        JetFunctionTypeReceiver receiverDeclaration = getStubOrPsiChild(JetStubElementTypes.FUNCTION_TYPE_RECEIVER);
         if (receiverDeclaration == null) {
             return null;
         }
@@ -81,6 +86,6 @@ public class JetFunctionType extends JetTypeElement {
 
     @Nullable
     public JetTypeReference getReturnTypeRef() {
-        return (JetTypeReference) findChildByType(JetNodeTypes.TYPE_REFERENCE);
+        return getStubOrPsiChild(JetStubElementTypes.TYPE_REFERENCE);
     }
 }

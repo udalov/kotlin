@@ -27,7 +27,7 @@ import org.jetbrains.jet.lexer.JetTokens;
 import java.util.Collections;
 import java.util.List;
 
-public class JetCallExpression extends JetReferenceExpression implements JetCallElement {
+public class JetCallExpression extends JetExpressionImpl implements JetCallElement, JetReferenceExpression {
     public JetCallExpression(@NotNull ASTNode node) {
         super(node);
     }
@@ -76,13 +76,11 @@ public class JetCallExpression extends JetReferenceExpression implements JetCall
             if (psi instanceof JetFunctionLiteralExpression) {
                 result.add((JetFunctionLiteralExpression) psi);
             }
-            else if (psi instanceof JetPrefixExpression) {
-                JetPrefixExpression prefixExpression = (JetPrefixExpression) psi;
-                if (JetTokens.LABELS.contains(prefixExpression.getOperationReference().getReferencedNameElementType())) {
-                    JetExpression labeledExpression = prefixExpression.getBaseExpression();
-                    if (labeledExpression instanceof JetFunctionLiteralExpression) {
-                        result.add(prefixExpression);
-                    }
+            else if (psi instanceof JetLabeledExpression) {
+                JetLabeledExpression labeledExpression = (JetLabeledExpression) psi;
+                JetExpression baseExpression = labeledExpression.getBaseExpression();
+                if (baseExpression instanceof JetFunctionLiteralExpression) {
+                    result.add(labeledExpression);
                 }
             }
             node = node.getTreeNext();

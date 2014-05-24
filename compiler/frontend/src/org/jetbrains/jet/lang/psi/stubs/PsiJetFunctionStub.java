@@ -20,17 +20,13 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.lang.psi.JetNamedFunction;
 
 public interface PsiJetFunctionStub extends PsiJetStubWithFqName<JetNamedFunction> {
-    /**
-     * Is function defined in directly in package.
-     * @return
-     */
     boolean isTopLevel();
 
-    /**
-     * Does function extends some type.
-     */
     boolean isExtension();
 
-    @NotNull
-    String[] getAnnotations();
+    boolean hasBlockBody();
+
+    boolean hasBody();
+
+    boolean hasTypeParameterListBeforeFunctionName();
 }

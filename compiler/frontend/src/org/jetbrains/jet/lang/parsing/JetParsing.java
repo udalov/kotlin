@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2013 JetBrains s.r.o.
+ * Copyright 2010-2014 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -48,7 +48,7 @@ public class JetParsing extends AbstractJetParsing {
     private static final TokenSet PARAMETER_NAME_RECOVERY_SET = TokenSet.create(COLON, EQ, COMMA, RPAR);
     private static final TokenSet PACKAGE_NAME_RECOVERY_SET = TokenSet.create(DOT, EOL_OR_SEMICOLON);
     private static final TokenSet IMPORT_RECOVERY_SET = TokenSet.create(AS_KEYWORD, DOT, EOL_OR_SEMICOLON);
-    /*package*/ static final TokenSet TYPE_REF_FIRST = TokenSet.create(LBRACKET, IDENTIFIER, FUN_KEYWORD, LPAR, CAPITALIZED_THIS_KEYWORD, HASH);
+    /*package*/ static final TokenSet TYPE_REF_FIRST = TokenSet.create(LBRACKET, IDENTIFIER, LPAR, CAPITALIZED_THIS_KEYWORD, HASH);
     private static final TokenSet RECEIVER_TYPE_TERMINATORS = TokenSet.create(DOT, SAFE_ACCESS);
     private static final TokenSet VALUE_PARAMETER_FIRST =
             TokenSet.orSet(TokenSet.create(IDENTIFIER, LBRACKET, VAL_KEYWORD, VAR_KEYWORD), MODIFIER_KEYWORDS);
@@ -106,10 +106,7 @@ public class JetParsing extends AbstractJetParsing {
         PsiBuilder.Marker marker = mark();
         parseTypeRef();
 
-        while (!eof()) {
-            error("unexpected symbol");
-            advance();
-        }
+        checkForUnexpectedSymbols();
 
         marker.done(TYPE_CODE_FRAGMENT);
     }
@@ -118,12 +115,27 @@ public class JetParsing extends AbstractJetParsing {
         PsiBuilder.Marker marker = mark();
         myExpressionParsing.parseExpression();
 
-        while (!eof()) {
-            error("unexpected symbol");
-            advance();
-        }
+        checkForUnexpectedSymbols();
 
         marker.done(EXPRESSION_CODE_FRAGMENT);
+    }
+
+    void parseBlockCodeFragment() {
+        PsiBuilder.Marker marker = mark();
+        PsiBuilder.Marker blockMarker = mark();
+
+        if (at(PACKAGE_KEYWORD) || at(IMPORT_KEYWORD)) {
+            PsiBuilder.Marker err = mark();
+            parsePreamble();
+            err.error("Package directive and imports are forbidden in code fragments");
+        }
+
+        myExpressionParsing.parseStatements();
+
+        checkForUnexpectedSymbols();
+
+        blockMarker.done(BLOCK);
+        marker.done(BLOCK_CODE_FRAGMENT);
     }
 
     void parseScript() {
@@ -137,9 +149,17 @@ public class JetParsing extends AbstractJetParsing {
 
         myExpressionParsing.parseStatements();
 
+        checkForUnexpectedSymbols();
+
         blockMarker.done(BLOCK);
         scriptMarker.done(SCRIPT);
         fileMarker.done(JET_FILE);
+    }
+
+    private void checkForUnexpectedSymbols() {
+        while (!eof()) {
+            errorAndAdvance("unexpected symbol");
+        }
     }
 
     /*
@@ -356,7 +376,7 @@ public class JetParsing extends AbstractJetParsing {
     /*
      * (modifier | attribute)*
      */
-    boolean parseModifierList(JetNodeType nodeType, boolean allowShortAnnotations) {
+    boolean parseModifierList(IElementType nodeType, boolean allowShortAnnotations) {
         return parseModifierList(nodeType, null, allowShortAnnotations);
     }
 
@@ -365,7 +385,7 @@ public class JetParsing extends AbstractJetParsing {
      *
      * Feeds modifiers (not attributes) into the passed consumer, if it is not null
      */
-    boolean parseModifierList(JetNodeType nodeType, @Nullable Consumer<IElementType> tokenConsumer, boolean allowShortAnnotations) {
+    boolean parseModifierList(IElementType nodeType, @Nullable Consumer<IElementType> tokenConsumer, boolean allowShortAnnotations) {
         PsiBuilder.Marker list = mark();
         boolean empty = true;
         while (!eof()) {
@@ -768,7 +788,8 @@ public class JetParsing extends AbstractJetParsing {
             type = DELEGATOR_SUPER_CALL;
         }
         else {
-            errorWithRecovery("Expecting constructor call (this(...)) or supertype initializer", TokenSet.create(LBRACE, COMMA));
+            errorWithRecovery("Expecting constructor call (this(...)) or supertype initializer",
+                              TokenSet.orSet(TOPLEVEL_OBJECT_FIRST, TokenSet.create(RBRACE, LBRACE, COMMA, SEMICOLON)));
             initializer.drop();
             return;
         }
@@ -782,7 +803,7 @@ public class JetParsing extends AbstractJetParsing {
      *   : modifiers "class" object
      *   ;
      */
-    private JetNodeType parseClassObject() {
+    private IElementType parseClassObject() {
         assert _at(CLASS_KEYWORD) && lookahead(1) == OBJECT_KEYWORD;
 
         advance(); // CLASS_KEYWORD
@@ -1594,7 +1615,7 @@ public class JetParsing extends AbstractJetParsing {
         return atGT;
     }
 
-    private void parseModifierListWithShortAnnotations(JetNodeType modifierList, TokenSet lookFor, TokenSet stopAt) {
+    private void parseModifierListWithShortAnnotations(IElementType modifierList, TokenSet lookFor, TokenSet stopAt) {
         int lastId = findLastBefore(lookFor, stopAt, false);
         createTruncatedBuilder(lastId).parseModifierList(modifierList, true);
     }

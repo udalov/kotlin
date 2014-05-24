@@ -19,6 +19,7 @@ package org.jetbrains.jet.lang.psi;
 import com.intellij.lang.ASTNode;
 import com.intellij.navigation.ItemPresentation;
 import com.intellij.navigation.ItemPresentationProviders;
+import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.tree.IElementType;
 import com.intellij.psi.tree.TokenSet;
@@ -38,6 +39,9 @@ import static org.jetbrains.jet.lexer.JetTokens.*;
 
 public class JetProperty extends JetTypeParameterListOwnerStub<PsiJetPropertyStub> implements JetVariableDeclaration,
                                                                                               JetCallableDeclaration {
+
+    private static final Logger LOG = Logger.getInstance(JetProperty.class);
+
     public JetProperty(@NotNull ASTNode node) {
         super(node);
     }
@@ -84,6 +88,20 @@ public class JetProperty extends JetTypeParameterListOwnerStub<PsiJetPropertyStu
     @Override
     @Nullable
     public JetTypeReference getReceiverTypeRef() {
+        PsiJetPropertyStub stub = getStub();
+        if (stub != null) {
+            if (!stub.hasReceiverTypeRef()) {
+                return null;
+            }
+            else {
+                return getStubOrPsiChild(JetStubElementTypes.TYPE_REFERENCE);
+            }
+        }
+        return getReceiverTypeRefByTree();
+    }
+
+    @Nullable
+    private JetTypeReference getReceiverTypeRefByTree() {
         ASTNode node = getNode().getFirstChildNode();
         while (node != null) {
             IElementType tt = node.getElementType();
@@ -107,6 +125,26 @@ public class JetProperty extends JetTypeParameterListOwnerStub<PsiJetPropertyStu
     @Override
     @Nullable
     public JetTypeReference getTypeRef() {
+        PsiJetPropertyStub stub = getStub();
+        if (stub != null) {
+            if (!stub.hasReturnTypeRef()) {
+                return null;
+            }
+            else {
+                List<JetTypeReference> typeReferences = getStubOrPsiChildrenAsList(JetStubElementTypes.TYPE_REFERENCE);
+                int returnTypeRefPositionInPsi = stub.hasReceiverTypeRef() ? 1 : 0;
+                if (typeReferences.size() <= returnTypeRefPositionInPsi) {
+                    LOG.error("Invalid stub structure built for property:\n" + getText());
+                    return null;
+                }
+                return typeReferences.get(returnTypeRefPositionInPsi);
+            }
+        }
+        return getTypeRefByTree();
+    }
+
+    @Nullable
+    private JetTypeReference getTypeRefByTree() {
         ASTNode node = getNode().getFirstChildNode();
         boolean passedColon = false;
         while (node != null) {
@@ -125,7 +163,7 @@ public class JetProperty extends JetTypeParameterListOwnerStub<PsiJetPropertyStu
 
     @NotNull
     public List<JetPropertyAccessor> getAccessors() {
-        return findChildrenByType(PROPERTY_ACCESSOR);
+        return getStubOrPsiChildrenAsList(JetStubElementTypes.PROPERTY_ACCESSOR);
     }
 
     @Nullable
@@ -146,9 +184,25 @@ public class JetProperty extends JetTypeParameterListOwnerStub<PsiJetPropertyStu
         return null;
     }
 
+    public boolean hasDelegate() {
+        PsiJetPropertyStub stub = getStub();
+        if (stub != null) {
+            return stub.hasDelegate();
+        }
+        return getDelegate() != null;
+    }
+
     @Nullable
     public JetPropertyDelegate getDelegate() {
         return (JetPropertyDelegate) findChildByType(PROPERTY_DELEGATE);
+    }
+
+    public boolean hasDelegateExpression() {
+        PsiJetPropertyStub stub = getStub();
+        if (stub != null) {
+            return stub.hasDelegateExpression();
+        }
+        return getDelegateExpression() != null;
     }
 
     @Nullable
@@ -161,9 +215,22 @@ public class JetProperty extends JetTypeParameterListOwnerStub<PsiJetPropertyStu
     }
 
     @Override
+    public boolean hasInitializer() {
+        PsiJetPropertyStub stub = getStub();
+        if (stub != null) {
+            return stub.hasInitializer();
+        }
+        return getInitializer() != null;
+    }
+
+    @Override
     @Nullable
     public JetExpression getInitializer() {
         return PsiTreeUtil.getNextSiblingOfType(findChildByType(EQ), JetExpression.class);
+    }
+
+    public boolean hasDelegateExpressionOrInitializer() {
+        return hasDelegateExpression() || hasInitializer();
     }
 
     @Nullable

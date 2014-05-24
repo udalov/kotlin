@@ -63,6 +63,14 @@ public abstract class AbstractCodeTransformationTest extends LightCodeInsightTes
         doTestIntention(path, new IfThenToSafeAccessIntention());
     }
 
+    public void doTestConvertToStringTemplate(@NotNull String path) throws Exception {
+        doTestIntention(path, new ConvertToStringTemplateIntention());
+    }
+
+    public void doTestConvertToConcatenatedStringIntention(@NotNull String path) throws Exception {
+        doTestIntention(path, new ConvertToConcatenatedStringIntention());
+    }
+
     public void doTestFoldIfToAssignment(@NotNull String path) throws Exception {
         doTestIntention(path, new FoldIfToAssignmentIntention());
     }
@@ -179,7 +187,7 @@ public abstract class AbstractCodeTransformationTest extends LightCodeInsightTes
     }
 
     public void doTestReplaceWithInfixFunctionCall(@NotNull String path) throws Exception {
-        doTestIntention(path, new ReplaceWithInfixFunctionCallIntention());
+        doTestIntention(path, new TestableReplaceWithInfixFunctionCallIntention());
     }
 
     public void doTestReplaceExplicitFunctionLiteralParamWithIt(@NotNull String path) throws Exception {
@@ -258,12 +266,28 @@ public abstract class AbstractCodeTransformationTest extends LightCodeInsightTes
         doTestIntention(path, new SimplifyBooleanWithConstantsIntention());
     }
 
+    public void doTestInvertIfCondition(@NotNull String path) throws Exception {
+        doTestIntention(path, new InvertIfConditionIntention());
+    }
+
     public void doTestMakeTypeExplicitInLambda(@NotNull String path) throws Exception {
         doTestIntention(path, new MakeTypeExplicitInLambdaIntention());
     }
 
     public void doTestMakeTypeImplicitInLambda(@NotNull String path) throws Exception {
         doTestIntention(path, new MakeTypeImplicitInLambdaIntention());
+    }
+
+    public void doTestOperatorToFunction(@NotNull String path) throws Exception {
+        doTestIntention(path, new OperatorToFunctionIntention());
+    }
+
+    public void doTestConvertToForEachLoop(@NotNull String path) throws Exception {
+        doTestIntention(path, new ConvertToForEachLoopIntention());
+    }
+
+    public void doTestConvertToForEachFunctionCall(@NotNull String path) throws Exception {
+        doTestIntention(path, new ConvertToForEachFunctionCallIntention());
     }
 
     private void doTestIntention(@NotNull String path, @NotNull IntentionAction intentionAction) throws Exception {

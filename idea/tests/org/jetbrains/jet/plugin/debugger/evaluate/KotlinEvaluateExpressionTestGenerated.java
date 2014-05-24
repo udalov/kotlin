@@ -46,6 +46,11 @@ public class KotlinEvaluateExpressionTestGenerated extends AbstractKotlinEvaluat
         doTest("idea/testData/debugger/tinyApp/src/evaluate/arrays.kt");
     }
     
+    @TestMetadata("classFromAnotherPackage.kt")
+    public void testClassFromAnotherPackage() throws Exception {
+        doTest("idea/testData/debugger/tinyApp/src/evaluate/classFromAnotherPackage.kt");
+    }
+    
     @TestMetadata("classObjectVal.kt")
     public void testClassObjectVal() throws Exception {
         doTest("idea/testData/debugger/tinyApp/src/evaluate/classObjectVal.kt");
@@ -64,6 +69,11 @@ public class KotlinEvaluateExpressionTestGenerated extends AbstractKotlinEvaluat
     @TestMetadata("enums.kt")
     public void testEnums() throws Exception {
         doTest("idea/testData/debugger/tinyApp/src/evaluate/enums.kt");
+    }
+    
+    @TestMetadata("errors.kt")
+    public void testErrors() throws Exception {
+        doTest("idea/testData/debugger/tinyApp/src/evaluate/errors.kt");
     }
     
     @TestMetadata("extractLocalVariables.kt")
@@ -89,6 +99,16 @@ public class KotlinEvaluateExpressionTestGenerated extends AbstractKotlinEvaluat
     @TestMetadata("multilineExpressionAtBreakpoint.kt")
     public void testMultilineExpressionAtBreakpoint() throws Exception {
         doTest("idea/testData/debugger/tinyApp/src/evaluate/multilineExpressionAtBreakpoint.kt");
+    }
+    
+    @TestMetadata("privateMember.kt")
+    public void testPrivateMember() throws Exception {
+        doTest("idea/testData/debugger/tinyApp/src/evaluate/privateMember.kt");
+    }
+    
+    @TestMetadata("protectedMember.kt")
+    public void testProtectedMember() throws Exception {
+        doTest("idea/testData/debugger/tinyApp/src/evaluate/protectedMember.kt");
     }
     
     @TestMetadata("simple.kt")

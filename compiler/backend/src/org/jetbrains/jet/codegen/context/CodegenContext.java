@@ -36,6 +36,7 @@ import org.jetbrains.org.objectweb.asm.Type;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.jetbrains.jet.codegen.AsmUtil.CAPTURED_THIS_FIELD;
@@ -46,29 +47,18 @@ import static org.jetbrains.org.objectweb.asm.Opcodes.ACC_PRIVATE;
 import static org.jetbrains.org.objectweb.asm.Opcodes.ACC_PROTECTED;
 
 public abstract class CodegenContext<T extends DeclarationDescriptor> {
-
     public static final CodegenContext STATIC = new RootContext();
 
-    @NotNull
     private final T contextDescriptor;
-
-    @NotNull
     private final OwnerKind contextKind;
-
-    @Nullable
     private final CodegenContext parentContext;
-
     private final ClassDescriptor thisDescriptor;
-
     public final MutableClosure closure;
+    private final LocalLookup enclosingLocalLookup;
 
     private Map<DeclarationDescriptor, DeclarationDescriptor> accessors;
-
     private Map<DeclarationDescriptor, CodegenContext> childContexts;
-
     private NullableLazyValue<StackValue> lazyOuterExpression;
-
-    private final LocalLookup enclosingLocalLookup;
 
     public CodegenContext(
             @NotNull T contextDescriptor,
@@ -198,8 +188,12 @@ public abstract class CodegenContext<T extends DeclarationDescriptor> {
 
     // SCRIPT: generate into script, move to ScriptingUtil
     @NotNull
-    public ScriptContext intoScript(@NotNull ScriptDescriptor script, @NotNull ClassDescriptor classDescriptor) {
-        return new ScriptContext(script, classDescriptor, OwnerKind.IMPLEMENTATION, this, closure);
+    public ScriptContext intoScript(
+            @NotNull ScriptDescriptor script,
+            @NotNull List<ScriptDescriptor> earlierScripts,
+            @NotNull ClassDescriptor classDescriptor
+    ) {
+        return new ScriptContext(script, earlierScripts, classDescriptor, OwnerKind.IMPLEMENTATION, this, closure);
     }
 
     @NotNull
@@ -304,10 +298,11 @@ public abstract class CodegenContext<T extends DeclarationDescriptor> {
         lazyOuterExpression = LockBasedStorageManager.NO_LOCKS.createNullableLazyValue(new Function0<StackValue>() {
             @Override
             public StackValue invoke() {
+                BindingContext bindingContext = typeMapper.getBindingContext();
                 ClassDescriptor enclosingClass = getEnclosingClass();
-                return enclosingClass != null && canHaveOuter(typeMapper.getBindingContext(), classDescriptor)
+                return enclosingClass != null && canHaveOuter(bindingContext, classDescriptor)
                        ? StackValue.field(typeMapper.mapType(enclosingClass),
-                                          CodegenBinding.getAsmType(typeMapper.getBindingTrace(), classDescriptor),
+                                          CodegenBinding.getAsmType(bindingContext, classDescriptor),
                                           CAPTURED_THIS_FIELD,
                                           false)
                        : null;

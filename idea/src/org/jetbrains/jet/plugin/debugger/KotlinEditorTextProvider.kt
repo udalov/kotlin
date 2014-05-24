@@ -33,13 +33,14 @@ import org.jetbrains.jet.lang.psi.JetThisExpression
 import org.jetbrains.jet.lang.psi.JetSimpleNameExpression
 import org.jetbrains.jet.lang.psi.JetOperationExpression
 import org.jetbrains.jet.lang.psi.JetExpression
-import org.jetbrains.jet.lang.psi.JetExpressionCodeFragmentImpl
+import org.jetbrains.jet.lang.psi.JetExpressionCodeFragment
 import org.jetbrains.jet.lang.psi.JetSuperExpression
+import org.jetbrains.jet.lang.psi.JetCodeFragment
 
 class KotlinEditorTextProvider : EditorTextProvider {
     override fun getEditorText(elementAtCaret: PsiElement): TextWithImports? {
         val expression = findExpressionInner(elementAtCaret)
-        return TextWithImportsImpl(CodeFragmentKind.EXPRESSION, expression?.getText() ?: "", getImports(elementAtCaret), JetFileType.INSTANCE)
+        return TextWithImportsImpl(CodeFragmentKind.EXPRESSION, expression?.getText() ?: "", JetCodeFragment.getImportsForElement(elementAtCaret), JetFileType.INSTANCE)
     }
 
     override fun findExpression(elementAtCaret: PsiElement, allowMethodCalls: Boolean): Pair<PsiElement, TextRange>? {
@@ -49,15 +50,6 @@ class KotlinEditorTextProvider : EditorTextProvider {
     }
 
     class object {
-        fun getImports(elementAtCaret: PsiElement): String {
-            val containingFile = elementAtCaret.getContainingFile()
-            if (containingFile !is JetFile) return ""
-
-            return containingFile.getImportList()?.getImports()
-                                ?.map { it.getText() }
-                                ?.makeString(JetExpressionCodeFragmentImpl.IMPORT_SEPARATOR) ?: ""
-        }
-
         fun findExpressionInner(element: PsiElement): JetExpression? {
             val jetElement = PsiTreeUtil.getParentOfType(element, javaClass<JetElement>())
             if (jetElement == null) return null

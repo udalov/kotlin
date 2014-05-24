@@ -31,9 +31,12 @@ import com.intellij.psi.PsiWhiteSpace;
 import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.refactoring.HelpID;
 import com.intellij.refactoring.introduce.inplace.OccurrencesChooser;
+import kotlin.Function1;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.jet.di.InjectorForMacros;
+import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor;
+import org.jetbrains.jet.lang.descriptors.VariableDescriptor;
+import org.jetbrains.jet.analyzer.AnalyzerPackage;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.BindingTraceContext;
@@ -52,7 +55,10 @@ import org.jetbrains.jet.plugin.codeInsight.CodeInsightUtils;
 import org.jetbrains.jet.plugin.codeInsight.ShortenReferences;
 import org.jetbrains.jet.plugin.project.AnalyzerFacadeWithCache;
 import org.jetbrains.jet.plugin.project.ResolveSessionForBodies;
-import org.jetbrains.jet.plugin.refactoring.*;
+import org.jetbrains.jet.plugin.refactoring.JetNameSuggester;
+import org.jetbrains.jet.plugin.refactoring.JetNameValidatorImpl;
+import org.jetbrains.jet.plugin.refactoring.JetRefactoringBundle;
+import org.jetbrains.jet.plugin.refactoring.JetRefactoringUtil;
 import org.jetbrains.jet.plugin.refactoring.introduce.KotlinIntroduceHandlerBase;
 import org.jetbrains.jet.renderer.DescriptorRenderer;
 
@@ -119,7 +125,7 @@ public class KotlinIntroduceVariableHandler extends KotlinIntroduceHandlerBase {
             }
         }
         ResolveSessionForBodies resolveSession =
-                ResolvePackage.getLazyResolveSession(expression.getContainingJetFile());
+                ResolvePackage.getLazyResolveSession(expression);
         BindingContext bindingContext = resolveSession.resolveToElement(expression);
         final JetType expressionType = bindingContext.get(BindingContext.EXPRESSION_TYPE, expression); //can be null or error type
         JetScope scope = bindingContext.get(BindingContext.RESOLUTION_SCOPE, expression);
@@ -130,10 +136,9 @@ public class KotlinIntroduceVariableHandler extends KotlinIntroduceHandlerBase {
             }
 
             ObservableBindingTrace bindingTrace = new ObservableBindingTrace(new BindingTraceContext());
-            InjectorForMacros injector = new InjectorForMacros(project, resolveSession.getModuleDescriptor());
-            JetType typeNoExpectedType = injector.getExpressionTypingServices().getType(scope, expression,
-                                                                                TypeUtils.NO_EXPECTED_TYPE, dataFlowInfo,
-                                                                                bindingTrace);
+            JetType typeNoExpectedType = AnalyzerPackage.computeTypeInfoInContext(
+                    expression, scope, bindingTrace, dataFlowInfo, TypeUtils.NO_EXPECTED_TYPE, resolveSession.getModuleDescriptor()
+            ).getType();
             if (expressionType != null && typeNoExpectedType != null && !JetTypeChecker.INSTANCE.equalTypes(expressionType,
                                                                                                            typeNoExpectedType)) {
                 noTypeInference = true;
@@ -187,10 +192,11 @@ public class KotlinIntroduceVariableHandler extends KotlinIntroduceHandlerBase {
 
                 PsiElement commonParent = PsiTreeUtil.findCommonParent(allReplaces);
                 PsiElement commonContainer = getContainer(commonParent);
-                JetNameValidatorImpl validator = new JetNameValidatorImpl(commonContainer,
-                                                                          calculateAnchor(commonParent,
-                                                                                          commonContainer,
-                                                                                          allReplaces));
+                JetNameValidatorImpl validator = new JetNameValidatorImpl(
+                        commonContainer,
+                        calculateAnchor(commonParent, commonContainer, allReplaces),
+                        JetNameValidatorImpl.Target.PROPERTIES
+                );
                 String[] suggestedNames = JetNameSuggester.suggestNames(expression, validator, "value");
                 final LinkedHashSet<String> suggestedNamesSet = new LinkedHashSet<String>();
                 Collections.addAll(suggestedNamesSet, suggestedNames);

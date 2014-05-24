@@ -29,13 +29,13 @@ import org.jetbrains.jet.analyzer.AnalyzeExhaust;
 import org.jetbrains.jet.cli.common.CLIConfigurationKeys;
 import org.jetbrains.jet.cli.common.CompilerPlugin;
 import org.jetbrains.jet.cli.common.CompilerPluginContext;
-import org.jetbrains.jet.cli.common.arguments.CompilerArgumentsUtil;
 import org.jetbrains.jet.cli.common.messages.AnalyzerWithCompilerReport;
 import org.jetbrains.jet.cli.common.messages.MessageCollector;
 import org.jetbrains.jet.cli.common.output.OutputDirector;
 import org.jetbrains.jet.cli.common.output.SingleDirectoryDirector;
 import org.jetbrains.jet.cli.jvm.JVMConfigurationKeys;
 import org.jetbrains.jet.codegen.*;
+import org.jetbrains.jet.codegen.inline.InlineCodegenUtil;
 import org.jetbrains.jet.codegen.state.GenerationState;
 import org.jetbrains.jet.codegen.state.Progress;
 import org.jetbrains.jet.config.CommonConfigurationKeys;
@@ -282,7 +282,6 @@ public class KotlinToJVMBytecodeCompiler {
                                 environment.getSourceFiles(),
                                 sharedTrace,
                                 Predicates.<PsiFile>alwaysTrue(),
-                                false,
                                 sharedModule,
                                 new CliSourcesMemberFilter(environment));
                     }
@@ -305,11 +304,12 @@ public class KotlinToJVMBytecodeCompiler {
     private static GenerationState generate(@NotNull JetCoreEnvironment environment, @NotNull AnalyzeExhaust exhaust) {
         CompilerConfiguration configuration = environment.getConfiguration();
         GenerationState generationState = new GenerationState(
-                environment.getProject(), ClassBuilderFactories.BINARIES, Progress.DEAF, exhaust.getBindingContext(), environment.getSourceFiles(),
+                environment.getProject(), ClassBuilderFactories.BINARIES, Progress.DEAF,
+                exhaust.getModuleDescriptor(), exhaust.getBindingContext(), environment.getSourceFiles(),
                 configuration.get(JVMConfigurationKeys.GENERATE_NOT_NULL_ASSERTIONS, false),
                 configuration.get(JVMConfigurationKeys.GENERATE_NOT_NULL_PARAMETER_ASSERTIONS, false),
                 GenerationState.GenerateClassFilter.GENERATE_ALL,
-                configuration.get(JVMConfigurationKeys.ENABLE_INLINE, CompilerArgumentsUtil.DEFAULT_INLINE_FLAG)
+                configuration.get(JVMConfigurationKeys.ENABLE_INLINE, InlineCodegenUtil.DEFAULT_INLINE_FLAG)
         );
         KotlinCodegenFacade.compileCorrectFiles(generationState, CompilationErrorHandler.THROW_EXCEPTION);
         return generationState;

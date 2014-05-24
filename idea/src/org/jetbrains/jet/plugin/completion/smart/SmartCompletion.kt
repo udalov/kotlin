@@ -1,3 +1,19 @@
+/*
+ * Copyright 2010-2014 JetBrains s.r.o.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.jetbrains.jet.plugin.completion.smart
 
 import org.jetbrains.jet.lang.descriptors.*
@@ -11,6 +27,7 @@ import com.intellij.codeInsight.completion.*
 import java.util.*
 import org.jetbrains.jet.plugin.completion.*
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns
+import org.jetbrains.jet.plugin.util.makeNotNullable
 
 class SmartCompletion(val expression: JetSimpleNameExpression,
                       val resolveSession: ResolveSessionForBodies,
@@ -21,6 +38,28 @@ class SmartCompletion(val expression: JetSimpleNameExpression,
     private val project = expression.getProject()
 
     public fun buildLookupElements(referenceVariants: Iterable<DeclarationDescriptor>): Collection<LookupElement>? {
+        return buildLookupElementsInternal(referenceVariants)?.map {
+            if (it.getUserData(KEEP_OLD_ARGUMENT_LIST_ON_TAB_KEY) == null) {
+                object : LookupElementDecorator<LookupElement>(it) {
+                    override fun handleInsert(context: InsertionContext) {
+                        if (context.getCompletionChar() == Lookup.REPLACE_SELECT_CHAR) {
+                            val offset = context.getOffsetMap().getOffset(SmartCompletion.OLD_ARGUMENTS_REPLACEMENT_OFFSET)
+                            if (offset != -1) {
+                                context.getDocument().deleteString(context.getTailOffset(), offset)
+                            }
+                        }
+
+                        super.handleInsert(context)
+                    }
+                }
+            }
+            else {
+                it
+            }
+        }
+    }
+
+    private fun buildLookupElementsInternal(referenceVariants: Iterable<DeclarationDescriptor>): Collection<LookupElement>? {
         val parent = expression.getParent()
         val expressionWithType: JetExpression
         val receiver: JetExpression?
@@ -49,7 +88,7 @@ class SmartCompletion(val expression: JetSimpleNameExpression,
             if (itemsToSkip.contains(descriptor)) continue
 
             val types = typesWithAutoCasts(descriptor)
-            val nonNullTypes = types.map { TypeUtils.makeNotNullable(it) }
+            val nonNullTypes = types.map { it.makeNotNullable() }
             val classifier = { (expectedInfo: ExpectedInfo) ->
                 when {
                     types.any { it.isSubtypeOf(expectedInfo.`type`) } -> ExpectedInfoClassification.MATCHES
@@ -57,7 +96,7 @@ class SmartCompletion(val expression: JetSimpleNameExpression,
                     else -> ExpectedInfoClassification.NOT_MATCHES
                 }
             }
-            result.addLookupElements(expectedInfos, classifier, { DescriptorLookupConverter.createLookupElement(resolveSession, bindingContext, descriptor) })
+            result.addLookupElements(expectedInfos, classifier, { createLookupElement(descriptor, resolveSession, bindingContext) })
 
             if (receiver == null) {
                 toFunctionReferenceLookupElement(descriptor, functionExpectedInfos)?.let { result.add(it) }
@@ -65,13 +104,15 @@ class SmartCompletion(val expression: JetSimpleNameExpression,
         }
 
         if (receiver == null) {
-            TypeInstantiationItems(bindingContext, resolveSession).addToCollection(result, expectedInfos)
+            TypeInstantiationItems(bindingContext, resolveSession, visibilityFilter).addToCollection(result, expectedInfos)
 
             StaticMembers(bindingContext, resolveSession).addToCollection(result, expectedInfos, expression)
 
             ThisItems(bindingContext).addToCollection(result, expressionWithType, expectedInfos)
 
             LambdaItems.addToCollection(result, functionExpectedInfos)
+
+            KeywordValues.addToCollection(result, expectedInfos)
         }
 
         return result
@@ -88,10 +129,13 @@ class SmartCompletion(val expression: JetSimpleNameExpression,
             }
 
             is JetBinaryExpression -> {
-                if (parent.getRight() == expression && parent.getOperationToken() == JetTokens.EQ) {
-                    val left = parent.getLeft()
-                    if (left is JetReferenceExpression) {
-                        return resolveSession.resolveToElement(left)[BindingContext.REFERENCE_TARGET, left].toList()
+                if (parent.getRight() == expression) {
+                    val operationToken = parent.getOperationToken()
+                    if (operationToken == JetTokens.EQ || operationToken == JetTokens.EQEQ || operationToken == JetTokens.EXCLEQ) {
+                        val left = parent.getLeft()
+                        if (left is JetReferenceExpression) {
+                            return resolveSession.resolveToElement(left)[BindingContext.REFERENCE_TARGET, left].toList()
+                        }
                     }
                 }
             }
@@ -110,7 +154,7 @@ class SmartCompletion(val expression: JetSimpleNameExpression,
             val matchedExpectedInfos = functionExpectedInfos.filter { functionType.isSubtypeOf(it.`type`) }
             if (matchedExpectedInfos.isEmpty()) return null
 
-            var lookupElement = DescriptorLookupConverter.createLookupElement(resolveSession, bindingContext, descriptor)
+            var lookupElement = createLookupElement(descriptor, resolveSession, bindingContext)
             val text = "::" + (if (descriptor is ConstructorDescriptor) descriptor.getContainingDeclaration().getName() else descriptor.getName())
             lookupElement = object: LookupElementDecorator<LookupElement>(lookupElement) {
                 override fun getLookupString() = text
@@ -140,5 +184,9 @@ class SmartCompletion(val expression: JetSimpleNameExpression,
         }
 
         return null
+    }
+
+    class object {
+        public val OLD_ARGUMENTS_REPLACEMENT_OFFSET: OffsetKey = OffsetKey.create("nonFunctionReplacementOffset")
     }
 }

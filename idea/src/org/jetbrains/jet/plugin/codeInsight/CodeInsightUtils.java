@@ -1,3 +1,19 @@
+/*
+ * Copyright 2010-2014 JetBrains s.r.o.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.jetbrains.jet.plugin.codeInsight;
 
 import com.intellij.openapi.application.ApplicationManager;
@@ -81,18 +97,11 @@ public class CodeInsightUtils {
         }
         if (endOffset != element2.getTextRange().getEndOffset()) return PsiElement.EMPTY_ARRAY;
 
-        PsiElement[] children = parent.getChildren();
         ArrayList<PsiElement> array = new ArrayList<PsiElement>();
-        boolean flag = false;
-        for (PsiElement child : children) {
-            if (child.equals(element1)) {
-                flag = true;
-            }
-            if (flag && !(child instanceof PsiWhiteSpace)) {
-                array.add(child);
-            }
-            if (child.equals(element2)) {
-                break;
+        PsiElement stopElement = element2.getNextSibling();
+        for (PsiElement currentElement = element1; currentElement != stopElement; currentElement = currentElement.getNextSibling()) {
+            if (!(currentElement instanceof PsiWhiteSpace)) {
+                array.add(currentElement);
             }
         }
 
@@ -125,7 +134,7 @@ public class CodeInsightUtils {
     }
 
     @Nullable
-    private static PsiElement getElementAtOffsetIgnoreWhitespaceBefore(@NotNull PsiFile file, int offset) {
+    public static PsiElement getElementAtOffsetIgnoreWhitespaceBefore(@NotNull PsiFile file, int offset) {
         PsiElement element = file.findElementAt(offset);
         if (element instanceof PsiWhiteSpace) {
             return file.findElementAt(element.getTextRange().getEndOffset());
@@ -134,7 +143,7 @@ public class CodeInsightUtils {
     }
 
     @Nullable
-    private static PsiElement getElementAtOffsetIgnoreWhitespaceAfter(@NotNull PsiFile file, int offset) {
+    public static PsiElement getElementAtOffsetIgnoreWhitespaceAfter(@NotNull PsiFile file, int offset) {
         PsiElement element = file.findElementAt(offset - 1);
         if (element instanceof PsiWhiteSpace) {
             return file.findElementAt(element.getTextRange().getStartOffset() - 1);

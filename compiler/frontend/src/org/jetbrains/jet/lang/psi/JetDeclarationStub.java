@@ -21,46 +21,18 @@ import com.intellij.psi.stubs.IStubElementType;
 import com.intellij.psi.stubs.StubElement;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.jet.JetNodeTypes;
 import org.jetbrains.jet.lexer.JetModifierKeywordToken;
+import org.jetbrains.jet.lang.psi.stubs.elements.JetStubElementTypes;
 
 import java.util.Collections;
 import java.util.List;
 
-abstract class JetDeclarationStub<T extends StubElement> extends JetElementImplStub<T> implements JetDeclaration {
+abstract class JetDeclarationStub<T extends StubElement> extends JetModifierListOwnerStub<T> implements JetDeclaration {
     public JetDeclarationStub(@NotNull T stub, @NotNull IStubElementType nodeType) {
         super(stub, nodeType);
     }
 
     public JetDeclarationStub(@NotNull ASTNode node) {
         super(node);
-    }
-
-    @Override
-    @Nullable
-    public JetModifierList getModifierList() {
-        return (JetModifierList) findChildByType(JetNodeTypes.MODIFIER_LIST);
-    }
-
-    @Override
-    public boolean hasModifier(JetModifierKeywordToken modifier) {
-        JetModifierList modifierList = getModifierList();
-        return modifierList != null && modifierList.hasModifier(modifier);
-    }
-
-    @NotNull
-    @Override
-    public List<JetAnnotationEntry> getAnnotationEntries() {
-        JetModifierList modifierList = getModifierList();
-        if (modifierList == null) return Collections.emptyList();
-        return modifierList.getAnnotationEntries();
-    }
-
-    @NotNull
-    @Override
-    public List<JetAnnotation> getAnnotations() {
-        JetModifierList modifierList = getModifierList();
-        if (modifierList == null) return Collections.emptyList();
-        return modifierList.getAnnotations();
     }
 }

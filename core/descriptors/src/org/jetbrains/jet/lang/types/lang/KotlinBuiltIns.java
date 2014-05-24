@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2012 JetBrains s.r.o.
+ * Copyright 2010-2014 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.PlatformToKotlinClassMap;
 import org.jetbrains.jet.lang.descriptors.*;
+import org.jetbrains.jet.lang.descriptors.annotations.AnnotationDescriptor;
 import org.jetbrains.jet.lang.descriptors.annotations.Annotations;
 import org.jetbrains.jet.lang.descriptors.impl.ValueParameterDescriptorImpl;
 import org.jetbrains.jet.lang.resolve.DescriptorUtils;
@@ -38,10 +39,7 @@ import java.util.*;
 import static org.jetbrains.jet.lang.types.lang.PrimitiveType.*;
 
 public class KotlinBuiltIns {
-    public static final JetScope STUB = JetScope.EMPTY;
-
-    public static final String BUILT_INS_PACKAGE_NAME_STRING = "kotlin";
-    public static final Name BUILT_INS_PACKAGE_NAME = Name.identifier(BUILT_INS_PACKAGE_NAME_STRING);
+    public static final Name BUILT_INS_PACKAGE_NAME = Name.identifier("kotlin");
     public static final FqName BUILT_INS_PACKAGE_FQ_NAME = FqName.topLevel(BUILT_INS_PACKAGE_NAME);
 
     public static final int FUNCTION_TRAIT_COUNT = 23;
@@ -99,68 +97,32 @@ public class KotlinBuiltIns {
     private volatile ImmutableSet<ClassDescriptor> nonPhysicalClasses;
 
     private final ImmutableSet<ClassDescriptor> functionClassesSet;
-
     private final ImmutableSet<ClassDescriptor> extensionFunctionClassesSet;
 
-    private final EnumMap<PrimitiveType, ClassDescriptor> primitiveTypeToClass;
-    private final EnumMap<PrimitiveType, ClassDescriptor> primitiveTypeToArrayClass;
-    private final EnumMap<PrimitiveType, JetType> primitiveTypeToJetType;
-    private final EnumMap<PrimitiveType, JetType> primitiveTypeToNullableJetType;
-    private final EnumMap<PrimitiveType, JetType> primitiveTypeToArrayJetType;
+    private final Map<PrimitiveType, JetType> primitiveTypeToNullableJetType;
+    private final Map<PrimitiveType, JetType> primitiveTypeToArrayJetType;
     private final Map<JetType, JetType> primitiveJetTypeToJetArrayType;
     private final Map<JetType, JetType> jetArrayTypeToPrimitiveJetType;
 
-    private final ClassDescriptor nothingClass;
-    private final ClassDescriptor arrayClass;
-    private final ClassDescriptor deprecatedAnnotationClass;
-    private final ClassDescriptor dataAnnotationClass;
-    private final ClassDescriptor[] functionClasses;
-
-    private volatile JetType anyType;
-    private volatile JetType nullableAnyType;
-    private volatile JetType nothingType;
-    private volatile JetType nullableNothingType;
-    private volatile JetType unitType;
-    private volatile JetType stringType;
-    private volatile JetType annotationType;
+    private final FqNames fqNames = new FqNames();
 
     private KotlinBuiltIns() {
-        this.builtInsModule = new ModuleDescriptorImpl(Name.special("<built-ins lazy module>"),
-                                                       Collections.<ImportPath>emptyList(),
-                                                       PlatformToKotlinClassMap.EMPTY);
+        builtInsModule = new ModuleDescriptorImpl(Name.special("<built-ins lazy module>"),
+                                                  Collections.<ImportPath>emptyList(),
+                                                  PlatformToKotlinClassMap.EMPTY);
         builtinsPackageFragment = new BuiltinsPackageFragment(new LockBasedStorageManager(), builtInsModule);
         builtInsModule.addFragmentProvider(DependencyKind.SOURCES, builtinsPackageFragment.getProvider());
 
-        this.functionClassesSet = computeIndexedClasses("Function", FUNCTION_TRAIT_COUNT);
-        this.extensionFunctionClassesSet = computeIndexedClasses("ExtensionFunction", FUNCTION_TRAIT_COUNT);
+        functionClassesSet = computeIndexedClasses("Function", FUNCTION_TRAIT_COUNT);
+        extensionFunctionClassesSet = computeIndexedClasses("ExtensionFunction", FUNCTION_TRAIT_COUNT);
 
-        this.primitiveTypeToClass = new EnumMap<PrimitiveType, ClassDescriptor>(PrimitiveType.class);
-        this.primitiveTypeToJetType = new EnumMap<PrimitiveType, JetType>(PrimitiveType.class);
-        this.primitiveTypeToNullableJetType = new EnumMap<PrimitiveType, JetType>(PrimitiveType.class);
-        this.primitiveTypeToArrayClass = new EnumMap<PrimitiveType, ClassDescriptor>(PrimitiveType.class);
-        this.primitiveTypeToArrayJetType = new EnumMap<PrimitiveType, JetType>(PrimitiveType.class);
-        this.primitiveJetTypeToJetArrayType = new HashMap<JetType, JetType>();
-        this.jetArrayTypeToPrimitiveJetType = new HashMap<JetType, JetType>();
-
-        this.nothingClass = getBuiltInClassByName("Nothing");
-        this.arrayClass = getBuiltInClassByName("Array");
-        this.deprecatedAnnotationClass = getBuiltInClassByName("deprecated");
-        this.dataAnnotationClass = getBuiltInClassByName("data");
-        this.functionClasses = new ClassDescriptor[FUNCTION_TRAIT_COUNT];
-        for (int i = 0; i < functionClasses.length; i++) {
-            functionClasses[i] = getBuiltInClassByName("Function" + i);
-        }
+        primitiveTypeToNullableJetType = new EnumMap<PrimitiveType, JetType>(PrimitiveType.class);
+        primitiveTypeToArrayJetType = new EnumMap<PrimitiveType, JetType>(PrimitiveType.class);
+        primitiveJetTypeToJetArrayType = new HashMap<JetType, JetType>();
+        jetArrayTypeToPrimitiveJetType = new HashMap<JetType, JetType>();
     }
 
     private void doInitialize() {
-        anyType = getBuiltInTypeByClassName("Any");
-        nullableAnyType = TypeUtils.makeNullable(anyType);
-        nothingType = getBuiltInTypeByClassName("Nothing");
-        nullableNothingType = TypeUtils.makeNullable(nothingType);
-        unitType = getBuiltInTypeByClassName("Unit");
-        stringType = getBuiltInTypeByClassName("String");
-        annotationType = getBuiltInTypeByClassName("Annotation");
-
         for (PrimitiveType primitive : PrimitiveType.values()) {
             makePrimitive(primitive);
         }
@@ -168,19 +130,25 @@ public class KotlinBuiltIns {
         nonPhysicalClasses = computeNonPhysicalClasses();
     }
 
-    private void makePrimitive(PrimitiveType primitiveType) {
-        ClassDescriptor theClass = getBuiltInClassByName(primitiveType.getTypeName().asString());
-        JetType type = new JetTypeImpl(theClass);
-        ClassDescriptor arrayClass = getBuiltInClassByName(primitiveType.getArrayTypeName().asString());
-        JetType arrayType = new JetTypeImpl(arrayClass);
+    private void makePrimitive(@NotNull PrimitiveType primitiveType) {
+        JetType type = getBuiltInTypeByClassName(primitiveType.getTypeName().asString());
+        JetType arrayType = getBuiltInTypeByClassName(primitiveType.getArrayTypeName().asString());
 
-        primitiveTypeToClass.put(primitiveType, theClass);
-        primitiveTypeToJetType.put(primitiveType, type);
         primitiveTypeToNullableJetType.put(primitiveType, TypeUtils.makeNullable(type));
-        primitiveTypeToArrayClass.put(primitiveType, arrayClass);
         primitiveTypeToArrayJetType.put(primitiveType, arrayType);
         primitiveJetTypeToJetArrayType.put(type, arrayType);
         jetArrayTypeToPrimitiveJetType.put(arrayType, type);
+    }
+
+    private static class FqNames {
+        public final FqNameUnsafe any = fqName("Any");
+        public final FqNameUnsafe nothing = fqName("Nothing");
+        public final FqNameUnsafe suppress = fqName("suppress");
+
+        @NotNull
+        private static FqNameUnsafe fqName(@NotNull String simpleName) {
+            return BUILT_INS_PACKAGE_FQ_NAME.child(Name.identifier(simpleName)).toUnsafe();
+        }
     }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -320,21 +288,6 @@ public class KotlinBuiltIns {
     }
 
     @NotNull
-    public ClassDescriptor getKFunction(int parameterCount) {
-        return getBuiltInClassByName("KFunction" + parameterCount);
-    }
-
-    @NotNull
-    public ClassDescriptor getKMemberFunction(int parameterCount) {
-        return getBuiltInClassByName("KMemberFunction" + parameterCount);
-    }
-
-    @NotNull
-    public ClassDescriptor getKExtensionFunction(int parameterCount) {
-        return getBuiltInClassByName("KExtensionFunction" + parameterCount);
-    }
-
-    @NotNull
     public ClassDescriptor getThrowable() {
         return getBuiltInClassByName("Throwable");
     }
@@ -344,6 +297,7 @@ public class KotlinBuiltIns {
         return getBuiltInClassByName("data");
     }
 
+    @NotNull
     public ClassDescriptor getNoinlineClassAnnotation() {
         return getBuiltInClassByName("noinline");
     }
@@ -351,11 +305,6 @@ public class KotlinBuiltIns {
     @NotNull
     public ClassDescriptor getInlineClassAnnotation() {
         return getBuiltInClassByName("inline");
-    }
-
-    @NotNull
-    public ClassDescriptor getSuppressAnnotationClass() {
-        return getBuiltInClassByName("suppress");
     }
 
     @NotNull
@@ -455,14 +404,14 @@ public class KotlinBuiltIns {
 
     @NotNull
     public ClassDescriptor getMapEntry() {
-        ClassDescriptor classDescriptor = DescriptorUtils.getInnerClassByName(getBuiltInClassByName("Map"), "Entry");
+        ClassDescriptor classDescriptor = DescriptorUtils.getInnerClassByName(getMap(), "Entry");
         assert classDescriptor != null : "Can't find Map.Entry";
         return classDescriptor;
     }
 
     @NotNull
     public ClassDescriptor getMutableMapEntry() {
-        ClassDescriptor classDescriptor = DescriptorUtils.getInnerClassByName(getBuiltInClassByName("MutableMap"), "MutableEntry");
+        ClassDescriptor classDescriptor = DescriptorUtils.getInnerClassByName(getMutableMap(), "MutableEntry");
         assert classDescriptor != null : "Can't find MutableMap.MutableEntry";
         return classDescriptor;
     }
@@ -540,31 +489,28 @@ public class KotlinBuiltIns {
 
     @NotNull
     private JetType getBuiltInTypeByClassName(@NotNull String classSimpleName) {
-        // TODO
-        return new JetTypeImpl(getBuiltInClassByName(classSimpleName));
+        return getBuiltInClassByName(classSimpleName).getDefaultType();
     }
 
     // Special
 
     @NotNull
     public JetType getNothingType() {
-        return getBuiltInTypeByClassName("Nothing");
+        return getNothing().getDefaultType();
     }
 
     @NotNull
     public JetType getNullableNothingType() {
-        // TODO
         return TypeUtils.makeNullable(getNothingType());
     }
 
     @NotNull
     public JetType getAnyType() {
-        return getBuiltInTypeByClassName("Any");
+        return getAny().getDefaultType();
     }
 
     @NotNull
     public JetType getNullableAnyType() {
-        // TODO
         return TypeUtils.makeNullable(getAnyType());
     }
 
@@ -572,8 +518,7 @@ public class KotlinBuiltIns {
 
     @NotNull
     public JetType getPrimitiveJetType(@NotNull PrimitiveType type) {
-        // TODO
-        return new JetTypeImpl(getPrimitiveClassDescriptor(type));
+        return getPrimitiveClassDescriptor(type).getDefaultType();
     }
 
     @NotNull
@@ -625,12 +570,12 @@ public class KotlinBuiltIns {
 
     @NotNull
     public JetType getUnitType() {
-        return getBuiltInTypeByClassName("Unit");
+        return getUnit().getDefaultType();
     }
 
     @NotNull
     public JetType getStringType() {
-        return getBuiltInTypeByClassName("String");
+        return getString().getDefaultType();
     }
 
     @NotNull
@@ -693,12 +638,7 @@ public class KotlinBuiltIns {
 
     @NotNull
     public JetType getAnnotationType() {
-        return getBuiltInTypeByClassName("Annotation");
-    }
-
-    @NotNull
-    public ClassDescriptor getPropertyMetadata() {
-        return getBuiltInClassByName("PropertyMetadata");
+        return getAnnotation().getDefaultType();
     }
 
     @NotNull
@@ -722,44 +662,7 @@ public class KotlinBuiltIns {
     }
 
     @NotNull
-    public JetType getKFunctionType(
-            @NotNull Annotations annotations,
-            @Nullable JetType receiverType,
-            @NotNull List<JetType> parameterTypes,
-            @NotNull JetType returnType,
-            boolean extensionFunction
-    ) {
-        List<TypeProjection> arguments = getFunctionTypeArgumentProjections(receiverType, parameterTypes, returnType);
-        ClassDescriptor classDescriptor = getCorrespondingKFunctionClass(receiverType, extensionFunction, parameterTypes.size());
-
-        return new JetTypeImpl(
-                annotations,
-                classDescriptor.getTypeConstructor(),
-                false,
-                arguments,
-                classDescriptor.getMemberScope(arguments)
-        );
-    }
-
-    @NotNull
-    private ClassDescriptor getCorrespondingKFunctionClass(
-            @Nullable JetType receiverType,
-            boolean extensionFunction,
-            int numberOfParameters
-    ) {
-        if (receiverType == null) {
-            return getKFunction(numberOfParameters);
-        }
-        else if (extensionFunction) {
-            return getKExtensionFunction(numberOfParameters);
-        }
-        else {
-            return getKMemberFunction(numberOfParameters);
-        }
-    }
-
-    @NotNull
-    private static List<TypeProjection> getFunctionTypeArgumentProjections(
+    public static List<TypeProjection> getFunctionTypeArgumentProjections(
             @Nullable JetType receiverType,
             @NotNull List<JetType> parameterTypes,
             @NotNull JetType returnType
@@ -813,6 +716,7 @@ public class KotlinBuiltIns {
     }
 
     public boolean isFunctionType(@NotNull JetType type) {
+        if (type instanceof PackageType) return false;
         if (setContainsClassOf(functionClassesSet, type)) return true;
 
         for (JetType superType : type.getConstructor().getSupertypes()) {
@@ -823,10 +727,12 @@ public class KotlinBuiltIns {
     }
 
     public boolean isExactFunctionOrExtensionFunctionType(@NotNull JetType type) {
-        return setContainsClassOf(extensionFunctionClassesSet, type) || setContainsClassOf(functionClassesSet, type);
+        return !(type instanceof PackageType)
+               && (setContainsClassOf(extensionFunctionClassesSet, type) || setContainsClassOf(functionClassesSet, type));
     }
 
     public boolean isExtensionFunctionType(@NotNull JetType type) {
+        if (type instanceof PackageType) return false;
         if (setContainsClassOf(extensionFunctionClassesSet, type)) return true;
 
         for (JetType superType : type.getConstructor().getSupertypes()) {
@@ -882,10 +788,9 @@ public class KotlinBuiltIns {
 
     // Recognized & special
 
-    public static boolean isSpecialClassWithNoSupertypes(@NotNull ClassDescriptor descriptor) {
+    public boolean isSpecialClassWithNoSupertypes(@NotNull ClassDescriptor descriptor) {
         FqNameUnsafe fqName = DescriptorUtils.getFqName(descriptor);
-        return BUILT_INS_PACKAGE_FQ_NAME.child(Name.identifier("Any")).toUnsafe().equals(fqName) ||
-               BUILT_INS_PACKAGE_FQ_NAME.child(Name.identifier("Nothing")).toUnsafe().equals(fqName);
+        return fqNames.any.equals(fqName) || fqNames.nothing.equals(fqName);
     }
 
     public boolean isNothing(@NotNull JetType type) {
@@ -912,6 +817,10 @@ public class KotlinBuiltIns {
         return !(type instanceof PackageType) && type.equals(getUnitType());
     }
 
+    public boolean isString(@Nullable JetType type) {
+        return !(type instanceof PackageType) && getStringType().equals(type);
+    }
+
     public boolean isData(@NotNull ClassDescriptor classDescriptor) {
         return containsAnnotation(classDescriptor, getDataClassAnnotation());
     }
@@ -922,6 +831,11 @@ public class KotlinBuiltIns {
 
     public boolean isTailRecursive(@NotNull DeclarationDescriptor declarationDescriptor) {
         return containsAnnotation(declarationDescriptor, getTailRecursiveAnnotationClass());
+    }
+
+    public boolean isSuppressAnnotation(@NotNull AnnotationDescriptor annotationDescriptor) {
+        ClassifierDescriptor classifier = annotationDescriptor.getType().getConstructor().getDeclarationDescriptor();
+        return classifier != null && fqNames.suppress.equals(DescriptorUtils.getFqName(classifier));
     }
 
     static boolean containsAnnotation(DeclarationDescriptor descriptor, ClassDescriptor annotationClass) {

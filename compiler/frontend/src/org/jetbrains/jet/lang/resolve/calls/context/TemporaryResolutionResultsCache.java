@@ -22,7 +22,6 @@ import org.jetbrains.jet.lang.descriptors.CallableDescriptor;
 import org.jetbrains.jet.lang.psi.CallKey;
 import org.jetbrains.jet.lang.psi.JetExpression;
 import org.jetbrains.jet.lang.resolve.DelegatingBindingTrace;
-import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCallWithTrace;
 import org.jetbrains.jet.lang.resolve.calls.results.OverloadResolutionResultsImpl;
 
 public class TemporaryResolutionResultsCache implements ResolutionResultsCache {
@@ -39,22 +38,21 @@ public class TemporaryResolutionResultsCache implements ResolutionResultsCache {
     @Override
     public <D extends CallableDescriptor> void recordResolutionResults(
             @NotNull CallKey callKey,
-            @NotNull MemberType<D> memberType,
             @NotNull OverloadResolutionResultsImpl<D> results
     ) {
-        innerCache.recordResolutionResults(callKey, memberType, results);
+        innerCache.recordResolutionResults(callKey, results);
     }
 
     @Nullable
     @Override
     public <D extends CallableDescriptor> OverloadResolutionResultsImpl<D> getResolutionResults(
-            @NotNull CallKey callKey, @NotNull MemberType<D> memberType
+            @NotNull CallKey callKey
     ) {
-        OverloadResolutionResultsImpl<D> results = innerCache.getResolutionResults(callKey, memberType);
+        OverloadResolutionResultsImpl<D> results = innerCache.getResolutionResults(callKey);
         if (results != null) {
             return results;
         }
-        return parentCache.getResolutionResults(callKey, memberType);
+        return parentCache.getResolutionResults(callKey);
     }
 
     @Override
@@ -77,10 +75,9 @@ public class TemporaryResolutionResultsCache implements ResolutionResultsCache {
     @Override
     public <D extends CallableDescriptor> void recordDeferredComputationForCall(
             @NotNull CallKey callKey,
-            @NotNull ResolvedCallWithTrace<D> resolvedCall,
             @NotNull CallCandidateResolutionContext<D> deferredComputation
     ) {
-        innerCache.recordDeferredComputationForCall(callKey, resolvedCall, deferredComputation);
+        innerCache.recordDeferredComputationForCall(callKey, deferredComputation);
     }
 
     @Nullable
@@ -91,16 +88,6 @@ public class TemporaryResolutionResultsCache implements ResolutionResultsCache {
             return computation;
         }
         return parentCache.getDeferredComputation(expression);
-    }
-
-    @Nullable
-    @Override
-    public ResolvedCallWithTrace<?> getCallForArgument(@Nullable JetExpression expression) {
-        ResolvedCallWithTrace<?> resolvedCall = innerCache.getCallForArgument(expression);
-        if (resolvedCall != null) {
-            return resolvedCall;
-        }
-        return parentCache.getCallForArgument(expression);
     }
 
     public void commit() {

@@ -56,7 +56,7 @@ public interface DescriptorRenderer extends Renderer<DeclarationDescriptor> {
 
     DescriptorRenderer FQ_NAMES_IN_TYPES = new DescriptorRendererBuilder().build();
 
-    DescriptorRenderer SHORT_NAMES_IN_TYPES = new DescriptorRendererBuilder().setShortNames(true).build();
+    DescriptorRenderer SHORT_NAMES_IN_TYPES = new DescriptorRendererBuilder().setShortNames(true).setIncludeSynthesizedParameterNames(false).build();
 
     DescriptorRenderer DEBUG_TEXT = new DescriptorRendererBuilder().setDebugMode(true).build();
 
@@ -65,6 +65,12 @@ public interface DescriptorRenderer extends Renderer<DeclarationDescriptor> {
             .setTextFormat(TextFormat.HTML).build();
 
     DescriptorRenderer HTML = new DescriptorRendererBuilder().setTextFormat(TextFormat.HTML).build();
+
+    DescriptorRenderer HTML_FOR_UNINFERRED_TYPE_PARAMS = new DescriptorRendererBuilder()
+            .setUninferredTypeParameterAsName(true)
+            .setModifiers()
+            .setShortNames(true)
+            .setTextFormat(TextFormat.HTML).build();
 
     @NotNull
     String renderType(@NotNull JetType type);

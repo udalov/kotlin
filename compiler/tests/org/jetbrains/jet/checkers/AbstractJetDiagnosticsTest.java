@@ -18,49 +18,108 @@ package org.jetbrains.jet.checkers;
 
 import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Sets;
+import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
+import kotlin.Function1;
+import kotlin.KotlinPackage;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.JetTestUtils;
 import org.jetbrains.jet.cli.jvm.compiler.CliLightClassGenerationSupport;
 import org.jetbrains.jet.descriptors.serialization.descriptors.MemberFilter;
-import org.jetbrains.jet.lang.diagnostics.DiagnosticUtils;
+import org.jetbrains.jet.lang.descriptors.DependencyKind;
+import org.jetbrains.jet.lang.descriptors.ModuleDescriptorImpl;
+import org.jetbrains.jet.lang.diagnostics.*;
 import org.jetbrains.jet.lang.psi.JetElement;
 import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.resolve.AnalyzingUtils;
 import org.jetbrains.jet.lang.resolve.BindingContext;
+import org.jetbrains.jet.lang.resolve.BindingTrace;
+import org.jetbrains.jet.lang.resolve.Diagnostics;
+import org.jetbrains.jet.lang.resolve.calls.model.MutableResolvedCall;
 import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCall;
-import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCallWithTrace;
 import org.jetbrains.jet.lang.resolve.java.AnalyzerFacadeForJVM;
 
 import java.io.File;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+
+import static org.jetbrains.jet.lang.diagnostics.Errors.*;
 
 public abstract class AbstractJetDiagnosticsTest extends BaseDiagnosticsTest {
 
     @Override
     protected void analyzeAndCheck(File testDataFile, List<TestFile> testFiles) {
-        List<JetFile> jetFiles = getJetFiles(testFiles);
+        Map<TestModule, List<TestFile>> groupedByModule = KotlinPackage.groupByTo(
+                testFiles,
+                new LinkedHashMap<TestModule, List<TestFile>>(),
+                new Function1<TestFile, TestModule>() {
+                    @Override
+                    public TestModule invoke(TestFile file) {
+                        return file.getModule();
+                    }
+                }
+        );
 
         CliLightClassGenerationSupport support = CliLightClassGenerationSupport.getInstanceForCli(getProject());
+        BindingTrace trace = support.getTrace();
 
-        BindingContext bindingContext = AnalyzerFacadeForJVM.analyzeFilesWithJavaIntegration(
-                getProject(), jetFiles, support.getTrace(),
-                Predicates.<PsiFile>alwaysTrue(), false, support.getModule(),
-                MemberFilter.ALWAYS_TRUE).getBindingContext();
+        List<JetFile> allJetFiles = new ArrayList<JetFile>();
+        Map<TestModule, ModuleDescriptorImpl> modules = createModules(groupedByModule);
+
+        for (Map.Entry<TestModule, List<TestFile>> entry : groupedByModule.entrySet()) {
+            TestModule testModule = entry.getKey();
+            List<? extends TestFile> testFilesInModule = entry.getValue();
+
+            List<JetFile> jetFiles = getJetFiles(testFilesInModule);
+            allJetFiles.addAll(jetFiles);
+
+            ModuleDescriptorImpl module = modules.get(testModule);
+
+            // New JavaDescriptorResolver is created for each module, which is good because it emulates different Java libraries for each module,
+            // albeit with same class names
+            AnalyzerFacadeForJVM.analyzeFilesWithJavaIntegration(
+                    getProject(),
+                    jetFiles,
+                    trace,
+                    Predicates.<PsiFile>alwaysTrue(),
+                    module == null ? support.getModule() : module,
+                    MemberFilter.ALWAYS_TRUE
+            );
+        }
 
         boolean ok = true;
 
         StringBuilder actualText = new StringBuilder();
         for (TestFile testFile : testFiles) {
-            ok &= testFile.getActualText(bindingContext, actualText);
+            ok &= testFile.getActualText(trace.getBindingContext(), actualText);
         }
 
         JetTestUtils.assertEqualsToFile(testDataFile, actualText.toString());
 
         assertTrue("Diagnostics mismatch. See the output above", ok);
 
-        checkAllResolvedCallsAreCompleted(jetFiles, bindingContext);
+        checkAllResolvedCallsAreCompleted(allJetFiles, trace.getBindingContext());
+    }
+
+    private Map<TestModule, ModuleDescriptorImpl> createModules(Map<TestModule, List<TestFile>> groupedByModule) {
+        Map<TestModule, ModuleDescriptorImpl> modules = new HashMap<TestModule, ModuleDescriptorImpl>();
+
+        for (TestModule testModule : groupedByModule.keySet()) {
+            if (testModule == null) continue;
+            ModuleDescriptorImpl module = AnalyzerFacadeForJVM.createJavaModule("<" + testModule.getName() + ">");
+            modules.put(testModule, module);
+        }
+
+        for (TestModule testModule : groupedByModule.keySet()) {
+            if (testModule == null) continue;
+
+            ModuleDescriptorImpl module = modules.get(testModule);
+            for (TestModule dependency : testModule.getDependencies()) {
+                // Adding other modules as BINARIES here, because in teh reduced dependency ordering model they are equal to binaries
+                module.addFragmentProvider(DependencyKind.BINARIES, modules.get(dependency).getPackageFragmentProvider());
+            }
+        }
+        return modules;
     }
 
     private static void checkAllResolvedCallsAreCompleted(@NotNull List<JetFile> jetFiles, @NotNull BindingContext bindingContext) {
@@ -78,8 +137,52 @@ public abstract class AbstractJetDiagnosticsTest extends BaseDiagnosticsTest {
             DiagnosticUtils.LineAndColumn lineAndColumn =
                     DiagnosticUtils.getLineAndColumnInPsiFile(element.getContainingFile(), element.getTextRange());
 
-            assertTrue("Resolved call for '" + element.getText() + "'" + lineAndColumn + " in not completed",
-                       ((ResolvedCallWithTrace<?>) resolvedCall).isCompleted());
+            assertTrue("Resolved call for '" + element.getText() + "'" + lineAndColumn + " is not completed",
+                       ((MutableResolvedCall<?>) resolvedCall).isCompleted());
         }
+
+        checkResolvedCallsInDiagnostics(bindingContext);
+    }
+
+    @SuppressWarnings({"unchecked", "ConstantConditions"})
+    private static void checkResolvedCallsInDiagnostics(BindingContext bindingContext) {
+        Set<DiagnosticFactory> diagnosticsStoringResolvedCalls1 = Sets.<DiagnosticFactory>newHashSet(
+                OVERLOAD_RESOLUTION_AMBIGUITY, NONE_APPLICABLE, CANNOT_COMPLETE_RESOLVE, UNRESOLVED_REFERENCE_WRONG_RECEIVER,
+                ASSIGN_OPERATOR_AMBIGUITY, ITERATOR_AMBIGUITY);
+        Set<DiagnosticFactory> diagnosticsStoringResolvedCalls2 = Sets.<DiagnosticFactory>newHashSet(
+                COMPONENT_FUNCTION_AMBIGUITY, DELEGATE_SPECIAL_FUNCTION_AMBIGUITY, DELEGATE_SPECIAL_FUNCTION_NONE_APPLICABLE);
+        Diagnostics diagnostics = bindingContext.getDiagnostics();
+        for (Diagnostic diagnostic : diagnostics) {
+            DiagnosticFactory factory = diagnostic.getFactory();
+            if (diagnosticsStoringResolvedCalls1.contains(factory)) {
+                assertResolvedCallsAreCompleted(
+                        diagnostic, ((DiagnosticWithParameters1<PsiElement, Collection<? extends ResolvedCall<?>>>) diagnostic).getA());
+
+            }
+            if (diagnosticsStoringResolvedCalls2.contains(factory)) {
+                assertResolvedCallsAreCompleted(
+                        diagnostic,
+                        ((DiagnosticWithParameters2<PsiElement, Object, Collection<? extends ResolvedCall<?>>>)diagnostic).getB());
+            }
+        }
+    }
+
+    private static void assertResolvedCallsAreCompleted(
+            @NotNull Diagnostic diagnostic, @NotNull Collection<? extends ResolvedCall<?>> resolvedCalls
+    ) {
+        boolean allCallsAreCompleted = true;
+        for (ResolvedCall<?> resolvedCall : resolvedCalls) {
+            if (!((MutableResolvedCall<?>) resolvedCall).isCompleted()) {
+                allCallsAreCompleted = false;
+            }
+        }
+
+        PsiElement element = diagnostic.getPsiElement();
+        DiagnosticUtils.LineAndColumn lineAndColumn =
+                DiagnosticUtils.getLineAndColumnInPsiFile(element.getContainingFile(), element.getTextRange());
+
+        assertTrue("Resolved calls stored in " + diagnostic.getFactory().getName() + "\n" +
+                   "for '" + element.getText() + "'" + lineAndColumn + " are not completed",
+                   allCallsAreCompleted);
     }
 }

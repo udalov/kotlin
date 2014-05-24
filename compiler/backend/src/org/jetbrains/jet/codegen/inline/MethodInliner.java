@@ -1,8 +1,27 @@
+/*
+ * Copyright 2010-2014 JetBrains s.r.o.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.jetbrains.jet.codegen.inline;
 
 import com.google.common.collect.Lists;
 import com.intellij.util.ArrayUtil;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.jet.codegen.ClosureCodegen;
+import org.jetbrains.jet.codegen.StackValue;
+import org.jetbrains.jet.codegen.state.JetTypeMapper;
 import org.jetbrains.org.objectweb.asm.Label;
 import org.jetbrains.org.objectweb.asm.MethodVisitor;
 import org.jetbrains.org.objectweb.asm.Opcodes;
@@ -12,9 +31,6 @@ import org.jetbrains.org.objectweb.asm.commons.Method;
 import org.jetbrains.org.objectweb.asm.commons.RemappingMethodAdapter;
 import org.jetbrains.org.objectweb.asm.tree.*;
 import org.jetbrains.org.objectweb.asm.tree.analysis.*;
-import org.jetbrains.jet.codegen.ClosureCodegen;
-import org.jetbrains.jet.codegen.StackValue;
-import org.jetbrains.jet.codegen.state.JetTypeMapper;
 
 import java.util.*;
 
@@ -125,9 +141,15 @@ public class MethodInliner {
                         //TODO: need poping of type but what to do with local funs???
                         Type newLambdaType = Type.getObjectType(inliningContext.nameGenerator.genLambdaClassName());
                         currentTypeMapping.put(invocation.getOwnerInternalName(), newLambdaType.getInternalName());
-                        LambdaTransformer transformer = new LambdaTransformer(invocation.getOwnerInternalName(),
-                                                                              inliningContext.subInline(inliningContext.nameGenerator, currentTypeMapping).classRegeneration(),
-                                                                              isSameModule, newLambdaType);
+                        AnonymousObjectTransformer transformer =
+                                new AnonymousObjectTransformer(invocation.getOwnerInternalName(),
+                                                               inliningContext
+                                                                       .subInlineWithClassRegeneration(
+                                                                               inliningContext.nameGenerator,
+                                                                               currentTypeMapping,
+                                                                               invocation),
+                                                               isSameModule, newLambdaType
+                                );
 
                         InlineResult transformResult = transformer.doTransform(invocation, nodeRemapper);
                         result.addAllClassesToRemove(transformResult);
@@ -175,7 +197,8 @@ public class MethodInliner {
                     result.addAllClassesToRemove(lambdaResult);
 
                     //return value boxing/unboxing
-                    Method bridge = typeMapper.mapSignature(ClosureCodegen.getInvokeFunction(info.getFunctionDescriptor())).getAsmMethod();
+                    Method bridge =
+                            typeMapper.mapSignature(ClosureCodegen.getErasedInvokeFunction(info.getFunctionDescriptor())).getAsmMethod();
                     Method delegate = typeMapper.mapSignature(info.getFunctionDescriptor()).getAsmMethod();
                     StackValue.onStack(delegate.getReturnType()).put(bridge.getReturnType(), this);
                     setInlining(false);
@@ -336,7 +359,7 @@ public class MethodInliner {
                             }
                         }
 
-                        constructorInvocations.add(new ConstructorInvocation(owner, lambdaMapping, isSameModule, inliningContext.classRegeneration));
+                        constructorInvocations.add(new ConstructorInvocation(owner, desc, lambdaMapping, isSameModule, inliningContext.classRegeneration));
                     }
                 }
             }

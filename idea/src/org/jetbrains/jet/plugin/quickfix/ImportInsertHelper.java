@@ -27,9 +27,9 @@ import org.jetbrains.jet.lang.resolve.ImportPath;
 import org.jetbrains.jet.lang.resolve.java.AnalyzerFacadeForJVM;
 import org.jetbrains.jet.lang.resolve.java.JavaDescriptorResolver;
 import org.jetbrains.jet.lang.resolve.name.FqName;
+import org.jetbrains.jet.lang.resolve.name.NamePackage;
 import org.jetbrains.jet.plugin.project.ProjectStructureUtil;
 import org.jetbrains.jet.plugin.references.JetReference;
-import org.jetbrains.jet.lang.resolve.name.NamePackage;
 import org.jetbrains.k2js.analyze.AnalyzerFacadeForJS;
 
 import java.util.List;
@@ -96,10 +96,12 @@ public class ImportInsertHelper {
     }
 
     public static void writeImportToFile(@NotNull ImportPath importPath, @NotNull JetFile file) {
-        if (file instanceof JetCodeFragmentImpl) {
-            // TODO Insert import doesn't work for codeFragments yet
+        if (file instanceof JetCodeFragment) {
+            JetImportDirective newDirective = JetPsiFactory.createImportDirective(file.getProject(), importPath);
+            ((JetCodeFragment) file).addImportsFromString(newDirective.getText());
             return;
         }
+
         JetImportList importList = file.getImportList();
         if (importList != null) {
             JetImportDirective newDirective = JetPsiFactory.createImportDirective(file.getProject(), importPath);
@@ -167,7 +169,7 @@ public class ImportInsertHelper {
         if (!importDirectives.isEmpty()) {
             // Check if import is already present
             for (JetImportDirective directive : importDirectives) {
-                ImportPath existentImportPath = JetPsiUtil.getImportPath(directive);
+                ImportPath existentImportPath = directive.getImportPath();
                 if (existentImportPath != null && NamePackage.isImported(importPath, existentImportPath)) {
                     return false;
                 }

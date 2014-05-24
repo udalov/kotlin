@@ -113,6 +113,16 @@ public class ShortenRefsTestGenerated extends AbstractShortenRefsTest {
             doTest("idea/testData/shortenRefs/constructor/NoImportNeeded3.kt");
         }
         
+        @TestMetadata("WorksForClassNameRange.kt")
+        public void testWorksForClassNameRange() throws Exception {
+            doTest("idea/testData/shortenRefs/constructor/WorksForClassNameRange.kt");
+        }
+        
+        @TestMetadata("WorksForClassNameRange2.kt")
+        public void testWorksForClassNameRange2() throws Exception {
+            doTest("idea/testData/shortenRefs/constructor/WorksForClassNameRange2.kt");
+        }
+        
     }
     
     @TestMetadata("idea/testData/shortenRefs/java")
@@ -167,6 +177,16 @@ public class ShortenRefsTestGenerated extends AbstractShortenRefsTest {
     public static class Type extends AbstractShortenRefsTest {
         public void testAllFilesPresentInType() throws Exception {
             JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), "org.jetbrains.jet.generators.tests.TestsPackage", new File("idea/testData/shortenRefs/type"), Pattern.compile("^([^\\.]+)\\.kt$"), true);
+        }
+        
+        @TestMetadata("ClassNameInsideArguments.kt")
+        public void testClassNameInsideArguments() throws Exception {
+            doTest("idea/testData/shortenRefs/type/ClassNameInsideArguments.kt");
+        }
+        
+        @TestMetadata("ClassNameInsideLambda.kt")
+        public void testClassNameInsideLambda() throws Exception {
+            doTest("idea/testData/shortenRefs/type/ClassNameInsideLambda.kt");
         }
         
         @TestMetadata("ClassSameNameAsPackage.kt")

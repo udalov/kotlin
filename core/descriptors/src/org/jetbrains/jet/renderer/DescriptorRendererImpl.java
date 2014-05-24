@@ -41,6 +41,7 @@ import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 
 import java.util.*;
 
+import static org.jetbrains.jet.lang.types.ErrorUtils.UninferredParameterType;
 import static org.jetbrains.jet.lang.types.TypeUtils.*;
 
 public class DescriptorRendererImpl implements DescriptorRenderer {
@@ -55,6 +56,8 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
     private final boolean normalizedVisibilities;
     private final boolean showInternalKeyword;
     private final boolean prettyFunctionTypes;
+    private final boolean uninferredTypeParameterAsName;
+    private final boolean includeSynthesizedParameterNames;
 
     @NotNull
     private final OverrideRenderingPolicy overrideRenderingPolicy;
@@ -78,11 +81,13 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
             boolean normalizedVisibilities,
             boolean showInternalKeyword,
             boolean prettyFunctionTypes,
+            boolean uninferredTypeParameterAsName,
             @NotNull OverrideRenderingPolicy overrideRenderingPolicy,
             @NotNull ValueParametersHandler handler,
             @NotNull TextFormat textFormat,
             @NotNull Collection<FqName> excludedAnnotationClasses,
-            boolean includePropertyConstant
+            boolean includePropertyConstant,
+            boolean includeSynthesizedParameterNames
     ) {
         this.shortNames = shortNames;
         this.withDefinedIn = withDefinedIn;
@@ -100,6 +105,8 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
         this.includePropertyConstant = includePropertyConstant;
         this.excludedAnnotationClasses = Sets.newHashSet(excludedAnnotationClasses);
         this.prettyFunctionTypes = prettyFunctionTypes;
+        this.uninferredTypeParameterAsName = uninferredTypeParameterAsName;
+        this.includeSynthesizedParameterNames = includeSynthesizedParameterNames;
     }
 
     /* FORMATTING */
@@ -110,6 +117,17 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
                 return keyword;
             case HTML:
                 return "<b>" + keyword + "</b>";
+        }
+        throw new IllegalStateException("Unexpected textFormat: " + textFormat);
+    }
+
+    @NotNull
+    private String renderError(@NotNull String keyword) {
+        switch (textFormat) {
+            case PLAIN:
+                return keyword;
+            case HTML:
+                return "<font color=red><b>" + keyword + "</b></font>";
         }
         throw new IllegalStateException("Unexpected textFormat: " + textFormat);
     }
@@ -128,6 +146,11 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
     @NotNull
     private String lt() {
         return escape("<");
+    }
+
+    @NotNull
+    private String gt() {
+        return escape(">");
     }
 
     @NotNull
@@ -213,23 +236,17 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
     @NotNull
     @Override
     public String renderType(@NotNull JetType type) {
-        return escape(renderTypeWithoutEscape(type));
-    }
-
-    @NotNull
-    @Override
-    public String renderTypeArguments(@NotNull List<TypeProjection> typeArguments) {
-        if (typeArguments.isEmpty()) return "";
-        StringBuilder sb = new StringBuilder();
-        sb.append("<");
-        appendTypeProjections(typeArguments, sb);
-        sb.append(">");
-        return sb.toString();
-    }
-
-    private String renderTypeWithoutEscape(@NotNull JetType type) {
-        if (type == CANT_INFER_LAMBDA_PARAM_TYPE || type == CANT_INFER_TYPE_PARAMETER || type == DONT_CARE) {
+        if (type == CANT_INFER_LAMBDA_PARAM_TYPE || type == DONT_CARE) {
             return "???";
+        }
+        if (ErrorUtils.isUninferredParameter(type)) {
+            if (uninferredTypeParameterAsName) {
+                return renderError(((UninferredParameterType) type).getTypeParameterDescriptor().getName().toString());
+            }
+            return "???";
+        }
+        if (type instanceof PackageType) {
+            return type.toString();
         }
         if (type instanceof LazyType && debugMode) {
             return type.toString();
@@ -244,6 +261,17 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
     }
 
     @NotNull
+    @Override
+    public String renderTypeArguments(@NotNull List<TypeProjection> typeArguments) {
+        if (typeArguments.isEmpty()) return "";
+        StringBuilder sb = new StringBuilder();
+        sb.append(lt());
+        appendTypeProjections(typeArguments, sb);
+        sb.append(gt());
+        return sb.toString();
+    }
+
+    @NotNull
     private String renderDefaultType(@NotNull JetType type) {
         StringBuilder sb = new StringBuilder();
 
@@ -253,11 +281,7 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
         else {
             sb.append(renderTypeName(type.getConstructor()));
         }
-        if (!type.getArguments().isEmpty()) {
-            sb.append("<");
-            appendTypeProjections(type.getArguments(), sb);
-            sb.append(">");
-        }
+        sb.append(renderTypeArguments(type.getArguments()));
         if (type.isNullable()) {
             sb.append("?");
         }
@@ -304,7 +328,7 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
 
         sb.append("(");
         appendTypeProjections(KotlinBuiltIns.getInstance().getParameterTypeProjectionsFromFunctionType(type), sb);
-        sb.append(") " + arrow() + " ");
+        sb.append(") ").append(arrow()).append(" ");
         sb.append(renderType(KotlinBuiltIns.getInstance().getReturnTypeFromFunctionType(type)));
 
         if (type.isNullable()) {
@@ -520,7 +544,7 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
         }
 
         if (topLevel) {
-            builder.append(">");
+            builder.append(gt());
         }
     }
 
@@ -538,7 +562,7 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
                     builder.append(", ");
                 }
             }
-            builder.append(">");
+            builder.append(gt());
             if (withSpace) {
                 builder.append(" ");
             }
@@ -564,7 +588,9 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
         }
 
         renderName(function, builder);
+
         renderValueParameters(function, builder);
+
         JetType returnType = function.getReturnType();
         if (unitReturnType || !KotlinBuiltIns.getInstance().isUnit(returnType)) {
             builder.append(": ").append(returnType == null ? "[NULL]" : escape(renderType(returnType)));
@@ -617,17 +643,18 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
     }
 
     private void renderValueParameters(@NotNull FunctionDescriptor function, @NotNull StringBuilder builder) {
+        boolean includeNames = includeSynthesizedParameterNames || !function.hasSynthesizedParameterNames();
         handler.appendBeforeValueParameters(function, builder);
         for (ValueParameterDescriptor parameter : function.getValueParameters()) {
             handler.appendBeforeValueParameter(parameter, builder);
-            renderValueParameter(parameter, builder, false);
+            renderValueParameter(parameter, includeNames, builder, false);
             handler.appendAfterValueParameter(parameter, builder);
         }
         handler.appendAfterValueParameters(function, builder);
     }
 
     /* VARIABLES */
-    private void renderValueParameter(@NotNull ValueParameterDescriptor valueParameter, @NotNull StringBuilder builder, boolean topLevel) {
+    private void renderValueParameter(@NotNull ValueParameterDescriptor valueParameter, boolean includeName, @NotNull StringBuilder builder, boolean topLevel) {
         if (topLevel) {
             builder.append(renderKeyword("value-parameter")).append(" ");
         }
@@ -637,7 +664,7 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
         }
 
         renderAnnotations(valueParameter, builder);
-        renderVariable(valueParameter, builder, topLevel);
+        renderVariable(valueParameter, includeName, builder, topLevel);
         boolean withDefaultValue = debugMode ? valueParameter.declaresDefaultValue() : valueParameter.hasDefaultValue();
         if (withDefaultValue) {
             builder.append(" = ...");
@@ -648,7 +675,7 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
         builder.append(renderKeyword(variable.isVar() ? "var" : "val")).append(" ");
     }
 
-    private void renderVariable(@NotNull VariableDescriptor variable, @NotNull StringBuilder builder, boolean topLevel) {
+    private void renderVariable(@NotNull VariableDescriptor variable, boolean includeName, @NotNull StringBuilder builder, boolean topLevel) {
         JetType realType = variable.getType();
 
         JetType varargElementType = variable instanceof ValueParameterDescriptor
@@ -663,8 +690,12 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
             renderValVarPrefix(variable, builder);
         }
 
-        renderName(variable, builder);
-        builder.append(": ").append(escape(renderType(typeToRender)));
+        if (includeName) {
+            renderName(variable, builder);
+            builder.append(": ");
+        }
+
+        builder.append(escape(renderType(typeToRender)));
 
         renderInitializer(variable, builder);
 
@@ -806,13 +837,13 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
     private class RenderDeclarationDescriptorVisitor extends DeclarationDescriptorVisitorEmptyBodies<Void, StringBuilder> {
         @Override
         public Void visitValueParameterDescriptor(ValueParameterDescriptor descriptor, StringBuilder builder) {
-            renderValueParameter(descriptor, builder, true);
+            renderValueParameter(descriptor, true, builder, true);
             return null;
         }
 
         @Override
         public Void visitVariableDescriptor(VariableDescriptor descriptor, StringBuilder builder) {
-            renderVariable(descriptor, builder, true);
+            renderVariable(descriptor, true, builder, true);
             return null;
         }
 

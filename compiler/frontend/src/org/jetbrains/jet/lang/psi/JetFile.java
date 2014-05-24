@@ -24,15 +24,18 @@ import com.intellij.psi.FileViewProvider;
 import com.intellij.psi.PsiClass;
 import com.intellij.psi.PsiClassOwner;
 import com.intellij.psi.PsiElementVisitor;
+import com.intellij.psi.stubs.StubElement;
 import com.intellij.psi.util.PsiTreeUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.JetNodeTypes;
 import org.jetbrains.jet.lang.psi.stubs.PsiJetFileStub;
+import org.jetbrains.jet.lang.psi.stubs.elements.JetStubElementTypes;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.plugin.JetFileType;
 import org.jetbrains.jet.plugin.JetLanguage;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -68,11 +71,20 @@ public class JetFile extends PsiFileBase implements JetDeclarationContainer, Jet
     @NotNull
     @Override
     public List<JetDeclaration> getDeclarations() {
+        PsiJetFileStub stub = getStub();
+        if (stub != null) {
+            return Arrays.asList(stub.getChildrenByType(JetStubElementTypes.DECLARATION_TYPES, JetDeclaration.ARRAY_FACTORY));
+        }
         return PsiTreeUtil.getChildrenOfTypeAsList(this, JetDeclaration.class);
     }
 
     @Nullable
     public JetImportList getImportList() {
+        PsiJetFileStub stub = getStub();
+        if (stub != null) {
+            StubElement<JetImportList> importListStub = stub.findChildStubByType(JetStubElementTypes.IMPORT_LIST);
+            return importListStub != null ? importListStub.getPsi() : null;
+        }
         return findChildByClass(JetImportList.class);
     }
 
@@ -95,6 +107,11 @@ public class JetFile extends PsiFileBase implements JetDeclarationContainer, Jet
     // scripts have no package directive, all other files must have package directives
     @Nullable
     public JetPackageDirective getPackageDirective() {
+        PsiJetFileStub stub = getStub();
+        if (stub != null) {
+            StubElement<JetPackageDirective> packageDirectiveStub = stub.findChildStubByType(JetStubElementTypes.PACKAGE_DIRECTIVE);
+            return packageDirectiveStub != null ? packageDirectiveStub.getPsi() : null;
+        }
         ASTNode ast = getNode().findChildByType(JetNodeTypes.PACKAGE_DIRECTIVE);
         return ast != null ? (JetPackageDirective) ast.getPsi() : null;
     }
@@ -108,16 +125,26 @@ public class JetFile extends PsiFileBase implements JetDeclarationContainer, Jet
 
     @NotNull
     public FqName getPackageFqName() {
-        PsiJetFileStub stub = (PsiJetFileStub) getStub();
+        PsiJetFileStub stub = getStub();
         if (stub != null) {
             return stub.getPackageFqName();
         }
+        return getPackageFqNameByTree();
+    }
 
+    @NotNull
+    public FqName getPackageFqNameByTree() {
         JetPackageDirective packageDirective = getPackageDirective();
         if (packageDirective == null) {
             return FqName.ROOT;
         }
         return packageDirective.getFqName();
+    }
+
+    @Override
+    @Nullable
+    public PsiJetFileStub getStub() {
+        return (PsiJetFileStub) super.getStub();
     }
 
     @NotNull
@@ -136,11 +163,14 @@ public class JetFile extends PsiFileBase implements JetDeclarationContainer, Jet
     }
 
     public boolean isScript() {
-        PsiJetFileStub stub = (PsiJetFileStub) getStub();
+        PsiJetFileStub stub = getStub();
         if (stub != null) {
             return stub.isScript();
         }
+        return isScriptByTree();
+    }
 
+    public boolean isScriptByTree() {
         return getScript() != null;
     }
 

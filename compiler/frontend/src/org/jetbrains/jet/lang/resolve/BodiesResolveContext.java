@@ -49,6 +49,8 @@ public interface BodiesResolveContext extends GlobalContext {
     @Mutable
     Map<JetClassOrObject, ClassDescriptorWithResolutionScopes> getDeclaredClasses();
     @Mutable
+    Map<JetClassInitializer, ClassDescriptorWithResolutionScopes> getAnonymousInitializers();
+    @Mutable
     Map<JetScript, ScriptDescriptor> getScripts();
 
     @Mutable
@@ -61,7 +63,6 @@ public interface BodiesResolveContext extends GlobalContext {
 
     @NotNull
     TopDownAnalysisParameters getTopDownAnalysisParameters();
-    void setTopDownAnalysisParameters(TopDownAnalysisParameters parameters);
 
     boolean completeAnalysisNeeded(@NotNull PsiElement element);
 }

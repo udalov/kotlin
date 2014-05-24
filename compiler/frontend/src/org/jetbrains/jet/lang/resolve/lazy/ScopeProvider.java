@@ -18,7 +18,6 @@ package org.jetbrains.jet.lang.resolve.lazy;
 
 import com.google.common.collect.Lists;
 import com.intellij.psi.PsiElement;
-import com.intellij.psi.util.PsiTreeUtil;
 import kotlin.Function0;
 import kotlin.Function1;
 import org.jetbrains.annotations.NotNull;
@@ -120,15 +119,16 @@ public class ScopeProvider {
 
     @NotNull
     public JetScope getResolutionScopeForDeclaration(@NotNull PsiElement elementOfDeclaration) {
-        JetDeclaration jetDeclaration = PsiTreeUtil.getParentOfType(elementOfDeclaration, JetDeclaration.class, false);
+        JetDeclaration jetDeclaration = JetStubbedPsiUtil.getPsiOrStubParent(elementOfDeclaration, JetDeclaration.class, false);
 
         assert !(elementOfDeclaration instanceof JetDeclaration) || jetDeclaration == elementOfDeclaration :
                 "For JetDeclaration element getParentOfType() should return itself.";
+        assert jetDeclaration != null : "Should be contained inside declaration.";
 
-        JetDeclaration parentDeclaration = PsiTreeUtil.getParentOfType(jetDeclaration, JetDeclaration.class);
+        JetDeclaration parentDeclaration = JetStubbedPsiUtil.getContainingDeclaration(jetDeclaration);
 
         if (jetDeclaration instanceof JetPropertyAccessor) {
-            parentDeclaration = PsiTreeUtil.getParentOfType(parentDeclaration, JetDeclaration.class);
+            parentDeclaration = JetStubbedPsiUtil.getContainingDeclaration(parentDeclaration, JetDeclaration.class);
         }
 
         if (parentDeclaration == null) {

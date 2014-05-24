@@ -62,7 +62,7 @@ public class StubIndexServiceImpl implements StubIndexService {
         FqName fqName = stub.getFqName();
 
         if (stub.isClassObject()) {
-            StubElement parentClassStub = stub.getParentStub().getParentStub();
+            StubElement parentClassStub = stub.getParentStub().getParentStub().getParentStub();
             assert parentClassStub instanceof PsiJetStubWithFqName<?>
                     : "Something but a class/object is a parent to class object stub: " + parentClassStub;
 
@@ -143,7 +143,7 @@ public class StubIndexServiceImpl implements StubIndexService {
     }
 
     @Override
-    public void indexAnnotation(PsiJetAnnotationStub stub, IndexSink sink) {
+    public void indexAnnotation(PsiJetAnnotationEntryStub stub, IndexSink sink) {
         sink.occurrence(JetAnnotationsIndex.getInstance().getKey(), stub.getShortName());
     }
 }

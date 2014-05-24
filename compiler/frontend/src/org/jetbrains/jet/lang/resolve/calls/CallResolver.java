@@ -28,9 +28,8 @@ import org.jetbrains.jet.lang.resolve.*;
 import org.jetbrains.jet.lang.resolve.calls.autocasts.DataFlowInfo;
 import org.jetbrains.jet.lang.resolve.calls.context.*;
 import org.jetbrains.jet.lang.resolve.calls.model.MutableDataFlowInfoForArguments;
+import org.jetbrains.jet.lang.resolve.calls.model.MutableResolvedCall;
 import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCall;
-import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCallImpl;
-import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCallWithTrace;
 import org.jetbrains.jet.lang.resolve.calls.results.OverloadResolutionResults;
 import org.jetbrains.jet.lang.resolve.calls.results.OverloadResolutionResultsImpl;
 import org.jetbrains.jet.lang.resolve.calls.results.ResolutionDebugInfo;
@@ -45,7 +44,6 @@ import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.lang.types.expressions.ExpressionTypingContext;
 import org.jetbrains.jet.lang.types.expressions.ExpressionTypingServices;
 import org.jetbrains.jet.lang.types.expressions.ExpressionTypingUtils;
-import org.jetbrains.jet.lang.types.expressions.LabelResolver;
 import org.jetbrains.jet.lexer.JetTokens;
 
 import javax.inject.Inject;
@@ -111,8 +109,7 @@ public class CallResolver {
         List<ResolutionTask<VariableDescriptor, VariableDescriptor>> prioritizedTasks =
                 TaskPrioritizer.<VariableDescriptor, VariableDescriptor>computePrioritizedTasks(
                         context, referencedName, tracing, callableDescriptorCollectors);
-        return doResolveCallOrGetCachedResults(ResolutionResultsCache.PROPERTY_MEMBER_TYPE,
-                context, prioritizedTasks, CallTransformer.PROPERTY_CALL_TRANSFORMER, tracing);
+        return doResolveCallOrGetCachedResults(context, prioritizedTasks, CallTransformer.PROPERTY_CALL_TRANSFORMER, tracing);
     }
 
     @NotNull
@@ -156,8 +153,7 @@ public class CallResolver {
     ) {
         List<ResolutionTask<CallableDescriptor, FunctionDescriptor>> tasks =
                 TaskPrioritizer.<CallableDescriptor, FunctionDescriptor>computePrioritizedTasks(context, name, tracing, collectors);
-        return doResolveCallOrGetCachedResults(ResolutionResultsCache.FUNCTION_MEMBER_TYPE,
-                                               context, tasks, CallTransformer.FUNCTION_CALL_TRANSFORMER, tracing);
+        return doResolveCallOrGetCachedResults(context, tasks, CallTransformer.FUNCTION_CALL_TRANSFORMER, tracing);
     }
 
     @NotNull
@@ -300,8 +296,7 @@ public class CallResolver {
 
         TracingStrategy tracing = TracingStrategyImpl.create(functionReference, context.call);
         OverloadResolutionResultsImpl<FunctionDescriptor> results = doResolveCallOrGetCachedResults(
-                ResolutionResultsCache.FUNCTION_MEMBER_TYPE, context, prioritizedTasks,
-                CallTransformer.FUNCTION_CALL_TRANSFORMER, tracing);
+                context, prioritizedTasks, CallTransformer.FUNCTION_CALL_TRANSFORMER, tracing);
         if (calleeExpression instanceof JetSimpleNameExpression) {
             ExpressionTypingUtils.checkCapturingInClosure((JetSimpleNameExpression) calleeExpression, context.trace, context.scope);
         }
@@ -321,12 +316,11 @@ public class CallResolver {
         List<ResolutionTask<CallableDescriptor, FunctionDescriptor>> tasks =
                 TaskPrioritizer.<CallableDescriptor, FunctionDescriptor>computePrioritizedTasksFromCandidates(
                         basicCallResolutionContext, Collections.singleton(candidate), tracing);
-        return doResolveCallOrGetCachedResults(ResolutionResultsCache.FUNCTION_MEMBER_TYPE, basicCallResolutionContext, tasks,
-                                               CallTransformer.FUNCTION_CALL_TRANSFORMER, tracing);
+        return doResolveCallOrGetCachedResults(
+                basicCallResolutionContext, tasks, CallTransformer.FUNCTION_CALL_TRANSFORMER, tracing);
     }
 
     private <D extends CallableDescriptor, F extends D> OverloadResolutionResultsImpl<F> doResolveCallOrGetCachedResults(
-            @NotNull ResolutionResultsCache.MemberType<F> memberType,
             @NotNull BasicCallResolutionContext context,
             @NotNull List<ResolutionTask<D, F>> prioritizedTasks,
             @NotNull CallTransformer<D, F> callTransformer,
@@ -336,7 +330,7 @@ public class CallResolver {
         TemporaryBindingTrace traceToResolveCall = TemporaryBindingTrace.create(context.trace, "trace to resolve call", context.call);
         CallKey callKey = CallResolverUtil.createCallKey(context);
         if (callKey != null) {
-            OverloadResolutionResultsImpl<F> cachedResults = context.resolutionResultsCache.getResolutionResults(callKey, memberType);
+            OverloadResolutionResultsImpl<F> cachedResults = context.resolutionResultsCache.getResolutionResults(callKey);
             if (cachedResults != null) {
                 DelegatingBindingTrace deltasTraceForResolve = context.resolutionResultsCache.getResolutionTrace(callKey);
                 assert deltasTraceForResolve != null;
@@ -352,20 +346,12 @@ public class CallResolver {
                 deltasTraceForTypeInference.addAllMyDataTo(traceToResolveCall);
             }
             completeTypeInferenceDependentOnFunctionLiterals(newContext, results, tracing);
-            cacheResults(memberType, context, results, traceToResolveCall, tracing);
+            cacheResults(context, results, traceToResolveCall, tracing);
         }
         traceToResolveCall.commit();
 
         if (context.contextDependency == ContextDependency.INDEPENDENT) {
             results = completeTypeInferenceDependentOnExpectedType(context, results, tracing);
-            if (results.isSingleResult()) {
-                //todo clean internal data for several resulting calls
-                results.getResultingCall().markCallAsCompleted();
-            }
-            else {
-                argumentTypeResolver.checkTypesForFunctionArgumentsWithNoCallee(context);
-                candidateResolver.completeNestedCallsForNotResolvedInvocation(context);
-            }
         }
 
         if (results.isSingleResult()) {
@@ -389,7 +375,7 @@ public class CallResolver {
         }
 
         CallCandidateResolutionContext<D> candidateContext = CallCandidateResolutionContext.createForCallBeingAnalyzed(
-                results.getResultingCall().getCallToCompleteTypeArgumentInference(), context, tracing);
+                results.getResultingCall(), context, tracing);
         candidateResolver.completeTypeInferenceDependentOnFunctionLiteralsForCall(candidateContext);
     }
 
@@ -400,37 +386,32 @@ public class CallResolver {
     ) {
         if (CallResolverUtil.isInvokeCallOnVariable(context.call)) return results;
 
-        if (results.isSingleResult()) {
-            Set<ValueArgument> unmappedArguments = results.getResultingCall().getCallToCompleteTypeArgumentInference().getUnmappedArguments();
-            argumentTypeResolver.checkUnmappedArgumentTypes(context, unmappedArguments);
-            candidateResolver.completeUnmappedArguments(context, unmappedArguments);
-        }
-
-        if (!results.isSingleResult()) return results;
-
-        ResolvedCallWithTrace<D> resolvedCall = results.getResultingCall();
-        ResolvedCallImpl<D> callToCompleteInference = resolvedCall.getCallToCompleteTypeArgumentInference();
-
-        if (!callToCompleteInference.hasIncompleteTypeParameters()) {
-            CallCandidateResolutionContext<D> callCandidateResolutionContext =
-                    CallCandidateResolutionContext.createForCallBeingAnalyzed(callToCompleteInference, context, tracing);
-            candidateResolver.completeNestedCallsInference(callCandidateResolutionContext);
-            candidateResolver.checkValueArgumentTypes(callCandidateResolutionContext);
+        if (!results.isSingleResult()) {
+            argumentTypeResolver.checkTypesForFunctionArgumentsWithNoCallee(context);
+            candidateResolver.completeNestedCallsForNotResolvedInvocation(context);
+            candidateResolver.completeTypeInferenceForAllCandidates(context, results);
             return results;
         }
 
+        MutableResolvedCall<D> resolvedCall = results.getResultingCall();
+
+        Set<ValueArgument> unmappedArguments = resolvedCall.getUnmappedArguments();
+        argumentTypeResolver.checkUnmappedArgumentTypes(context, unmappedArguments);
+        candidateResolver.completeUnmappedArguments(context, unmappedArguments);
+
         CallCandidateResolutionContext<D> callCandidateResolutionContext =
-                CallCandidateResolutionContext.createForCallBeingAnalyzed(callToCompleteInference, context, tracing);
+                CallCandidateResolutionContext.createForCallBeingAnalyzed(resolvedCall, context, tracing);
         candidateResolver.completeTypeInferenceDependentOnExpectedTypeForCall(callCandidateResolutionContext, false);
 
-        if (callToCompleteInference.getStatus().isSuccess()) {
-            return OverloadResolutionResultsImpl.success(resolvedCall);
+        candidateResolver.completeTypeInferenceForAllCandidates(context, results);
+
+        if (resolvedCall.getStatus().isSuccess()) {
+            return results.changeStatusToSuccess();
         }
-        return OverloadResolutionResultsImpl.incompleteTypeInference(resolvedCall);
+        return results;
     }
 
     private static <F extends CallableDescriptor> void cacheResults(
-            @NotNull ResolutionResultsCache.MemberType<F> memberType,
             @NotNull BasicCallResolutionContext context,
             @NotNull OverloadResolutionResultsImpl<F> results,
             @NotNull DelegatingBindingTrace traceToResolveCall,
@@ -443,14 +424,13 @@ public class CallResolver {
                 BindingContext.EMPTY, "delta trace for caching resolve of", context.call);
         traceToResolveCall.addAllMyDataTo(deltasTraceToCacheResolve);
 
-        context.resolutionResultsCache.recordResolutionResults(callKey, memberType, results);
+        context.resolutionResultsCache.recordResolutionResults(callKey, results);
         context.resolutionResultsCache.recordResolutionTrace(callKey, deltasTraceToCacheResolve);
 
         if (results.isSingleResult()) {
-            ResolvedCallWithTrace<F> resultingCall = results.getResultingCall();
-            CallCandidateResolutionContext<F> contextForCallToCompleteTypeArgumentInference = CallCandidateResolutionContext.createForCallBeingAnalyzed(
-                    results.getResultingCall().getCallToCompleteTypeArgumentInference(), context, tracing);
-            context.resolutionResultsCache.recordDeferredComputationForCall(callKey, resultingCall, contextForCallToCompleteTypeArgumentInference);
+            CallCandidateResolutionContext<F> contextForCallToCompleteTypeArgumentInference =
+                    CallCandidateResolutionContext.createForCallBeingAnalyzed(results.getResultingCall(), context, tracing);
+            context.resolutionResultsCache.recordDeferredComputationForCall(callKey, contextForCallToCompleteTypeArgumentInference);
         }
     }
 
@@ -584,7 +564,8 @@ public class CallResolver {
             };
             TemporaryBindingTrace temporaryTrace =
                     TemporaryBindingTrace.create(task.trace, "trace for resolution guarded for extra function literal arguments");
-            ResolutionTask<D, F> newTask = task.replaceBindingTrace(temporaryTrace).replaceCall(callWithoutFLArgs);
+            ResolutionTask<D, F> newTask = new ResolutionTask<D, F>(task.getCandidates(), task.toBasic(), task.tracing).
+                    replaceBindingTrace(temporaryTrace).replaceCall(callWithoutFLArgs);
 
             OverloadResolutionResultsImpl<F> resultsWithFunctionLiteralsStripped = performResolution(newTask, callTransformer);
             if (resultsWithFunctionLiteralsStripped.isSuccess() || resultsWithFunctionLiteralsStripped.isAmbiguity()) {
@@ -613,9 +594,9 @@ public class CallResolver {
                 to have a binding to variable while 'invoke' call resolve */
                 task.tracing.bindReference(context.candidateCall.getTrace(), context.candidateCall);
 
-                Collection<ResolvedCallWithTrace<F>> calls = callTransformer.transformCall(context, this, task);
+                Collection<MutableResolvedCall<F>> calls = callTransformer.transformCall(context, this, task);
 
-                for (ResolvedCallWithTrace<F> call : calls) {
+                for (MutableResolvedCall<F> call : calls) {
                     task.tracing.bindReference(call.getTrace(), call);
                     task.tracing.bindResolvedCall(call.getTrace(), call);
                     task.addResolvedCall(call);

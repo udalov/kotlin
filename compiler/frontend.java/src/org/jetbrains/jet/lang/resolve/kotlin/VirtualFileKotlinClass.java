@@ -16,6 +16,7 @@
 
 package org.jetbrains.jet.lang.resolve.kotlin;
 
+import com.intellij.ide.highlighter.JavaClassFileType;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.util.Pair;
 import com.intellij.openapi.util.Ref;
@@ -80,6 +81,7 @@ public class VirtualFileKotlinClass implements KotlinJvmBinaryClass {
 
     @Nullable
     /* package */ static VirtualFileKotlinClass create(@NotNull VirtualFile file) {
+        assert file.getFileType() == JavaClassFileType.INSTANCE : "Trying to read binary data from a non-class file " + file;
         try {
             byte[] fileContents = file.contentsToByteArray();
             Pair<JvmClassName, KotlinClassHeader> nameAndHeader = readClassNameAndHeader(fileContents);
@@ -90,7 +92,7 @@ public class VirtualFileKotlinClass implements KotlinJvmBinaryClass {
             return new VirtualFileKotlinClass(file, nameAndHeader.first, nameAndHeader.second);
         }
         catch (Throwable e) {
-            LOG.warn(renderFileReadingErrorMessage(file), e);
+            LOG.warn(renderFileReadingErrorMessage(file));
             return null;
         }
     }
@@ -232,9 +234,9 @@ public class VirtualFileKotlinClass implements KotlinJvmBinaryClass {
 
     @NotNull
     private static String renderFileReadingErrorMessage(@NotNull VirtualFile file) {
-        return "Could not read file: " + file.getPath() + "\n"
-               + "Size in bytes: " + file.getLength() + "\n"
-               + "File type: " + file.getFileType().getName();
+        return "Could not read file: " + file.getPath() + "; "
+               + "size in bytes: " + file.getLength() + "; "
+               + "file type: " + file.getFileType().getName();
     }
 
     @Override

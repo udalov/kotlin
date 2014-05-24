@@ -22,9 +22,15 @@ import com.intellij.psi.codeStyle.CodeStyleSettings
 import java.util.ArrayList
 import com.intellij.psi.tree.IElementType
 import org.jetbrains.jet.plugin.JetLanguage
-
+import com.intellij.psi.formatter.common.AbstractBlock
+import com.intellij.lang.ASTNode
 
 class KotlinSpacingBuilder(val codeStyleSettings: CodeStyleSettings) {
+    class SpacingNodeBlock(node: ASTNode): AbstractBlock(node, null, null) {
+        override fun buildChildren(): MutableList<Block>? = ArrayList()
+        override fun getSpacing(child1: Block?, child2: Block): Spacing? = null
+        override fun isLeaf(): Boolean = false
+    }
 
     private val builders = ArrayList<Builder>()
 
@@ -71,7 +77,11 @@ class KotlinSpacingBuilder(val codeStyleSettings: CodeStyleSettings) {
             }
         }
 
-        fun customRule(block: (ASTBlock, ASTBlock, ASTBlock) -> Spacing?) {
+        fun spacing(spacing: Spacing) {
+            newRule { (parent, left, right) -> spacing }
+        }
+
+        fun customRule(block: (parent: ASTBlock, left: ASTBlock, right: ASTBlock) -> Spacing?) {
             newRule(block)
         }
 

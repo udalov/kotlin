@@ -248,8 +248,7 @@ public abstract class MemberCodegen<T extends JetElement/* TODO: & JetDeclaratio
     }
 
     private boolean shouldInitializeProperty(@NotNull JetProperty property) {
-        JetExpression initializer = property.getDelegateExpressionOrInitializer();
-        if (initializer == null) return false;
+        if (!property.hasDelegateExpressionOrInitializer()) return false;
 
         PropertyDescriptor propertyDescriptor = (PropertyDescriptor) bindingContext.get(VARIABLE, property);
         assert propertyDescriptor != null;
@@ -318,7 +317,7 @@ public abstract class MemberCodegen<T extends JetElement/* TODO: & JetDeclaratio
         for (JetDeclaration declaration : ((JetDeclarationContainer) element).getDeclarations()) {
             if (declaration instanceof JetProperty) {
                 JetProperty property = (JetProperty) declaration;
-                if (property.getDelegate() != null) {
+                if (property.hasDelegate()) {
                     delegatedProperties.add(property);
                 }
             }
@@ -345,5 +344,9 @@ public abstract class MemberCodegen<T extends JetElement/* TODO: & JetDeclaratio
         }
 
         iv.putstatic(thisAsmType.getInternalName(), JvmAbi.PROPERTY_METADATA_ARRAY_NAME, "[" + PROPERTY_METADATA_TYPE);
+    }
+
+    public String getClassName() {
+        return v.getThisName();
     }
 }

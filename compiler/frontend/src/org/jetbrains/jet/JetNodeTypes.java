@@ -35,50 +35,49 @@ public interface JetNodeTypes {
     IElementType OBJECT_DECLARATION = JetStubElementTypes.OBJECT_DECLARATION;
     JetNodeType OBJECT_DECLARATION_NAME = new JetNodeType("OBJECT_DECLARATION_NAME", JetObjectDeclarationName.class);
 
-    JetNodeType CLASS_OBJECT          = new JetNodeType("CLASS_OBJECT", JetClassObject.class);
+    IElementType CLASS_OBJECT          = JetStubElementTypes.CLASS_OBJECT;
     IElementType ENUM_ENTRY            = JetStubElementTypes.ENUM_ENTRY;
-    JetNodeType ANONYMOUS_INITIALIZER = new JetNodeType("ANONYMOUS_INITIALIZER", JetClassInitializer.class);
+    IElementType ANONYMOUS_INITIALIZER = JetStubElementTypes.ANONYMOUS_INITIALIZER;
 
     IElementType TYPE_PARAMETER_LIST                 = JetStubElementTypes.TYPE_PARAMETER_LIST;
     IElementType TYPE_PARAMETER                      = JetStubElementTypes.TYPE_PARAMETER;
-    JetNodeType DELEGATION_SPECIFIER_LIST           = new JetNodeType("DELEGATION_SPECIFIER_LIST", JetDelegationSpecifierList.class);
-    JetNodeType DELEGATOR_BY                        = new JetNodeType("DELEGATOR_BY", JetDelegatorByExpressionSpecifier.class);
-    JetNodeType DELEGATOR_SUPER_CALL                = new JetNodeType("DELEGATOR_SUPER_CALL", JetDelegatorToSuperCall.class);
-    JetNodeType DELEGATOR_SUPER_CLASS               = new JetNodeType("DELEGATOR_SUPER_CLASS", JetDelegatorToSuperClass.class);
+    IElementType DELEGATION_SPECIFIER_LIST           = JetStubElementTypes.DELEGATION_SPECIFIER_LIST;
+    IElementType DELEGATOR_BY                        = JetStubElementTypes.DELEGATOR_BY;
+    IElementType DELEGATOR_SUPER_CALL                = JetStubElementTypes.DELEGATOR_SUPER_CALL;
+    IElementType DELEGATOR_SUPER_CLASS               = JetStubElementTypes.DELEGATOR_SUPER_CLASS;
     JetNodeType PROPERTY_DELEGATE                    = new JetNodeType("PROPERTY_DELEGATE", JetPropertyDelegate.class);
-    JetNodeType CONSTRUCTOR_CALLEE                  = new JetNodeType("CONSTRUCTOR_CALLEE", JetConstructorCalleeExpression.class);
+    IElementType CONSTRUCTOR_CALLEE                  = JetStubElementTypes.CONSTRUCTOR_CALLEE;
     IElementType VALUE_PARAMETER_LIST               = JetStubElementTypes.VALUE_PARAMETER_LIST;
     IElementType VALUE_PARAMETER                    = JetStubElementTypes.VALUE_PARAMETER;
 
     IElementType CLASS_BODY                         = JetStubElementTypes.CLASS_BODY;
-    JetNodeType IMPORT_LIST                         = new JetNodeType("IMPORT_LIST", JetImportList.class);
-    JetNodeType IMPORT_DIRECTIVE                    = new JetNodeType("IMPORT_DIRECTIVE", JetImportDirective.class);
-    JetNodeType MODIFIER_LIST                       = new JetNodeType("MODIFIER_LIST", JetModifierList.class);
-    JetNodeType PRIMARY_CONSTRUCTOR_MODIFIER_LIST   = new JetNodeType("PRIMARY_CONSTRUCTOR_MODIFIER_LIST", JetModifierList.class);
-    JetNodeType ANNOTATION = new JetNodeType("ANNOTATION", JetAnnotation.class);
-    IElementType ANNOTATION_ENTRY = JetStubElementTypes.ANNOTATION_ENTRY;
+    IElementType IMPORT_LIST                        = JetStubElementTypes.IMPORT_LIST;
+    IElementType IMPORT_DIRECTIVE                   = JetStubElementTypes.IMPORT_DIRECTIVE;
+    IElementType MODIFIER_LIST                      = JetStubElementTypes.MODIFIER_LIST;
+    IElementType PRIMARY_CONSTRUCTOR_MODIFIER_LIST  = JetStubElementTypes.PRIMARY_CONSTRUCTOR_MODIFIER_LIST;
+    IElementType ANNOTATION                         = JetStubElementTypes.ANNOTATION;
+    IElementType ANNOTATION_ENTRY                   = JetStubElementTypes.ANNOTATION_ENTRY;
 
-    JetNodeType TYPE_ARGUMENT_LIST                  = new JetNodeType("TYPE_ARGUMENT_LIST", JetTypeArgumentList.class);
+    IElementType TYPE_ARGUMENT_LIST                 = JetStubElementTypes.TYPE_ARGUMENT_LIST;
     JetNodeType VALUE_ARGUMENT_LIST                 = new JetNodeType("VALUE_ARGUMENT_LIST", JetValueArgumentList.class);
     JetNodeType VALUE_ARGUMENT                      = new JetNodeType("VALUE_ARGUMENT", JetValueArgument.class);
     JetNodeType VALUE_ARGUMENT_NAME                 = new JetNodeType("VALUE_ARGUMENT_NAME", JetValueArgumentName.class);
-    JetNodeType TYPE_REFERENCE                      = new JetNodeType("TYPE_REFERENCE", JetTypeReference.class);
+    IElementType TYPE_REFERENCE                     = JetStubElementTypes.TYPE_REFERENCE;
 
-    JetNodeType USER_TYPE     = new JetNodeType("USER_TYPE", JetUserType.class);
-
-    JetNodeType FUNCTION_TYPE = new JetNodeType("FUNCTION_TYPE", JetFunctionType.class);
-    JetNodeType FUNCTION_TYPE_RECEIVER = new JetNodeType("FUNCTION_TYPE_RECEIVER", JetFunctionTypeReceiver.class);
+    IElementType USER_TYPE                = JetStubElementTypes.USER_TYPE;
+    IElementType FUNCTION_TYPE            = JetStubElementTypes.FUNCTION_TYPE;
+    IElementType FUNCTION_TYPE_RECEIVER   = JetStubElementTypes.FUNCTION_TYPE_RECEIVER;
     JetNodeType SELF_TYPE     = new JetNodeType("SELF_TYPE", JetSelfType.class);
-    JetNodeType NULLABLE_TYPE             = new JetNodeType("NULLABLE_TYPE", JetNullableType.class);
-    JetNodeType TYPE_PROJECTION           = new JetNodeType("TYPE_PROJECTION", JetTypeProjection.class);
+    IElementType NULLABLE_TYPE            = JetStubElementTypes.NULLABLE_TYPE;
+    IElementType TYPE_PROJECTION          = JetStubElementTypes.TYPE_PROJECTION;
 
     // TODO: review
-    JetNodeType PROPERTY_ACCESSOR        = new JetNodeType("PROPERTY_ACCESSOR", JetPropertyAccessor.class);
-    JetNodeType INITIALIZER_LIST         = new JetNodeType("INITIALIZER_LIST", JetInitializerList.class);
-    JetNodeType THIS_CALL                = new JetNodeType("THIS_CALL", JetDelegatorToThisCall.class);
+    IElementType PROPERTY_ACCESSOR       = JetStubElementTypes.PROPERTY_ACCESSOR;
+    IElementType INITIALIZER_LIST        = JetStubElementTypes.INITIALIZER_LIST;
+    IElementType THIS_CALL               = JetStubElementTypes.THIS_CALL;
     JetNodeType THIS_CONSTRUCTOR_REFERENCE = new JetNodeType("THIS_CONSTRUCTOR_REFERENCE", JetThisReferenceExpression.class);
-    JetNodeType TYPE_CONSTRAINT_LIST     = new JetNodeType("TYPE_CONSTRAINT_LIST", JetTypeConstraintList.class);
-    JetNodeType TYPE_CONSTRAINT          = new JetNodeType("TYPE_CONSTRAINT", JetTypeConstraint.class);
+    IElementType TYPE_CONSTRAINT_LIST    = JetStubElementTypes.TYPE_CONSTRAINT_LIST;
+    IElementType TYPE_CONSTRAINT         = JetStubElementTypes.TYPE_CONSTRAINT;
 
     // TODO: Not sure if we need separate NT for each kind of constants
     JetNodeType NULL               = new JetNodeType("NULL", JetConstantExpression.class);
@@ -115,9 +114,9 @@ public interface JetNodeTypes {
     JetNodeType FUNCTION_LITERAL          = new JetNodeType("FUNCTION_LITERAL", JetFunctionLiteral.class);
     JetNodeType ANNOTATED_EXPRESSION      = new JetNodeType("ANNOTATED_EXPRESSION", JetAnnotatedExpression.class);
 
-    JetNodeType REFERENCE_EXPRESSION      = new JetNodeType("REFERENCE_EXPRESSION", JetSimpleNameExpression.class);
-    JetNodeType OPERATION_REFERENCE       = new JetNodeType("OPERATION_REFERENCE", JetSimpleNameExpression.class);
-    JetNodeType LABEL_REFERENCE           = new JetNodeType("LABEL_REFERENCE", JetSimpleNameExpression.class);
+    IElementType REFERENCE_EXPRESSION     = JetStubElementTypes.REFERENCE_EXPRESSION;
+    JetNodeType OPERATION_REFERENCE       = new JetNodeType("OPERATION_REFERENCE", JetOperationReferenceExpression.class);
+    JetNodeType LABEL                     = new JetNodeType("LABEL", JetLabelReferenceExpression.class);
 
     JetNodeType LABEL_QUALIFIER           = new JetNodeType("LABEL_QUALIFIER", JetContainerNode.class);
 
@@ -128,10 +127,11 @@ public interface JetNodeTypes {
     JetNodeType IS_EXPRESSION = new JetNodeType("IS_EXPRESSION", JetIsExpression.class); // TODO:
     JetNodeType PREFIX_EXPRESSION         = new JetNodeType("PREFIX_EXPRESSION", JetPrefixExpression.class);
     JetNodeType POSTFIX_EXPRESSION        = new JetNodeType("POSTFIX_EXPRESSION", JetPostfixExpression.class);
+    JetNodeType LABELED_EXPRESSION         = new JetNodeType("LABELED_EXPRESSION", JetLabeledExpression.class);
     JetNodeType CALL_EXPRESSION           = new JetNodeType("CALL_EXPRESSION", JetCallExpression.class);
     JetNodeType ARRAY_ACCESS_EXPRESSION   = new JetNodeType("ARRAY_ACCESS_EXPRESSION", JetArrayAccessExpression.class);
     JetNodeType INDICES                   = new JetNodeType("INDICES", JetContainerNode.class);
-    JetNodeType DOT_QUALIFIED_EXPRESSION  = new JetNodeType("DOT_QUALIFIED_EXPRESSION", JetDotQualifiedExpression.class);
+    IElementType DOT_QUALIFIED_EXPRESSION = JetStubElementTypes.DOT_QUALIFIED_EXPRESSION;
     JetNodeType CALLABLE_REFERENCE_EXPRESSION = new JetNodeType("CALLABLE_REFERENCE_EXPRESSION", JetCallableReferenceExpression.class);
     JetNodeType SAFE_ACCESS_EXPRESSION    = new JetNodeType("SAFE_ACCESS_EXPRESSION", JetSafeQualifiedExpression.class);
 
@@ -145,11 +145,12 @@ public interface JetNodeTypes {
     JetNodeType WHEN_CONDITION_IS_PATTERN = new JetNodeType("WHEN_CONDITION_IS_PATTERN", JetWhenConditionIsPattern.class);
     JetNodeType WHEN_CONDITION_EXPRESSION = new JetNodeType("WHEN_CONDITION_WITH_EXPRESSION", JetWhenConditionWithExpression.class);
 
-    JetNodeType PACKAGE_DIRECTIVE = new JetNodeType("PACKAGE_DIRECTIVE", JetPackageDirective.class);
+    IElementType PACKAGE_DIRECTIVE = JetStubElementTypes.PACKAGE_DIRECTIVE;
 
     // SCRIPT: script node type
     JetNodeType SCRIPT = new JetNodeType("SCRIPT", JetScript.class);
 
     IFileElementType TYPE_CODE_FRAGMENT = new JetTypeCodeFragmentType();
     IFileElementType EXPRESSION_CODE_FRAGMENT = new JetExpressionCodeFragmentType();
+    IFileElementType BLOCK_CODE_FRAGMENT = new JetBlockCodeFragmentType();
 }

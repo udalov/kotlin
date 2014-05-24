@@ -16,7 +16,6 @@
 
 package org.jetbrains.jet.lang.psi.stubs.impl;
 
-import com.intellij.psi.stubs.StubBase;
 import com.intellij.psi.stubs.StubElement;
 import com.intellij.util.io.StringRef;
 import org.jetbrains.annotations.Nullable;
@@ -25,40 +24,26 @@ import org.jetbrains.jet.lang.psi.stubs.PsiJetParameterStub;
 import org.jetbrains.jet.lang.psi.stubs.elements.JetStubElementTypes;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 
-public class PsiJetParameterStubImpl extends StubBase<JetParameter> implements PsiJetParameterStub {
+public class PsiJetParameterStubImpl extends JetStubBaseImpl<JetParameter> implements PsiJetParameterStub {
     private final StringRef name;
     private final boolean isMutable;
-    private final boolean isVarArg;
-    private final StringRef typeText;
-    private final StringRef defaultValueText;
-    private final FqName fqName;
+    private final StringRef fqName;
+    private final boolean hasValOrValNode;
+    private final boolean hasDefaultValue;
 
     public PsiJetParameterStubImpl(
             StubElement parent,
-            FqName fqName, StringRef name,
+            StringRef fqName, StringRef name,
             boolean isMutable,
-            boolean isVarArg,
-            StringRef typeText, StringRef defaultValueText
+            boolean hasValOrValNode,
+            boolean hasDefaultValue
     ) {
         super(parent, JetStubElementTypes.VALUE_PARAMETER);
         this.name = name;
         this.isMutable = isMutable;
-        this.isVarArg = isVarArg;
-        this.typeText = typeText;
-        this.defaultValueText = defaultValueText;
         this.fqName = fqName;
-    }
-
-    public PsiJetParameterStubImpl(
-            StubElement parent,
-            FqName fqName, String name,
-            boolean isMutable,
-            boolean isVarArg,
-            String typeText,
-            String defaultValueText
-    ) {
-        this(parent, fqName, StringRef.fromString(name), isMutable, isVarArg,
-             StringRef.fromString(typeText), StringRef.fromString(defaultValueText));
+        this.hasValOrValNode = hasValOrValNode;
+        this.hasDefaultValue = hasDefaultValue;
     }
 
     @Override
@@ -72,47 +57,18 @@ public class PsiJetParameterStubImpl extends StubBase<JetParameter> implements P
     }
 
     @Override
-    public boolean isVarArg() {
-        return isVarArg;
-    }
-
-    @Nullable
-    @Override
-    public String getTypeText() {
-        return StringRef.toString(typeText);
+    public boolean hasValOrValNode() {
+        return hasValOrValNode;
     }
 
     @Override
-    public String getDefaultValueText() {
-        return StringRef.toString(defaultValueText);
-    }
-
-    @Override
-    public String toString() {
-        StringBuilder builder = new StringBuilder();
-        builder.append("PsiJetParameterStubImpl[");
-
-        builder.append(isMutable() ? "var " : "val ");
-
-        if (isVarArg()) {
-            builder.append("vararg ");
-        }
-
-        builder.append("name=").append(getName());
-        if (fqName != null) {
-            builder.append(" fqName=").append(fqName.toString()).append(" ");
-        }
-        builder.append(" typeText=").append(getTypeText());
-        builder.append(" defaultValue=").append(getDefaultValueText());
-
-        builder.append("]");
-
-        return builder.toString();
+    public boolean hasDefaultValue() {
+        return hasDefaultValue;
     }
 
     @Nullable
     @Override
     public FqName getFqName() {
-        return fqName;
+        return fqName != null ? new FqName(fqName.getString()) : null;
     }
 }

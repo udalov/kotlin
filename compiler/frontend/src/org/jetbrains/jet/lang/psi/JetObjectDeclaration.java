@@ -53,6 +53,7 @@ public class JetObjectDeclaration extends JetNamedDeclarationStub<PsiJetObjectSt
         return nameAsDeclaration == null ? null : nameAsDeclaration.getName();
     }
 
+    @Override
     public boolean isTopLevel() {
         PsiJetObjectStub stub = getStub();
         if (stub != null) {
@@ -84,16 +85,28 @@ public class JetObjectDeclaration extends JetNamedDeclarationStub<PsiJetObjectSt
     @Nullable
     public JetModifierList getModifierList() {
         if (isClassObject()) {
-            PsiElement parent = getParent();
+            PsiElement parent = getParentByStub();
             assert parent instanceof JetDeclaration;
             return ((JetDeclaration)parent).getModifierList();
         }
-        return (JetModifierList) findChildByType(JetNodeTypes.MODIFIER_LIST);
+        return super.getModifierList();
     }
 
     public boolean isClassObject() {
+        PsiJetObjectStub stub = getStub();
+        if (stub != null) {
+            return stub.isClassObject();
+        }
         PsiElement parent = getParent();
         return parent != null && parent.getNode().getElementType().equals(JetNodeTypes.CLASS_OBJECT);
+    }
+
+    @Nullable
+    public JetClassObject getClassObjectElement() {
+        if (!isClassObject()) {
+            return null;
+        }
+        return (JetClassObject) getParentByStub();
     }
 
     @Override
@@ -105,7 +118,7 @@ public class JetObjectDeclaration extends JetNamedDeclarationStub<PsiJetObjectSt
     @Override
     @Nullable
     public JetDelegationSpecifierList getDelegationSpecifierList() {
-        return (JetDelegationSpecifierList) findChildByType(JetNodeTypes.DELEGATION_SPECIFIER_LIST);
+        return getStubOrPsiChild(JetStubElementTypes.DELEGATION_SPECIFIER_LIST);
     }
 
     @Override
@@ -118,7 +131,7 @@ public class JetObjectDeclaration extends JetNamedDeclarationStub<PsiJetObjectSt
     @Override
     @NotNull
     public List<JetClassInitializer> getAnonymousInitializers() {
-        JetClassBody body = (JetClassBody) findChildByType(JetNodeTypes.CLASS_BODY);
+        JetClassBody body = getBody();
         if (body == null) return Collections.emptyList();
 
         return body.getAnonymousInitializers();
@@ -131,7 +144,16 @@ public class JetObjectDeclaration extends JetNamedDeclarationStub<PsiJetObjectSt
 
     @Override
     public JetClassBody getBody() {
-        return (JetClassBody) findChildByType(JetNodeTypes.CLASS_BODY);
+        return getStubOrPsiChild(JetStubElementTypes.CLASS_BODY);
+    }
+
+    @Override
+    public boolean isLocal() {
+        PsiJetObjectStub stub = getStub();
+        if (stub != null) {
+            return stub.isLocal();
+        }
+        return JetPsiUtil.isLocal(this);
     }
 
     @Override
@@ -149,6 +171,10 @@ public class JetObjectDeclaration extends JetNamedDeclarationStub<PsiJetObjectSt
     }
 
     public boolean isObjectLiteral() {
+        PsiJetObjectStub stub = getStub();
+        if (stub != null) {
+            return stub.isObjectLiteral();
+        }
         return getParent() instanceof JetObjectLiteralExpression;
     }
 

@@ -23,6 +23,7 @@ import org.jetbrains.jet.lang.descriptors.ModuleDescriptor;
 import org.jetbrains.jet.lang.descriptors.PackageFragmentDescriptor;
 import org.jetbrains.jet.lang.descriptors.PackageFragmentProvider;
 import org.jetbrains.jet.lang.resolve.java.lazy.LazyJavaPackageFragmentProvider;
+import org.jetbrains.jet.lang.resolve.java.structure.JavaClass;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.types.DependencyClassByQualifiedNameResolver;
@@ -56,7 +57,17 @@ public class JavaDescriptorResolver implements DependencyClassByQualifiedNameRes
     }
 
     @Nullable
+    public ClassDescriptor resolveClass(@NotNull JavaClass javaClass) {
+        return lazyJavaPackageFragmentProvider.getClass(javaClass);
+    }
+
+    @Nullable
     public PackageFragmentDescriptor getPackageFragment(@NotNull FqName fqName) {
         return lazyJavaPackageFragmentProvider.getPackageFragment(fqName);
+    }
+
+    @Nullable
+    public PackageFragmentDescriptor getPackageFragment(@NotNull JavaClass javaClass) {
+        return lazyJavaPackageFragmentProvider.getPackageFragment(javaClass);
     }
 }

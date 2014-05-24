@@ -268,7 +268,10 @@
     <extendWordSelectionHandler implementation="org.jetbrains.jet.plugin.editor.wordSelection.JetStatementGroupSelectioner"/>
     <extendWordSelectionHandler implementation="org.jetbrains.jet.plugin.editor.wordSelection.JetCodeBlockSelectioner"/>
     <extendWordSelectionHandler implementation="org.jetbrains.jet.plugin.editor.wordSelection.JetListSelectioner"/>
+
     <typedHandler implementation="org.jetbrains.jet.plugin.editor.KotlinTypedHandler"/>
+    <enterHandlerDelegate implementation="org.jetbrains.jet.plugin.editor.KotlinEnterHandler"
+                          id="KotlinEnterHandler" order="before EnterBetweenBracesHandler"/>
     <backspaceHandlerDelegate implementation="org.jetbrains.jet.plugin.editor.KotlinBackspaceHandler"/>
 
     <copyPastePostProcessor implementation="org.jetbrains.jet.plugin.conversion.copy.ConvertJavaCopyPastePostProcessor"/>
@@ -595,7 +598,7 @@
       <className>org.jetbrains.jet.plugin.intentions.MoveLambdaOutsideParenthesesIntention</className>
       <category>Kotlin</category>
     </intentionAction>
-    
+
     <intentionAction>
       <className>org.jetbrains.jet.plugin.intentions.declarations.SplitPropertyDeclarationIntention</className>
       <category>Kotlin</category>
@@ -655,7 +658,6 @@
       <className>org.jetbrains.jet.plugin.intentions.SimplifyBooleanWithConstantsIntention</className>
       <category>Kotlin</category>
     </intentionAction>
-    
 
     <intentionAction>
       <className>org.jetbrains.jet.plugin.intentions.SwapBinaryExpression</className>
@@ -697,6 +699,31 @@
       <category>Kotlin</category>
     </intentionAction>
 
+    <intentionAction>
+      <className>org.jetbrains.jet.plugin.intentions.ConvertToForEachLoopIntention</className>
+      <category>Kotlin</category>
+    </intentionAction>
+
+    <intentionAction>
+      <className>org.jetbrains.jet.plugin.intentions.ConvertToForEachFunctionCallIntention</className>
+      <category>Kotlin</category>
+    </intentionAction>
+
+    <intentionAction>
+      <className>org.jetbrains.jet.plugin.intentions.ConvertToStringTemplateIntention</className>
+      <category>Kotlin</category>
+    </intentionAction>
+
+    <intentionAction>
+      <className>org.jetbrains.jet.plugin.intentions.OperatorToFunctionIntention</className>
+      <category>Kotlin</category>
+    </intentionAction>
+
+    <intentionAction>
+      <className>org.jetbrains.jet.plugin.intentions.ConvertToConcatenatedStringIntention</className>
+      <category>Kotlin</category>
+    </intentionAction>
+
     <localInspection implementationClass="org.jetbrains.jet.plugin.inspections.ExplicitGetInspection"
         displayName="Explicit 'get'"
         groupName="Kotlin"
@@ -713,6 +740,20 @@
 
     <localInspection implementationClass="org.jetbrains.jet.plugin.inspections.IfThenToSafeAccessInspection"
         displayName="If-Then foldable to '?.'"
+        groupName="Kotlin"
+        enabledByDefault="true"
+        level="WARNING"
+        />
+
+    <localInspection implementationClass="org.jetbrains.jet.plugin.inspections.RemoveExplicitTypeArgsInspection"
+        displayName="Type arguments are unnecessary"
+        groupName="Kotlin"
+        enabledByDefault="true"
+        level="WARNING"
+        />
+
+    <localInspection implementationClass="org.jetbrains.jet.plugin.inspections.SimplifyBinaryNegationInspection"
+        displayName="Simplify Negated Binary Expression"
         groupName="Kotlin"
         enabledByDefault="true"
         level="WARNING"

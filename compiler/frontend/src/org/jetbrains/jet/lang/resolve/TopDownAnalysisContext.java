@@ -42,6 +42,7 @@ public class TopDownAnalysisContext implements BodiesResolveContext {
     private DataFlowInfo outerDataFlowInfo = DataFlowInfo.EMPTY;
 
     private final Map<JetClassOrObject, ClassDescriptorWithResolutionScopes> classes = Maps.newLinkedHashMap();
+    private final Map<JetClassInitializer, ClassDescriptorWithResolutionScopes> anonymousInitializers = Maps.newLinkedHashMap();
     protected final Map<JetFile, MutablePackageFragmentDescriptor> packageFragments = Maps.newHashMap();
     protected final Set<JetFile> files = new LinkedHashSet<JetFile>();
     private List<MutableClassDescriptor> classesTopologicalOrder = null;
@@ -61,9 +62,9 @@ public class TopDownAnalysisContext implements BodiesResolveContext {
 
     private final Map<JetScript, ScriptDescriptor> scripts = Maps.newLinkedHashMap();
 
-    private StringBuilder debugOutput;
+    private final TopDownAnalysisParameters topDownAnalysisParameters;
 
-    private TopDownAnalysisParameters topDownAnalysisParameters;
+    private StringBuilder debugOutput;
 
     public TopDownAnalysisContext(@NotNull TopDownAnalysisParameters topDownAnalysisParameters) {
         this.topDownAnalysisParameters = topDownAnalysisParameters;
@@ -73,11 +74,6 @@ public class TopDownAnalysisContext implements BodiesResolveContext {
     @NotNull
     public TopDownAnalysisParameters getTopDownAnalysisParameters() {
         return topDownAnalysisParameters;
-    }
-
-    @Override
-    public void setTopDownAnalysisParameters(TopDownAnalysisParameters topDownAnalysisParameters) {
-        this.topDownAnalysisParameters = topDownAnalysisParameters;
     }
 
     public void debug(Object message) {
@@ -112,6 +108,11 @@ public class TopDownAnalysisContext implements BodiesResolveContext {
     @Override
     public Map<JetClassOrObject, ClassDescriptorWithResolutionScopes> getDeclaredClasses() {
         return classes;
+    }
+
+    @Override
+    public Map<JetClassInitializer, ClassDescriptorWithResolutionScopes> getAnonymousInitializers() {
+        return anonymousInitializers;
     }
 
     public Map<JetFile, WritableScope> getFileScopes() {

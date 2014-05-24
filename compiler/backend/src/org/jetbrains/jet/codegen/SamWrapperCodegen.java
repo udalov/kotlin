@@ -17,9 +17,9 @@
 package org.jetbrains.jet.codegen;
 
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.codegen.context.CodegenContext;
 import org.jetbrains.jet.codegen.state.GenerationState;
+import org.jetbrains.jet.codegen.state.JetTypeMapper;
 import org.jetbrains.jet.lang.descriptors.FunctionDescriptor;
 import org.jetbrains.jet.lang.descriptors.SimpleFunctionDescriptor;
 import org.jetbrains.jet.lang.psi.JetFile;
@@ -27,7 +27,6 @@ import org.jetbrains.jet.lang.resolve.DescriptorUtils;
 import org.jetbrains.jet.lang.resolve.java.JvmClassName;
 import org.jetbrains.jet.lang.resolve.java.PackageClassUtils;
 import org.jetbrains.jet.lang.resolve.java.descriptor.JavaClassDescriptor;
-import org.jetbrains.jet.lang.resolve.java.sam.SingleAbstractMethodUtils;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.types.JetType;
@@ -41,18 +40,17 @@ import static org.jetbrains.jet.lang.resolve.java.AsmTypeConstants.OBJECT_TYPE;
 import static org.jetbrains.jet.lang.resolve.java.JvmAnnotationNames.KotlinSyntheticClass;
 import static org.jetbrains.org.objectweb.asm.Opcodes.*;
 
-public class SamWrapperCodegen extends ParentCodegenAwareImpl {
+public class SamWrapperCodegen {
     private static final String FUNCTION_FIELD_NAME = "function";
 
-    @NotNull private final JavaClassDescriptor samInterface;
+    private final GenerationState state;
+    private final JetTypeMapper typeMapper;
+    private final SamType samType;
 
-    public SamWrapperCodegen(
-            @NotNull GenerationState state,
-            @NotNull JavaClassDescriptor samInterface,
-            @Nullable MemberCodegen<?> parentCodegen
-    ) {
-        super(state, parentCodegen);
-        this.samInterface = samInterface;
+    public SamWrapperCodegen(@NotNull GenerationState state, @NotNull SamType samType) {
+        this.state = state;
+        this.typeMapper = state.getTypeMapper();
+        this.samType = samType;
     }
 
     public Type genWrapper(@NotNull JetFile file) {
@@ -60,10 +58,9 @@ public class SamWrapperCodegen extends ParentCodegenAwareImpl {
         Type asmType = Type.getObjectType(getWrapperName(file));
 
         // e.g. (T, T) -> Int
-        JetType functionType = samInterface.getFunctionTypeForSamInterface();
-        assert functionType != null : samInterface.toString();
+        JetType functionType = samType.getKotlinFunctionType();
         // e.g. compare(T, T)
-        SimpleFunctionDescriptor interfaceFunction = SingleAbstractMethodUtils.getAbstractMethodOfSamInterface(samInterface);
+        SimpleFunctionDescriptor erasedInterfaceFunction = samType.getAbstractMethod().getOriginal();
 
         ClassBuilder cv = state.getFactory().newVisitor(asmType, file);
         cv.defineClass(file,
@@ -72,14 +69,14 @@ public class SamWrapperCodegen extends ParentCodegenAwareImpl {
                        asmType.getInternalName(),
                        null,
                        OBJECT_TYPE.getInternalName(),
-                       new String[]{ typeMapper.mapType(samInterface).getInternalName() }
+                       new String[]{ typeMapper.mapType(samType.getType()).getInternalName() }
         );
         cv.visitSource(file.getName(), null);
 
         writeKotlinSyntheticClassAnnotation(cv, KotlinSyntheticClass.Kind.SAM_WRAPPER);
 
         // e.g. ASM type for Function2
-        Type functionAsmType = state.getTypeMapper().mapType(functionType);
+        Type functionAsmType = typeMapper.mapType(functionType);
 
         cv.newField(null,
                     ACC_SYNTHETIC | ACC_PRIVATE | ACC_FINAL,
@@ -89,7 +86,7 @@ public class SamWrapperCodegen extends ParentCodegenAwareImpl {
                     null);
 
         generateConstructor(asmType, functionAsmType, cv);
-        generateMethod(asmType, functionAsmType, cv, interfaceFunction, functionType);
+        generateMethod(asmType, functionAsmType, cv, erasedInterfaceFunction, functionType);
 
         cv.done();
 
@@ -121,24 +118,27 @@ public class SamWrapperCodegen extends ParentCodegenAwareImpl {
             Type ownerType,
             Type functionType,
             ClassBuilder cv,
-            SimpleFunctionDescriptor interfaceFunction,
+            SimpleFunctionDescriptor erasedInterfaceFunction,
             JetType functionJetType
     ) {
-
         // using static context to avoid creating ClassDescriptor and everything else
-        FunctionCodegen codegen = new FunctionCodegen(CodegenContext.STATIC, cv, state, getParentCodegen());
+        FunctionCodegen codegen = new FunctionCodegen(CodegenContext.STATIC, cv, state, null);
 
         FunctionDescriptor invokeFunction = functionJetType.getMemberScope()
                 .getFunctions(Name.identifier("invoke")).iterator().next().getOriginal();
         StackValue functionField = StackValue.field(functionType, ownerType, FUNCTION_FIELD_NAME, false);
-        codegen.genDelegate(interfaceFunction, invokeFunction, functionField);
+        codegen.genDelegate(erasedInterfaceFunction, invokeFunction, functionField);
     }
 
+    @NotNull
     private String getWrapperName(@NotNull JetFile containingFile) {
         FqName packageClassFqName = PackageClassUtils.getPackageClassFqName(containingFile.getPackageFqName());
         String packageInternalName = JvmClassName.byFqNameWithoutInnerClasses(packageClassFqName).getInternalName();
-        return packageInternalName + "$sam$" + samInterface.getName().asString() + "$" +
-               Integer.toHexString(CodegenUtil.getPathHashCode(containingFile.getVirtualFile()) * 31 + DescriptorUtils.getFqNameSafe(
-                       samInterface).hashCode());
+        JavaClassDescriptor descriptor = samType.getJavaClassDescriptor();
+        return packageInternalName + "$sam$" + descriptor.getName().asString() + "$" +
+               Integer.toHexString(
+                       JvmCodegenUtil.getPathHashCode(containingFile.getVirtualFile()) * 31 +
+                       DescriptorUtils.getFqNameSafe(descriptor).hashCode()
+               );
     }
 }

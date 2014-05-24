@@ -18,13 +18,18 @@ package org.jetbrains.jet.lang.psi;
 
 import com.intellij.lang.ASTNode;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.jet.JetNodeTypes;
+import org.jetbrains.jet.lang.psi.stubs.PsiJetPlaceHolderStub;
+import org.jetbrains.jet.lang.psi.stubs.elements.JetStubElementTypes;
 
 import java.util.List;
 
-public class JetTypeArgumentList extends JetElementImpl {
+public class JetTypeArgumentList extends JetElementImplStub<PsiJetPlaceHolderStub<JetTypeArgumentList>> {
     public JetTypeArgumentList(@NotNull ASTNode node) {
         super(node);
+    }
+
+    public JetTypeArgumentList(@NotNull PsiJetPlaceHolderStub<JetTypeArgumentList> stub) {
+        super(stub, JetStubElementTypes.TYPE_ARGUMENT_LIST);
     }
 
     @Override
@@ -34,6 +39,6 @@ public class JetTypeArgumentList extends JetElementImpl {
 
     @NotNull
     public List<JetTypeProjection> getArguments() {
-        return findChildrenByType(JetNodeTypes.TYPE_PROJECTION);
+        return getStubOrPsiChildrenAsList(JetStubElementTypes.TYPE_PROJECTION);
     }
 }

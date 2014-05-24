@@ -43,9 +43,8 @@ public class  ParametersBuilder {
     }
 
     @NotNull
-    public ParametersBuilder addNextParameter(@NotNull Type type, boolean skipped, @Nullable ParameterInfo original) {
-        addParameter(new ParameterInfo(type, skipped, nextIndex, original != null ? original.getIndex() : -1));
-        return this;
+    public ParameterInfo addNextParameter(@NotNull Type type, boolean skipped, @Nullable ParameterInfo original) {
+        return addParameter(new ParameterInfo(type, skipped, nextIndex, original != null ? original.getIndex() : -1));
     }
 
     @NotNull
@@ -59,12 +58,20 @@ public class  ParametersBuilder {
     }
 
     @NotNull
+    public CapturedParamInfo addCapturedParamCopy(
+            @NotNull CapturedParamInfo copyFrom
+    ) {
+        CapturedParamInfo info = copyFrom.newIndex(nextCaptured);
+        return addCapturedParameter(info);
+    }
+
+    @NotNull
     public CapturedParamInfo addCapturedParam(
+            @NotNull CapturedParamOwner containingLambda,
             @NotNull String fieldName,
             @NotNull Type type,
             boolean skipped,
-            @Nullable ParameterInfo original,
-            @NotNull CapturedParamOwner containingLambda
+            @Nullable ParameterInfo original
     ) {
         CapturedParamInfo info =
                 new CapturedParamInfo(CapturedParamDesc.createDesc(containingLambda, fieldName, type), skipped, nextCaptured,
@@ -75,9 +82,10 @@ public class  ParametersBuilder {
         return addCapturedParameter(info);
     }
 
-    private void addParameter(ParameterInfo info) {
+    private ParameterInfo addParameter(ParameterInfo info) {
         params.add(info);
         nextIndex += info.getType().getSize();
+        return info;
     }
 
     private CapturedParamInfo addCapturedParameter(CapturedParamInfo info) {
@@ -86,23 +94,30 @@ public class  ParametersBuilder {
         return info;
     }
 
-    public List<ParameterInfo> build() {
+    @NotNull
+    public List<ParameterInfo> listNotCaptured() {
         return Collections.unmodifiableList(params);
     }
 
-    public List<CapturedParamInfo> buildCaptured() {
+    @NotNull
+    public List<CapturedParamInfo> listCaptured() {
         return Collections.unmodifiableList(capturedParams);
     }
 
-    public List<ParameterInfo> buildWithStubs() {
-        return Parameters.addStubs(build());
+    @NotNull
+    private List<ParameterInfo> buildWithStubs() {
+        return Parameters.addStubs(listNotCaptured());
     }
 
-    public List<CapturedParamInfo> buildCapturedWithStubs() {
-        return Parameters.shiftAndAddStubs(buildCaptured(), nextIndex);
+    private List<CapturedParamInfo> buildCapturedWithStubs() {
+        return Parameters.shiftAndAddStubs(listCaptured(), nextIndex);
     }
 
     public Parameters buildParameters() {
         return new Parameters(buildWithStubs(), buildCapturedWithStubs());
+    }
+
+    public int getNextValueParameterIndex() {
+        return nextIndex;
     }
 }

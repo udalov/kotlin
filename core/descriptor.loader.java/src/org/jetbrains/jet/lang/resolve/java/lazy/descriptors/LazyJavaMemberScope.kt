@@ -1,8 +1,23 @@
+/*
+ * Copyright 2010-2014 JetBrains s.r.o.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.jetbrains.jet.lang.resolve.java.lazy.descriptors
 
 import org.jetbrains.jet.lang.descriptors.*
 import org.jetbrains.jet.storage.NotNullLazyValue
-import org.jetbrains.jet.lang.resolve.name.LabelName
 import org.jetbrains.jet.lang.resolve.name.Name
 import org.jetbrains.jet.lang.resolve.scopes.JetScope
 import org.jetbrains.jet.lang.resolve.java.structure.JavaMethod
@@ -61,7 +76,7 @@ public abstract class LazyJavaMemberScope(
         ->
         val methods = memberIndex().findMethodsByName(name)
         val functions = LinkedHashSet(
-                methods.iterator()
+                methods.stream()
                       // values() and valueOf() are added manually, see LazyJavaClassDescriptor::getClassObjectDescriptor()
                       .filter{ m -> !DescriptorResolverUtils.shouldBeInEnumClassObject(m) }
                       .flatMap {
@@ -69,9 +84,9 @@ public abstract class LazyJavaMemberScope(
                               val function = resolveMethodToFunctionDescriptor(m, true)
                               val samAdapter = resolveSamAdapter(function)
                               if (samAdapter != null)
-                                  listOf(function, samAdapter).iterator()
+                                  listOf(function, samAdapter).stream()
                               else
-                                  listOf(function).iterator()
+                                  listOf(function).stream()
                       }.toList())
 
         if (_containingDeclaration is JavaPackageFragmentDescriptor) {
@@ -124,12 +139,13 @@ public abstract class LazyJavaMemberScope(
         val effectiveSignature: ExternalSignatureResolver.AlternativeMethodSignature
         if (_containingDeclaration is PackageFragmentDescriptor) {
             superFunctions = Collections.emptyList()
-            effectiveSignature = c.externalSignatureResolver.resolveAlternativeMethodSignature(method, false, returnType, null, valueParameters,
-                                                                                               methodTypeParameters, false)
+            effectiveSignature = c.externalSignatureResolver.resolveAlternativeMethodSignature(
+                    method, false, returnType, null, valueParameters.descriptors, methodTypeParameters, false)
             signatureErrors = effectiveSignature.getErrors()
         }
         else if (_containingDeclaration is ClassDescriptor) {
-            val propagated = c.externalSignatureResolver.resolvePropagatedSignature(method, _containingDeclaration, returnType, null, valueParameters, methodTypeParameters)
+            val propagated = c.externalSignatureResolver.resolvePropagatedSignature(
+                    method, _containingDeclaration, returnType, null, valueParameters.descriptors, methodTypeParameters)
             superFunctions = propagated.getSuperMethods()
             effectiveSignature = c.externalSignatureResolver.resolveAlternativeMethodSignature(
                     method, !superFunctions.isEmpty(), propagated.getReturnType(),
@@ -154,6 +170,7 @@ public abstract class LazyJavaMemberScope(
         )
 
         functionDescriptorImpl.setHasStableParameterNames(effectiveSignature.hasStableParameterNames())
+        functionDescriptorImpl.setHasSynthesizedParameterNames(valueParameters.hasSynthesizedNames)
 
         if (record) {
             c.javaResolverCache.recordMethod(method, functionDescriptorImpl)
@@ -164,12 +181,14 @@ public abstract class LazyJavaMemberScope(
         return functionDescriptorImpl
     }
 
+    protected class ResolvedValueParameters(val descriptors: List<ValueParameterDescriptor>, val hasSynthesizedNames: Boolean)
     protected fun resolveValueParameters(
             c: LazyJavaResolverContextWithTypes,
             function: FunctionDescriptor,
             jValueParameters: List<JavaValueParameter>
-    ): List<ValueParameterDescriptor> {
-        return jValueParameters.withIndices_tmp().map_tmp {
+    ): ResolvedValueParameters {
+        var synthesizedNames = false
+        val descriptors = jValueParameters.withIndices().map {
             pair ->
             val (index, javaParameter) = pair
 
@@ -203,7 +222,9 @@ public abstract class LazyJavaMemberScope(
             }
             else {
                 // TODO: parameter names may be drawn from attached sources, which is slow; it's better to make them lazy
-                javaParameter.getName() ?: Name.identifier("p$index")
+                val javaName = javaParameter.getName()
+                if (javaName == null) synthesizedNames = true
+                javaName ?: Name.identifier("p$index")
             }
 
             ValueParameterDescriptorImpl(
@@ -217,6 +238,7 @@ public abstract class LazyJavaMemberScope(
                     varargElementType
             )
         }.toList()
+        return ResolvedValueParameters(descriptors, synthesizedNames)
     }
 
     private fun resolveSamAdapter(original: SimpleFunctionDescriptor): SimpleFunctionDescriptor? {
@@ -310,7 +332,7 @@ public abstract class LazyJavaMemberScope(
     protected open fun getAllPropertyNames(): Collection<Name> = memberIndex().getAllFieldNames()
 
     override fun getLocalVariable(name: Name): VariableDescriptor? = null
-    override fun getDeclarationsByLabel(labelName: LabelName) = listOf<DeclarationDescriptor>()
+    override fun getDeclarationsByLabel(labelName: Name) = listOf<DeclarationDescriptor>()
 
     override fun getOwnDeclaredDescriptors() = getAllDescriptors()
     override fun getAllDescriptors() = _allDescriptors()

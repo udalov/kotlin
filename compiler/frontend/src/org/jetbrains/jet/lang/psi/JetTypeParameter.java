@@ -17,24 +17,14 @@
 package org.jetbrains.jet.lang.psi;
 
 import com.intellij.lang.ASTNode;
-import com.intellij.util.ArrayFactory;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.jet.JetNodeTypes;
 import org.jetbrains.jet.lang.psi.stubs.PsiJetTypeParameterStub;
 import org.jetbrains.jet.lang.psi.stubs.elements.JetStubElementTypes;
 import org.jetbrains.jet.lang.types.Variance;
 import org.jetbrains.jet.lexer.JetTokens;
 
 public class JetTypeParameter extends JetNamedDeclarationStub<PsiJetTypeParameterStub> {
-    public static final JetTypeParameter[] EMPTY_ARRAY = new JetTypeParameter[0];
-
-    public static final ArrayFactory<JetTypeParameter> ARRAY_FACTORY = new ArrayFactory<JetTypeParameter>() {
-        @Override
-        public JetTypeParameter[] create(int count) {
-            return count == 0 ? EMPTY_ARRAY : new JetTypeParameter[count];
-        }
-    };
 
     public JetTypeParameter(@NotNull ASTNode node) {
         super(node);
@@ -68,6 +58,6 @@ public class JetTypeParameter extends JetNamedDeclarationStub<PsiJetTypeParamete
 
     @Nullable
     public JetTypeReference getExtendsBound() {
-        return (JetTypeReference) findChildByType(JetNodeTypes.TYPE_REFERENCE);
+        return getStubOrPsiChild(JetStubElementTypes.TYPE_REFERENCE);
     }
 }
