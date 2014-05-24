@@ -28,6 +28,7 @@ import org.jetbrains.jet.codegen.ClassBuilderFactories;
 import org.jetbrains.jet.codegen.CompilationErrorHandler;
 import org.jetbrains.jet.codegen.KotlinCodegenFacade;
 import org.jetbrains.jet.codegen.ObjCDescriptorCodegen;
+import org.jetbrains.jet.codegen.forTestCompile.ForTestCompileRuntime;
 import org.jetbrains.jet.codegen.state.GenerationState;
 import org.jetbrains.jet.lang.descriptors.PackageViewDescriptor;
 import org.jetbrains.jet.lang.psi.JetFile;
@@ -75,25 +76,30 @@ public abstract class AbstractObjCWithJavaTest extends UsefulTestCase {
         String header = fileNameCommon + ".h";
         String implementation = fileNameCommon + ".m";
 
-        // If .m exists, it's compiled into a .dylib and the result is assumed to be dynamically linked to Foundation.
-        // Otherwise, we take Foundation dylib from the standard system path
+        // There are two kinds of tests here:
+        // 1. test.h + test.m + test.kt. Here we compile test.h + test.m into libKotlinObjCTest.dylib dynamically linked to Foundation.
+        //    Then we launch ObjC+JVM codegen for test.kt against test.h and the standard foundation.h, run the resulting file
+        //    with libKotlinObjCTest.dylib in the library path and assert that "OK" will be printed to stdout
+        // 2. test.kt. Here we're just testing our standard library for Foundation. We launch ObjC+JVM codegen for test.kt against
+        //    foundation.h, run the resulting file with Foundation dylib from the standard system path and again look for the "OK"
         File dylib;
-        if (new File(implementation).exists()) {
+        File headerFile;
+        if (new File(header).exists() && new File(implementation).exists()) {
             dylib = new File(tmpDir, "libKotlinObjCTest.dylib");
             compileObjectiveC(implementation, dylib);
+            headerFile = combineHeaders(KOTLIN_FOUNDATION_HEADER_PATH, header);
         }
         else {
             dylib = new File(FOUNDATION_DYLIB_PATH);
+            headerFile = new File(KOTLIN_FOUNDATION_HEADER_PATH);
         }
 
-        String actual = runTestGetOutput(kotlinSource, header, dylib);
+        String actual = runTestGetOutput(kotlinSource, headerFile, dylib);
         assertEquals("OK", actual);
     }
 
     @NotNull
-    protected String runTestGetOutput(@NotNull String kotlinSource, @NotNull String header, @NotNull File dylib) {
-        File headerFile = combineHeaders(KOTLIN_FOUNDATION_HEADER_PATH, header);
-
+    private String runTestGetOutput(@NotNull String kotlinSource, @NotNull File headerFile, @NotNull File dylib) {
         List<JetFile> files = Arrays.asList(
                 createJetFile(kotlinSource),
                 createJetFile(KOTLIN_FOUNDATION_SOURCE_PATH)
@@ -111,6 +117,7 @@ public abstract class AbstractObjCWithJavaTest extends UsefulTestCase {
     }
 
     // Creates a single header file containing "#import " of all of the given header files
+    @NotNull
     private static File combineHeaders(@NotNull String... headers) {
         try {
             File file = FileUtil.createTempFile("objc-java-header", ".h");
@@ -122,7 +129,8 @@ public abstract class AbstractObjCWithJavaTest extends UsefulTestCase {
                         out.println("#import \"" + headerFile.getAbsolutePath() + "\"");
                     }
                 }
-            } finally {
+            }
+            finally {
                 out.close();
             }
 
@@ -135,20 +143,13 @@ public abstract class AbstractObjCWithJavaTest extends UsefulTestCase {
 
     @NotNull
     private String runCompiledKotlinClass() {
-        String classpath = ".:" + tmpDir + ":" + getKotlinRuntimeJarFile() + ":" + getKotlinObjCRuntimeJarFile();
+        String classpath = ".:" + tmpDir + ":" + ForTestCompileRuntime.runtimeJarForTests() + ":" + getKotlinObjCRuntimeJarFile();
         String command = "java -cp " + classpath + " " + PackageClassUtils.getPackageClassFqName(new FqName("test"));
         return runProcess(command);
     }
 
     private static void compileObjectiveC(@NotNull String filename, @NotNull File out) {
         runProcess(String.format("clang -ObjC -dynamiclib -framework Foundation %s -o %s", filename, out));
-    }
-
-    @NotNull
-    private static File getKotlinRuntimeJarFile() {
-        File kotlinRuntime = new File("dist/kotlinc/lib/kotlin-runtime.jar");
-        assert kotlinRuntime.exists() : "kotlin-runtime.jar should exist before this test, run dist";
-        return kotlinRuntime;
     }
 
     private void generate(@NotNull List<JetFile> files, @NotNull AnalyzeExhaust analyzeExhaust, @NotNull BindingContext objcBinding) {
