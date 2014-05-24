@@ -26,14 +26,12 @@ import org.jetbrains.jet.lang.descriptors.PackageViewDescriptor;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.BindingTrace;
 import org.jetbrains.jet.lang.resolve.BindingTraceContext;
-import org.jetbrains.jet.lang.resolve.java.JvmAbi;
 import org.jetbrains.jet.lang.resolve.objc.ObjCMetaclassDescriptor;
 import org.jetbrains.jet.utils.UtilsPackage;
 import org.jetbrains.org.objectweb.asm.Type;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collection;
 
 public class ObjCDescriptorCodegen {
@@ -50,13 +48,6 @@ public class ObjCDescriptorCodegen {
     @NotNull
     public BindingContext getBindingContext() {
         return bindingTrace.getBindingContext();
-    }
-
-    // This is needed to make JetTypeMapper correctly map class objects
-    private void recordFQNForClassObject(@NotNull ClassDescriptor classDescriptor, @NotNull ClassDescriptor classObject) {
-        String internalName = typeMapper.mapClass(classDescriptor).getInternalName();
-        Type classObjectType = Type.getObjectType(internalName + JvmAbi.CLASS_OBJECT_SUFFIX);
-        bindingTrace.record(CodegenBinding.ASM_TYPE, classObject, classObjectType);
     }
 
     private void writeClassFile(@NotNull ClassDescriptor descriptor, @NotNull File outputDir, @NotNull byte[] bytes) {
@@ -83,35 +74,28 @@ public class ObjCDescriptorCodegen {
         writeClassFile(classDescriptor, outputDir, bytes);
     }
 
-    @NotNull
-    private static Collection<ClassDescriptor> filterClasses(@NotNull Collection<DeclarationDescriptor> descriptors) {
-        Collection<ClassDescriptor> result = new ArrayList<ClassDescriptor>(descriptors.size());
-        for (DeclarationDescriptor descriptor : descriptors) {
-            if (descriptor instanceof ClassDescriptor) {
-                result.add((ClassDescriptor) descriptor);
-            }
-        }
-        return result;
-    }
-
     public void generate(@NotNull PackageViewDescriptor objcPackage, @NotNull File outputDir, @NotNull File dylib) {
-        Collection<ClassDescriptor> classes = filterClasses(objcPackage.getMemberScope().getAllDescriptors());
+        Collection<DeclarationDescriptor> allDescriptors = objcPackage.getMemberScope().getAllDescriptors();
 
-        for (ClassDescriptor descriptor : classes) {
+        for (DeclarationDescriptor descriptor : allDescriptors) {
             if (descriptor instanceof ObjCMetaclassDescriptor) {
-                String internalName = typeMapper.mapClass(((ObjCMetaclassDescriptor) descriptor).getClassDescriptor()).getInternalName();
+                ObjCMetaclassDescriptor metaclass = (ObjCMetaclassDescriptor) descriptor;
+                String internalName = typeMapper.mapClass(metaclass.getClassDescriptor()).getInternalName();
                 Type metaclassType = Type.getObjectType(internalName + METACLASS_SUFFIX);
-                bindingTrace.record(CodegenBinding.ASM_TYPE, descriptor, metaclassType);
+                bindingTrace.record(CodegenBinding.ASM_TYPE, metaclass, metaclassType);
             }
         }
 
-        for (ClassDescriptor descriptor : classes) {
-            generateAndWriteClass(dylib, outputDir, descriptor);
+        for (DeclarationDescriptor descriptor : allDescriptors) {
+            if (descriptor instanceof ClassDescriptor) {
+                ClassDescriptor classDescriptor = (ClassDescriptor) descriptor;
 
-            ClassDescriptor classObject = descriptor.getClassObjectDescriptor();
-            if (classObject != null) {
-                recordFQNForClassObject(descriptor, classObject);
-                generateAndWriteClass(dylib, outputDir, classObject);
+                generateAndWriteClass(dylib, outputDir, classDescriptor);
+
+                ClassDescriptor classObject = classDescriptor.getClassObjectDescriptor();
+                if (classObject != null) {
+                    generateAndWriteClass(dylib, outputDir, classObject);
+                }
             }
         }
     }
