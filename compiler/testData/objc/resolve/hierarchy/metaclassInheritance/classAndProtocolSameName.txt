@@ -10,10 +10,10 @@ public trait <metaclass-for-B> : objc.<metaclass-for-A>, objc.<metaclass-for-APr
 }
 
 public open class A : kotlin.jvm.objc.ObjCObject {
-    invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: kotlin.Long
-    
+    invisible_fake final override /*1*/ /*fake_override*/ val pointer: kotlin.Long
+
     public class object <class-object-for-A> : kotlin.jvm.objc.ObjCClass, objc.<metaclass-for-A>, objc.A {
-        invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: kotlin.Long
+        invisible_fake final override /*1*/ /*fake_override*/ val pointer: kotlin.Long
     }
 }
 
@@ -21,9 +21,9 @@ public trait AProtocol {
 }
 
 public open class B : objc.A, objc.AProtocol {
-    invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: kotlin.Long
-    
+    invisible_fake final override /*1*/ /*fake_override*/ val pointer: kotlin.Long
+
     public class object <class-object-for-B> : kotlin.jvm.objc.ObjCClass, objc.<metaclass-for-B>, objc.A {
-        invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: kotlin.Long
+        invisible_fake final override /*1*/ /*fake_override*/ val pointer: kotlin.Long
     }
 }

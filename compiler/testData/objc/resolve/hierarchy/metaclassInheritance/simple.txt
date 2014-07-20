@@ -8,18 +8,18 @@ public trait <metaclass-for-Derived> : objc.<metaclass-for-Base> {
 }
 
 public open class Base : kotlin.jvm.objc.ObjCObject {
-    invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: kotlin.Long
-    
+    invisible_fake final override /*1*/ /*fake_override*/ val pointer: kotlin.Long
+
     public class object <class-object-for-Base> : kotlin.jvm.objc.ObjCClass, objc.<metaclass-for-Base>, objc.Base {
-        invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: kotlin.Long
+        invisible_fake final override /*1*/ /*fake_override*/ val pointer: kotlin.Long
     }
 }
 
 public open class Derived : objc.Base {
-    invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: kotlin.Long
-    
+    invisible_fake final override /*1*/ /*fake_override*/ val pointer: kotlin.Long
+
     public class object <class-object-for-Derived> : kotlin.jvm.objc.ObjCClass, objc.<metaclass-for-Derived>, objc.Base {
-        invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: kotlin.Long
+        invisible_fake final override /*1*/ /*fake_override*/ val pointer: kotlin.Long
         public open override /*1*/ /*fake_override*/ fun derivedMethod(): kotlin.Unit
     }
 }

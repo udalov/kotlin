@@ -13,10 +13,10 @@ public trait <metaclass-for-NSObject> {
 }
 
 public open class A : objc.NSObject {
-    invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: kotlin.Long
-    
+    invisible_fake final override /*1*/ /*fake_override*/ val pointer: kotlin.Long
+
     public class object <class-object-for-A> : kotlin.jvm.objc.ObjCClass, objc.<metaclass-for-A>, objc.NSObject {
-        invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: kotlin.Long
+        invisible_fake final override /*1*/ /*fake_override*/ val pointer: kotlin.Long
         public open override /*1*/ /*fake_override*/ fun idWithInt(/*0*/ intArg: kotlin.Int, /*1*/ charArg: kotlin.Char): kotlin.jvm.objc.ObjCObject
         public open override /*1*/ /*fake_override*/ fun intNoArgs(): kotlin.Int
         public open override /*1*/ /*fake_override*/ fun intWithInt(/*0*/ intArg: kotlin.Int): kotlin.Int
@@ -27,9 +27,9 @@ public open class A : objc.NSObject {
 }
 
 public open class NSObject : kotlin.jvm.objc.ObjCObject {
-    invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: kotlin.Long
-    
+    invisible_fake final override /*1*/ /*fake_override*/ val pointer: kotlin.Long
+
     public class object <class-object-for-NSObject> : kotlin.jvm.objc.ObjCClass, objc.<metaclass-for-NSObject>, objc.NSObject {
-        invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: kotlin.Long
+        invisible_fake final override /*1*/ /*fake_override*/ val pointer: kotlin.Long
     }
 }

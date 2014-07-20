@@ -13,28 +13,28 @@ public trait <metaclass-for-NSObject> {
 }
 
 public open class Base : objc.NSObject {
-    invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: kotlin.Long
-    
+    invisible_fake final override /*1*/ /*fake_override*/ val pointer: kotlin.Long
+
     public class object <class-object-for-Base> : kotlin.jvm.objc.ObjCClass, objc.<metaclass-for-Base>, objc.NSObject {
-        invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: kotlin.Long
+        invisible_fake final override /*1*/ /*fake_override*/ val pointer: kotlin.Long
         public open override /*1*/ /*fake_override*/ fun baseMethod(): kotlin.Unit
     }
 }
 
 public open class Derived : objc.Base {
-    invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: kotlin.Long
-    
+    invisible_fake final override /*1*/ /*fake_override*/ val pointer: kotlin.Long
+
     public class object <class-object-for-Derived> : kotlin.jvm.objc.ObjCClass, objc.<metaclass-for-Derived>, objc.NSObject {
-        invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: kotlin.Long
+        invisible_fake final override /*1*/ /*fake_override*/ val pointer: kotlin.Long
         public open override /*1*/ /*fake_override*/ fun baseMethod(): kotlin.Unit
         public open override /*1*/ /*fake_override*/ fun derivedMethod(): kotlin.Unit
     }
 }
 
 public open class NSObject : kotlin.jvm.objc.ObjCObject {
-    invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: kotlin.Long
-    
+    invisible_fake final override /*1*/ /*fake_override*/ val pointer: kotlin.Long
+
     public class object <class-object-for-NSObject> : kotlin.jvm.objc.ObjCClass, objc.<metaclass-for-NSObject>, objc.NSObject {
-        invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: kotlin.Long
+        invisible_fake final override /*1*/ /*fake_override*/ val pointer: kotlin.Long
     }
 }

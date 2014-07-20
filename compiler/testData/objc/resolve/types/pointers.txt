@@ -7,7 +7,7 @@ public trait <metaclass-for-NSObject> {
 }
 
 public open class A : objc.NSObject {
-    invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: kotlin.Long
+    invisible_fake final override /*1*/ /*fake_override*/ val pointer: kotlin.Long
     public open fun pa(): kotlin.jvm.objc.Pointer<objc.A>
     public open fun pc(): kotlin.jvm.objc.Pointer<kotlin.Char>
     public open fun pd(): kotlin.jvm.objc.Pointer<kotlin.Double>
@@ -22,16 +22,16 @@ public open class A : objc.NSObject {
     public open fun pv2(): kotlin.jvm.objc.Pointer<out kotlin.Any?>
     public open fun pv3(): kotlin.jvm.objc.Pointer<out kotlin.Any?>
     public open fun pv4(): kotlin.jvm.objc.Pointer<out kotlin.Any?>
-    
+
     public class object <class-object-for-A> : kotlin.jvm.objc.ObjCClass, objc.<metaclass-for-A>, objc.NSObject {
-        invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: kotlin.Long
+        invisible_fake final override /*1*/ /*fake_override*/ val pointer: kotlin.Long
     }
 }
 
 public open class NSObject : kotlin.jvm.objc.ObjCObject {
-    invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: kotlin.Long
-    
+    invisible_fake final override /*1*/ /*fake_override*/ val pointer: kotlin.Long
+
     public class object <class-object-for-NSObject> : kotlin.jvm.objc.ObjCClass, objc.<metaclass-for-NSObject>, objc.NSObject {
-        invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: kotlin.Long
+        invisible_fake final override /*1*/ /*fake_override*/ val pointer: kotlin.Long
     }
 }

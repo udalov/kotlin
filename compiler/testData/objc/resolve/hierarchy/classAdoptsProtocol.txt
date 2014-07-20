@@ -10,19 +10,19 @@ public trait <metaclass-for-P> {
 }
 
 public open class A : objc.NSObject, objc.P {
-    invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: kotlin.Long
+    invisible_fake final override /*1*/ /*fake_override*/ val pointer: kotlin.Long
     public open override /*1*/ /*fake_override*/ fun protocolMethod(): kotlin.Unit
-    
+
     public class object <class-object-for-A> : kotlin.jvm.objc.ObjCClass, objc.<metaclass-for-A>, objc.NSObject {
-        invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: kotlin.Long
+        invisible_fake final override /*1*/ /*fake_override*/ val pointer: kotlin.Long
     }
 }
 
 public open class NSObject : kotlin.jvm.objc.ObjCObject {
-    invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: kotlin.Long
-    
+    invisible_fake final override /*1*/ /*fake_override*/ val pointer: kotlin.Long
+
     public class object <class-object-for-NSObject> : kotlin.jvm.objc.ObjCClass, objc.<metaclass-for-NSObject>, objc.NSObject {
-        invisible_fake abstract override /*1*/ /*fake_override*/ val pointer: kotlin.Long
+        invisible_fake final override /*1*/ /*fake_override*/ val pointer: kotlin.Long
     }
 }
 
