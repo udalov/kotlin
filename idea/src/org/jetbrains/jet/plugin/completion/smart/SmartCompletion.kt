@@ -96,7 +96,7 @@ class SmartCompletion(val expression: JetSimpleNameExpression,
                     else -> ExpectedInfoClassification.NOT_MATCHES
                 }
             }
-            result.addLookupElements(expectedInfos, classifier, { createLookupElement(descriptor, resolveSession, bindingContext) })
+            result.addLookupElements(expectedInfos, classifier, { createLookupElement(descriptor, resolveSession) })
 
             if (receiver == null) {
                 toFunctionReferenceLookupElement(descriptor, functionExpectedInfos)?.let { result.add(it) }
@@ -104,27 +104,27 @@ class SmartCompletion(val expression: JetSimpleNameExpression,
         }
 
         if (receiver == null) {
-            TypeInstantiationItems(bindingContext, resolveSession, visibilityFilter).addToCollection(result, expectedInfos)
+            TypeInstantiationItems(resolveSession, visibilityFilter).addToCollection(result, expectedInfos)
 
-            StaticMembers(bindingContext, resolveSession).addToCollection(result, expectedInfos, expression)
+            StaticMembers(bindingContext, resolveSession).addToCollection(result, expectedInfos, expression, itemsToSkip)
 
             ThisItems(bindingContext).addToCollection(result, expressionWithType, expectedInfos)
 
             LambdaItems.addToCollection(result, functionExpectedInfos)
 
-            KeywordValues.addToCollection(result, expectedInfos)
+            KeywordValues.addToCollection(result, expectedInfos, expressionWithType)
         }
 
         return result
     }
 
-    private fun calcItemsToSkip(expression: JetExpression): Collection<DeclarationDescriptor> {
+    private fun calcItemsToSkip(expression: JetExpression): Set<DeclarationDescriptor> {
         val parent = expression.getParent()
         when(parent) {
             is JetProperty -> {
                 //TODO: this can be filtered out by ordinary completion
                 if (expression == parent.getInitializer()) {
-                    return resolveSession.resolveToElement(parent)[BindingContext.DECLARATION_TO_DESCRIPTOR, parent].toList()
+                    return resolveSession.resolveToElement(parent)[BindingContext.DECLARATION_TO_DESCRIPTOR, parent].toSet()
                 }
             }
 
@@ -134,13 +134,36 @@ class SmartCompletion(val expression: JetSimpleNameExpression,
                     if (operationToken == JetTokens.EQ || operationToken == JetTokens.EQEQ || operationToken == JetTokens.EXCLEQ) {
                         val left = parent.getLeft()
                         if (left is JetReferenceExpression) {
-                            return resolveSession.resolveToElement(left)[BindingContext.REFERENCE_TARGET, left].toList()
+                            return resolveSession.resolveToElement(left)[BindingContext.REFERENCE_TARGET, left].toSet()
                         }
                     }
                 }
             }
+
+            is JetWhenConditionWithExpression -> {
+                val entry = parent.getParent() as JetWhenEntry
+                val whenExpression = entry.getParent() as JetWhenExpression
+                val subject = whenExpression.getSubjectExpression() ?: return setOf()
+                val subjectType = bindingContext[BindingContext.EXPRESSION_TYPE, subject] ?: return setOf()
+                val classDescriptor = TypeUtils.getClassDescriptor(subjectType)
+                if (classDescriptor != null && DescriptorUtils.isEnumClass(classDescriptor)) {
+                    val usedEnumEntries = HashSet<ClassDescriptor>()
+                    val conditions = whenExpression.getEntries()
+                            .flatMap { it.getConditions().toList() }
+                            .filterIsInstance(javaClass<JetWhenConditionWithExpression>())
+                    for (condition in conditions) {
+                        val selectorExpr = (condition.getExpression() as? JetDotQualifiedExpression)
+                                ?.getSelectorExpression() as? JetReferenceExpression ?: continue
+                        val target = bindingContext[BindingContext.REFERENCE_TARGET, selectorExpr] as? ClassDescriptor ?: continue
+                        if (DescriptorUtils.isEnumEntry(target)) {
+                            usedEnumEntries.add(target)
+                        }
+                    }
+                    return usedEnumEntries
+                }
+            }
         }
-        return listOf()
+        return setOf()
     }
 
     private fun toFunctionReferenceLookupElement(descriptor: DeclarationDescriptor,
@@ -154,7 +177,7 @@ class SmartCompletion(val expression: JetSimpleNameExpression,
             val matchedExpectedInfos = functionExpectedInfos.filter { functionType.isSubtypeOf(it.`type`) }
             if (matchedExpectedInfos.isEmpty()) return null
 
-            var lookupElement = createLookupElement(descriptor, resolveSession, bindingContext)
+            var lookupElement = createLookupElement(descriptor, resolveSession)
             val text = "::" + (if (descriptor is ConstructorDescriptor) descriptor.getContainingDeclaration().getName() else descriptor.getName())
             lookupElement = object: LookupElementDecorator<LookupElement>(lookupElement) {
                 override fun getLookupString() = text

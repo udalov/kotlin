@@ -20,6 +20,7 @@ import kotlin.Function0;
 import kotlin.IntRange;
 import kotlin.KotlinNullPointerException;
 
+import java.lang.Deprecated;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -49,7 +50,7 @@ public class Intrinsics {
     public static void checkFieldIsNotNull(Object value, String className, String fieldName) {
         if (value == null) {
             IllegalStateException exception =
-                    new IllegalStateException("Field specified as non-null contains null: " + className + "." + fieldName);
+                    new IllegalStateException("Field specified as non-null is null: " + className + "." + fieldName);
             throw sanitizeStackTrace(exception);
         }
     }
@@ -64,7 +65,7 @@ public class Intrinsics {
             String methodName = caller.getMethodName();
 
             IllegalArgumentException exception =
-                    new IllegalArgumentException("Parameter specified as non-null contains null: " +
+                    new IllegalArgumentException("Parameter specified as non-null is null: " +
                                                  "method " + className + "." + methodName +
                                                  ", parameter " + paramName);
             throw sanitizeStackTrace(exception);
@@ -87,6 +88,8 @@ public class Intrinsics {
         return new IntRange(0, length - 1);
     }
 
+    // TODO: remove this function when ABI version is advanced
+    @Deprecated // A better implementation of synchronized is used now
     public static <R> R stupidSync(Object lock, Function0<R> block) {
         synchronized (lock) {
             return block.invoke();

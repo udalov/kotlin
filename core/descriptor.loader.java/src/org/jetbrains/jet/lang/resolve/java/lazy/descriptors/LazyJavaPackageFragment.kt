@@ -17,30 +17,24 @@
 package org.jetbrains.jet.lang.resolve.java.lazy.descriptors
 
 import org.jetbrains.jet.lang.resolve.java.lazy.LazyJavaResolverContext
-import org.jetbrains.jet.lang.resolve.name.Name
-import org.jetbrains.jet.lang.resolve.scopes.JetScope
 import org.jetbrains.jet.lang.resolve.java.structure.JavaPackage
 import org.jetbrains.jet.lang.resolve.name.FqName
-import org.jetbrains.jet.lang.resolve.name.FqNameUnsafe
 import org.jetbrains.jet.lang.resolve.java.structure.JavaClass
 import org.jetbrains.kotlin.util.sure
 import org.jetbrains.jet.lang.descriptors.ModuleDescriptor
-import org.jetbrains.jet.lang.descriptors.impl.DeclarationDescriptorNonRootImpl
-import org.jetbrains.jet.lang.descriptors.DeclarationDescriptorVisitor
-import org.jetbrains.jet.lang.types.TypeSubstitutor
 import org.jetbrains.jet.lang.resolve.java.descriptor.JavaPackageFragmentDescriptor
-import org.jetbrains.jet.lang.descriptors.PackageFragmentProvider
-import org.jetbrains.jet.lang.descriptors.annotations.Annotations
 import org.jetbrains.jet.lang.resolve.java.descriptor.JavaClassStaticsPackageFragmentDescriptor
 import org.jetbrains.jet.lang.resolve.java.descriptor.JavaClassDescriptor
-import org.jetbrains.jet.lang.descriptors.PackageFragmentDescriptorImpl
+import org.jetbrains.jet.lang.descriptors.impl.PackageFragmentDescriptorImpl
+import kotlin.properties.Delegates
 
 class LazyPackageFragmentForJavaPackage(
         c: LazyJavaResolverContext,
         containingDeclaration: ModuleDescriptor,
-        jPackage: JavaPackage
-) : LazyJavaPackageFragment(c, containingDeclaration, jPackage.getFqName(),
-                            { LazyPackageFragmentScopeForJavaPackage(c, jPackage, this) })
+        private val jPackage: JavaPackage
+) : LazyJavaPackageFragment(c, containingDeclaration, jPackage.getFqName()) {
+    override fun createMemberScope() = LazyPackageFragmentScopeForJavaPackage(c, jPackage, this)
+}
 
 class LazyPackageFragmentForJavaClass(
         c: LazyJavaResolverContext,
@@ -48,8 +42,10 @@ class LazyPackageFragmentForJavaClass(
         private val jClass: JavaClass
 ) : JavaClassStaticsPackageFragmentDescriptor,
     LazyJavaPackageFragment(c, containingDeclaration,
-                            jClass.getFqName().sure("Attempt to build a package of an anonymous/local class: $jClass"),
-                            { LazyPackageFragmentScopeForJavaClass(c, jClass, this) }) {
+                            jClass.getFqName().sure("Attempt to build a package of an anonymous/local class: $jClass")) {
+
+    override fun createMemberScope() = LazyPackageFragmentScopeForJavaClass(c, jClass, this)
+
     override fun getCorrespondingClass(): JavaClassDescriptor {
         val classDescriptor = c.javaClassResolver.resolveClass(jClass)
         if (classDescriptor !is JavaClassDescriptor) {
@@ -62,12 +58,14 @@ class LazyPackageFragmentForJavaClass(
 abstract class LazyJavaPackageFragment(
         protected val c: LazyJavaResolverContext,
         containingDeclaration: ModuleDescriptor,
-        fqName: FqName,
-        createMemberScope: LazyJavaPackageFragment.() -> LazyJavaPackageFragmentScope
+        fqName: FqName
 ) : PackageFragmentDescriptorImpl(containingDeclaration, fqName),
     JavaPackageFragmentDescriptor, LazyJavaDescriptor
 {
-    private val _memberScope = createMemberScope()
+    private val _memberScope by Delegates.lazy { createMemberScope() }
+
+    abstract fun createMemberScope(): LazyJavaPackageFragmentScope
+
     override fun getMemberScope(): LazyJavaPackageFragmentScope = _memberScope
 
     override fun toString() = "lazy java package fragment: " + fqName

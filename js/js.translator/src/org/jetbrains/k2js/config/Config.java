@@ -101,6 +101,7 @@ public abstract class Config {
     public static final List<String> LIB_FILE_NAMES_DEPENDENT_ON_STDLIB = Arrays.asList(
             "/core/stringsCode.kt",
             "/stdlib/domCode.kt",
+            "/core/javautilCode.kt",
             "/stdlib/jutilCode.kt",
             "/stdlib/testCode.kt"
     );
@@ -139,6 +140,7 @@ public abstract class Config {
             "/kotlin/Ranges.kt",
             "/kotlin/Numbers.kt",
             "/kotlin/text/Strings.kt",
+            "/kotlin/text/StringBuilder.kt",
             "/kotlin/dom/Dom.kt",
             "/kotlin/test/Test.kt"
     );

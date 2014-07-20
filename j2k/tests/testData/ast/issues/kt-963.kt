@@ -1,9 +1,8 @@
 package demo
 
-open class C(a: Int) {
-    var abc: Int = 0
-
+class C(a: Int) {
     {
         abc = a * 2
     }
+    var abc = 0
 }

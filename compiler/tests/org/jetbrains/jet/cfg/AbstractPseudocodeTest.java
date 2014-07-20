@@ -25,7 +25,12 @@ import org.jetbrains.jet.ConfigurationKind;
 import org.jetbrains.jet.JetTestUtils;
 import org.jetbrains.jet.analyzer.AnalyzeExhaust;
 import org.jetbrains.jet.cli.jvm.compiler.JetCoreEnvironment;
-import org.jetbrains.jet.lang.cfg.pseudocode.*;
+import org.jetbrains.jet.lang.cfg.pseudocode.Pseudocode;
+import org.jetbrains.jet.lang.cfg.pseudocode.PseudocodeImpl;
+import org.jetbrains.jet.lang.cfg.pseudocode.PseudocodeUtil;
+import org.jetbrains.jet.lang.cfg.pseudocode.instructions.Instruction;
+import org.jetbrains.jet.lang.cfg.pseudocode.instructions.InstructionImpl;
+import org.jetbrains.jet.lang.cfg.pseudocode.instructions.special.LocalFunctionDeclarationInstruction;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.lazy.KotlinTestWithEnvironment;
@@ -119,8 +124,12 @@ public abstract class AbstractPseudocodeTest extends KotlinTestWithEnvironment {
             checkPseudocode((PseudocodeImpl) pseudocode);
         }
 
-        File expectedInstructionsFile = JetTestUtils.replaceExtension(file, "instructions");
+        File expectedInstructionsFile = JetTestUtils.replaceExtension(file, getDataFileExtension());
         JetTestUtils.assertEqualsToFile(expectedInstructionsFile, instructionDump.toString());
+    }
+
+    protected String getDataFileExtension() {
+        return "instructions";
     }
 
     protected void checkPseudocode(PseudocodeImpl pseudocode) {
@@ -131,7 +140,7 @@ public abstract class AbstractPseudocodeTest extends KotlinTestWithEnvironment {
             @NotNull Set<Instruction> remainedAfterPostProcessInstructions
     ) {
         boolean isRemovedThroughPostProcess = !remainedAfterPostProcessInstructions.contains(instruction);
-        assert isRemovedThroughPostProcess == ((InstructionImpl)instruction).isDead();
+        assert isRemovedThroughPostProcess == ((InstructionImpl)instruction).getMarkedAsDead();
         return isRemovedThroughPostProcess ? "-" : " ";
     }
 
@@ -170,7 +179,7 @@ public abstract class AbstractPseudocodeTest extends KotlinTestWithEnvironment {
             @NotNull StringBuilder out,
             @NotNull Function3<Instruction, /*next*/Instruction, /*prev*/Instruction, String> getInstructionData
     ) {
-        List<Instruction> instructions = pseudocode.getAllInstructions();
+        List<Instruction> instructions = pseudocode.getInstructionsIncludingDeadCode();
         Set<Instruction> remainedAfterPostProcessInstructions = Sets.newHashSet(pseudocode.getInstructions());
         List<PseudocodeImpl.PseudocodeLabel> labels = pseudocode.getLabels();
         int instructionColumnWidth = countInstructionColumnWidth(instructions);

@@ -1,12 +1,14 @@
+// PARAM_TYPES: Data<T>
+// PARAM_DESCRIPTOR: value-parameter val d: Data<T> defined in A.foo
 class Data<T>(val t: Int)
 
-// NEXT_SIBLING:
-fun <T> i(d: Data<T>): Int {
-    return d.t + 1
-}
-
+// SIBLING:
 class A<T> {
     fun foo(d: Data<T>): Int {
         return i(d)
     }
+}
+
+fun <T> i(d: Data<T>): Int {
+    return d.t + 1
 }

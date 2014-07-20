@@ -1,0 +1,12 @@
+== foo ==
+tailRecursive fun foo() {
+    try {
+        return foo()
+    }
+    catch (e: Throwable) {
+    }
+}
+---------------------
+        <v1>: {<: Throwable}   NEW: magic[FAKE_INITIALIZER](e: Throwable) -> <v1>
+foo()   <v0>: {<: Unit}        NEW: call(foo(), foo) -> <v0>
+=====================

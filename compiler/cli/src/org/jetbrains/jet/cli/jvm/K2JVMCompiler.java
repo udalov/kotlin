@@ -27,10 +27,15 @@ import org.jetbrains.jet.cli.common.ExitCode;
 import org.jetbrains.jet.cli.common.arguments.CompilerArgumentsUtil;
 import org.jetbrains.jet.cli.common.arguments.K2JVMCompilerArguments;
 import org.jetbrains.jet.cli.common.messages.*;
-import org.jetbrains.jet.cli.jvm.compiler.*;
+import org.jetbrains.jet.cli.common.modules.ModuleScriptData;
+import org.jetbrains.jet.cli.jvm.compiler.CommandLineScriptUtils;
+import org.jetbrains.jet.cli.jvm.compiler.CompileEnvironmentUtil;
+import org.jetbrains.jet.cli.jvm.compiler.JetCoreEnvironment;
+import org.jetbrains.jet.cli.jvm.compiler.KotlinToJVMBytecodeCompiler;
 import org.jetbrains.jet.cli.jvm.repl.ReplFromTerminal;
 import org.jetbrains.jet.codegen.CompilationException;
 import org.jetbrains.jet.codegen.inline.InlineCodegenUtil;
+import org.jetbrains.jet.codegen.optimization.OptimizationUtils;
 import org.jetbrains.jet.config.CommonConfigurationKeys;
 import org.jetbrains.jet.config.CompilerConfiguration;
 import org.jetbrains.jet.lang.resolve.AnalyzerScriptParameter;
@@ -82,7 +87,8 @@ public class K2JVMCompiler extends CLICompiler<K2JVMCompilerArguments> {
         if (!arguments.script &&
             arguments.module == null &&
             arguments.src == null &&
-            arguments.freeArgs.isEmpty()
+            arguments.freeArgs.isEmpty() &&
+            !arguments.version
         ) {
             ReplFromTerminal.run(rootDisposable, configuration);
             return ExitCode.OK;
@@ -111,6 +117,8 @@ public class K2JVMCompiler extends CLICompiler<K2JVMCompilerArguments> {
         configuration.put(JVMConfigurationKeys.GENERATE_NOT_NULL_PARAMETER_ASSERTIONS, arguments.notNullParamAssertions);
         configuration.put(JVMConfigurationKeys.ENABLE_INLINE,
                           CompilerArgumentsUtil.optionToBooleanFlag(arguments.inline, InlineCodegenUtil.DEFAULT_INLINE_FLAG));
+        configuration.put(JVMConfigurationKeys.ENABLE_OPTIMIZATION,
+                          CompilerArgumentsUtil.optionToBooleanFlag(arguments.optimize, OptimizationUtils.DEFAULT_OPTIMIZATION_FLAG));
 
         configuration.put(CLIConfigurationKeys.MESSAGE_COLLECTOR_KEY, messageCollector);
 
@@ -124,7 +132,11 @@ public class K2JVMCompiler extends CLICompiler<K2JVMCompilerArguments> {
 
             if (arguments.module != null) {
                 MessageCollector sanitizedCollector = new FilteringMessageCollector(messageCollector, in(CompilerMessageSeverity.VERBOSE));
-                ModuleChunk modules = CompileEnvironmentUtil.loadModuleDescriptions(paths, arguments.module, sanitizedCollector);
+                ModuleScriptData moduleScript = CompileEnvironmentUtil.loadModuleDescriptions(
+                        paths, arguments.module, sanitizedCollector);
+                if (moduleScript.getIncrementalCacheDir() != null) {
+                    configuration.put(JVMConfigurationKeys.INCREMENTAL_CACHE_BASE_DIR, new File(moduleScript.getIncrementalCacheDir()));
+                }
 
                 if (outputDir != null) {
                     messageCollector.report(CompilerMessageSeverity.WARNING, "The '-output' option is ignored because '-module' is specified",
@@ -132,7 +144,7 @@ public class K2JVMCompiler extends CLICompiler<K2JVMCompilerArguments> {
                 }
 
                 File directory = new File(arguments.module).getAbsoluteFile().getParentFile();
-                KotlinToJVMBytecodeCompiler.compileModules(configuration, modules,
+                KotlinToJVMBytecodeCompiler.compileModules(configuration, moduleScript.getModules(),
                                                                       directory, jar,
                                                                       arguments.includeRuntime);
             }
@@ -200,7 +212,11 @@ public class K2JVMCompiler extends CLICompiler<K2JVMCompilerArguments> {
         super.checkArguments(argument);
 
         if (!CompilerArgumentsUtil.checkOption(argument.inline)) {
-            throw new IllegalArgumentException(CompilerArgumentsUtil.getWrongInlineOptionErrorMessage(argument.inline));
+            throw new IllegalArgumentException(CompilerArgumentsUtil.getWrongCheckOptionErrorMessage("inline", argument.inline));
+        }
+
+        if (!CompilerArgumentsUtil.checkOption(argument.optimize)) {
+            throw new IllegalArgumentException(CompilerArgumentsUtil.getWrongCheckOptionErrorMessage("optimize", argument.optimize));
         }
     }
 

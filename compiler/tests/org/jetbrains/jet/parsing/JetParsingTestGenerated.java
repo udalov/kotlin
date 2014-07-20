@@ -84,6 +84,11 @@ public class JetParsingTestGenerated extends AbstractJetParsingTest {
             doParsingTest("compiler/testData/psi/BabySteps_ERR.kt");
         }
         
+        @TestMetadata("BackslashInString.kt")
+        public void testBackslashInString() throws Exception {
+            doParsingTest("compiler/testData/psi/BackslashInString.kt");
+        }
+        
         @TestMetadata("BlockCommentAtBeginningOfFile1.kt")
         public void testBlockCommentAtBeginningOfFile1() throws Exception {
             doParsingTest("compiler/testData/psi/BlockCommentAtBeginningOfFile1.kt");
@@ -880,14 +885,79 @@ public class JetParsingTestGenerated extends AbstractJetParsingTest {
                 JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), "org.jetbrains.jet.generators.tests.TestsPackage", new File("compiler/testData/psi/recovery"), Pattern.compile("^(.*)\\.kts?$"), true);
             }
             
+            @TestMetadata("DoWhileWithEmptyCondition.kt")
+            public void testDoWhileWithEmptyCondition() throws Exception {
+                doParsingTest("compiler/testData/psi/recovery/DoWhileWithEmptyCondition.kt");
+            }
+            
+            @TestMetadata("DoWhileWithoutLPar.kt")
+            public void testDoWhileWithoutLPar() throws Exception {
+                doParsingTest("compiler/testData/psi/recovery/DoWhileWithoutLPar.kt");
+            }
+            
             @TestMetadata("EnumEntryInitList.kt")
             public void testEnumEntryInitList() throws Exception {
                 doParsingTest("compiler/testData/psi/recovery/EnumEntryInitList.kt");
             }
             
+            @TestMetadata("ForEmptyParentheses.kt")
+            public void testForEmptyParentheses() throws Exception {
+                doParsingTest("compiler/testData/psi/recovery/ForEmptyParentheses.kt");
+            }
+            
+            @TestMetadata("ForEmptyWithoutBody.kt")
+            public void testForEmptyWithoutBody() throws Exception {
+                doParsingTest("compiler/testData/psi/recovery/ForEmptyWithoutBody.kt");
+            }
+            
+            @TestMetadata("ForNoBodyBeforeRBrace.kt")
+            public void testForNoBodyBeforeRBrace() throws Exception {
+                doParsingTest("compiler/testData/psi/recovery/ForNoBodyBeforeRBrace.kt");
+            }
+            
             @TestMetadata("ForRecovery.kt")
             public void testForRecovery() throws Exception {
                 doParsingTest("compiler/testData/psi/recovery/ForRecovery.kt");
+            }
+            
+            @TestMetadata("ForWithOnlyOneLParInEOF.kt")
+            public void testForWithOnlyOneLParInEOF() throws Exception {
+                doParsingTest("compiler/testData/psi/recovery/ForWithOnlyOneLParInEOF.kt");
+            }
+            
+            @TestMetadata("ForWithoutBodyInEOF.kt")
+            public void testForWithoutBodyInEOF() throws Exception {
+                doParsingTest("compiler/testData/psi/recovery/ForWithoutBodyInEOF.kt");
+            }
+            
+            @TestMetadata("ForWithoutLPar.kt")
+            public void testForWithoutLPar() throws Exception {
+                doParsingTest("compiler/testData/psi/recovery/ForWithoutLPar.kt");
+            }
+            
+            @TestMetadata("ForWithoutLParInEOF.kt")
+            public void testForWithoutLParInEOF() throws Exception {
+                doParsingTest("compiler/testData/psi/recovery/ForWithoutLParInEOF.kt");
+            }
+            
+            @TestMetadata("ForWithoutParamButWithRange.kt")
+            public void testForWithoutParamButWithRange() throws Exception {
+                doParsingTest("compiler/testData/psi/recovery/ForWithoutParamButWithRange.kt");
+            }
+            
+            @TestMetadata("ForWithoutRange.kt")
+            public void testForWithoutRange() throws Exception {
+                doParsingTest("compiler/testData/psi/recovery/ForWithoutRange.kt");
+            }
+            
+            @TestMetadata("IfWithEmptyCondition.kt")
+            public void testIfWithEmptyCondition() throws Exception {
+                doParsingTest("compiler/testData/psi/recovery/IfWithEmptyCondition.kt");
+            }
+            
+            @TestMetadata("IfWithoutLPar.kt")
+            public void testIfWithoutLPar() throws Exception {
+                doParsingTest("compiler/testData/psi/recovery/IfWithoutLPar.kt");
             }
             
             @TestMetadata("ImportRecovery.kt")
@@ -898,6 +968,11 @@ public class JetParsingTestGenerated extends AbstractJetParsingTest {
             @TestMetadata("kt2172.kt")
             public void testKt2172() throws Exception {
                 doParsingTest("compiler/testData/psi/recovery/kt2172.kt");
+            }
+            
+            @TestMetadata("kt5102.kt")
+            public void testKt5102() throws Exception {
+                doParsingTest("compiler/testData/psi/recovery/kt5102.kt");
             }
             
             @TestMetadata("MissingCommaInConstructorValueParameterList.kt")
@@ -938,6 +1013,26 @@ public class JetParsingTestGenerated extends AbstractJetParsingTest {
             @TestMetadata("ValueParameterNoTypeRecovery.kt")
             public void testValueParameterNoTypeRecovery() throws Exception {
                 doParsingTest("compiler/testData/psi/recovery/ValueParameterNoTypeRecovery.kt");
+            }
+            
+            @TestMetadata("WhenWithoutBraces.kt")
+            public void testWhenWithoutBraces() throws Exception {
+                doParsingTest("compiler/testData/psi/recovery/WhenWithoutBraces.kt");
+            }
+            
+            @TestMetadata("WhileWithEmptyCondition.kt")
+            public void testWhileWithEmptyCondition() throws Exception {
+                doParsingTest("compiler/testData/psi/recovery/WhileWithEmptyCondition.kt");
+            }
+            
+            @TestMetadata("WhileWithoutLPar.kt")
+            public void testWhileWithoutLPar() throws Exception {
+                doParsingTest("compiler/testData/psi/recovery/WhileWithoutLPar.kt");
+            }
+            
+            @TestMetadata("WithWithoutInAndMultideclaration.kt")
+            public void testWithWithoutInAndMultideclaration() throws Exception {
+                doParsingTest("compiler/testData/psi/recovery/WithWithoutInAndMultideclaration.kt");
             }
             
         }

@@ -16,141 +16,164 @@
 
 package org.jetbrains.jet.j2k.ast
 
+import org.jetbrains.jet.j2k.*
 
-abstract class Statement() : Element {
+
+abstract class Statement() : Element() {
     object Empty : Statement() {
-        override fun toKotlin() = ""
-        override fun isEmpty() = true
+        override fun generateCode(builder: CodeBuilder) { }
+
+        override val isEmpty: Boolean
+            get() = true
     }
 }
 
-open class DeclarationStatement(val elements: List<Element>) : Statement() {
-    override fun toKotlin(): String {
-        return elements.filter { it is LocalVariable }.map { convertDeclaration(it as LocalVariable) }.makeString("\n")
-    }
-
-    private fun convertDeclaration(v: LocalVariable): String {
-        val varKeyword: String? = (if (v.isImmutable())
-            "val"
-        else
-            "var")
-        return varKeyword + " " + v.toKotlin()
+class DeclarationStatement(val elements: List<Element>) : Statement() {
+    override fun generateCode(builder: CodeBuilder) {
+        builder.append(elements, "\n")
     }
 }
 
-open class ExpressionListStatement(val expressions: List<Expression>) : Expression() {
-    override fun toKotlin() = expressions.toKotlin("\n")
+class ExpressionListStatement(val expressions: List<Expression>) : Expression() {
+    override fun generateCode(builder: CodeBuilder) {
+        builder.append(expressions, "\n")
+    }
 }
 
-open class LabelStatement(val name: Identifier, val statement: Element) : Statement() {
-    override fun toKotlin(): String = "@" + name.toKotlin() + " " + statement.toKotlin()
+class LabelStatement(val name: Identifier, val statement: Element) : Statement() {
+    override fun generateCode(builder: CodeBuilder) {
+        builder append "@" append name append " " append statement
+    }
 }
 
-open class ReturnStatement(val expression: Expression) : Statement() {
-    override fun toKotlin() = "return " + expression.toKotlin()
+class ReturnStatement(val expression: Expression) : Statement() {
+    override fun generateCode(builder: CodeBuilder) {
+        builder append "return " append expression
+    }
 }
 
-open class IfStatement(
+class IfStatement(
         val condition: Expression,
         val thenStatement: Element,
-        val elseStatement: Element
+        val elseStatement: Element,
+        singleLine: Boolean
 ) : Expression() {
-    override fun toKotlin(): String {
-        val result: String = "if (" + condition.toKotlin() + ")\n" + thenStatement.toKotlin()
-        if (elseStatement != Statement.Empty) {
-            return result + "\nelse\n" + elseStatement.toKotlin()
-        }
 
-        return result
+    private val br = if (singleLine) " " else "\n"
+    private val brAfterElse = if (singleLine || elseStatement is IfStatement) " " else "\n"
+
+    override fun generateCode(builder: CodeBuilder) {
+        builder append "if (" append condition append ")" append br append thenStatement
+        if (!elseStatement.isEmpty) {
+            builder append br append "else" append brAfterElse append elseStatement
+        }
     }
 }
 
 // Loops --------------------------------------------------------------------------------------------------
 
-open class WhileStatement(val condition: Expression, val body: Element) : Statement() {
-    override fun toKotlin() = "while (" + condition.toKotlin() + ")\n" + body.toKotlin()
+class WhileStatement(val condition: Expression, val body: Element, singleLine: Boolean) : Statement() {
+    private val br = if (singleLine) " " else "\n"
+
+    override fun generateCode(builder: CodeBuilder) {
+        builder append "while (" append condition append ")" append br append body
+    }
 }
 
-open class DoWhileStatement(condition: Expression, body: Element) : WhileStatement(condition, body) {
-    override fun toKotlin() = "do\n" + body.toKotlin() + "\nwhile (" + condition.toKotlin() + ")"
+class DoWhileStatement(val condition: Expression, val body: Element, singleLine: Boolean) : Statement() {
+    private val br = if (singleLine) " " else "\n"
+
+    override fun generateCode(builder: CodeBuilder) {
+        builder append "do" append br append body append br append "while (" append condition append ")"
+    }
 }
 
-open class ForeachStatement(
-        val variable: Parameter,
-        val expression: Expression,
-        val body: Element
+class ForeachStatement(
+        val variableName: Identifier,
+        val explicitVariableType: Type?,
+        val collection: Expression,
+        val body: Element,
+        singleLine: Boolean
 ) : Statement() {
-    override fun toKotlin() = "for (" + variable.identifier.name + " in " +
-    expression.toKotlin() + ")\n" + body.toKotlin()
+
+    private val br = if (singleLine) " " else "\n"
+
+    override fun generateCode(builder: CodeBuilder) {
+        builder append "for (" append variableName
+        if (explicitVariableType != null) {
+            builder append ":" append explicitVariableType
+        }
+        builder append " in " append collection append ")" append br append body
+    }
 }
 
-open class ForeachWithRangeStatement(val identifier: Identifier,
-                                     val start: Expression,
-                                     val end: Expression,
-                                     val body: Element) : Statement() {
-    override fun toKotlin() = "for (" + identifier.toKotlin() + " in " +
-    start.toKotlin() + ".." + end.toKotlin() + ") " + body.toKotlin()
+class BreakStatement(val label: Identifier = Identifier.Empty) : Statement() {
+    override fun generateCode(builder: CodeBuilder) {
+        builder.append("break").appendWithPrefix(label, "@")
+    }
 }
 
-open class BreakStatement(val label: Identifier = Identifier.Empty) : Statement() {
-    override fun toKotlin() = "break" + label.withPrefix("@")
-}
-
-open class ContinueStatement(val label: Identifier = Identifier.Empty) : Statement() {
-    override fun toKotlin() = "continue" + label.withPrefix("@")
+class ContinueStatement(val label: Identifier = Identifier.Empty) : Statement() {
+    override fun generateCode(builder: CodeBuilder) {
+        builder.append("continue").appendWithPrefix(label, "@")
+    }
 }
 
 // Exceptions ----------------------------------------------------------------------------------------------
 
-open class TryStatement(val block: Block, val catches: List<CatchStatement>, val finallyBlock: Block) : Statement() {
-    override fun toKotlin(): String {
-        return "try\n" + block.toKotlin() + "\n" + catches.toKotlin("\n") + "\n" + (if (finallyBlock.isEmpty())
-            ""
-        else
-            "finally\n" + finallyBlock.toKotlin())
+class TryStatement(val block: Block, val catches: List<CatchStatement>, val finallyBlock: Block) : Statement() {
+    override fun generateCode(builder: CodeBuilder) {
+        builder.append("try\n").append(block).append("\n").append(catches, "\n").append("\n")
+        if (!finallyBlock.isEmpty) {
+            builder append "finally\n" append finallyBlock
+        }
     }
 }
 
-open class ThrowStatement(val expression: Expression) : Expression() {
-    override fun toKotlin() = "throw " + expression.toKotlin()
-}
-
-open class CatchStatement(val variable: Parameter, val block: Block) : Statement() {
-    override fun toKotlin(): String = "catch (" + variable.toKotlin() + ") " + block.toKotlin()
-}
-
-// Switch --------------------------------------------------------------------------------------------------
-
-open class SwitchContainer(val expression: Expression, val caseContainers: List<CaseContainer>) : Statement() {
-    override fun toKotlin() = "when (" + expression.toKotlin() + ") {\n" + caseContainers.toKotlin("\n") + "\n}"
-}
-
-open class CaseContainer(val caseStatement: List<Element>, statements: List<Statement>) : Statement() {
-    private val myBlock: Block
-
-    {
-        val newStatements = statements.filterNot { it is BreakStatement || it is ContinueStatement }
-        myBlock = Block(newStatements, true)
+class ThrowStatement(val expression: Expression) : Expression() {
+    override fun generateCode(builder: CodeBuilder) {
+        builder append "throw " append expression
     }
-
-    override fun toKotlin() = caseStatement.toKotlin(", ") + " -> " + myBlock.toKotlin()
 }
 
-open class SwitchLabelStatement(val expression: Expression) : Statement() {
-    override fun toKotlin() = expression.toKotlin()
+class CatchStatement(val variable: Parameter, val block: Block) : Statement() {
+    override fun generateCode(builder: CodeBuilder) {
+        builder append "catch (" append variable append ") " append block
+    }
 }
 
-open class DefaultSwitchLabelStatement() : Statement() {
-    override fun toKotlin() = "else"
+// when --------------------------------------------------------------------------------------------------
+
+class WhenStatement(val subject: Expression, val caseContainers: List<WhenEntry>) : Statement() {
+    override fun generateCode(builder: CodeBuilder) {
+        builder.append("when (").append(subject).append(") {\n").append(caseContainers, "\n").append("\n}")
+    }
+}
+
+class WhenEntry(val selectors: List<WhenEntrySelector>, val body: Statement) : Statement() {
+    override fun generateCode(builder: CodeBuilder) {
+        builder.append(selectors, ", ").append(" -> ").append(body)
+    }
+}
+
+abstract class WhenEntrySelector : Statement()
+
+class ValueWhenEntrySelector(val expression: Expression) : WhenEntrySelector() {
+    override fun generateCode(builder: CodeBuilder) {
+        builder.append(expression)
+    }
+}
+
+class ElseWhenEntrySelector() : WhenEntrySelector() {
+    override fun generateCode(builder: CodeBuilder) {
+        builder.append("else")
+    }
 }
 
 // Other ------------------------------------------------------------------------------------------------------
 
-open class SynchronizedStatement(val expression: Expression, val block: Block) : Statement() {
-    override fun toKotlin() = "synchronized (" + expression.toKotlin() + ") " + block.toKotlin()
-}
-
-class StatementList(elements: List<Element>) : WhiteSpaceSeparatedElementList(elements, WhiteSpace.NewLine) {
-    val statements: List<Statement>
-        get() = elements.filter { it is Statement }.map { it as Statement }
+class SynchronizedStatement(val expression: Expression, val block: Block) : Statement() {
+    override fun generateCode(builder: CodeBuilder) {
+        builder append "synchronized (" append expression append ") " append block
+    }
 }

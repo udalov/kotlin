@@ -27,6 +27,7 @@ import com.intellij.openapi.util.io.FileUtil;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiFileFactory;
+import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.util.Function;
 import com.intellij.util.containers.ContainerUtil;
 import kotlin.Function1;
@@ -37,10 +38,13 @@ import org.jetbrains.jet.ConfigurationKind;
 import org.jetbrains.jet.JetLiteFixture;
 import org.jetbrains.jet.JetTestUtils;
 import org.jetbrains.jet.TestJdkKind;
+import org.jetbrains.jet.asJava.AsJavaPackage;
 import org.jetbrains.jet.cli.jvm.compiler.JetCoreEnvironment;
 import org.jetbrains.jet.lang.diagnostics.*;
+import org.jetbrains.jet.lang.psi.JetDeclaration;
 import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.resolve.BindingContext;
+import org.jetbrains.jet.lang.resolve.Diagnostics;
 import org.jetbrains.jet.utils.UtilsPackage;
 import org.junit.Assert;
 
@@ -55,7 +59,7 @@ public abstract class BaseDiagnosticsTest extends JetLiteFixture {
 
     public static final String DIAGNOSTICS_DIRECTIVE = "DIAGNOSTICS";
     public static final Pattern DIAGNOSTICS_PATTERN = Pattern.compile("([\\+\\-!])(\\w+)\\s*");
-    public static final ImmutableSet<DiagnosticFactory> DIAGNOSTICS_TO_INCLUDE_ANYWAY =
+    public static final ImmutableSet<DiagnosticFactory<?>> DIAGNOSTICS_TO_INCLUDE_ANYWAY =
             ImmutableSet.of(
                     Errors.UNRESOLVED_REFERENCE,
                     Errors.UNRESOLVED_REFERENCE_WRONG_RECEIVER,
@@ -303,16 +307,21 @@ public abstract class BaseDiagnosticsTest extends JetLiteFixture {
             return jetFile;
         }
 
-        public boolean getActualText(BindingContext bindingContext, StringBuilder actualText) {
+        public boolean getActualText(BindingContext bindingContext, StringBuilder actualText, boolean skipJvmSignatureDiagnostics) {
             if (this.jetFile == null) {
                 // TODO: check java files too
                 actualText.append(this.clearText);
                 return true;
             }
 
+            Set<Diagnostic> jvmSignatureDiagnostics = skipJvmSignatureDiagnostics
+                                                            ? Collections.<Diagnostic>emptySet()
+                                                            : computeJvmSignatureDiagnostics(bindingContext);
+
             final boolean[] ok = { true };
             List<Diagnostic> diagnostics = ContainerUtil.filter(
-                    CheckerTestUtil.getDiagnosticsIncludingSyntaxErrors(bindingContext, jetFile),
+                    KotlinPackage.plus(CheckerTestUtil.getDiagnosticsIncludingSyntaxErrors(bindingContext, jetFile),
+                                       jvmSignatureDiagnostics),
                     whatDiagnosticsToConsider
             );
             CheckerTestUtil.diagnosticsDiff(diagnosedRanges, diagnostics, new CheckerTestUtil.DiagnosticDiffCallbacks() {
@@ -340,6 +349,17 @@ public abstract class BaseDiagnosticsTest extends JetLiteFixture {
                 }
             }));
             return ok[0];
+        }
+
+        private Set<Diagnostic> computeJvmSignatureDiagnostics(BindingContext bindingContext) {
+            Set<Diagnostic> jvmSignatureDiagnostics = new HashSet<Diagnostic>();
+            Collection<JetDeclaration> declarations = PsiTreeUtil.findChildrenOfType(jetFile, JetDeclaration.class);
+            for (JetDeclaration declaration : declarations) {
+                Diagnostics diagnostics = AsJavaPackage.getJvmSignatureDiagnostics(declaration, bindingContext.getDiagnostics());
+                if (diagnostics == null) continue;
+                jvmSignatureDiagnostics.addAll(diagnostics.forElement(declaration));
+            }
+            return jvmSignatureDiagnostics;
         }
     }
 }

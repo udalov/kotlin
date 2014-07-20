@@ -19,9 +19,9 @@
 package kotlin
 
 public class ByteProgression(
-        public override val start: Byte,
-        public override val end: Byte,
-        public override val increment: Int
+        override val start: Byte,
+        override val end: Byte,
+        override val increment: Int
 ) : Progression<Byte> {
     {
         if (increment == 0) throw IllegalArgumentException("Increment must be non-zero")
@@ -29,18 +29,22 @@ public class ByteProgression(
 
     override fun iterator(): ByteIterator = ByteProgressionIterator(start, end, increment)
 
-    override fun equals(other: Any?): Boolean =
-        other is ByteProgression && start == other.start && end == other.end && increment == other.increment
+    public fun isEmpty(): Boolean = if (increment > 0) start > end else start < end
 
-    override fun hashCode(): Int = 31 * (31 * start.toInt() + end) + increment
+    override fun equals(other: Any?): Boolean =
+        other is ByteProgression && (isEmpty() && other.isEmpty() ||
+        start == other.start && end == other.end && increment == other.increment)
+
+    override fun hashCode(): Int =
+        if (isEmpty()) -1 else (31 * (31 * start.toInt() + end) + increment)
 
     override fun toString(): String = if (increment > 0) "$start..$end step $increment" else "$start downTo $end step ${-increment}"
 }
 
 public class CharProgression(
-        public override val start: Char,
-        public override val end: Char,
-        public override val increment: Int
+        override val start: Char,
+        override val end: Char,
+        override val increment: Int
 ) : Progression<Char> {
     {
         if (increment == 0) throw IllegalArgumentException("Increment must be non-zero")
@@ -48,18 +52,22 @@ public class CharProgression(
 
     override fun iterator(): CharIterator = CharProgressionIterator(start, end, increment)
 
-    override fun equals(other: Any?): Boolean =
-        other is CharProgression && start == other.start && end == other.end && increment == other.increment
+    public fun isEmpty(): Boolean = if (increment > 0) start > end else start < end
 
-    override fun hashCode(): Int = 31 * (31 * start.toInt() + end) + increment
+    override fun equals(other: Any?): Boolean =
+        other is CharProgression && (isEmpty() && other.isEmpty() ||
+        start == other.start && end == other.end && increment == other.increment)
+
+    override fun hashCode(): Int =
+        if (isEmpty()) -1 else (31 * (31 * start.toInt() + end) + increment)
 
     override fun toString(): String = if (increment > 0) "$start..$end step $increment" else "$start downTo $end step ${-increment}"
 }
 
 public class ShortProgression(
-        public override val start: Short,
-        public override val end: Short,
-        public override val increment: Int
+        override val start: Short,
+        override val end: Short,
+        override val increment: Int
 ) : Progression<Short> {
     {
         if (increment == 0) throw IllegalArgumentException("Increment must be non-zero")
@@ -67,18 +75,22 @@ public class ShortProgression(
 
     override fun iterator(): ShortIterator = ShortProgressionIterator(start, end, increment)
 
-    override fun equals(other: Any?): Boolean =
-        other is ShortProgression && start == other.start && end == other.end && increment == other.increment
+    public fun isEmpty(): Boolean = if (increment > 0) start > end else start < end
 
-    override fun hashCode(): Int = 31 * (31 * start.toInt() + end) + increment
+    override fun equals(other: Any?): Boolean =
+        other is ShortProgression && (isEmpty() && other.isEmpty() ||
+        start == other.start && end == other.end && increment == other.increment)
+
+    override fun hashCode(): Int =
+        if (isEmpty()) -1 else (31 * (31 * start.toInt() + end) + increment)
 
     override fun toString(): String = if (increment > 0) "$start..$end step $increment" else "$start downTo $end step ${-increment}"
 }
 
 public class IntProgression(
-        public override val start: Int,
-        public override val end: Int,
-        public override val increment: Int
+        override val start: Int,
+        override val end: Int,
+        override val increment: Int
 ) : Progression<Int> {
     {
         if (increment == 0) throw IllegalArgumentException("Increment must be non-zero")
@@ -86,18 +98,22 @@ public class IntProgression(
 
     override fun iterator(): IntIterator = IntProgressionIterator(start, end, increment)
 
-    override fun equals(other: Any?): Boolean =
-        other is IntProgression && start == other.start && end == other.end && increment == other.increment
+    public fun isEmpty(): Boolean = if (increment > 0) start > end else start < end
 
-    override fun hashCode(): Int = 31 * (31 * start + end) + increment
+    override fun equals(other: Any?): Boolean =
+        other is IntProgression && (isEmpty() && other.isEmpty() ||
+        start == other.start && end == other.end && increment == other.increment)
+
+    override fun hashCode(): Int =
+        if (isEmpty()) -1 else (31 * (31 * start + end) + increment)
 
     override fun toString(): String = if (increment > 0) "$start..$end step $increment" else "$start downTo $end step ${-increment}"
 }
 
 public class LongProgression(
-        public override val start: Long,
-        public override val end: Long,
-        public override val increment: Long
+        override val start: Long,
+        override val end: Long,
+        override val increment: Long
 ) : Progression<Long> {
     {
         if (increment == 0L) throw IllegalArgumentException("Increment must be non-zero")
@@ -105,18 +121,22 @@ public class LongProgression(
 
     override fun iterator(): LongIterator = LongProgressionIterator(start, end, increment)
 
-    override fun equals(other: Any?): Boolean =
-        other is LongProgression && start == other.start && end == other.end && increment == other.increment
+    public fun isEmpty(): Boolean = if (increment > 0) start > end else start < end
 
-    override fun hashCode(): Int = (31 * (31 * (start xor (start ushr 32)) + (end xor (end ushr 32))) + (increment xor (increment ushr 32))).toInt()
+    override fun equals(other: Any?): Boolean =
+        other is LongProgression && (isEmpty() && other.isEmpty() ||
+        start == other.start && end == other.end && increment == other.increment)
+
+    override fun hashCode(): Int =
+        if (isEmpty()) -1 else (31 * (31 * (start xor (start ushr 32)) + (end xor (end ushr 32))) + (increment xor (increment ushr 32))).toInt()
 
     override fun toString(): String = if (increment > 0) "$start..$end step $increment" else "$start downTo $end step ${-increment}"
 }
 
 public class FloatProgression(
-        public override val start: Float,
-        public override val end: Float,
-        public override val increment: Float
+        override val start: Float,
+        override val end: Float,
+        override val increment: Float
 ) : Progression<Float> {
     {
         if (java.lang.Float.isNaN(increment)) throw IllegalArgumentException("Increment must be not NaN")
@@ -125,18 +145,22 @@ public class FloatProgression(
 
     override fun iterator(): FloatIterator = FloatProgressionIterator(start, end, increment)
 
-    override fun equals(other: Any?): Boolean =
-        other is FloatProgression && java.lang.Float.compare(start, other.start) == 0 && java.lang.Float.compare(end, other.end) == 0 && java.lang.Float.compare(increment, other.increment) == 0
+    public fun isEmpty(): Boolean = if (increment > 0) start > end else start < end
 
-    override fun hashCode(): Int = 31 * (31 * java.lang.Float.floatToIntBits(start) + java.lang.Float.floatToIntBits(end)) + java.lang.Float.floatToIntBits(increment)
+    override fun equals(other: Any?): Boolean =
+        other is FloatProgression && (isEmpty() && other.isEmpty() ||
+        java.lang.Float.compare(start, other.start) == 0 && java.lang.Float.compare(end, other.end) == 0 && java.lang.Float.compare(increment, other.increment) == 0)
+
+    override fun hashCode(): Int =
+        if (isEmpty()) -1 else (31 * (31 * java.lang.Float.floatToIntBits(start) + java.lang.Float.floatToIntBits(end)) + java.lang.Float.floatToIntBits(increment))
 
     override fun toString(): String = if (increment > 0) "$start..$end step $increment" else "$start downTo $end step ${-increment}"
 }
 
 public class DoubleProgression(
-        public override val start: Double,
-        public override val end: Double,
-        public override val increment: Double
+        override val start: Double,
+        override val end: Double,
+        override val increment: Double
 ) : Progression<Double> {
     {
         if (java.lang.Double.isNaN(increment)) throw IllegalArgumentException("Increment must be not NaN")
@@ -145,10 +169,14 @@ public class DoubleProgression(
 
     override fun iterator(): DoubleIterator = DoubleProgressionIterator(start, end, increment)
 
+    public fun isEmpty(): Boolean = if (increment > 0) start > end else start < end
+
     override fun equals(other: Any?): Boolean =
-        other is DoubleProgression && java.lang.Double.compare(start, other.start) == 0 && java.lang.Double.compare(end, other.end) == 0 && java.lang.Double.compare(increment, other.increment) == 0
+        other is DoubleProgression && (isEmpty() && other.isEmpty() ||
+        java.lang.Double.compare(start, other.start) == 0 && java.lang.Double.compare(end, other.end) == 0 && java.lang.Double.compare(increment, other.increment) == 0)
 
     override fun hashCode(): Int {
+        if (isEmpty()) return -1
         var temp = java.lang.Double.doubleToLongBits(start)
         var result = (temp xor (temp ushr 32))
         temp = java.lang.Double.doubleToLongBits(end)

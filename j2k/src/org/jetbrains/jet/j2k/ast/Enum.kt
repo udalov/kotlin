@@ -16,39 +16,33 @@
 
 package org.jetbrains.jet.j2k.ast
 
-import org.jetbrains.jet.j2k.Converter
-import org.jetbrains.jet.j2k.ast.types.Type
+import org.jetbrains.jet.j2k.*
 
 class Enum(
-        converter: Converter,
         name: Identifier,
-        comments: MemberComments,
-        modifiers: Set<Modifier>,
+        annotations: Annotations,
+        modifiers: Modifiers,
         typeParameterList: TypeParameterList,
         extendsTypes: List<Type>,
         baseClassParams: List<Expression>,
         implementsTypes: List<Type>,
-        members: List<Element>
-) : Class(converter, name, comments, modifiers, typeParameterList,
-          extendsTypes, baseClassParams, implementsTypes, members) {
+        body: ClassBody
+) : Class(name, annotations, modifiers, typeParameterList,
+          extendsTypes, baseClassParams, implementsTypes, body) {
 
-    override fun primaryConstructorSignatureToKotlin(): String {
-        val s: String = super.primaryConstructorSignatureToKotlin()
-        return if (s.equals("()")) "" else s
-    }
+    override fun generateCode(builder: CodeBuilder) {
+        builder.append(body.factoryFunctions, "\n", "", "\n\n")
 
-    override fun isDefinitelyFinal() = true
+        builder append annotations appendWithSpaceAfter presentationModifiers() append "enum class " append name
 
-    override fun toKotlin(): String {
-        val primaryConstructorBody = primaryConstructorBodyToKotlin() ?: ""
-        return modifiersToKotlin() +
-        "enum class " + name.toKotlin() +
-        primaryConstructorSignatureToKotlin() +
-        typeParameterList.toKotlin() +
-        implementTypesToKotlin() +
-        " {" +
-        classMembers.allMembers.toKotlin() +
-        ( if (primaryConstructorBody.isEmpty()) "" else primaryConstructorBody) +
-        "}"
+        if (body.primaryConstructorSignature != null) {
+            builder.append(body.primaryConstructorSignature)
+        }
+
+        builder append typeParameterList
+
+        appendBaseTypes(builder)
+
+        body.append(builder)
     }
 }

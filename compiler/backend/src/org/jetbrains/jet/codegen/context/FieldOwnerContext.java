@@ -20,16 +20,17 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.codegen.OwnerKind;
 import org.jetbrains.jet.codegen.binding.MutableClosure;
-import org.jetbrains.jet.lang.descriptors.*;
+import org.jetbrains.jet.lang.descriptors.ClassDescriptor;
+import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor;
+import org.jetbrains.jet.lang.descriptors.PropertyDescriptor;
 import org.jetbrains.jet.lang.resolve.java.JvmAbi;
 
 import java.util.HashMap;
 import java.util.Map;
 
 public abstract class FieldOwnerContext<T extends DeclarationDescriptor> extends CodegenContext<T> {
-
     //default property name -> map<property descriptor -> bytecode name>
-    private Map<String, Map<PropertyDescriptor, String>> fieldNames = new HashMap<String, Map<PropertyDescriptor, String>>();
+    private final Map<String, Map<PropertyDescriptor, String>> fieldNames = new HashMap<String, Map<PropertyDescriptor, String>>();
 
     public FieldOwnerContext(
             @NotNull T contextDescriptor,
@@ -42,20 +43,12 @@ public abstract class FieldOwnerContext<T extends DeclarationDescriptor> extends
         super(contextDescriptor, contextKind, parentContext, closure, thisDescriptor, expressionCodegen);
     }
 
-    public String getFieldName(PropertyDescriptor descriptor) {
-        return getFieldName(descriptor, false);
-    }
+    @NotNull
+    public String getFieldName(@NotNull PropertyDescriptor possiblySubstitutedDescriptor, boolean isDelegated) {
+        PropertyDescriptor descriptor = possiblySubstitutedDescriptor.getOriginal();
+        assert descriptor.getKind().isReal() : "Only declared properties can have backing fields: " + descriptor;
 
-    public String getFieldName(PropertyDescriptor descriptor, boolean isDelegated) {
-        assert descriptor.getKind() != CallableMemberDescriptor.Kind.FAKE_OVERRIDE;
-        boolean isExtension = descriptor.getReceiverParameter() != null;
-
-        return getFieldName(descriptor, isDelegated, isExtension);
-    }
-
-    private String getFieldName(PropertyDescriptor descriptor, boolean isDelegated, boolean isExtension) {
-        descriptor = descriptor.getOriginal();
-        String defaultPropertyName = JvmAbi.getDefaultPropertyName(descriptor.getName(), isDelegated, isExtension);
+        String defaultPropertyName = JvmAbi.getDefaultFieldNameForProperty(descriptor.getName(), isDelegated);
 
         Map<PropertyDescriptor, String> descriptor2Name = fieldNames.get(defaultPropertyName);
         if (descriptor2Name == null) {
@@ -64,10 +57,10 @@ public abstract class FieldOwnerContext<T extends DeclarationDescriptor> extends
         }
 
         String actualName = descriptor2Name.get(descriptor);
-        if (actualName == null) {
-            actualName = descriptor2Name.isEmpty() ? defaultPropertyName : defaultPropertyName + "$" + descriptor2Name.size();
-            descriptor2Name.put(descriptor, actualName);
-        }
-        return actualName;
+        if (actualName != null) return actualName;
+
+        String newName = descriptor2Name.isEmpty() ? defaultPropertyName : defaultPropertyName + "$" + descriptor2Name.size();
+        descriptor2Name.put(descriptor, newName);
+        return newName;
     }
 }

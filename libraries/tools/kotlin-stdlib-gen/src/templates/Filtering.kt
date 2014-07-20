@@ -113,7 +113,7 @@ fun filtering(): List<GenericFunction> {
         returns(Strings) { "String" }
         body(Strings) {
             """
-            for (index in 0..length)
+            for (index in 0..length - 1)
                 if (!predicate(get(index))) {
                     return substring(index)
                 }
@@ -161,11 +161,11 @@ fun filtering(): List<GenericFunction> {
         returns(Strings) { "String" }
         body(Strings) {
             """
-            for (index in 0..length)
+            for (index in 0..length - 1)
                 if (!predicate(get(index))) {
                     return substring(0, index)
                 }
-            return ""
+            return this
             """
         }
 
@@ -205,7 +205,6 @@ fun filtering(): List<GenericFunction> {
             return FilteringStream(this, true, predicate)
             """
         }
-        include(Maps)
     }
 
     templates add f("filterTo(destination: C, predicate: (T) -> Boolean)") {
@@ -232,8 +231,6 @@ fun filtering(): List<GenericFunction> {
             return destination
             """
         }
-
-        include(Maps)
     }
 
     templates add f("filterNot(predicate: (T) -> Boolean)") {
@@ -262,7 +259,6 @@ fun filtering(): List<GenericFunction> {
             return FilteringStream(this, false, predicate)
             """
         }
-        include(Maps)
     }
 
     templates add f("filterNotTo(destination: C, predicate: (T) -> Boolean)") {
@@ -286,7 +282,6 @@ fun filtering(): List<GenericFunction> {
             return destination
             """
         }
-        include(Maps)
     }
 
     templates add f("filterNotNull()") {

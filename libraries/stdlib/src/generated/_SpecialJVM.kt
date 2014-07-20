@@ -10,56 +10,56 @@ import java.util.*
 /**
  * Searches array or range of array for provided element index using binary search algorithm. Array is expected to be sorted.
  */
-public fun <T> Array<out T>.binarySearch(element: T, fromIndex: Int = 0, toIndex: Int = size - 1): Int {
+public fun <T> Array<out T>.binarySearch(element: T, fromIndex: Int = 0, toIndex: Int = size): Int {
     return Arrays.binarySearch(this, fromIndex, toIndex, element)
 }
 
 /**
  * Searches array or range of array for provided element index using binary search algorithm. Array is expected to be sorted.
  */
-public fun ByteArray.binarySearch(element: Byte, fromIndex: Int = 0, toIndex: Int = size - 1): Int {
+public fun ByteArray.binarySearch(element: Byte, fromIndex: Int = 0, toIndex: Int = size): Int {
     return Arrays.binarySearch(this, fromIndex, toIndex, element)
 }
 
 /**
  * Searches array or range of array for provided element index using binary search algorithm. Array is expected to be sorted.
  */
-public fun CharArray.binarySearch(element: Char, fromIndex: Int = 0, toIndex: Int = size - 1): Int {
+public fun CharArray.binarySearch(element: Char, fromIndex: Int = 0, toIndex: Int = size): Int {
     return Arrays.binarySearch(this, fromIndex, toIndex, element)
 }
 
 /**
  * Searches array or range of array for provided element index using binary search algorithm. Array is expected to be sorted.
  */
-public fun DoubleArray.binarySearch(element: Double, fromIndex: Int = 0, toIndex: Int = size - 1): Int {
+public fun DoubleArray.binarySearch(element: Double, fromIndex: Int = 0, toIndex: Int = size): Int {
     return Arrays.binarySearch(this, fromIndex, toIndex, element)
 }
 
 /**
  * Searches array or range of array for provided element index using binary search algorithm. Array is expected to be sorted.
  */
-public fun FloatArray.binarySearch(element: Float, fromIndex: Int = 0, toIndex: Int = size - 1): Int {
+public fun FloatArray.binarySearch(element: Float, fromIndex: Int = 0, toIndex: Int = size): Int {
     return Arrays.binarySearch(this, fromIndex, toIndex, element)
 }
 
 /**
  * Searches array or range of array for provided element index using binary search algorithm. Array is expected to be sorted.
  */
-public fun IntArray.binarySearch(element: Int, fromIndex: Int = 0, toIndex: Int = size - 1): Int {
+public fun IntArray.binarySearch(element: Int, fromIndex: Int = 0, toIndex: Int = size): Int {
     return Arrays.binarySearch(this, fromIndex, toIndex, element)
 }
 
 /**
  * Searches array or range of array for provided element index using binary search algorithm. Array is expected to be sorted.
  */
-public fun LongArray.binarySearch(element: Long, fromIndex: Int = 0, toIndex: Int = size - 1): Int {
+public fun LongArray.binarySearch(element: Long, fromIndex: Int = 0, toIndex: Int = size): Int {
     return Arrays.binarySearch(this, fromIndex, toIndex, element)
 }
 
 /**
  * Searches array or range of array for provided element index using binary search algorithm. Array is expected to be sorted.
  */
-public fun ShortArray.binarySearch(element: Short, fromIndex: Int = 0, toIndex: Int = size - 1): Int {
+public fun ShortArray.binarySearch(element: Short, fromIndex: Int = 0, toIndex: Int = size): Int {
     return Arrays.binarySearch(this, fromIndex, toIndex, element)
 }
 
@@ -341,8 +341,8 @@ public fun <T, R : T> Iterable<T>.filterIsInstance(klass: Class<R>): List<R> {
 /**
  * Returns a stream containing all elements that are instances of specified class
  */
-public fun <T, R : T> Stream<T>.filterIsInstance(klass: Class<R>): Stream<T> {
-    return FilteringStream(this, true, { klass.isInstance(it) })
+public fun <T, R : T> Stream<T>.filterIsInstance(klass: Class<R>): Stream<R> {
+    return FilteringStream(this, true, { klass.isInstance(it) }) as Stream<R>
 }
 
 /**
@@ -372,56 +372,56 @@ public fun <T, C : MutableCollection<in R>, R : T> Stream<T>.filterIsInstanceTo(
 /**
  * Sorts array or range in array inplace
  */
-public fun <T> Array<out T>.sort(fromIndex: Int = 0, toIndex: Int = size - 1): Unit {
+public fun <T> Array<out T>.sort(fromIndex: Int = 0, toIndex: Int = size): Unit {
     Arrays.sort(this, fromIndex, toIndex)
 }
 
 /**
  * Sorts array or range in array inplace
  */
-public fun ByteArray.sort(fromIndex: Int = 0, toIndex: Int = size - 1): Unit {
+public fun ByteArray.sort(fromIndex: Int = 0, toIndex: Int = size): Unit {
     Arrays.sort(this, fromIndex, toIndex)
 }
 
 /**
  * Sorts array or range in array inplace
  */
-public fun CharArray.sort(fromIndex: Int = 0, toIndex: Int = size - 1): Unit {
+public fun CharArray.sort(fromIndex: Int = 0, toIndex: Int = size): Unit {
     Arrays.sort(this, fromIndex, toIndex)
 }
 
 /**
  * Sorts array or range in array inplace
  */
-public fun DoubleArray.sort(fromIndex: Int = 0, toIndex: Int = size - 1): Unit {
+public fun DoubleArray.sort(fromIndex: Int = 0, toIndex: Int = size): Unit {
     Arrays.sort(this, fromIndex, toIndex)
 }
 
 /**
  * Sorts array or range in array inplace
  */
-public fun FloatArray.sort(fromIndex: Int = 0, toIndex: Int = size - 1): Unit {
+public fun FloatArray.sort(fromIndex: Int = 0, toIndex: Int = size): Unit {
     Arrays.sort(this, fromIndex, toIndex)
 }
 
 /**
  * Sorts array or range in array inplace
  */
-public fun IntArray.sort(fromIndex: Int = 0, toIndex: Int = size - 1): Unit {
+public fun IntArray.sort(fromIndex: Int = 0, toIndex: Int = size): Unit {
     Arrays.sort(this, fromIndex, toIndex)
 }
 
 /**
  * Sorts array or range in array inplace
  */
-public fun LongArray.sort(fromIndex: Int = 0, toIndex: Int = size - 1): Unit {
+public fun LongArray.sort(fromIndex: Int = 0, toIndex: Int = size): Unit {
     Arrays.sort(this, fromIndex, toIndex)
 }
 
 /**
  * Sorts array or range in array inplace
  */
-public fun ShortArray.sort(fromIndex: Int = 0, toIndex: Int = size - 1): Unit {
+public fun ShortArray.sort(fromIndex: Int = 0, toIndex: Int = size): Unit {
     Arrays.sort(this, fromIndex, toIndex)
 }
 

@@ -20,7 +20,7 @@ import com.intellij.openapi.project.Project
 import org.jetbrains.jet.context.GlobalContext
 import org.jetbrains.jet.context.GlobalContextImpl
 import org.jetbrains.jet.lang.descriptors.ModuleDescriptor
-import org.jetbrains.jet.lang.descriptors.ModuleDescriptorImpl
+import org.jetbrains.jet.lang.descriptors.impl.ModuleDescriptorImpl
 import org.jetbrains.jet.lang.resolve.*
 import org.jetbrains.jet.lang.resolve.java.JavaClassFinderImpl
 import org.jetbrains.jet.lang.resolve.java.JavaDescriptorResolver
@@ -30,14 +30,13 @@ import org.jetbrains.jet.lang.resolve.lazy.ResolveSession
 import org.jetbrains.jet.lang.resolve.lazy.declarations.DeclarationProviderFactory
 import org.jetbrains.jet.lang.resolve.objc.ObjCPackageFragmentProvider
 import org.jetbrains.jet.lang.resolve.objc.builtins.ObjCBuiltIns
-import org.jetbrains.jet.lang.types.DependencyClassByQualifiedNameResolverDummyImpl
 import org.jetbrains.jet.lang.types.expressions.ExpressionTypingServices
 import org.jetbrains.jet.di.*
 import org.jetbrains.jet.lang.types.expressions.ExpressionTypingComponents
 import org.jetbrains.jet.lang.types.expressions.ExpressionTypingUtils
-import org.jetbrains.jet.descriptors.serialization.descriptors.MemberFilter
 import org.jetbrains.jet.lang.resolve.calls.CallResolver
 import org.jetbrains.jet.lang.resolve.java.structure.impl.JavaPropertyInitializerEvaluatorImpl
+import org.jetbrains.jet.lang.resolve.kotlin.DeserializationGlobalContextForJava
 
 // NOTE: After making changes, you need to re-generate the injectors.
 //       To do that, you can run main in this file.
@@ -84,15 +83,11 @@ private fun DependencyInjectorGenerator.commonForTopDownAnalyzer() {
 private fun generatorForTopDownAnalyzerBasic() =
         generator("compiler/frontend/src", "org.jetbrains.jet.di", "InjectorForTopDownAnalyzerBasic") {
             commonForTopDownAnalyzer()
-
-            field(javaClass<DependencyClassByQualifiedNameResolverDummyImpl>())
         }
 
 private fun generatorForTopDownAnalyzerForJs() =
         generator("js/js.translator/src", "org.jetbrains.jet.di", "InjectorForTopDownAnalyzerForJs") {
             commonForTopDownAnalyzer()
-
-            field(javaClass<DependencyClassByQualifiedNameResolverDummyImpl>())
         }
 
 private fun generatorForTopDownAnalyzerForJvm() =
@@ -100,9 +95,8 @@ private fun generatorForTopDownAnalyzerForJvm() =
             implementInterface(javaClass<InjectorForTopDownAnalyzer>())
             commonForTopDownAnalyzer()
 
-            parameter(javaClass<MemberFilter>())
-
             publicField(javaClass<JavaDescriptorResolver>())
+            publicField(javaClass<DeserializationGlobalContextForJava>())
 
             fields(
                     javaClass<JavaClassFinderImpl>(),
@@ -112,7 +106,8 @@ private fun generatorForTopDownAnalyzerForJvm() =
                     javaClass<PsiBasedMethodSignatureChecker>(),
                     javaClass<PsiBasedExternalAnnotationResolver>(),
                     javaClass<MutablePackageFragmentProvider>(),
-                    javaClass<JavaPropertyInitializerEvaluatorImpl>()
+                    javaClass<JavaPropertyInitializerEvaluatorImpl>(),
+                    javaClass<JavaSourceElementFactoryImpl>()
             )
             field(javaClass<VirtualFileFinder>(), init = GivenExpression(javaClass<VirtualFileFinder>().getName() + ".SERVICE.getInstance(project)"))
         }
@@ -121,8 +116,6 @@ private fun generatorForTopDownAnalyzerForObjC() =
         generator("objc/frontend.objc/src", "org.jetbrains.jet.di", "InjectorForTopDownAnalyzerForObjC") {
             implementInterface(javaClass<InjectorForTopDownAnalyzer>())
             commonForTopDownAnalyzer()
-
-            parameter(javaClass<MemberFilter>())
 
             publicField(javaClass<JavaDescriptorResolver>())
             publicField(javaClass<ObjCPackageFragmentProvider>())
@@ -136,7 +129,8 @@ private fun generatorForTopDownAnalyzerForObjC() =
                     javaClass<PsiBasedMethodSignatureChecker>(),
                     javaClass<PsiBasedExternalAnnotationResolver>(),
                     javaClass<MutablePackageFragmentProvider>(),
-                    javaClass<JavaPropertyInitializerEvaluatorImpl>()
+                    javaClass<JavaPropertyInitializerEvaluatorImpl>(),
+                    javaClass<JavaSourceElementFactoryImpl>()
             )
             field(javaClass<VirtualFileFinder>(), init = GivenExpression(javaClass<VirtualFileFinder>().getName() + ".SERVICE.getInstance(project)"))
         }
@@ -161,12 +155,11 @@ private fun generatorForJavaDescriptorResolver() =
                     javaClass<TraceBasedErrorReporter>(),
                     javaClass<PsiBasedMethodSignatureChecker>(),
                     javaClass<PsiBasedExternalAnnotationResolver>(),
-                    javaClass<JavaPropertyInitializerEvaluatorImpl>()
+                    javaClass<JavaPropertyInitializerEvaluatorImpl>(),
+                    javaClass<JavaSourceElementFactoryImpl>()
             )
             field(javaClass<VirtualFileFinder>(),
                   init = GivenExpression(javaClass<VirtualFileFinder>().getName() + ".SERVICE.getInstance(project)"))
-            field(javaClass<MemberFilter>(),
-                  init = GivenExpression(javaClass<MemberFilter>().getName() + ".ALWAYS_TRUE"))
         }
 
 private fun generatorForLazyResolveWithJava() =
@@ -187,8 +180,6 @@ private fun generatorForLazyResolveWithJava() =
 
             field(javaClass<VirtualFileFinder>(),
                   init = GivenExpression(javaClass<VirtualFileFinder>().getName() + ".SERVICE.getInstance(project)"))
-            field(javaClass<MemberFilter>(),
-                  init = GivenExpression(javaClass<MemberFilter>().getName() + ".ALWAYS_TRUE"))
             fields(
                     javaClass<JavaClassFinderImpl>(),
                     javaClass<TraceBasedExternalSignatureResolver>(),
@@ -196,7 +187,8 @@ private fun generatorForLazyResolveWithJava() =
                     javaClass<TraceBasedErrorReporter>(),
                     javaClass<PsiBasedMethodSignatureChecker>(),
                     javaClass<PsiBasedExternalAnnotationResolver>(),
-                    javaClass<JavaPropertyInitializerEvaluatorImpl>()
+                    javaClass<JavaPropertyInitializerEvaluatorImpl>(),
+                    javaClass<JavaSourceElementFactoryImpl>()
             )
         }
 
@@ -248,8 +240,6 @@ private fun generatorForLazyResolve() =
             parameter(javaClass<BindingTrace>())
 
             publicField(javaClass<ResolveSession>())
-
-            field(javaClass<DependencyClassByQualifiedNameResolverDummyImpl>())
         }
 
 private fun generator(

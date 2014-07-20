@@ -62,6 +62,7 @@
                                         <include name="collections/Arrays.kt"/>
                                         <include name="collections/JUtil.kt"/>
                                         <include name="collections/Maps.kt"/>
+                                        <include name="collections/Exceptions.kt"/>
                                         <include name="collections/Stream.kt"/>
                                         <include name="collections/MutableCollections.kt"/>
                                         <include name="Functions.kt"/>
@@ -70,6 +71,7 @@
 -->
                                         <include name="Standard.kt"/>
                                         <include name="text/Strings.kt"/>
+                                        <include name="text/StringBuilder.kt"/>
                                     </fileset>
                                     <fileset dir="${basedir}/../../stdlib/src/generated">
                                         <include name="*.kt"/>

@@ -32,7 +32,7 @@ public class KotlinModuleScriptBuilderFactory implements KotlinModuleDescription
     private KotlinModuleScriptBuilderFactory() {}
 
     @Override
-    public KotlinModuleDescriptionBuilder create() {
+    public KotlinModuleDescriptionBuilder create(String incrementalCacheDir) {
         return new Builder();
     }
 

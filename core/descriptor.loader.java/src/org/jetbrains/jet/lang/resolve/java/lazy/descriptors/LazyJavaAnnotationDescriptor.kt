@@ -48,6 +48,7 @@ import org.jetbrains.jet.lang.resolve.java.lazy.types.toAttributes
 import org.jetbrains.jet.renderer.DescriptorRenderer
 import org.jetbrains.jet.lang.resolve.java.mapping.JavaToKotlinClassMap
 import org.jetbrains.jet.lang.types.TypeUtils
+import org.jetbrains.jet.lang.resolve.java.lazy.resolveTopLevelClassInModule
 
 private object DEPRECATED_IN_JAVA : JavaLiteralAnnotationArgument {
     override fun getName(): Name? = null
@@ -64,7 +65,7 @@ class LazyJavaAnnotationDescriptor(
         val fqName = _fqName()
         if (fqName == null) return@createLazyValue ErrorUtils.createErrorType("No fqName: $javaAnnotation")
         val annotationClass = JavaToKotlinClassMap.getInstance().mapKotlinClass(fqName, TypeUsage.MEMBER_SIGNATURE_INVARIANT)
-                                ?: c.javaClassResolver.resolveClassByFqName(fqName)
+                ?: javaAnnotation.resolve()?.let { javaClass -> c.javaClassResolver.resolveClass(javaClass) }
         annotationClass?.getDefaultType() ?: ErrorUtils.createErrorType(fqName.asString())
     }
 
@@ -145,10 +146,9 @@ class LazyJavaAnnotationDescriptor(
 
         if (!element.isEnumEntry()) return null
 
-        val fqName = element.getContainingClass().getFqName()
-        if (fqName == null) return null
+        val containingJavaClass = element.getContainingClass()
 
-        val enumClass = c.javaClassResolver.resolveClassByFqName(fqName)
+        val enumClass = c.javaClassResolver.resolveClass(containingJavaClass)
         if (enumClass == null) return null
 
         val classifier = enumClass.getUnsubstitutedInnerClassesScope().getClassifier(element.getName())
@@ -160,7 +160,8 @@ class LazyJavaAnnotationDescriptor(
     private fun resolveFromJavaClassObjectType(javaType: JavaType): CompileTimeConstant<*>? {
         // Class type is never nullable in 'Foo.class' in Java
         val `type` = TypeUtils.makeNotNullable(c.typeResolver.transformJavaType(javaType, TypeUsage.MEMBER_SIGNATURE_INVARIANT.toAttributes()))
-        val jlClass = c.javaClassResolver.resolveClassByFqName(FqName("java.lang.Class"))
+
+        val jlClass = c.resolveTopLevelClassInModule(FqName("java.lang.Class"))
         if (jlClass == null) return null
 
         val arguments = listOf(TypeProjectionImpl(`type`))

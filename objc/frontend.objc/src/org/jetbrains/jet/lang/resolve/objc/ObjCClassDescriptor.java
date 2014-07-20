@@ -41,7 +41,7 @@ public class ObjCClassDescriptor extends MutableClassDescriptor {
             @NotNull Name name,
             @NotNull Collection<JetType> supertypes
     ) {
-        super(containingDeclaration, scope(containingDeclaration), kind, false, name);
+        super(containingDeclaration, scope(containingDeclaration), kind, false, name, SourceElement.NO_SOURCE);
 
         setModality(modality);
         setVisibility(Visibilities.PUBLIC);

@@ -18,7 +18,15 @@ package org.jetbrains.jet.lang.cfg;
 
 import kotlin.Function1;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.jet.lang.cfg.pseudocode.*;
+import org.jetbrains.jet.lang.cfg.pseudocode.instructions.Instruction;
+import org.jetbrains.jet.lang.cfg.pseudocode.instructions.InstructionVisitorWithResult;
+import org.jetbrains.jet.lang.cfg.pseudocode.instructions.eval.MagicInstruction;
+import org.jetbrains.jet.lang.cfg.pseudocode.instructions.eval.MergeInstruction;
+import org.jetbrains.jet.lang.cfg.pseudocode.instructions.jumps.AbstractJumpInstruction;
+import org.jetbrains.jet.lang.cfg.pseudocode.instructions.jumps.ThrowExceptionInstruction;
+import org.jetbrains.jet.lang.cfg.pseudocode.instructions.special.MarkInstruction;
+import org.jetbrains.jet.lang.cfg.pseudocode.instructions.special.SubroutineExitInstruction;
+import org.jetbrains.jet.lang.cfg.pseudocode.instructions.special.SubroutineSinkInstruction;
 import org.jetbrains.jet.lang.psi.JetElement;
 
 public class TailRecursionDetector extends InstructionVisitorWithResult<Boolean> implements Function1<Instruction, Boolean> {
@@ -36,32 +44,42 @@ public class TailRecursionDetector extends InstructionVisitorWithResult<Boolean>
     }
 
     @Override
-    public Boolean visitInstruction(Instruction instruction) {
+    public Boolean visitInstruction(@NotNull Instruction instruction) {
         return false;
     }
 
     @Override
-    public Boolean visitSubroutineExit(SubroutineExitInstruction instruction) {
-        return !instruction.isError() && instruction.getSubroutine() == subroutine;
+    public Boolean visitSubroutineExit(@NotNull SubroutineExitInstruction instruction) {
+        return !instruction.getIsError() && instruction.getSubroutine() == subroutine;
     }
 
     @Override
-    public Boolean visitSubroutineSink(SubroutineSinkInstruction instruction) {
+    public Boolean visitSubroutineSink(@NotNull SubroutineSinkInstruction instruction) {
         return instruction.getSubroutine() == subroutine;
     }
 
     @Override
-    public Boolean visitJump(AbstractJumpInstruction instruction) {
+    public Boolean visitJump(@NotNull AbstractJumpInstruction instruction) {
         return true;
     }
 
     @Override
-    public Boolean visitThrowExceptionInstruction(ThrowExceptionInstruction instruction) {
+    public Boolean visitThrowExceptionInstruction(@NotNull ThrowExceptionInstruction instruction) {
         return false;
     }
 
     @Override
-    public Boolean visitMarkInstruction(MarkInstruction instruction) {
+    public Boolean visitMarkInstruction(@NotNull MarkInstruction instruction) {
+        return true;
+    }
+
+    @Override
+    public Boolean visitMagic(@NotNull MagicInstruction instruction) {
+        return instruction.getSynthetic();
+    }
+
+    @Override
+    public Boolean visitMerge(@NotNull MergeInstruction instruction) {
         return true;
     }
 }

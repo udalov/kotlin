@@ -40,6 +40,8 @@ import org.jetbrains.jet.renderer.DescriptorRenderer;
 import java.util.LinkedList;
 import java.util.List;
 
+import static org.jetbrains.jet.lang.psi.PsiPackage.JetPsiFactory;
+
 public class ChangeFunctionLiteralReturnTypeFix extends JetIntentionAction<JetFunctionLiteralExpression> {
     private final String renderedType;
     private final JetTypeReference functionLiteralReturnTypeRef;
@@ -68,7 +70,7 @@ public class ChangeFunctionLiteralReturnTypeFix extends JetIntentionAction<JetFu
         if (correspondingProperty != null && QuickFixUtil.canEvaluateTo(correspondingProperty.getInitializer(), element)) {
             JetTypeReference correspondingPropertyTypeRef = correspondingProperty.getTypeRef();
             JetType propertyType = context.get(BindingContext.TYPE, correspondingPropertyTypeRef);
-            if (propertyType != null && !JetTypeChecker.INSTANCE.isSubtypeOf(eventualFunctionLiteralType, propertyType)) {
+            if (propertyType != null && !JetTypeChecker.DEFAULT.isSubtypeOf(eventualFunctionLiteralType, propertyType)) {
                 appropriateQuickFix = new ChangeVariableTypeFix(correspondingProperty, eventualFunctionLiteralType);
             }
             return;
@@ -78,7 +80,7 @@ public class ChangeFunctionLiteralReturnTypeFix extends JetIntentionAction<JetFu
         if (correspondingParameter != null) {
             JetTypeReference correspondingParameterTypeRef = correspondingParameter.getTypeReference();
             JetType parameterType = context.get(BindingContext.TYPE, correspondingParameterTypeRef);
-            if (parameterType != null && !JetTypeChecker.INSTANCE.isSubtypeOf(eventualFunctionLiteralType, parameterType)) {
+            if (parameterType != null && !JetTypeChecker.DEFAULT.isSubtypeOf(eventualFunctionLiteralType, parameterType)) {
                 appropriateQuickFix = new ChangeParameterTypeFix(correspondingParameter, eventualFunctionLiteralType);
             }
             return;
@@ -88,7 +90,7 @@ public class ChangeFunctionLiteralReturnTypeFix extends JetIntentionAction<JetFu
         if (parentFunction != null && QuickFixUtil.canFunctionOrGetterReturnExpression(parentFunction, element)) {
             JetTypeReference parentFunctionReturnTypeRef = parentFunction.getReturnTypeRef();
             JetType parentFunctionReturnType = context.get(BindingContext.TYPE, parentFunctionReturnTypeRef);
-            if (parentFunctionReturnType != null && !JetTypeChecker.INSTANCE.isSubtypeOf(eventualFunctionLiteralType, parentFunctionReturnType)) {
+            if (parentFunctionReturnType != null && !JetTypeChecker.DEFAULT.isSubtypeOf(eventualFunctionLiteralType, parentFunctionReturnType)) {
                 appropriateQuickFix = new ChangeFunctionReturnTypeFix(parentFunction, eventualFunctionLiteralType);
             }
         }
@@ -118,7 +120,7 @@ public class ChangeFunctionLiteralReturnTypeFix extends JetIntentionAction<JetFu
     @Override
     public void invoke(@NotNull Project project, Editor editor, JetFile file) throws IncorrectOperationException {
         if (functionLiteralReturnTypeRef != null) {
-            functionLiteralReturnTypeRef.replace(JetPsiFactory.createType(project, renderedType));
+            functionLiteralReturnTypeRef.replace(JetPsiFactory(file).createType(renderedType));
         }
         if (appropriateQuickFix != null && appropriateQuickFix.isAvailable(project, editor, file)) {
             appropriateQuickFix.invoke(project, editor, file);

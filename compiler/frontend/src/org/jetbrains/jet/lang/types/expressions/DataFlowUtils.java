@@ -41,6 +41,7 @@ import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 import org.jetbrains.jet.lexer.JetTokens;
 
 import static org.jetbrains.jet.lang.diagnostics.Errors.*;
+import static org.jetbrains.jet.lang.resolve.calls.context.ContextDependency.DEPENDENT;
 import static org.jetbrains.jet.lang.resolve.calls.context.ContextDependency.INDEPENDENT;
 import static org.jetbrains.jet.lang.types.TypeUtils.*;
 
@@ -164,7 +165,7 @@ public class DataFlowUtils {
         recordExpectedType(trace, expression, expectedType);
 
         if (expressionType == null || noExpectedType(expectedType) || !expectedType.getConstructor().isDenotable() ||
-            JetTypeChecker.INSTANCE.isSubtypeOf(expressionType, expectedType)) {
+            JetTypeChecker.DEFAULT.isSubtypeOf(expressionType, expectedType)) {
             return expressionType;
         }
 
@@ -179,7 +180,7 @@ public class DataFlowUtils {
 
         DataFlowValue dataFlowValue = DataFlowValueFactory.createDataFlowValue(expression, expressionType, trace.getBindingContext());
         for (JetType possibleType : dataFlowInfo.getPossibleTypes(dataFlowValue)) {
-            if (JetTypeChecker.INSTANCE.isSubtypeOf(possibleType, expectedType)) {
+            if (JetTypeChecker.DEFAULT.isSubtypeOf(possibleType, expectedType)) {
                 AutoCastUtils.recordCastOrError(expression, possibleType, trace, dataFlowValue.isStableIdentifier(), false);
                 return possibleType;
             }

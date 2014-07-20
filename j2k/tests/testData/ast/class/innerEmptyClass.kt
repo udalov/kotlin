@@ -1,3 +1,3 @@
-class A() {
-    class B() {}
+class A {
+    inner class B
 }

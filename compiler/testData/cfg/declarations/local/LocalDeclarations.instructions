@@ -20,8 +20,8 @@ class C() {
 L0:
   1 <START>
     v(val a: Int = 1)
-    r(1)
-    w(a)
+    r(1) -> <v0>
+    w(a|<v0>)
 L1:
     <END>                NEXT:[<SINK>]
 error:
@@ -35,15 +35,16 @@ fun doSmth(i: Int) {}
 L0:
   1 <START>
     v(i: Int)
-    w(i)
+    magic[FAKE_INITIALIZER](i: Int) -> <v0>
+    w(i|<v0>)
   2 mark({})
     read (Unit)
 L1:
-  1 <END>          NEXT:[<SINK>]
+  1 <END>                                      NEXT:[<SINK>]
 error:
-    <ERROR>        PREV:[]
+    <ERROR>                                    PREV:[]
 sink:
-    <SINK>         PREV:[<ERROR>, <END>]
+    <SINK>                                     PREV:[<ERROR>, <END>]
 =====================
 == test1 ==
 fun test1() {
@@ -62,10 +63,11 @@ L0:
     mark(object { val x : Int { $x = 1 } })
     v(val x : Int)
   3 mark({ $x = 1 })
-    r(1)
-    w($x)
-  2 r(object { val x : Int { $x = 1 } })
-    w(a)
+    magic[IMPLICIT_RECEIVER]($x) -> <v0>
+    r(1) -> <v1>
+    w($x|<v0>, <v1>)
+  2 r(object { val x : Int { $x = 1 } }) -> <v2>
+    w(a|<v2>)
 L1:
   1 <END>                                                  NEXT:[<SINK>]
 error:
@@ -85,14 +87,15 @@ L0:
   1 <START>
     v(val x : Int)
   2 mark({ $x = 1 })
-    r(1)
-    w($x)
+    magic[IMPLICIT_RECEIVER]($x) -> <v0>
+    r(1) -> <v1>
+    w($x|<v0>, <v1>)
 L1:
-  1 <END>               NEXT:[<SINK>]
+  1 <END>                                   NEXT:[<SINK>]
 error:
-    <ERROR>             PREV:[]
+    <ERROR>                                 PREV:[]
 sink:
-    <SINK>              PREV:[<ERROR>, <END>]
+    <SINK>                                  PREV:[<ERROR>, <END>]
 =====================
 == test2 ==
 fun test2() {
@@ -106,15 +109,15 @@ L0:
   1 <START>
   2 mark({ val b = 1 val a = object { val x = b } })
     v(val b = 1)
-    r(1)
-    w(b)
+    r(1) -> <v0>
+    w(b|<v0>)
     v(val a = object { val x = b })
     mark(object { val x = b })
     v(val x = b)
-    r(b)
-    w(x)
-    r(object { val x = b })
-    w(a)
+    r(b) -> <v1>
+    w(x|<v1>)
+    r(object { val x = b }) -> <v2>
+    w(a|<v2>)
 L1:
   1 <END>                                               NEXT:[<SINK>]
 error:
@@ -138,11 +141,11 @@ L0:
     v(val a = object { val y : Int fun inner_bar() { y = 10 } })
     mark(object { val y : Int fun inner_bar() { y = 10 } })
     v(val y : Int)
-    jmp?(L2)                                                               NEXT:[r(object { val y : Int fun inner_bar() { y = 10 } }), d(fun inner_bar() { y = 10 })]
+    jmp?(L2)                                                               NEXT:[r(object { val y : Int fun inner_bar() { y = 10 } }) -> <v0>, d(fun inner_bar() { y = 10 })]
     d(fun inner_bar() { y = 10 })                                          NEXT:[<SINK>]
 L2:
-    r(object { val y : Int fun inner_bar() { y = 10 } })                   PREV:[jmp?(L2)]
-    w(a)
+    r(object { val y : Int fun inner_bar() { y = 10 } }) -> <v0>           PREV:[jmp?(L2)]
+    w(a|<v0>)
 L1:
   1 <END>                                                                  NEXT:[<SINK>]
 error:
@@ -158,14 +161,15 @@ fun inner_bar() {
 L3:
   3 <START>
   4 mark({ y = 10 })
-    r(10)
-    w(y)
+    magic[IMPLICIT_RECEIVER](y) -> <v0>
+    r(10) -> <v1>
+    w(y|<v0>, <v1>)
 L4:
-  3 <END>               NEXT:[<SINK>]
+  3 <END>                                  NEXT:[<SINK>]
 error:
-    <ERROR>             PREV:[]
+    <ERROR>                                PREV:[]
 sink:
-    <SINK>              PREV:[<ERROR>, <END>]
+    <SINK>                                 PREV:[<ERROR>, <END>]
 =====================
 == test4 ==
 fun test4() {
@@ -189,13 +193,14 @@ L0:
     v(val x : Int)
     v(val y : Int)
   3 mark({ $x = 1 })
-    r(1)
-    w($x)
-  2 jmp?(L2)                                                                                NEXT:[r(object { val x : Int val y : Int { $x = 1 } fun ggg() { y = 10 } }), d(fun ggg() { y = 10 })]
+    magic[IMPLICIT_RECEIVER]($x) -> <v0>
+    r(1) -> <v1>
+    w($x|<v0>, <v1>)
+  2 jmp?(L2)                                                                                NEXT:[r(object { val x : Int val y : Int { $x = 1 } fun ggg() { y = 10 } }) -> <v2>, d(fun ggg() { y = 10 })]
     d(fun ggg() { y = 10 })                                                                 NEXT:[<SINK>]
 L2:
-    r(object { val x : Int val y : Int { $x = 1 } fun ggg() { y = 10 } })                   PREV:[jmp?(L2)]
-    w(a)
+    r(object { val x : Int val y : Int { $x = 1 } fun ggg() { y = 10 } }) -> <v2>           PREV:[jmp?(L2)]
+    w(a|<v2>)
 L1:
   1 <END>                                                                                   NEXT:[<SINK>]
 error:
@@ -211,14 +216,15 @@ fun ggg() {
 L3:
   3 <START>
   4 mark({ y = 10 })
-    r(10)
-    w(y)
+    magic[IMPLICIT_RECEIVER](y) -> <v0>
+    r(10) -> <v1>
+    w(y|<v0>, <v1>)
 L4:
-  3 <END>               NEXT:[<SINK>]
+  3 <END>                                  NEXT:[<SINK>]
 error:
-    <ERROR>             PREV:[]
+    <ERROR>                                PREV:[]
 sink:
-    <SINK>              PREV:[<ERROR>, <END>]
+    <SINK>                                 PREV:[<ERROR>, <END>]
 =====================
 == test5 ==
 fun test5() {
@@ -242,19 +248,20 @@ L0:
     v(val a = object { var x = 1 { $x = 2 } fun foo() { x = 3 } fun bar() { x = 4 } })
     mark(object { var x = 1 { $x = 2 } fun foo() { x = 3 } fun bar() { x = 4 } })
     v(var x = 1)
-    r(1)
-    w(x)
+    r(1) -> <v0>
+    w(x|<v0>)
   3 mark({ $x = 2 })
-    r(2)
-    w($x)
+    magic[IMPLICIT_RECEIVER]($x) -> <v1>
+    r(2) -> <v2>
+    w($x|<v1>, <v2>)
   2 jmp?(L2)                                                                                     NEXT:[jmp?(L5), d(fun foo() { x = 3 })]
     d(fun foo() { x = 3 })                                                                       NEXT:[<SINK>]
 L2:
-    jmp?(L5)                                                                                     NEXT:[r(object { var x = 1 { $x = 2 } fun foo() { x = 3 } fun bar() { x = 4 } }), d(fun bar() { x = 4 })]    PREV:[jmp?(L2)]
+    jmp?(L5)                                                                                     NEXT:[r(object { var x = 1 { $x = 2 } fun foo() { x = 3 } fun bar() { x = 4 } }) -> <v3>, d(fun bar() { x = 4 })]    PREV:[jmp?(L2)]
     d(fun bar() { x = 4 })                                                                       NEXT:[<SINK>]
 L5:
-    r(object { var x = 1 { $x = 2 } fun foo() { x = 3 } fun bar() { x = 4 } })                   PREV:[jmp?(L5)]
-    w(a)
+    r(object { var x = 1 { $x = 2 } fun foo() { x = 3 } fun bar() { x = 4 } }) -> <v3>           PREV:[jmp?(L5)]
+    w(a|<v3>)
 L1:
   1 <END>                                                                                        NEXT:[<SINK>]
 error:
@@ -270,14 +277,15 @@ fun foo() {
 L3:
   3 <START>
   4 mark({ x = 3 })
-    r(3)
-    w(x)
+    magic[IMPLICIT_RECEIVER](x) -> <v0>
+    r(3) -> <v1>
+    w(x|<v0>, <v1>)
 L4:
-  3 <END>              NEXT:[<SINK>]
+  3 <END>                                  NEXT:[<SINK>]
 error:
-    <ERROR>            PREV:[]
+    <ERROR>                                PREV:[]
 sink:
-    <SINK>             PREV:[<ERROR>, <END>]
+    <SINK>                                 PREV:[<ERROR>, <END>]
 =====================
 == bar ==
 fun bar() {
@@ -287,12 +295,13 @@ fun bar() {
 L6:
   3 <START>
   4 mark({ x = 4 })
-    r(4)
-    w(x)
+    magic[IMPLICIT_RECEIVER](x) -> <v0>
+    r(4) -> <v1>
+    w(x|<v0>, <v1>)
 L7:
-  3 <END>              NEXT:[<SINK>]
+  3 <END>                                  NEXT:[<SINK>]
 error:
-    <ERROR>            PREV:[]
+    <ERROR>                                PREV:[]
 sink:
-    <SINK>             PREV:[<ERROR>, <END>]
+    <SINK>                                 PREV:[<ERROR>, <END>]
 =====================

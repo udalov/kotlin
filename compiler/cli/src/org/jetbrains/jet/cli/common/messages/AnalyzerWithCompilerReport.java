@@ -31,10 +31,7 @@ import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor;
 import org.jetbrains.jet.lang.diagnostics.*;
 import org.jetbrains.jet.lang.diagnostics.rendering.DefaultErrorMessages;
 import org.jetbrains.jet.lang.psi.JetFile;
-import org.jetbrains.jet.lang.resolve.AnalyzingUtils;
-import org.jetbrains.jet.lang.resolve.BindingContext;
-import org.jetbrains.jet.lang.resolve.BindingContextUtils;
-import org.jetbrains.jet.lang.resolve.DescriptorUtils;
+import org.jetbrains.jet.lang.resolve.*;
 import org.jetbrains.jet.lang.resolve.java.JavaBindingContext;
 import org.jetbrains.jet.lang.resolve.java.JvmAbi;
 import org.jetbrains.jet.lang.resolve.java.resolver.TraceBasedErrorReporter;
@@ -120,7 +117,7 @@ public final class AnalyzerWithCompilerReport {
         if (!descriptorsWithErrors.isEmpty()) {
             StringBuilder message = new StringBuilder("The following Java entities have annotations with wrong Kotlin signatures:\n");
             for (DeclarationDescriptor descriptor : descriptorsWithErrors) {
-                PsiElement declaration = BindingContextUtils.descriptorToDeclaration(bc, descriptor);
+                PsiElement declaration = DescriptorToSourceUtils.descriptorToDeclaration(descriptor);
                 assert declaration instanceof PsiModifierListOwner;
 
                 List<String> errors = bc.get(JavaBindingContext.LOAD_FROM_JAVA_SIGNATURE_ERRORS, descriptor);
@@ -154,9 +151,9 @@ public final class AnalyzerWithCompilerReport {
         }
     }
 
-    public static boolean reportDiagnostics(@NotNull BindingContext bindingContext, @NotNull MessageCollector messageCollector) {
+    public static boolean reportDiagnostics(@NotNull Diagnostics diagnostics, @NotNull MessageCollector messageCollector) {
         boolean hasErrors = false;
-        for (Diagnostic diagnostic : sortedDiagnostics(bindingContext.getDiagnostics().all())) {
+        for (Diagnostic diagnostic : sortedDiagnostics(diagnostics.all())) {
             hasErrors |= reportDiagnostic(diagnostic, messageCollector);
         }
         return hasErrors;
@@ -222,12 +219,12 @@ public final class AnalyzerWithCompilerReport {
         return hasErrors;
     }
 
-    public void analyzeAndReport(@NotNull Function0<AnalyzeExhaust> analyzer, @NotNull Collection<JetFile> files) {
+    public void analyzeAndReport(@NotNull Collection<JetFile> files, @NotNull Function0<AnalyzeExhaust> analyzer) {
         analyzeExhaust = analyzer.invoke();
         reportAbiVersionErrors();
         reportSyntaxErrors(files);
         //noinspection ConstantConditions
-        reportDiagnostics(analyzeExhaust.getBindingContext(), messageCollectorWrapper);
+        reportDiagnostics(analyzeExhaust.getBindingContext().getDiagnostics(), messageCollectorWrapper);
         reportIncompleteHierarchies();
         reportAlternativeSignatureErrors();
     }

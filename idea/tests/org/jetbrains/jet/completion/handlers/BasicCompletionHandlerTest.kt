@@ -32,6 +32,8 @@ public class BasicCompletionHandlerTest : CompletionHandlerTestBase(){
 
     fun testClassCompletionInLambda() = doTest(1, "String", " (kotlin)", '\n')
 
+    fun testClassCompletionBeforeName() = doTest(1, "StringBuilder", " (java.lang)", '\n')
+
     fun testDoNotInsertImportForAlreadyImported() = doTest()
 
     fun testDoNotInsertDefaultJsImports() = doTest()
@@ -135,4 +137,6 @@ public class BasicCompletionHandlerTest : CompletionHandlerTestBase(){
     fun testEnumMember() = doTest(1, "A", null, '\n')
     fun testEnumMember1() = doTest(1, "A", null, '\n')
     fun testClassFromClassObject() = doTest(1, "Some", null, '\n')
+
+    fun testParameterType() = doTest(1, "StringBuilder", " (java.lang)", '\n')
 }

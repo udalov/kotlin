@@ -31,6 +31,8 @@ import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.types.expressions.TypeReconstructionUtil;
 import org.jetbrains.jet.plugin.JetBundle;
 
+import static org.jetbrains.jet.lang.psi.PsiPackage.JetPsiFactory;
+
 public abstract class AddStarProjectionsFix extends JetIntentionAction<JetUserType> {
 
     private final int argumentCount;
@@ -57,7 +59,7 @@ public abstract class AddStarProjectionsFix extends JetIntentionAction<JetUserTy
         assert element.getTypeArguments().isEmpty();
 
         String typeString = TypeReconstructionUtil.getTypeNameAndStarProjectionsString(element.getText(), argumentCount);
-        JetTypeElement replacement = JetPsiFactory.createType(project, typeString).getTypeElement();
+        JetTypeElement replacement = JetPsiFactory(file).createType(typeString).getTypeElement();
         assert replacement != null : "No type element after parsing " + typeString;
 
         element.replace(replacement);
@@ -72,10 +74,8 @@ public abstract class AddStarProjectionsFix extends JetIntentionAction<JetUserTy
         return new JetSingleIntentionActionFactory() {
             @Override
             public IntentionAction createAction(Diagnostic diagnostic) {
-                assert diagnostic.getFactory() == Errors.NO_TYPE_ARGUMENTS_ON_RHS;
-                @SuppressWarnings("unchecked")
                 DiagnosticWithParameters2<JetTypeReference, Integer, String> diagnosticWithParameters =
-                        (DiagnosticWithParameters2<JetTypeReference, Integer, String>) diagnostic;
+                        Errors.NO_TYPE_ARGUMENTS_ON_RHS.cast(diagnostic);
                 JetTypeElement typeElement = diagnosticWithParameters.getPsiElement().getTypeElement();
                 while (typeElement instanceof JetNullableType) {
                     typeElement = ((JetNullableType) typeElement).getInnerType();
@@ -91,9 +91,7 @@ public abstract class AddStarProjectionsFix extends JetIntentionAction<JetUserTy
         return new JetSingleIntentionActionFactory() {
             @Override
             public IntentionAction createAction(Diagnostic diagnostic) {
-                assert diagnostic.getFactory() == Errors.WRONG_NUMBER_OF_TYPE_ARGUMENTS;
-                @SuppressWarnings("unchecked")
-                DiagnosticWithParameters1<JetElement, Integer> diagnosticWithParameters = (DiagnosticWithParameters1) diagnostic;
+                DiagnosticWithParameters1<JetElement, Integer> diagnosticWithParameters = Errors.WRONG_NUMBER_OF_TYPE_ARGUMENTS.cast(diagnostic);
 
                 Integer size = diagnosticWithParameters.getA();
 

@@ -17,38 +17,21 @@
 package org.jetbrains.jet.codegen;
 
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.codegen.context.MethodContext;
-import org.jetbrains.jet.lang.resolve.java.jvmSignature.JvmMethodSignature;
 import org.jetbrains.jet.codegen.state.GenerationState;
-import org.jetbrains.jet.codegen.state.JetTypeMapper;
 import org.jetbrains.jet.lang.descriptors.CallableDescriptor;
 import org.jetbrains.jet.lang.psi.JetDeclarationWithBody;
+import org.jetbrains.jet.lang.resolve.java.jvmSignature.JvmMethodSignature;
 import org.jetbrains.org.objectweb.asm.MethodVisitor;
 
 public abstract class FunctionGenerationStrategy {
-
-    private FrameMap frameMap;
-
     public abstract void generateBody(
             @NotNull MethodVisitor mv,
+            @NotNull FrameMap frameMap,
             @NotNull JvmMethodSignature signature,
             @NotNull MethodContext context,
-            @Nullable MemberCodegen<?> parentCodegen
+            @NotNull MemberCodegen<?> parentCodegen
     );
-
-    @NotNull
-    protected FrameMap createFrameMap(@NotNull JetTypeMapper typeMapper, @NotNull MethodContext context) {
-        return context.prepareFrame(typeMapper);
-    }
-
-    @NotNull
-    public FrameMap getFrameMap(@NotNull JetTypeMapper typeMapper, @NotNull MethodContext context) {
-        if (frameMap == null) {
-            frameMap = createFrameMap(typeMapper, context);
-        }
-        return frameMap;
-    }
 
     public static class FunctionDefault extends CodegenBased<CallableDescriptor> {
         private final JetDeclarationWithBody declaration;
@@ -80,12 +63,12 @@ public abstract class FunctionGenerationStrategy {
         @Override
         public final void generateBody(
                 @NotNull MethodVisitor mv,
+                @NotNull FrameMap frameMap,
                 @NotNull JvmMethodSignature signature,
                 @NotNull MethodContext context,
-                @Nullable MemberCodegen<?> parentCodegen
+                @NotNull MemberCodegen<?> parentCodegen
         ) {
-            ExpressionCodegen codegen = new ExpressionCodegen(mv, getFrameMap(state.getTypeMapper(), context),
-                                                              signature.getReturnType(), context, state, parentCodegen);
+            ExpressionCodegen codegen = new ExpressionCodegen(mv, frameMap, signature.getReturnType(), context, state, parentCodegen);
             doGenerateBody(codegen, signature);
         }
 

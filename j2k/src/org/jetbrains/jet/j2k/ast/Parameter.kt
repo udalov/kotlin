@@ -16,19 +16,37 @@
 
 package org.jetbrains.jet.j2k.ast
 
-import org.jetbrains.jet.j2k.ast.types.Type
-import org.jetbrains.jet.j2k.ast.types.VarArg
+import org.jetbrains.jet.j2k.*
 
-open class Parameter(val identifier: Identifier, val `type`: Type, val readOnly: Boolean = true) : Expression() {
-    override fun toKotlin(): String {
-        val vararg: String = (if (`type` is VarArg)
-            "vararg "
-        else
-            "")
-        val `var`: String? = (if (readOnly)
-            ""
-        else
-            "var ")
-        return vararg + `var` + identifier.toKotlin() + " : " + `type`.toKotlin()
+class Parameter(val identifier: Identifier,
+                val `type`: Type,
+                val varVal: Parameter.VarValModifier,
+                val annotations: Annotations,
+                val modifiers: Modifiers,
+                val defaultValue: Expression? = null) : Element() {
+    public enum class VarValModifier {
+        None
+        Val
+        Var
+    }
+
+    override fun generateCode(builder: CodeBuilder) {
+        builder.append(annotations).appendWithSpaceAfter(modifiers)
+
+        if (`type` is VarArgType) {
+            assert(varVal == VarValModifier.None)
+            builder.append("vararg ")
+        }
+
+        when (varVal) {
+            VarValModifier.Var -> builder.append("var ")
+            VarValModifier.Val -> builder.append("val ")
+        }
+
+        builder append identifier append ":" append `type`
+
+        if (defaultValue != null) {
+            builder append " = " append defaultValue
+        }
     }
 }

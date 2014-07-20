@@ -36,16 +36,18 @@ import org.jetbrains.jet.lang.descriptors.annotations.Annotations
 import org.jetbrains.jet.lang.resolve.java.sam.SingleAbstractMethodUtils
 import org.jetbrains.jet.lang.resolve.java.JavaVisibilities
 import org.jetbrains.jet.lang.resolve.java.descriptor.JavaConstructorDescriptor
+import org.jetbrains.jet.lang.resolve.java.resolver.DescriptorResolverUtils
+import org.jetbrains.jet.lang.types.JetType
+import org.jetbrains.jet.lang.resolve.java.lazy.descriptors.LazyJavaMemberScope.MethodSignatureData
 
 public class LazyJavaClassMemberScope(
         c: LazyJavaResolverContextWithTypes,
         containingDeclaration: ClassDescriptor,
-        private val jClass: JavaClass,
-        private val enumClassObject: Boolean = false
+        private val jClass: JavaClass
 ) : LazyJavaMemberScope(c, containingDeclaration) {
 
     override fun computeMemberIndex(): MemberIndex {
-        return object : ClassMemberIndex(jClass, { !enumClassObject && !it.isStatic() }) {
+        return object : ClassMemberIndex(jClass, { !it.isStatic() }) {
             // For SAM-constructors
             override fun getAllMethodNames(): Collection<Name> = super.getAllMethodNames() + getAllClassNames()
         }
@@ -57,7 +59,7 @@ public class LazyJavaClassMemberScope(
             val constructor = resolveConstructor(jCtor, getContainingDeclaration(), jClass.isStatic())
             val samAdapter = resolveSamAdapter(constructor)
             if (samAdapter != null) {
-                (samAdapter as ConstructorDescriptorImpl).setReturnType(containingDeclaration.getDefaultType())
+                samAdapter.setReturnType(containingDeclaration.getDefaultType())
                 listOf(constructor, samAdapter)
             }
             else
@@ -66,15 +68,55 @@ public class LazyJavaClassMemberScope(
             emptyOrSingletonList(createDefaultConstructor())
         }
     }
+    override fun computeNonDeclaredFunctions(result: MutableCollection<SimpleFunctionDescriptor>, name: Name) {
+        val functionsFromSupertypes = getFunctionsFromSupertypes(name, getContainingDeclaration())
+        result.addAll(DescriptorResolverUtils.resolveOverrides(name, functionsFromSupertypes, result, getContainingDeclaration(), c.errorReporter))
+    }
 
-    private fun resolveSamAdapter(original: ConstructorDescriptor): ConstructorDescriptor? {
+    private fun getFunctionsFromSupertypes(name: Name, descriptor: ClassDescriptor): Set<SimpleFunctionDescriptor> {
+          return descriptor.getTypeConstructor().getSupertypes().flatMap {
+              it.getMemberScope().getFunctions(name).map { f -> f as SimpleFunctionDescriptor }
+          }.toSet()
+      }
+
+    override fun computeNonDeclaredProperties(name: Name, result: MutableCollection<PropertyDescriptor>) {
+        val propertiesFromSupertypes = getPropertiesFromSupertypes(name, getContainingDeclaration())
+
+        result.addAll(DescriptorResolverUtils.resolveOverrides(name, propertiesFromSupertypes, result, getContainingDeclaration(),
+                                                                   c.errorReporter))
+    }
+
+    private fun getPropertiesFromSupertypes(name: Name, descriptor: ClassDescriptor): Set<PropertyDescriptor> {
+        return descriptor.getTypeConstructor().getSupertypes().flatMap {
+            it.getMemberScope().getProperties(name).map { p -> p as PropertyDescriptor }
+        }.toSet()
+    }
+
+    override fun resolveMethodSignature(
+            method: JavaMethod, methodTypeParameters: List<TypeParameterDescriptor>, returnType: JetType,
+            valueParameters: LazyJavaMemberScope.ResolvedValueParameters
+    ): LazyJavaMemberScope.MethodSignatureData {
+        val propagated = c.externalSignatureResolver.resolvePropagatedSignature(
+                method, getContainingDeclaration(), returnType, null, valueParameters.descriptors, methodTypeParameters)
+        val superFunctions = propagated.getSuperMethods()
+        val effectiveSignature = c.externalSignatureResolver.resolveAlternativeMethodSignature(
+                method, !superFunctions.isEmpty(), propagated.getReturnType(),
+                propagated.getReceiverType(), propagated.getValueParameters(), propagated.getTypeParameters(),
+                propagated.hasStableParameterNames())
+
+        return MethodSignatureData(effectiveSignature, superFunctions, propagated.getErrors() + effectiveSignature.getErrors())
+    }
+
+    private fun resolveSamAdapter(original: JavaConstructorDescriptor): JavaConstructorDescriptor? {
         return if (SingleAbstractMethodUtils.isSamAdapterNecessary(original))
-                   SingleAbstractMethodUtils.createSamAdapterConstructor(original) as ConstructorDescriptor
+                   SingleAbstractMethodUtils.createSamAdapterConstructor(original) as JavaConstructorDescriptor
                else null
     }
 
-    private fun resolveConstructor(constructor: JavaMethod, classDescriptor: ClassDescriptor, isStaticClass: Boolean): ConstructorDescriptor {
-        val constructorDescriptor = JavaConstructorDescriptor.createJavaConstructor(classDescriptor, Annotations.EMPTY, /* isPrimary = */ false)
+    private fun resolveConstructor(constructor: JavaMethod, classDescriptor: ClassDescriptor, isStaticClass: Boolean): JavaConstructorDescriptor {
+        val constructorDescriptor = JavaConstructorDescriptor.createJavaConstructor(
+                classDescriptor, Annotations.EMPTY, /* isPrimary = */ false, c.sourceElementFactory.source(constructor)
+        )
 
         val valueParameters = resolveValueParameters(c, constructorDescriptor, constructor.getValueParameters())
         val effectiveSignature = c.externalSignatureResolver.resolveAlternativeMethodSignature(
@@ -107,7 +149,9 @@ public class LazyJavaClassMemberScope(
             return null
 
         val classDescriptor = getContainingDeclaration()
-        val constructorDescriptor = JavaConstructorDescriptor.createJavaConstructor(classDescriptor, Annotations.EMPTY, /* isPrimary = */ true)
+        val constructorDescriptor = JavaConstructorDescriptor.createJavaConstructor(
+                classDescriptor, Annotations.EMPTY, /* isPrimary = */ true, c.sourceElementFactory.source(jClass)
+        )
         val typeParameters = classDescriptor.getTypeConstructor().getParameters()
         val valueParameters = if (isAnnotation) createAnnotationConstructorParameters(constructorDescriptor)
                               else Collections.emptyList<ValueParameterDescriptor>()
@@ -158,7 +202,8 @@ public class LazyJavaClassMemberScope(
                     TypeUtils.makeNotNullable(returnType),
                     method.hasAnnotationParameterDefaultValue(),
                     // Nulls are not allowed in annotation arguments in Java
-                    varargElementType?.let { TypeUtils.makeNotNullable(it) }
+                    varargElementType?.let { TypeUtils.makeNotNullable(it) },
+                    c.sourceElementFactory.source(method)
             ))
         }
 
@@ -182,7 +227,7 @@ public class LazyJavaClassMemberScope(
                 EnumEntrySyntheticClassDescriptor.create(c.storageManager, getContainingDeclaration(), name,
                                                          c.storageManager.createLazyValue {
                                                              memberIndex().getAllFieldNames() + memberIndex().getAllMethodNames()
-                                                         })
+                                                         }, c.sourceElementFactory.source(field))
             }
             else null
         }
@@ -198,16 +243,14 @@ public class LazyJavaClassMemberScope(
         }
     }
 
-    override fun getClassifier(name: Name): ClassifierDescriptor? = if (enumClassObject) null else nestedClasses(name)
+    override fun getClassifier(name: Name): ClassifierDescriptor? = nestedClasses(name)
     override fun getAllClassNames(): Collection<Name> = nestedClassIndex().keySet() + enumEntryIndex().keySet()
 
     // TODO
     override fun getImplicitReceiversHierarchy(): List<ReceiverParameterDescriptor> = listOf()
 
 
-    override fun getContainingDeclaration(): ClassDescriptor {
-        return super.getContainingDeclaration() as ClassDescriptor
-    }
+    override fun getContainingDeclaration() = super.getContainingDeclaration() as ClassDescriptor
 
     // namespaces should be resolved elsewhere
     override fun getPackage(name: Name) = null

@@ -2,25 +2,21 @@ package demo
 
 import java.util.HashMap
 
-open class Test() {
-    class object {
-        open fun init(): Test {
-            val __ = Test()
-            return __
-        }
-        open fun init(s: String?): Test {
-            val __ = Test()
-            return __
-        }
-    }
+fun Test(): Test {
+    return Test()
+}
+fun Test(s: String): Test {
+    return Test()
 }
 
-open class User() {
-    open fun main() {
-        var m: HashMap<Any?, Any?>? = HashMap(1)
-        var m2: HashMap<Any?, Any?>? = HashMap(10)
+class Test
 
-        var t1: Test? = Test.init()
-        var t2: Test? = Test.init("")
+class User {
+    fun main() {
+        val m = HashMap(1)
+        val m2 = HashMap(10)
+
+        val t1 = Test()
+        val t2 = Test("")
     }
 }

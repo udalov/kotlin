@@ -30,7 +30,6 @@ import org.jetbrains.jet.plugin.util.ApplicationUtils
 import org.jetbrains.jet.lang.resolve.DelegatingBindingTrace
 import org.jetbrains.jet.di.InjectorForTopDownAnalyzerForJvm
 import org.jetbrains.jet.context.SimpleGlobalContext
-import org.jetbrains.jet.descriptors.serialization.descriptors.MemberFilter
 import org.jetbrains.jet.lang.resolve.TopDownAnalysisParameters
 import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.psi.util.CachedValueProvider
@@ -249,17 +248,16 @@ private object KotlinResolveDataProvider {
                     project,
                     SimpleGlobalContext(resolveSession.getStorageManager(), resolveSession.getExceptionTracker()),
                     trace,
-                    resolveSession.getModuleDescriptor(),
-                    MemberFilter.ALWAYS_TRUE
+                    resolveSession.getModuleDescriptor()
             )
             injector.getLazyTopDownAnalyzer()!!.analyzeDeclarations(
                     resolveSession,
                     TopDownAnalysisParameters.createForLazy(
                             resolveSession.getStorageManager(),
                             resolveSession.getExceptionTracker(),
-                            analyzeCompletely = { true },
-                            analyzingBootstrapLibrary = false,
-                            declaredLocally = false
+                            /* analyzeCompletely = */ { true },
+                            /* analyzingBootstrapLibrary = */ false,
+                            /* declaredLocally = */ false
                     ),
                     listOf(analyzableElement)
             )

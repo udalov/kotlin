@@ -16,34 +16,46 @@
 
 package org.jetbrains.jet.j2k.ast
 
+import org.jetbrains.jet.j2k.CodeBuilder
+import com.intellij.psi.PsiNameIdentifierOwner
 
-open class Identifier(
+fun PsiNameIdentifierOwner.declarationIdentifier(): Identifier {
+    val name = getName()
+    return if (name != null) Identifier(name, false).assignPrototype(getNameIdentifier()!!) else Identifier.Empty
+}
+
+class Identifier(
         val name: String,
-        val myNullable: Boolean = true,
-        val quotingNeeded: Boolean = true
+        override val isNullable: Boolean = true,
+        private val quotingNeeded: Boolean = true
 ) : Expression() {
-    override fun isEmpty() = name.length() == 0
 
-    private open fun ifNeedQuote(): String {
-        if (quotingNeeded && (ONLY_KOTLIN_KEYWORDS.contains(name)) || name.contains("$")) {
+    override val isEmpty: Boolean
+        get() = name.isEmpty()
+
+    private fun toKotlin(): String {
+        if (quotingNeeded && ONLY_KOTLIN_KEYWORDS.contains(name) || name.contains("$")) {
             return quote(name)
         }
 
         return name
     }
 
-    override fun toKotlin(): String = ifNeedQuote()
-    override fun isNullable(): Boolean = myNullable
+    override fun generateCode(builder: CodeBuilder) {
+        builder.append(toKotlin())
+    }
+
+    private fun quote(str: String): String = "`" + str + "`"
+
+    override fun toString() = if (isNullable) "$name?" else name
 
     class object {
         val Empty = Identifier("")
 
-        private open fun quote(str: String): String {
-            return "`" + str + "`"
-        }
-
         val ONLY_KOTLIN_KEYWORDS: Set<String> = setOf(
                 "package", "as", "type", "val", "var", "fun", "is", "in", "object", "when", "trait", "This"
-        );
+        )
+
+        fun toKotlin(name: String): String = Identifier(name).toKotlin()
     }
 }

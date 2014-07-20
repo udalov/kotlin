@@ -18,20 +18,19 @@ package org.jetbrains.jet.lang.diagnostics;
 
 import com.intellij.openapi.util.TextRange;
 import com.intellij.psi.PsiElement;
-import com.intellij.psi.PsiErrorElement;
 import com.intellij.psi.PsiFile;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.jet.JetNodeTypes;
 
 import java.util.List;
 
 public abstract class AbstractDiagnostic<E extends PsiElement> implements ParametrizedDiagnostic<E> {
     private final E psiElement;
-    private final DiagnosticFactoryWithPsiElement<E> factory;
+    private final DiagnosticFactoryWithPsiElement<E, ?> factory;
     private final Severity severity;
+    private List<TextRange> textRanges;
 
     public AbstractDiagnostic(@NotNull E psiElement,
-            @NotNull DiagnosticFactoryWithPsiElement<E> factory,
+            @NotNull DiagnosticFactoryWithPsiElement<E, ?> factory,
             @NotNull Severity severity) {
         this.psiElement = psiElement;
         this.factory = factory;
@@ -40,7 +39,7 @@ public abstract class AbstractDiagnostic<E extends PsiElement> implements Parame
 
     @NotNull
     @Override
-    public DiagnosticFactoryWithPsiElement<E> getFactory() {
+    public DiagnosticFactoryWithPsiElement<E, ?> getFactory() {
         return factory;
     }
 
@@ -65,6 +64,9 @@ public abstract class AbstractDiagnostic<E extends PsiElement> implements Parame
     @Override
     @NotNull
     public List<TextRange> getTextRanges() {
+        if (textRanges != null) {
+            return textRanges;
+        }
         return getFactory().getTextRanges(this);
     }
 
@@ -72,5 +74,11 @@ public abstract class AbstractDiagnostic<E extends PsiElement> implements Parame
     public boolean isValid() {
         if (!getFactory().isValid(this)) return false;
         return true;
+    }
+
+    @NotNull
+    public Diagnostic setTextRanges(@NotNull List<TextRange> textRanges) {
+        this.textRanges = textRanges;
+        return this;
     }
 }

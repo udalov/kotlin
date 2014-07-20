@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2013 JetBrains s.r.o.
+ * Copyright 2010-2014 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,112 +18,130 @@ package org.jetbrains.jet.plugin.structureView;
 
 import com.intellij.ide.structureView.StructureViewTreeElement;
 import com.intellij.ide.util.treeView.smartTree.TreeElement;
-import com.intellij.navigation.ColoredItemPresentation;
 import com.intellij.navigation.ItemPresentation;
-import com.intellij.openapi.editor.colors.CodeInsightColors;
-import com.intellij.openapi.editor.colors.TextAttributesKey;
-import com.intellij.openapi.util.text.StringUtil;
+import com.intellij.openapi.ui.Queryable;
 import com.intellij.psi.NavigatablePsiElement;
+import com.intellij.util.ArrayUtil;
 import com.intellij.util.Function;
-import com.intellij.util.PsiIconUtil;
+import com.intellij.util.containers.ContainerUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.jet.lang.descriptors.*;
+import org.jetbrains.annotations.TestOnly;
+import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor;
 import org.jetbrains.jet.lang.psi.*;
-import org.jetbrains.jet.lang.resolve.BindingContext;
-import org.jetbrains.jet.lang.resolve.DescriptorUtils;
-import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.plugin.caches.resolve.ResolvePackage;
-import org.jetbrains.jet.renderer.DescriptorRenderer;
 
-import javax.swing.*;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
-public class JetStructureViewElement implements StructureViewTreeElement {
-    private final NavigatablePsiElement myElement;
+public class JetStructureViewElement implements StructureViewTreeElement, Queryable {
+    private final NavigatablePsiElement element;
+    private final boolean isInherited;
 
-    // For file context will be updated after each construction
-    // For other tree sub-elements it's immutable.
-    private BindingContext context;
+    private KotlinStructureElementPresentation presentation;
 
-    private String elementText;
+    public JetStructureViewElement(@NotNull NavigatablePsiElement element, @NotNull DeclarationDescriptor descriptor, boolean isInherited) {
+        this.element = element;
+        this.isInherited = isInherited;
 
-    public JetStructureViewElement(NavigatablePsiElement element, BindingContext context) {
-        myElement = element;
-        this.context = context;
+        if (!(element instanceof JetElement)) {
+            // Avoid storing descriptor in fields
+            presentation = new KotlinStructureElementPresentation(isInherited(), element, descriptor);
+        }
     }
 
-    public JetStructureViewElement(JetFile fileElement) {
-        myElement =  fileElement;
+    public JetStructureViewElement(@NotNull NavigatablePsiElement element, boolean isInherited) {
+        this.element = element;
+        this.isInherited = isInherited;
+    }
+
+    public JetStructureViewElement(@NotNull JetFile fileElement) {
+        element = fileElement;
+        isInherited = false;
+    }
+
+    @NotNull
+    public NavigatablePsiElement getElement() {
+        return element;
     }
 
     @Override
     public Object getValue() {
-        return myElement;
+        return element;
     }
 
     @Override
     public void navigate(boolean requestFocus) {
-        myElement.navigate(requestFocus);
+        element.navigate(requestFocus);
     }
 
     @Override
     public boolean canNavigate() {
-        return myElement.canNavigate();
+        return element.canNavigate();
     }
 
     @Override
     public boolean canNavigateToSource() {
-        return myElement.canNavigateToSource();
+        return element.canNavigateToSource();
     }
 
+    @NotNull
     @Override
     public ItemPresentation getPresentation() {
-        return new ColoredItemPresentation() {
-            @Override
-            public String getPresentableText() {
-                if (elementText == null) {
-                    elementText = getElementText();
-                }
+        if (presentation == null) {
+            presentation = new KotlinStructureElementPresentation(isInherited(), element, getDescriptor());
+        }
 
-                return elementText;
-            }
-
-            @Override
-            public String getLocationString() {
-                return null;
-            }
-
-            @Override
-            public Icon getIcon(boolean unused) {
-                if (myElement.isValid()) {
-                    return PsiIconUtil.getProvidersIcon(myElement, 0);
-                }
-
-                return null;
-            }
-
-            @Nullable
-            @Override
-            public TextAttributesKey getTextAttributesKey() {
-                if (myElement instanceof JetModifierListOwner && JetPsiUtil.isDeprecated((JetModifierListOwner) myElement)) {
-                    return CodeInsightColors.DEPRECATED_ATTRIBUTES;
-                }
-                return null;
-            }
-        };
+        return presentation;
     }
 
+    @NotNull
     @Override
     public TreeElement[] getChildren() {
-        if (myElement instanceof JetFile) {
-            JetFile jetFile = (JetFile) myElement;
-            context = ResolvePackage.getBindingContext(jetFile);
-            return wrapDeclarations(jetFile.getDeclarations());
+        List<JetDeclaration> childrenDeclarations = getChildrenDeclarations();
+        return ArrayUtil.toObjectArray(ContainerUtil.map(childrenDeclarations, new Function<JetDeclaration, TreeElement>() {
+            @Override
+            public TreeElement fun(JetDeclaration declaration) {
+                return new JetStructureViewElement(declaration, false);
+            }
+        }), TreeElement.class);
+    }
+
+    @TestOnly
+    @Override
+    public void putInfo(@NotNull Map<String, String> info) {
+        info.put("text", getPresentation().getPresentableText());
+        info.put("location", getPresentation().getLocationString());
+    }
+
+    public boolean isInherited() {
+        return isInherited;
+    }
+
+    @Nullable
+    private DeclarationDescriptor getDescriptor() {
+        if (!(element.isValid() && element instanceof JetDeclaration)) {
+            return null;
         }
-        else if (myElement instanceof JetClass) {
-            JetClass jetClass = (JetClass) myElement;
+
+        JetDeclaration declaration = (JetDeclaration) element;
+        if (declaration instanceof JetClassInitializer) {
+            return null;
+        }
+
+        return ResolvePackage.getLazyResolveSession(declaration).resolveToDescriptor(declaration);
+    }
+
+    @NotNull
+    private List<JetDeclaration> getChildrenDeclarations() {
+        if (element instanceof JetFile) {
+            JetFile jetFile = (JetFile) element;
+            return jetFile.getDeclarations();
+        }
+        else if (element instanceof JetClass) {
+            JetClass jetClass = (JetClass) element;
             List<JetDeclaration> declarations = new ArrayList<JetDeclaration>();
             for (JetParameter parameter : jetClass.getPrimaryConstructorParameters()) {
                 if (parameter.hasValOrVarNode()) {
@@ -131,105 +149,16 @@ public class JetStructureViewElement implements StructureViewTreeElement {
                 }
             }
             declarations.addAll(jetClass.getDeclarations());
-            return wrapDeclarations(declarations);
+            return declarations;
         }
-        else if (myElement instanceof JetClassOrObject) {
-            return wrapDeclarations(((JetClassOrObject) myElement).getDeclarations());
+        else if (element instanceof JetClassOrObject) {
+            return ((JetClassOrObject) element).getDeclarations();
         }
-        else if (myElement instanceof JetClassObject) {
-            JetObjectDeclaration objectDeclaration = ((JetClassObject) myElement).getObjectDeclaration();
-            return wrapDeclarations(objectDeclaration.getDeclarations());
-        }
-
-        return EMPTY_ARRAY;
-    }
-
-    private String getElementText() {
-        String text = "";
-
-        // Try to find text in correspondent descriptor
-        if (myElement instanceof JetDeclaration) {
-            JetDeclaration declaration = (JetDeclaration) myElement;
-
-            DeclarationDescriptor descriptor = context.get(BindingContext.DECLARATION_TO_DESCRIPTOR, declaration);
-            if (descriptor != null) {
-                text = getDescriptorTreeText(descriptor);
-            }
+        else if (element instanceof JetClassObject) {
+            JetObjectDeclaration objectDeclaration = ((JetClassObject) element).getObjectDeclaration();
+            return objectDeclaration.getDeclarations();
         }
 
-        if (StringUtil.isEmpty(text)) {
-            text = myElement.getName();
-        }
-
-        if (StringUtil.isEmpty(text)) {
-            if (myElement instanceof JetClassInitializer) {
-                return "<class initializer>";
-            }
-
-            if (myElement instanceof JetClassObject) {
-                return "<class object>";
-            }
-        }
-
-        return text;
-    }
-
-    private TreeElement[] wrapDeclarations(List<JetDeclaration> declarations) {
-        TreeElement[] result = new TreeElement[declarations.size()];
-        for (int i = 0; i < declarations.size(); i++) {
-            result[i] = new JetStructureViewElement(declarations.get(i), context);
-        }
-        return result;
-    }
-
-    public static String getDescriptorTreeText(@NotNull DeclarationDescriptor descriptor) {
-        StringBuilder textBuilder;
-
-        if (descriptor instanceof FunctionDescriptor) {
-            textBuilder = new StringBuilder();
-
-            FunctionDescriptor functionDescriptor = (FunctionDescriptor) descriptor;
-            ReceiverParameterDescriptor receiver = functionDescriptor.getReceiverParameter();
-            if (receiver != null) {
-                textBuilder.append(DescriptorRenderer.FQ_NAMES_IN_TYPES.renderType(receiver.getType())).append(".");
-            }
-
-            textBuilder.append(functionDescriptor.getName());
-
-            String parametersString = StringUtil.join(
-                    functionDescriptor.getValueParameters(),
-                    new Function<ValueParameterDescriptor, String>() {
-                        @Override
-                        public String fun(ValueParameterDescriptor valueParameterDescriptor) {
-                            return valueParameterDescriptor.getName() + ":" +
-                                   DescriptorRenderer.FQ_NAMES_IN_TYPES.renderType(valueParameterDescriptor.getType());
-                        }
-                    },
-                    ",");
-
-            textBuilder.append("(").append(parametersString).append(")");
-
-            JetType returnType = functionDescriptor.getReturnType();
-            assert returnType != null;
-            textBuilder.append(":").append(DescriptorRenderer.FQ_NAMES_IN_TYPES.renderType(returnType));
-        }
-        else if (descriptor instanceof VariableDescriptor) {
-            JetType outType = ((VariableDescriptor) descriptor).getType();
-
-            textBuilder = new StringBuilder(descriptor.getName().asString());
-            textBuilder.append(":").append(DescriptorRenderer.FQ_NAMES_IN_TYPES.renderType(outType));
-        }
-        else if (descriptor instanceof ClassDescriptor) {
-            textBuilder = new StringBuilder(descriptor.getName().asString());
-            textBuilder
-                    .append(" (")
-                    .append(DescriptorUtils.getFqName(descriptor.getContainingDeclaration()))
-                    .append(")");
-        }
-        else {
-            return DescriptorRenderer.FQ_NAMES_IN_TYPES.render(descriptor);
-        }
-
-        return textBuilder.toString();
+        return Collections.emptyList();
     }
 }

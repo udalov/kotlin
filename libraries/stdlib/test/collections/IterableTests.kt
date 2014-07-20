@@ -105,7 +105,7 @@ abstract class IterableTests<T : Iterable<String>>(val data: T, val empty: T) {
 
     Test fun filter() {
         val foo = data.filter { it.startsWith("f") }
-        // TODO uncomment this when KT-4651 will be fixed
+        // TODO uncomment this when KT-2468 will be fixed
         //expect(true) { foo is List<String> }
         expect(true) { foo.all { it.startsWith("f") } }
         expect(1) { foo.size }
@@ -114,7 +114,7 @@ abstract class IterableTests<T : Iterable<String>>(val data: T, val empty: T) {
 
     Test fun filterNot() {
         val notFoo = data.filterNot { it.startsWith("f") }
-        // TODO uncomment this when KT-4651 will be fixed
+        // TODO uncomment this when KT-2468 will be fixed
         //expect(true) { notFoo is List<String> }
         expect(true) { notFoo.none { it.startsWith("f") } }
         expect(1) { notFoo.size }
@@ -146,11 +146,11 @@ abstract class IterableTests<T : Iterable<String>>(val data: T, val empty: T) {
 
     Test
     fun singleOrNull() {
-        fails { data.singleOrNull() }
-        fails { empty.singleOrNull() }
+        expect(null) { data.singleOrNull() }
+        expect(null) { empty.singleOrNull() }
         expect("foo") { data.singleOrNull { it.startsWith("f") } }
         expect("bar") { data.singleOrNull { it.startsWith("b") } }
-        fails {
+        expect(null) {
             data.singleOrNull { it.length == 3 }
         }
     }

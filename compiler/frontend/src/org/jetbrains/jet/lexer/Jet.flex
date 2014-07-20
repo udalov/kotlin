@@ -5,6 +5,7 @@ import com.intellij.lexer.*;
 import com.intellij.psi.*;
 import com.intellij.psi.tree.IElementType;
 import com.intellij.util.containers.Stack;
+import org.jetbrains.jet.lexer.KotlinLexerException;
 
 import org.jetbrains.jet.lexer.JetTokens;
 
@@ -60,6 +61,8 @@ import org.jetbrains.jet.lexer.JetTokens;
     }
 %}
 
+%scanerror KotlinLexerException
+
 %function advance
 %type IElementType
 %eof{
@@ -99,7 +102,7 @@ DOUBLE_LITERAL={FLOATING_POINT_LITERAL1}|{FLOATING_POINT_LITERAL2}|{FLOATING_POI
 FLOATING_POINT_LITERAL1=({DIGIT})+"."({DIGIT})+({EXPONENT_PART})?({FLOATING_POINT_LITERAL_SUFFIX})?
 FLOATING_POINT_LITERAL2="."({DIGIT})+({EXPONENT_PART})?({FLOATING_POINT_LITERAL_SUFFIX})?
 FLOATING_POINT_LITERAL3=({DIGIT})+({EXPONENT_PART})({FLOATING_POINT_LITERAL_SUFFIX})?
-FLOATING_POINT_LITERAL4=({DIGIT})+({FLOATING_POINT_LITERAL_SUFFIX})?
+FLOATING_POINT_LITERAL4=({DIGIT})+({FLOATING_POINT_LITERAL_SUFFIX})
 FLOATING_POINT_LITERAL_SUFFIX=[Ff]
 EXPONENT_PART=[Ee]["+""-"]?({DIGIT})*
 //HEX_DOUBLE_LITERAL={HEX_SIGNIFICAND}{BINARY_EXPONENT}[Dd]?
@@ -324,5 +327,9 @@ LONG_TEMPLATE_ENTRY_START=\$\{
 ","          { return JetTokens.COMMA     ; }
 "#"          { return JetTokens.HASH      ; }
 
-. { return TokenType.BAD_CHARACTER; }
+// error fallback
+.            { return TokenType.BAD_CHARACTER; }
+// error fallback for exclusive states
+<STRING, RAW_STRING, SHORT_TEMPLATE_ENTRY, BLOCK_COMMENT, DOC_COMMENT> .
+             { return TokenType.BAD_CHARACTER; }
 

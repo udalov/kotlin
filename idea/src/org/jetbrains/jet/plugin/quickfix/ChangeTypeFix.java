@@ -27,11 +27,12 @@ import org.jetbrains.jet.lang.diagnostics.DiagnosticWithParameters1;
 import org.jetbrains.jet.lang.diagnostics.Errors;
 import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.psi.JetParameter;
-import org.jetbrains.jet.lang.psi.JetPsiFactory;
 import org.jetbrains.jet.lang.psi.JetTypeReference;
 import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.plugin.JetBundle;
 import org.jetbrains.jet.renderer.DescriptorRenderer;
+
+import static org.jetbrains.jet.lang.psi.PsiPackage.JetPsiFactory;
 
 public class ChangeTypeFix extends JetIntentionAction<JetTypeReference> {
     private final String renderedType;
@@ -55,7 +56,7 @@ public class ChangeTypeFix extends JetIntentionAction<JetTypeReference> {
 
     @Override
     public void invoke(@NotNull Project project, Editor editor, JetFile file) throws IncorrectOperationException {
-        element.replace(JetPsiFactory.createType(project, renderedType));
+        element.replace(JetPsiFactory(file).createType(renderedType));
     }
 
     @NotNull
@@ -64,9 +65,7 @@ public class ChangeTypeFix extends JetIntentionAction<JetTypeReference> {
             @Nullable
             @Override
             public IntentionAction createAction(Diagnostic diagnostic) {
-                assert diagnostic.getFactory() == Errors.EXPECTED_PARAMETER_TYPE_MISMATCH;
-                @SuppressWarnings("unchecked")
-                DiagnosticWithParameters1<JetParameter, JetType> diagnosticWithParameters = (DiagnosticWithParameters1<JetParameter, JetType>) diagnostic;
+                DiagnosticWithParameters1<JetParameter, JetType> diagnosticWithParameters = Errors.EXPECTED_PARAMETER_TYPE_MISMATCH.cast(diagnostic);
                 JetTypeReference typeReference = diagnosticWithParameters.getPsiElement().getTypeReference();
                 assert typeReference != null : "EXPECTED_PARAMETER_TYPE_MISMATCH reported on parameter without explicitly declared type";
                 return new ChangeTypeFix(typeReference, diagnosticWithParameters.getA());
@@ -80,9 +79,7 @@ public class ChangeTypeFix extends JetIntentionAction<JetTypeReference> {
             @Nullable
             @Override
             public IntentionAction createAction(Diagnostic diagnostic) {
-                assert diagnostic.getFactory() == Errors.EXPECTED_RETURN_TYPE_MISMATCH;
-                @SuppressWarnings("unchecked")
-                DiagnosticWithParameters1<JetTypeReference, JetType> diagnosticWithParameters = (DiagnosticWithParameters1<JetTypeReference, JetType>) diagnostic;
+                DiagnosticWithParameters1<JetTypeReference, JetType> diagnosticWithParameters = Errors.EXPECTED_RETURN_TYPE_MISMATCH.cast(diagnostic);
                 return new ChangeTypeFix(diagnosticWithParameters.getPsiElement(), diagnosticWithParameters.getA());
             }
         };

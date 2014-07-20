@@ -1,45 +1,35 @@
-public open class Identifier<T>(_myName: T?, _myHasDollar: Boolean) {
-    private val myName: T?
-    private var myHasDollar: Boolean = false
-    private var myNullable: Boolean = true
+public fun <T> Identifier(name: T): Identifier<T> {
+    return Identifier(name, false)
+}
 
-    public open fun getName(): T? {
+public fun <T> Identifier(name: T, isNullable: Boolean): Identifier<T> {
+    val __ = Identifier(name, false)
+    __.myNullable = isNullable
+    return __
+}
+
+public fun <T> Identifier(name: T, hasDollar: Boolean, isNullable: Boolean): Identifier<T> {
+    val __ = Identifier(name, hasDollar)
+    __.myNullable = isNullable
+    return __
+}
+
+public class Identifier<T>(private val myName: T, private val myHasDollar: Boolean) {
+    private var myNullable = true
+
+    public fun getName(): T {
         return myName
     }
+}
 
-    {
-        myName = _myName
-        myHasDollar = _myHasDollar
-    }
-
+public class User {
     class object {
-
-        public open fun <T> init(name: T?): Identifier<T> {
-            val __ = Identifier(name, false)
-            return __
-        }
-
-        public open fun <T> init(name: T?, isNullable: Boolean): Identifier<T> {
-            val __ = Identifier(name, false)
-            __.myNullable = isNullable
-            return __
-        }
-
-        public open fun <T> init(name: T?, hasDollar: Boolean, isNullable: Boolean): Identifier<T> {
-            val __ = Identifier(name, hasDollar)
-            __.myNullable = isNullable
-            return __
+        public fun main(args: Array<String>) {
+            val i1 = Identifier<String>("name", false, true)
+            val i2 = Identifier<String>("name", false)
+            val i3 = Identifier<String>("name")
         }
     }
 }
 
-public open class User() {
-    class object {
-        public open fun main(args: Array<String?>?) {
-            var i1: Identifier<*>? = Identifier.init<String?>("name", false, true)
-            var i2: Identifier<*>? = Identifier.init<String?>("name", false)
-            var i3: Identifier<*>? = Identifier.init<String?>("name")
-        }
-    }
-}
-fun main(args: Array<String>) = User.main(args as Array<String?>?)
+fun main(args: Array<String>) = User.main(args)

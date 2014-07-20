@@ -28,6 +28,7 @@ import org.jetbrains.jet.cli.jvm.compiler.JetCoreEnvironment;
 import org.jetbrains.jet.codegen.ClassFileFactory;
 import org.jetbrains.jet.codegen.GenerationUtils;
 import org.jetbrains.jet.codegen.InlineTestUtil;
+import org.jetbrains.jet.codegen.forTestCompile.ForTestCompileRuntime;
 import org.jetbrains.jet.config.CompilerConfiguration;
 import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.resolve.java.PackageClassUtils;
@@ -63,24 +64,17 @@ public abstract class AbstractCompileKotlinAgainstKotlinTest extends TestCaseWit
         invokeMain();
     }
 
-    public void doBoxTestWithInlineCheck(@NotNull String folderName) throws Exception {
-        ArrayList<OutputFile> files = doBoxTest(folderName);
+    public void doBoxTestWithInlineCheck(@NotNull String firstFileName) throws Exception {
+        List<String> inputFiles = new ArrayList<String>(2);
+        inputFiles.add(firstFileName);
+        inputFiles.add(firstFileName.substring(0, firstFileName.length() - "1.kt".length()) + "2.kt");
+
+        ArrayList<OutputFile> files = doBoxTest(inputFiles);
         InlineTestUtil.checkNoCallsToInline(files);
     }
 
     @NotNull
-    private ArrayList<OutputFile> doBoxTest(@NotNull String folderName) throws Exception {
-        final List<String> files = new ArrayList<String>(2);
-        FileUtil.processFilesRecursively(new File(folderName), new Processor<File>() {
-            @Override
-            public boolean process(File file) {
-                if (file.getName().endsWith(".kt")) {
-                    files.add(file.getPath());
-                }
-                return true;
-            }
-        });
-
+    private ArrayList<OutputFile> doBoxTest(@NotNull List<String> files) throws Exception {
         Collections.sort(files);
 
         ClassFileFactory factory1 = null;
@@ -108,7 +102,7 @@ public abstract class AbstractCompileKotlinAgainstKotlinTest extends TestCaseWit
 
     private void invokeMain() throws Exception {
         URLClassLoader classLoader = new URLClassLoader(
-                new URL[]{ aDir.toURI().toURL(), bDir.toURI().toURL() },
+                new URL[]{ aDir.toURI().toURL(), bDir.toURI().toURL(), ForTestCompileRuntime.runtimeJarForTests().toURI().toURL() },
                 AbstractCompileKotlinAgainstKotlinTest.class.getClassLoader()
         );
         Class<?> clazz = classLoader.loadClass(PackageClassUtils.getPackageClassName(FqName.ROOT));
@@ -118,7 +112,7 @@ public abstract class AbstractCompileKotlinAgainstKotlinTest extends TestCaseWit
 
     private void invokeBox() throws Exception {
         URLClassLoader classLoader = new URLClassLoader(
-                new URL[]{ bDir.toURI().toURL(), aDir.toURI().toURL() },
+                new URL[]{ bDir.toURI().toURL(), aDir.toURI().toURL(), ForTestCompileRuntime.runtimeJarForTests().toURI().toURL() },
                 AbstractCompileKotlinAgainstKotlinTest.class.getClassLoader()
         );
         Class<?> clazz = classLoader.loadClass(PackageClassUtils.getPackageClassName(FqName.ROOT));

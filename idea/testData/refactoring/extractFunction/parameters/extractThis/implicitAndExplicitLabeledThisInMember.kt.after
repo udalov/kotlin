@@ -1,12 +1,12 @@
+// PARAM_TYPES: A
+// PARAM_TYPES: A.B
+// PARAM_DESCRIPTOR: public final class A : Z defined in root package
+// PARAM_DESCRIPTOR: public final inner class B : Z defined in A
 public open class Z {
     val z: Int = 0
 }
 
-// NEXT_SIBLING:
-fun i(a1: A, b1: A.B): Int {
-    return a1.a + b1.b + a1.z + b1.z
-}
-
+// SIBLING:
 public class A(): Z() {
     var a: Int = 1
 
@@ -17,4 +17,8 @@ public class A(): Z() {
             return i(this@A, this@B)
         }
     }
+}
+
+fun i(a1: A, b1: A.B): Int {
+    return a1.a + b1.b + a1.z + b1.z
 }

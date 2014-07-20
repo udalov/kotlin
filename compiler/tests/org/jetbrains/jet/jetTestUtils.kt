@@ -16,4 +16,50 @@
 
 package org.jetbrains.jet.test.util
 
-fun String.removeTrailingWhitespacesFromEachLine() = split('\n') map { it.trimTrailing() } makeString ("\n")
+import com.intellij.testFramework.fixtures.CodeInsightTestFixture
+import com.intellij.openapi.util.io.FileUtil
+import java.io.File
+
+public fun String.removeTrailingWhitespacesFromEachLine(): String = split('\n') map { it.trimTrailing() } makeString ("\n")
+
+public fun CodeInsightTestFixture.configureWithExtraFile(path: String, extraNamePart: String = ".Data") {
+    val noExtensionPath = FileUtil.getNameWithoutExtension(path)
+    val extraPath = array("kt", "java").stream()
+            .map { ext -> "$noExtensionPath$extraNamePart.$ext" }
+            .firstOrNull { extraPath -> File(extraPath).exists() }
+
+    if (extraPath != null) {
+        configureByFiles(path, extraPath)
+    }
+    else {
+        configureByFile(path)
+    }
+}
+
+public fun String.trimIndent(): String {
+    val lines = split('\n')
+
+    val firstNonEmpty = lines.firstOrNull { !it.trim().isEmpty() }
+    if (firstNonEmpty == null) {
+        return this
+    }
+
+    val trimmedPrefix = firstNonEmpty.takeWhile { ch -> ch.isWhitespace() }
+    if (trimmedPrefix.isEmpty()) {
+        return this
+    }
+
+    return lines.map { line ->
+        if (line.trim().isEmpty()) {
+            ""
+        }
+        else {
+            if (!line.startsWith(trimmedPrefix)) {
+                throw IllegalArgumentException(
+                        """Invalid line "$line", ${trimmedPrefix.size} whitespace character are expected""")
+            }
+
+            line.substring(trimmedPrefix.length)
+        }
+    }.joinToString(separator = "\n")
+}

@@ -19,11 +19,11 @@ package org.jetbrains.jet.plugin.intentions
 import com.intellij.openapi.editor.Editor
 import org.jetbrains.jet.lang.psi.JetCallExpression
 import org.jetbrains.jet.plugin.project.AnalyzerFacadeWithCache
-import org.jetbrains.jet.lang.resolve.BindingContext
 import org.jetbrains.jet.lang.psi.JetPsiFactory
 import org.jetbrains.jet.lang.types.ErrorUtils
 import org.jetbrains.jet.renderer.DescriptorRenderer
 import org.jetbrains.jet.plugin.codeInsight.ShortenReferences
+import org.jetbrains.jet.lang.resolve.bindingContextUtil.getResolvedCall
 
 public class InsertExplicitTypeArguments : JetSelfTargetingIntention<JetCallExpression>(
         "insert.explicit.type.arguments", javaClass()) {
@@ -40,7 +40,7 @@ public class InsertExplicitTypeArguments : JetSelfTargetingIntention<JetCallExpr
         if (textRange == null || !textRange.contains(editor.getCaretModel().getOffset())) return false
 
         val context = AnalyzerFacadeWithCache.getContextForElement(element)
-        val resolvedCall = context[BindingContext.RESOLVED_CALL, element.getCalleeExpression()]
+        val resolvedCall = element.getResolvedCall(context)
         if (resolvedCall == null) return false
 
         val types = resolvedCall.getTypeArguments()
@@ -49,16 +49,17 @@ public class InsertExplicitTypeArguments : JetSelfTargetingIntention<JetCallExpr
 
     override fun applyTo(element: JetCallExpression, editor: Editor) {
         val context = AnalyzerFacadeWithCache.getContextForElement(element)
-        val resolvedCall = context[BindingContext.RESOLVED_CALL, element.getCalleeExpression()]
+        val resolvedCall = element.getResolvedCall(context)
         if (resolvedCall == null) return
 
         val args = resolvedCall.getTypeArguments()
         val types = resolvedCall.getCandidateDescriptor().getTypeParameters()
 
+        val psiFactory = JetPsiFactory(element)
         val typeArgs = types.map {
             assert(args[it] != null, "there is a null in the type arguments to transform")
             val typeToCompute = DescriptorRenderer.FQ_NAMES_IN_TYPES.renderType(args[it]!!);
-            val computedTypeRef = JetPsiFactory.createType(element.getProject(), typeToCompute)
+            val computedTypeRef = psiFactory.createType(typeToCompute)
             ShortenReferences.process(computedTypeRef)
             computedTypeRef.getText()
         }.makeString(", ", "<", ">")
@@ -67,7 +68,7 @@ public class InsertExplicitTypeArguments : JetSelfTargetingIntention<JetCallExpr
         if (name == null) return
 
         val valueAndFunctionArguments = element.getText()?.substring(name.size) ?: throw AssertionError("InsertExplicitTypeArguments intention shouldn't be applicable for empty call expression")
-        val expr = JetPsiFactory.createExpression(element.getProject(), "$name$typeArgs${valueAndFunctionArguments}")
+        val expr = psiFactory.createExpression("$name$typeArgs${valueAndFunctionArguments}")
         element.replace(expr)
     }
 }

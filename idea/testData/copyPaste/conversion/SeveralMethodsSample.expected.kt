@@ -1,7 +1,8 @@
 class A {
     fun someOther() = false
 
-    private fun formatElement(var element: PsiElement): String {
+    private fun formatElement(element: PsiElement): String {
+        var element = element
         element = JetPsiUtil.ascendIfPropertyAccessor(element)
         if (element is JetNamedFunction || element is JetProperty) {
             val bindingContext = AnalyzerFacadeWithCache.analyzeFileWithCache(element.getContainingJetFile()).getBindingContext()
@@ -16,7 +17,7 @@ class A {
         }
 
         assert(element is PsiMethod) { "Method accepts only kotlin functions/properties and java methods, but '" + element.getText() + "' was found" }
-        return JetRefactoringUtil.formatPsiMethod((element as PsiMethod), true, false)
+        return JetRefactoringUtil.formatPsiMethod(element as PsiMethod, true, false)
     }
 
     protected fun getDimensionServiceKey(): String {

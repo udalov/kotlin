@@ -82,7 +82,7 @@ public class CompileKotlinAgainstCustomBinariesTest extends TestCaseWithTmpdir {
     private PackageViewDescriptor analyzeFileToPackageView(@NotNull File... extraClassPath) throws IOException {
         Project project = createEnvironment(Arrays.asList(extraClassPath)).getProject();
 
-        AnalyzeExhaust exhaust = JvmResolveUtil.analyzeOneFileWithJavaIntegration(
+        AnalyzeExhaust exhaust = JvmResolveUtil.analyzeOneFileWithJavaIntegrationAndCheckForErrors(
                 JetTestUtils.loadJetFile(project, getTestDataFileWithExtension("kt"))
         );
 
@@ -180,7 +180,7 @@ public class CompileKotlinAgainstCustomBinariesTest extends TestCaseWithTmpdir {
         exhaust.throwIfError();
 
         BindingContext bindingContext = exhaust.getBindingContext();
-        AnalyzerWithCompilerReport.reportDiagnostics(bindingContext, MessageCollectorPlainTextToStream.PLAIN_TEXT_TO_SYSTEM_ERR);
+        AnalyzerWithCompilerReport.reportDiagnostics(bindingContext.getDiagnostics(), MessageCollectorPlainTextToStream.PLAIN_TEXT_TO_SYSTEM_ERR);
 
         assertEquals("There should be no diagnostics", 0, Iterables.size(bindingContext.getDiagnostics()));
     }

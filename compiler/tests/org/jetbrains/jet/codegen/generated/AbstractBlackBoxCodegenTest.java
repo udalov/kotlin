@@ -17,12 +17,20 @@
 package org.jetbrains.jet.codegen.generated;
 
 import com.intellij.openapi.util.io.FileUtil;
+import com.intellij.util.ArrayUtil;
 import com.intellij.util.Processor;
+import kotlin.KotlinPackage;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.jet.*;
+import org.jetbrains.jet.ConfigurationKind;
+import org.jetbrains.jet.JetTestUtils;
+import org.jetbrains.jet.TestJdkKind;
+import org.jetbrains.jet.cli.common.output.outputUtils.OutputUtilsPackage;
+import org.jetbrains.jet.cli.jvm.JVMConfigurationKeys;
 import org.jetbrains.jet.cli.jvm.compiler.JetCoreEnvironment;
 import org.jetbrains.jet.codegen.CodegenTestCase;
+import org.jetbrains.jet.codegen.GenerationUtils;
 import org.jetbrains.jet.codegen.InlineTestUtil;
+import org.jetbrains.jet.config.CompilerConfiguration;
 import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.utils.UtilsPackage;
 
@@ -41,8 +49,17 @@ public abstract class AbstractBlackBoxCodegenTest extends CodegenTestCase {
         blackBoxFileByFullPath(filename);
     }
 
+    public void doTestAgainstJava(@NotNull String filename) {
+        blackBoxFileAgainstJavaByFullPath(filename);
+    }
+
     public void doTestWithJava(@NotNull String filename) {
-        blackBoxFileWithJavaByFullPath(filename);
+        try {
+            blackBoxFileWithJavaByFullPath(filename);
+        }
+        catch (Exception e) {
+            throw UtilsPackage.rethrow(e);
+        }
     }
 
     public void doTestWithStdlib(@NotNull String filename) {
@@ -51,38 +68,84 @@ public abstract class AbstractBlackBoxCodegenTest extends CodegenTestCase {
     }
 
     public void doTestMultiFile(@NotNull String folderName) {
-        createEnvironmentWithMockJdkAndIdeaAnnotations(ConfigurationKind.ALL);
-
         final List<String> files = new ArrayList<String>(2);
         FileUtil.processFilesRecursively(new File(folderName), new Processor<File>() {
             @Override
             public boolean process(File file) {
                 if (file.getName().endsWith(".kt")) {
-                    files.add(file.getPath().substring("compiler/testData/codegen/".length()));
+                    files.add(relativePath(file));
                 }
                 return true;
             }
         });
 
-        Collections.sort(files);
+        doTestMultiFile(files);
+    }
 
-        loadFiles(files.toArray(new String[files.size()]));
+    private void doTestMultiFile(@NotNull List<String> files) {
+        createEnvironmentWithMockJdkAndIdeaAnnotations(ConfigurationKind.ALL);
+        Collections.sort(files);
+        loadFiles(ArrayUtil.toStringArray(files));
         blackBox();
     }
 
-    public void doTestMultiFileWithInlineCheck(@NotNull String folderName) {
-        doTestMultiFile(folderName);
+    public void doTestMultiFileWithInlineCheck(@NotNull String firstFileName) {
+        firstFileName = relativePath(new File(firstFileName));
+        List<String> inputFiles = new ArrayList<String>(2);
+        inputFiles.add(firstFileName);
+        inputFiles.add(firstFileName.substring(0, firstFileName.length() - "1.kt".length()) + "2.kt");
+
+        doTestMultiFile(inputFiles);
         InlineTestUtil.checkNoCallsToInline(initializedClassLoader.getAllGeneratedFiles());
     }
 
-    private void blackBoxFileWithJavaByFullPath(@NotNull String ktFileFullPath) {
-        String ktFile = ktFileFullPath.substring("compiler/testData/codegen/".length());
+    private void blackBoxFileAgainstJavaByFullPath(@NotNull String ktFileFullPath) {
+        String ktFile = relativePath(new File(ktFileFullPath));
         File javaClassesTempDirectory = compileJava(ktFile.replaceFirst("\\.kt$", ".java"));
 
         myEnvironment = JetCoreEnvironment.createForTests(getTestRootDisposable(), JetTestUtils.compilerConfigurationForTests(
-                ConfigurationKind.ALL, TestJdkKind.MOCK_JDK, JetTestUtils.getAnnotationsJar(), javaClassesTempDirectory));
+                ConfigurationKind.ALL, TestJdkKind.FULL_JDK, JetTestUtils.getAnnotationsJar(), javaClassesTempDirectory
+        ));
 
         loadFile(ktFile);
+        blackBox();
+    }
+
+    private void blackBoxFileWithJavaByFullPath(@NotNull String directory) throws Exception {
+        File dirFile = new File(directory);
+
+        final List<String> javaFilePaths = new ArrayList<String>();
+        final List<String> ktFilePaths = new ArrayList<String>();
+        FileUtil.processFilesRecursively(dirFile, new Processor<File>() {
+            @Override
+            public boolean process(File file) {
+                String path = relativePath(file);
+                if (path.endsWith(".kt")) {
+                    ktFilePaths.add(path);
+                }
+                else if (path.endsWith(".java")) {
+                    javaFilePaths.add(path);
+                }
+                return true;
+            }
+        });
+
+        CompilerConfiguration configuration = JetTestUtils.compilerConfigurationForTests(
+                ConfigurationKind.ALL, TestJdkKind.FULL_JDK, JetTestUtils.getAnnotationsJar()
+        );
+        configuration.add(JVMConfigurationKeys.CLASSPATH_KEY, dirFile);
+        myEnvironment = JetCoreEnvironment.createForTests(getTestRootDisposable(), configuration);
+        loadFiles(ArrayUtil.toStringArray(ktFilePaths));
+        classFileFactory =
+                GenerationUtils.compileManyFilesGetGenerationStateForTest(myEnvironment.getProject(), myFiles.getPsiFiles()).getFactory();
+        File kotlinOut = JetTestUtils.tmpDir(toString());
+        OutputUtilsPackage.writeAllTo(classFileFactory, kotlinOut);
+
+        // TODO: support several Java sources
+        File javaOut = compileJava(KotlinPackage.single(javaFilePaths), kotlinOut.getPath());
+        // Add javac output to classpath so that the created class loader can find generated Java classes
+        configuration.add(JVMConfigurationKeys.CLASSPATH_KEY, javaOut);
+
         blackBox();
     }
 

@@ -20,10 +20,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.roots.OrderEntry;
-import com.intellij.openapi.roots.OrderRootType;
-import com.intellij.openapi.roots.ProjectFileIndex;
-import com.intellij.openapi.roots.ProjectRootManager;
+import com.intellij.openapi.roots.*;
 import com.intellij.openapi.util.Condition;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.JavaPsiFacade;
@@ -31,11 +28,11 @@ import com.intellij.psi.PsiClass;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.search.GlobalSearchScope;
-import com.intellij.psi.search.GlobalSearchScopesCore;
 import com.intellij.psi.stubs.StringStubIndexExtension;
 import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.util.containers.ContainerUtil;
 import gnu.trove.THashSet;
+import kotlin.KotlinPackage;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.TestOnly;
@@ -48,7 +45,7 @@ import org.jetbrains.jet.lang.PlatformToKotlinClassMap;
 import org.jetbrains.jet.lang.descriptors.CallableDescriptor;
 import org.jetbrains.jet.lang.descriptors.ClassDescriptor;
 import org.jetbrains.jet.lang.descriptors.DependencyKind;
-import org.jetbrains.jet.lang.descriptors.ModuleDescriptorImpl;
+import org.jetbrains.jet.lang.descriptors.impl.ModuleDescriptorImpl;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.BindingTraceContext;
 import org.jetbrains.jet.lang.resolve.DescriptorUtils;
@@ -114,13 +111,18 @@ public class JetSourceNavigationHelper {
         Project project = decompiledDeclaration.getProject();
         ProjectFileIndex projectFileIndex = ProjectFileIndex.SERVICE.getInstance(project);
 
-        GlobalSearchScope resultScope = GlobalSearchScope.EMPTY_SCOPE;
-        for (OrderEntry orderEntry : projectFileIndex.getOrderEntriesForFile(libraryFile)) {
-            for (VirtualFile sourceDir : orderEntry.getFiles(OrderRootType.SOURCES)) {
-                resultScope = resultScope.uniteWith(GlobalSearchScopesCore.directoryScope(project, sourceDir, true));
+        if (!projectFileIndex.isInLibraryClasses(libraryFile)) {
+            return GlobalSearchScope.EMPTY_SCOPE;
+        }
+
+        Set<VirtualFile> sourceRootSet = Sets.newLinkedHashSet();
+        for (OrderEntry entry : projectFileIndex.getOrderEntriesForFile(libraryFile)) {
+            if (entry instanceof LibraryOrSdkOrderEntry) {
+                KotlinPackage.addAll(sourceRootSet, entry.getFiles(OrderRootType.SOURCES));
             }
         }
-        return resultScope;
+
+        return new LibrarySourcesScope(project, sourceRootSet);
     }
 
     private static List<JetFile> getContainingFiles(@NotNull Iterable<JetNamedDeclaration> declarations) {
@@ -438,4 +440,39 @@ public class JetSourceNavigationHelper {
             return getSourceClassOrObject(klass);
         }
     }
+
+    private static class LibrarySourcesScope extends GlobalSearchScope {
+        private final Set<VirtualFile> sources;
+        private final ProjectFileIndex fileIndex;
+
+        public LibrarySourcesScope(Project project, Set<VirtualFile> sources) {
+            super(project);
+            fileIndex = ProjectRootManager.getInstance(project).getFileIndex();
+            this.sources = sources;
+        }
+
+        @Override
+        public boolean contains(@NotNull VirtualFile file) {
+            if (fileIndex.isInLibrarySource(file)) {
+                return sources.contains(fileIndex.getSourceRootForFile(file));
+            }
+            return false;
+        }
+
+        @Override
+        public int compare(@NotNull VirtualFile file1, @NotNull VirtualFile file2) {
+            return 0;
+        }
+
+        @Override
+        public boolean isSearchInModuleContent(@NotNull Module aModule) {
+            return false;
+        }
+
+        @Override
+        public boolean isSearchInLibraries() {
+            return true;
+        }
+    }
+
 }

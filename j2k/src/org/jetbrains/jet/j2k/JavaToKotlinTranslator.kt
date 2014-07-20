@@ -19,29 +19,25 @@ package org.jetbrains.jet.j2k
 import com.intellij.core.JavaCoreApplicationEnvironment
 import com.intellij.core.JavaCoreProjectEnvironment
 import com.intellij.lang.java.JavaLanguage
-import com.intellij.openapi.Disposable
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
-import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiFileFactory
 import com.intellij.psi.PsiJavaFile
-import org.jetbrains.jet.j2k.visitors.ClassVisitor
 import org.jetbrains.jet.utils.PathUtil
 import java.io.File
 import java.net.URLClassLoader
-import java.util.HashSet
 
 public object JavaToKotlinTranslator {
     private val DISPOSABLE = Disposer.newDisposable()
 
     private fun createFile(text: String): PsiFile? {
         val javaCoreEnvironment: JavaCoreProjectEnvironment? = setUpJavaCoreEnvironment()
-        return PsiFileFactory.getInstance(javaCoreEnvironment?.getProject())?.createFileFromText("test.java", JavaLanguage.INSTANCE, text)
+        return PsiFileFactory.getInstance(javaCoreEnvironment?.getProject()!!)?.createFileFromText("test.java", JavaLanguage.INSTANCE, text)
     }
 
-    fun createFile(project: Project, text: String): PsiFile? {
-        return PsiFileFactory.getInstance(project)?.createFileFromText("test.java", JavaLanguage.INSTANCE, text)
+    fun createFile(project: Project, text: String): PsiJavaFile {
+        return PsiFileFactory.getInstance(project)?.createFileFromText("test.java", JavaLanguage.INSTANCE, text) as PsiJavaFile
     }
 
     fun setUpJavaCoreEnvironment(): JavaCoreProjectEnvironment {
@@ -77,7 +73,7 @@ public object JavaToKotlinTranslator {
         while (classLoader != null) {
             val loader = classLoader
             if (loader is URLClassLoader) {
-                for (url in loader.getURLs()!!) {
+                for (url in loader.getURLs()) {
                     if ("file" == url.getProtocol() && url.getFile()!!.endsWith("/annotations.jar")) {
                         return File(url.getFile()!!)
                     }
@@ -88,19 +84,11 @@ public object JavaToKotlinTranslator {
         return null
     }
 
-    fun setClassIdentifiers(converter: Converter, psiFile: PsiElement) {
-        val c = ClassVisitor()
-        psiFile.accept(c)
-        converter.clearClassIdentifiers()
-        converter.setClassIdentifiers(HashSet(c.getClassIdentifiers()))
-    }
-
     fun generateKotlinCode(javaCode: String): String {
         val file = createFile(javaCode)
         if (file is PsiJavaFile) {
-            val converter = Converter(file.getProject(), TestSettings)
-            setClassIdentifiers(converter, file)
-            return prettify(converter.convertFile(file).toKotlin())
+            val converter = Converter.create(file.getProject(), ConverterSettings.defaultSettings, FilesConversionScope(listOf(file)))
+            return prettify(converter.elementToKotlin(file))
         }
         return ""
     }

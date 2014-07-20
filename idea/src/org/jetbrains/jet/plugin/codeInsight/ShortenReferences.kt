@@ -33,9 +33,11 @@ import org.jetbrains.jet.lang.resolve.java.descriptor.JavaPropertyDescriptor
 import org.jetbrains.jet.lang.resolve.java.lazy.descriptors.LazyPackageFragmentForJavaClass
 import org.jetbrains.jet.lang.resolve.java.descriptor.JavaMethodDescriptor
 import com.intellij.openapi.util.TextRange
-import com.intellij.psi.SmartPointerManager
 import com.intellij.psi.PsiDocumentManager
 import org.jetbrains.jet.plugin.caches.resolve.getLazyResolveSession
+import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCall
+import org.jetbrains.jet.renderer.DescriptorRenderer.FQ_NAMES_IN_TYPES
+import org.jetbrains.jet.lang.resolve.bindingContextUtil.getResolvedCall
 
 public object ShortenReferences {
     public fun process(element: JetElement) {
@@ -100,6 +102,8 @@ public object ShortenReferences {
 
     private fun process(elements: Iterable<JetElement>, elementFilter: (PsiElement) -> FilterResult) {
         for ((file, fileElements) in elements.groupBy { element -> element.getContainingJetFile() }) {
+            ImportInsertHelper.optimizeImportsIfNeeded(file)
+
             // first resolve all qualified references - optimization
             val referenceToContext = JetFileReferencesResolver.resolve(file, fileElements, visitShortNames = false)
 
@@ -187,7 +191,7 @@ public object ShortenReferences {
             if (referenceExpression == null) return
             val typeArgumentList = userType.getTypeArgumentList()
             val text = referenceExpression.getText() + (if (typeArgumentList != null) typeArgumentList.getText() else "")
-            val newUserType = JetPsiFactory.createType(userType.getProject(), text).getTypeElement()!!
+            val newUserType = JetPsiFactory(userType).createType(text).getTypeElement()!!
             userType.replace(newUserType)
         }
     }
@@ -313,7 +317,12 @@ public object ShortenReferences {
 
         private fun resolveState(referenceExpression: JetReferenceExpression, bindingContext: BindingContext): Any? {
             val target = bindingContext[BindingContext.REFERENCE_TARGET, referenceExpression]
-            if (target != null) return target.asString()
+            if (target != null) {
+                val resolvedCall = referenceExpression.getResolvedCall(bindingContext)
+                if (resolvedCall != null) return resolvedCall.asString()
+
+                return target.asString()
+            }
 
             val targets = bindingContext[BindingContext.AMBIGUOUS_REFERENCE_TARGET, referenceExpression]
             if (targets != null) return HashSet(targets.map{it.asString()})
@@ -334,8 +343,12 @@ public object ShortenReferences {
 
     private fun DeclarationDescriptor.asString() = DescriptorRenderer.FQ_NAMES_IN_TYPES.render(this)
 
+    private fun ResolvedCall<*>.asString(): String {
+        return "${getReceiverArgument()}, ${getThisObject()} -> ${getResultingDescriptor()?.let {FQ_NAMES_IN_TYPES.render(it)}}"
+    }
+
     //TODO: do we need this "IfNeeded" check?
     private fun addImportIfNeeded(descriptor: DeclarationDescriptor, file: JetFile) {
-        ImportInsertHelper.addImportDirectiveIfNeeded(DescriptorUtils.getFqNameSafe(descriptor), file)
+        ImportInsertHelper.addImportDirectiveIfNeeded(DescriptorUtils.getFqNameSafe(descriptor), file, false)
     }
 }

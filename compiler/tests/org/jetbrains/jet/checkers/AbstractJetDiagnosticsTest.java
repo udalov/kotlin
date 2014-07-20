@@ -26,16 +26,14 @@ import kotlin.KotlinPackage;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.JetTestUtils;
 import org.jetbrains.jet.cli.jvm.compiler.CliLightClassGenerationSupport;
-import org.jetbrains.jet.descriptors.serialization.descriptors.MemberFilter;
 import org.jetbrains.jet.lang.descriptors.DependencyKind;
-import org.jetbrains.jet.lang.descriptors.ModuleDescriptorImpl;
+import org.jetbrains.jet.lang.descriptors.impl.ModuleDescriptorImpl;
 import org.jetbrains.jet.lang.diagnostics.*;
+import org.jetbrains.jet.lang.psi.Call;
 import org.jetbrains.jet.lang.psi.JetElement;
+import org.jetbrains.jet.lang.psi.JetExpression;
 import org.jetbrains.jet.lang.psi.JetFile;
-import org.jetbrains.jet.lang.resolve.AnalyzingUtils;
-import org.jetbrains.jet.lang.resolve.BindingContext;
-import org.jetbrains.jet.lang.resolve.BindingTrace;
-import org.jetbrains.jet.lang.resolve.Diagnostics;
+import org.jetbrains.jet.lang.resolve.*;
 import org.jetbrains.jet.lang.resolve.calls.model.MutableResolvedCall;
 import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCall;
 import org.jetbrains.jet.lang.resolve.java.AnalyzerFacadeForJVM;
@@ -61,10 +59,11 @@ public abstract class AbstractJetDiagnosticsTest extends BaseDiagnosticsTest {
         );
 
         CliLightClassGenerationSupport support = CliLightClassGenerationSupport.getInstanceForCli(getProject());
-        BindingTrace trace = support.getTrace();
+        BindingTrace supportTrace = support.getTrace();
 
         List<JetFile> allJetFiles = new ArrayList<JetFile>();
         Map<TestModule, ModuleDescriptorImpl> modules = createModules(groupedByModule);
+        Map<TestModule, BindingContext> moduleBindings = new HashMap<TestModule, BindingContext>();
 
         for (Map.Entry<TestModule, List<TestFile>> entry : groupedByModule.entrySet()) {
             TestModule testModule = entry.getKey();
@@ -74,31 +73,37 @@ public abstract class AbstractJetDiagnosticsTest extends BaseDiagnosticsTest {
             allJetFiles.addAll(jetFiles);
 
             ModuleDescriptorImpl module = modules.get(testModule);
+            BindingTrace moduleTrace = groupedByModule.size() > 1
+                                           ? new DelegatingBindingTrace(supportTrace.getBindingContext(), "Trace for module " + module)
+                                           : supportTrace;
+            moduleBindings.put(testModule, moduleTrace.getBindingContext());
 
             // New JavaDescriptorResolver is created for each module, which is good because it emulates different Java libraries for each module,
             // albeit with same class names
             AnalyzerFacadeForJVM.analyzeFilesWithJavaIntegration(
                     getProject(),
                     jetFiles,
-                    trace,
+                    moduleTrace,
                     Predicates.<PsiFile>alwaysTrue(),
                     module == null ? support.getModule() : module,
-                    MemberFilter.ALWAYS_TRUE
+                    null,
+                    null
             );
+            checkAllResolvedCallsAreCompleted(jetFiles, moduleTrace.getBindingContext());
         }
 
         boolean ok = true;
 
         StringBuilder actualText = new StringBuilder();
         for (TestFile testFile : testFiles) {
-            ok &= testFile.getActualText(trace.getBindingContext(), actualText);
+            ok &= testFile.getActualText(moduleBindings.get(testFile.getModule()), actualText, groupedByModule.size() > 1);
         }
 
         JetTestUtils.assertEqualsToFile(testDataFile, actualText.toString());
 
         assertTrue("Diagnostics mismatch. See the output above", ok);
 
-        checkAllResolvedCallsAreCompleted(allJetFiles, trace.getBindingContext());
+        checkAllResolvedCallsAreCompleted(allJetFiles, supportTrace.getBindingContext());
     }
 
     private Map<TestModule, ModuleDescriptorImpl> createModules(Map<TestModule, List<TestFile>> groupedByModule) {
@@ -129,9 +134,9 @@ public abstract class AbstractJetDiagnosticsTest extends BaseDiagnosticsTest {
             }
         }
 
-        ImmutableMap<JetElement, ResolvedCall<?>> resolvedCallsEntries = bindingContext.getSliceContents(BindingContext.RESOLVED_CALL);
-        for (Map.Entry<JetElement, ResolvedCall<?>> entry : resolvedCallsEntries.entrySet()) {
-            JetElement element = entry.getKey();
+        ImmutableMap<Call, ResolvedCall<?>> resolvedCallsEntries = bindingContext.getSliceContents(BindingContext.RESOLVED_CALL);
+        for (Map.Entry<Call, ResolvedCall<?>> entry : resolvedCallsEntries.entrySet()) {
+            JetElement element = entry.getKey().getCallElement();
             ResolvedCall<?> resolvedCall = entry.getValue();
 
             DiagnosticUtils.LineAndColumn lineAndColumn =
@@ -146,23 +151,26 @@ public abstract class AbstractJetDiagnosticsTest extends BaseDiagnosticsTest {
 
     @SuppressWarnings({"unchecked", "ConstantConditions"})
     private static void checkResolvedCallsInDiagnostics(BindingContext bindingContext) {
-        Set<DiagnosticFactory> diagnosticsStoringResolvedCalls1 = Sets.<DiagnosticFactory>newHashSet(
+        Set<DiagnosticFactory1<PsiElement, Collection<? extends ResolvedCall<?>>>> diagnosticsStoringResolvedCalls1 = Sets.newHashSet(
                 OVERLOAD_RESOLUTION_AMBIGUITY, NONE_APPLICABLE, CANNOT_COMPLETE_RESOLVE, UNRESOLVED_REFERENCE_WRONG_RECEIVER,
                 ASSIGN_OPERATOR_AMBIGUITY, ITERATOR_AMBIGUITY);
-        Set<DiagnosticFactory> diagnosticsStoringResolvedCalls2 = Sets.<DiagnosticFactory>newHashSet(
+        Set<DiagnosticFactory2<JetExpression, ? extends Comparable<? extends Comparable<?>>, Collection<? extends ResolvedCall<?>>>>
+                diagnosticsStoringResolvedCalls2 = Sets.newHashSet(
                 COMPONENT_FUNCTION_AMBIGUITY, DELEGATE_SPECIAL_FUNCTION_AMBIGUITY, DELEGATE_SPECIAL_FUNCTION_NONE_APPLICABLE);
         Diagnostics diagnostics = bindingContext.getDiagnostics();
         for (Diagnostic diagnostic : diagnostics) {
-            DiagnosticFactory factory = diagnostic.getFactory();
+            DiagnosticFactory<?> factory = diagnostic.getFactory();
+            //noinspection SuspiciousMethodCalls
             if (diagnosticsStoringResolvedCalls1.contains(factory)) {
                 assertResolvedCallsAreCompleted(
-                        diagnostic, ((DiagnosticWithParameters1<PsiElement, Collection<? extends ResolvedCall<?>>>) diagnostic).getA());
+                        diagnostic, DiagnosticFactory.cast(diagnostic, diagnosticsStoringResolvedCalls1).getA());
 
             }
+            //noinspection SuspiciousMethodCalls
             if (diagnosticsStoringResolvedCalls2.contains(factory)) {
                 assertResolvedCallsAreCompleted(
                         diagnostic,
-                        ((DiagnosticWithParameters2<PsiElement, Object, Collection<? extends ResolvedCall<?>>>)diagnostic).getB());
+                        DiagnosticFactory.cast(diagnostic, diagnosticsStoringResolvedCalls2).getB());
             }
         }
     }

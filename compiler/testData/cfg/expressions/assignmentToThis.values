@@ -1,0 +1,8 @@
+== bar ==
+fun Int.bar(c: C) {
+    this = c
+}
+---------------------
+    <v0>: {<: [ERROR : C]}   NEW: magic[FAKE_INITIALIZER](c: C) -> <v0>
+c   <v1>: *                  NEW: r(c) -> <v1>                         
+=====================

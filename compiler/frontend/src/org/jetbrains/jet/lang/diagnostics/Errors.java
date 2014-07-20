@@ -17,9 +17,12 @@
 package org.jetbrains.jet.lang.diagnostics;
 
 import com.google.common.collect.ImmutableSet;
+import com.intellij.openapi.util.TextRange;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiNameIdentifierOwner;
 import com.intellij.psi.impl.source.tree.LeafPsiElement;
+import kotlin.Function1;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.calls.inference.InferenceErrorData;
@@ -106,7 +109,8 @@ public interface Errors {
 
     DiagnosticFactory1<PsiElement, Collection<JetModifierKeywordToken>> INCOMPATIBLE_MODIFIERS = DiagnosticFactory1.create(ERROR);
     DiagnosticFactory1<PsiElement, JetModifierKeywordToken> ILLEGAL_MODIFIER = DiagnosticFactory1.create(ERROR);
-    DiagnosticFactory2<PsiElement, JetModifierKeywordToken, JetModifierKeywordToken> REDUNDANT_MODIFIER = DiagnosticFactory2.create(Severity.WARNING);
+    DiagnosticFactory2<PsiElement, JetModifierKeywordToken, JetModifierKeywordToken> REDUNDANT_MODIFIER = DiagnosticFactory2.create(WARNING);
+    DiagnosticFactory0<PsiElement> INAPPLICABLE_ANNOTATION = DiagnosticFactory0.create(ERROR);
 
     // Annotations
 
@@ -203,6 +207,8 @@ public interface Errors {
 
     DiagnosticFactory2<JetDeclaration, CallableMemberDescriptor, String> CONFLICTING_OVERLOADS = DiagnosticFactory2.create(ERROR, DECLARATION);
 
+    DiagnosticFactory1<JetAnnotationEntry, String> ILLEGAL_PLATFORM_NAME = DiagnosticFactory1.create(ERROR);
+
     DiagnosticFactory0<JetNamedDeclaration> NON_FINAL_MEMBER_IN_FINAL_CLASS = DiagnosticFactory0.create(WARNING, modifierSetPosition(
             JetTokens.OPEN_KEYWORD));
 
@@ -263,6 +269,7 @@ public interface Errors {
     DiagnosticFactory0<JetProperty> MUST_BE_INITIALIZED = DiagnosticFactory0.create(ERROR, NAMED_ELEMENT);
     DiagnosticFactory0<JetProperty> MUST_BE_INITIALIZED_OR_BE_ABSTRACT = DiagnosticFactory0.create(ERROR, NAMED_ELEMENT);
 
+    DiagnosticFactory0<JetExpression> EXTENSION_PROPERTY_WITH_BACKING_FIELD = DiagnosticFactory0.create(ERROR);
     DiagnosticFactory0<JetExpression> PROPERTY_INITIALIZER_NO_BACKING_FIELD = DiagnosticFactory0.create(ERROR);
     DiagnosticFactory0<JetExpression> PROPERTY_INITIALIZER_IN_TRAIT = DiagnosticFactory0.create(ERROR);
     DiagnosticFactory0<JetProperty> FINAL_PROPERTY_IN_TRAIT = DiagnosticFactory0.create(ERROR, FINAL_MODIFIER);
@@ -441,7 +448,13 @@ public interface Errors {
 
     // Control flow / Data flow
 
-    DiagnosticFactory0<JetElement> UNREACHABLE_CODE = DiagnosticFactory0.create(WARNING);
+    DiagnosticFactory1<JetElement, List<TextRange>> UNREACHABLE_CODE = DiagnosticFactory1.create(
+            WARNING, PositioningStrategies.markTextRangesFromDiagnostic(new Function1<Diagnostic, List<TextRange>>() {
+                @Override
+                public List<TextRange> invoke(Diagnostic diagnostic) {
+                    return UNREACHABLE_CODE.cast(diagnostic).getA();
+                }
+            }));
 
     DiagnosticFactory0<JetVariableDeclaration> VARIABLE_WITH_NO_TYPE_NO_INITIALIZER = DiagnosticFactory0.create(ERROR, NAME_IDENTIFIER);
 
@@ -581,6 +594,7 @@ public interface Errors {
 
     //Inline and inlinable parameters
     DiagnosticFactory2<JetElement, DeclarationDescriptor, DeclarationDescriptor> INVISIBLE_MEMBER_FROM_INLINE = DiagnosticFactory2.create(ERROR, CALL_ELEMENT);
+    DiagnosticFactory3<JetElement, JetElement, DeclarationDescriptor, DeclarationDescriptor> NON_LOCAL_RETURN_NOT_ALLOWED = DiagnosticFactory3.create(ERROR, CALL_ELEMENT);
     DiagnosticFactory2<JetElement, JetNamedDeclaration, DeclarationDescriptor> NOT_YET_SUPPORTED_IN_INLINE = DiagnosticFactory2.create(ERROR);
     DiagnosticFactory1<JetFunction, DeclarationDescriptor> NOTHING_TO_INLINE = DiagnosticFactory1.create(WARNING, NAMED_ELEMENT);
     DiagnosticFactory2<JetElement, JetExpression, DeclarationDescriptor> USAGE_IS_NOT_INLINABLE = DiagnosticFactory2.create(ERROR);
@@ -589,11 +603,11 @@ public interface Errors {
     DiagnosticFactory0<JetElement> DECLARATION_CANT_BE_INLINED = DiagnosticFactory0.create(ERROR);
 
     // Error sets
-    ImmutableSet<? extends DiagnosticFactory> UNRESOLVED_REFERENCE_DIAGNOSTICS = ImmutableSet.of(
+    ImmutableSet<? extends DiagnosticFactory<?>> UNRESOLVED_REFERENCE_DIAGNOSTICS = ImmutableSet.of(
             UNRESOLVED_REFERENCE, NAMED_PARAMETER_NOT_FOUND, UNRESOLVED_REFERENCE_WRONG_RECEIVER);
-    ImmutableSet<? extends DiagnosticFactory> UNUSED_ELEMENT_DIAGNOSTICS = ImmutableSet.of(
+    ImmutableSet<? extends DiagnosticFactory<?>> UNUSED_ELEMENT_DIAGNOSTICS = ImmutableSet.of(
             UNUSED_VARIABLE, UNUSED_PARAMETER, ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE);
-    ImmutableSet<? extends DiagnosticFactory> TYPE_INFERENCE_ERRORS = ImmutableSet.of(
+    ImmutableSet<? extends DiagnosticFactory<?>> TYPE_INFERENCE_ERRORS = ImmutableSet.of(
             TYPE_INFERENCE_NO_INFORMATION_FOR_PARAMETER, TYPE_INFERENCE_CONFLICTING_SUBSTITUTIONS, TYPE_INFERENCE_TYPE_CONSTRUCTOR_MISMATCH,
             TYPE_INFERENCE_UPPER_BOUND_VIOLATED, TYPE_INFERENCE_EXPECTED_TYPE_MISMATCH);
 
@@ -607,12 +621,16 @@ public interface Errors {
 
     class Initializer {
         static {
-            for (Field field : Errors.class.getFields()) {
+            initializeFactoryNames(Errors.class);
+        }
+
+        public static void initializeFactoryNames(@NotNull Class<?> aClass) {
+            for (Field field : aClass.getFields()) {
                 if (Modifier.isStatic(field.getModifiers())) {
                     try {
                         Object value = field.get(null);
                         if (value instanceof DiagnosticFactory) {
-                            DiagnosticFactory factory = (DiagnosticFactory)value;
+                            DiagnosticFactory<?> factory = (DiagnosticFactory<?>)value;
                             factory.setName(field.getName());
                         }
                     }

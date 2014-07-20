@@ -16,25 +16,25 @@
 
 package org.jetbrains.jet.codegen;
 
+import com.google.common.collect.Sets;
 import com.intellij.util.containers.MultiMap;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.org.objectweb.asm.Type;
 import org.jetbrains.jet.codegen.state.GenerationState;
 import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.psi.JetScript;
 import org.jetbrains.jet.lang.resolve.ScriptNameUtil;
 import org.jetbrains.jet.lang.resolve.name.FqName;
+import org.jetbrains.org.objectweb.asm.Type;
 
 import java.util.Collection;
-import java.util.Map;
+import java.util.HashSet;
+import java.util.Set;
 
 import static org.jetbrains.jet.codegen.binding.CodegenBinding.registerClassNameForScript;
 
 public class KotlinCodegenFacade {
-    public static void compileCorrectFiles(
-            @NotNull GenerationState state,
-            @NotNull CompilationErrorHandler errorHandler
-    ) {
+
+    public static void prepareForCompilation(@NotNull GenerationState state) {
         for (JetFile file : state.getFiles()) {
             if (file.isScript()) {
                 // SCRIPT: register class name for scripting from this file, move outside of this function
@@ -48,6 +48,13 @@ public class KotlinCodegenFacade {
         }
 
         state.beforeCompile();
+    }
+
+    public static void compileCorrectFiles(
+            @NotNull GenerationState state,
+            @NotNull CompilationErrorHandler errorHandler
+    ) {
+        prepareForCompilation(state);
 
         MultiMap<FqName, JetFile> packageFqNameToFiles = new MultiMap<FqName, JetFile>();
         for (JetFile file : state.getFiles()) {
@@ -55,8 +62,9 @@ public class KotlinCodegenFacade {
             packageFqNameToFiles.putValue(file.getPackageFqName(), file);
         }
 
-        for (Map.Entry<FqName, Collection<JetFile>> entry : packageFqNameToFiles.entrySet()) {
-            generatePackage(state, entry.getKey(), entry.getValue(), errorHandler);
+        Set<FqName> removedPackageFiles = new HashSet<FqName>(state.getPackagesWithRemovedFiles());
+        for (FqName fqName : Sets.union(removedPackageFiles, packageFqNameToFiles.keySet())) {
+            generatePackage(state, fqName, packageFqNameToFiles.get(fqName), errorHandler);
         }
 
         state.getFactory().done();

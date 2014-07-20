@@ -21,18 +21,20 @@ import com.intellij.psi.PsiElement;
 import com.intellij.psi.util.PsiTreeUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.jet.codegen.AsmUtil;
 import org.jetbrains.jet.codegen.ClassBuilderFactories;
-import org.jetbrains.jet.codegen.PackageCodegen;
 import org.jetbrains.jet.codegen.state.GenerationState;
 import org.jetbrains.jet.lang.descriptors.ClassDescriptor;
 import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor;
 import org.jetbrains.jet.lang.descriptors.ModuleDescriptor;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.BindingContext;
-import org.jetbrains.jet.lang.resolve.BindingContextUtils;
 import org.jetbrains.jet.lang.resolve.BindingTrace;
+import org.jetbrains.jet.lang.resolve.DescriptorToSourceUtils;
 import org.jetbrains.jet.lang.resolve.java.JvmAbi;
 import org.jetbrains.jet.lang.resolve.java.JvmClassName;
+import org.jetbrains.jet.lang.resolve.java.PackageClassUtils;
+import org.jetbrains.jet.lang.resolve.kotlin.PackagePartClassUtils;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.org.objectweb.asm.Type;
@@ -40,17 +42,14 @@ import org.jetbrains.org.objectweb.asm.Type;
 import java.util.ArrayList;
 import java.util.Collection;
 
-import static org.jetbrains.jet.lang.resolve.BindingContextUtils.descriptorToDeclaration;
-import static org.jetbrains.jet.lang.resolve.java.PackageClassUtils.getPackageClassFqName;
+import static org.jetbrains.jet.lang.resolve.DescriptorToSourceUtils.descriptorToDeclaration;
 
 public final class PsiCodegenPredictor {
     private PsiCodegenPredictor() {
     }
 
-    public static boolean checkPredictedNameFromPsi(
-            @NotNull BindingContext bindingContext, @NotNull DeclarationDescriptor descriptor, @Nullable Type nameFromDescriptors
-    ) {
-        PsiElement element = descriptorToDeclaration(bindingContext, descriptor);
+    public static boolean checkPredictedNameFromPsi(@NotNull DeclarationDescriptor descriptor, @Nullable Type nameFromDescriptors) {
+        PsiElement element = descriptorToDeclaration(descriptor);
         if (element instanceof JetDeclaration) {
             String classNameFromPsi = getPredefinedJvmInternalName((JetDeclaration) element);
             assert classNameFromPsi == null || Type.getObjectType(classNameFromPsi).equals(nameFromDescriptors) :
@@ -86,12 +85,11 @@ public final class PsiCodegenPredictor {
             FqName packageFqName = declaration.getContainingJetFile().getPackageFqName();
 
             if (declaration instanceof JetNamedFunction) {
-                JvmClassName packageClass = JvmClassName.byFqNameWithoutInnerClasses(getPackageClassFqName(packageFqName));
                 Name name = ((JetNamedFunction) declaration).getNameAsName();
-                return name == null ? null : packageClass.getInternalName() + "$" + name.asString();
+                return name == null ? null : PackageClassUtils.getPackageClassInternalName(packageFqName) + "$" + name.asString();
             }
 
-            parentInternalName = JvmClassName.byFqNameWithoutInnerClasses(packageFqName).getInternalName();
+            parentInternalName = AsmUtil.internalNameByFqNameWithoutInnerClasses(packageFqName);
         }
 
         if (declaration instanceof JetClassObject) {
@@ -134,7 +132,7 @@ public final class PsiCodegenPredictor {
     @Nullable
     public static JetFile getFileForPackagePartName(@NotNull Collection<JetFile> allPackageFiles, @NotNull JvmClassName className) {
         for (JetFile file : allPackageFiles) {
-            String internalName = PackageCodegen.getPackagePartInternalName(file);
+            String internalName = PackagePartClassUtils.getPackagePartInternalName(file);
             JvmClassName jvmClassName = JvmClassName.byInternalName(internalName);
             if (jvmClassName.equals(className)) {
                 return file;
@@ -159,7 +157,7 @@ public final class PsiCodegenPredictor {
         for (ClassDescriptor classDescriptor : trace.getKeys(CodegenBinding.ASM_TYPE)) {
             Type type = trace.get(CodegenBinding.ASM_TYPE, classDescriptor);
             if (type != null && classInternalName.equals(type.getInternalName())) {
-                return BindingContextUtils.getContainingFile(trace.getBindingContext(), classDescriptor);
+                return DescriptorToSourceUtils.getContainingFile(classDescriptor);
             }
         }
 

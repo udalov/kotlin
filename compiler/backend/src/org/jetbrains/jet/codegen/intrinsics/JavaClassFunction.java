@@ -19,20 +19,19 @@ package org.jetbrains.jet.codegen.intrinsics;
 import com.intellij.psi.PsiElement;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.org.objectweb.asm.Type;
-import org.jetbrains.org.objectweb.asm.commons.InstructionAdapter;
 import org.jetbrains.jet.codegen.ExpressionCodegen;
 import org.jetbrains.jet.codegen.StackValue;
-import org.jetbrains.jet.lang.psi.JetCallExpression;
+import org.jetbrains.jet.lang.psi.JetElement;
 import org.jetbrains.jet.lang.psi.JetExpression;
-import org.jetbrains.jet.lang.resolve.BindingContext;
+import org.jetbrains.jet.lang.resolve.bindingContextUtil.BindingContextUtilPackage;
 import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCall;
 import org.jetbrains.jet.lang.types.JetType;
+import org.jetbrains.org.objectweb.asm.Type;
+import org.jetbrains.org.objectweb.asm.commons.InstructionAdapter;
 
 import java.util.List;
 
-import static org.jetbrains.jet.codegen.AsmUtil.boxType;
-import static org.jetbrains.jet.codegen.AsmUtil.isPrimitive;
+import static org.jetbrains.jet.codegen.AsmUtil.putJavaLangClassInstance;
 import static org.jetbrains.jet.lang.resolve.java.AsmTypeConstants.getType;
 
 public class JavaClassFunction extends IntrinsicMethod {
@@ -46,18 +45,11 @@ public class JavaClassFunction extends IntrinsicMethod {
             @Nullable List<JetExpression> arguments,
             StackValue receiver
     ) {
-        JetCallExpression call = (JetCallExpression) element;
-        ResolvedCall<?> resolvedCall = codegen.getBindingContext().get(BindingContext.RESOLVED_CALL, call.getCalleeExpression());
-        assert resolvedCall != null;
+        ResolvedCall<?> resolvedCall = BindingContextUtilPackage.getResolvedCallWithAssert(
+                (JetElement) element, codegen.getBindingContext());
         JetType returnType = resolvedCall.getResultingDescriptor().getReturnType();
         assert returnType != null;
-        Type type = codegen.getState().getTypeMapper().mapType(returnType.getArguments().get(0).getType());
-        if (isPrimitive(type)) {
-            v.getstatic(boxType(type).getInternalName(), "TYPE", "Ljava/lang/Class;");
-        }
-        else {
-            v.aconst(type);
-        }
+        putJavaLangClassInstance(v, codegen.getState().getTypeMapper().mapType(returnType.getArguments().get(0).getType()));
 
         return getType(Class.class);
     }

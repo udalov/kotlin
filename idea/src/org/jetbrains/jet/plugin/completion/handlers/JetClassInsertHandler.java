@@ -20,6 +20,7 @@ import com.intellij.codeInsight.completion.InsertHandler;
 import com.intellij.codeInsight.completion.InsertionContext;
 import com.intellij.codeInsight.lookup.LookupElement;
 import com.intellij.openapi.editor.Document;
+import com.intellij.openapi.editor.RangeMarker;
 import com.intellij.psi.PsiDocumentManager;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor;
@@ -42,11 +43,23 @@ public class JetClassInsertHandler implements InsertHandler<LookupElement> {
                     int startOffset = context.getStartOffset();
                     Document document = context.getDocument();
                     if (!isAfterDot(document, startOffset)) {
-                        String text = DescriptorUtils.getFqName(descriptor).asString();
-                        document.replaceString(startOffset, context.getTailOffset(), text);
+                        String fqName = DescriptorUtils.getFqName(descriptor).asString();
+                        // insert dot after because otherwise parser can sometimes produce no suitable reference here
+                        String tempSuffix = ".xxx"; // we add "xxx" after dot because of some bugs in resolve (see KT-5145)
+                        document.replaceString(startOffset, context.getTailOffset(), fqName + tempSuffix);
+                        int classNameEnd = startOffset + fqName.length();
 
-                        PsiDocumentManager.getInstance(context.getProject()).commitAllDocuments();
-                        ShortenReferences.instance$.process((JetFile) context.getFile(), startOffset, startOffset + text.length());
+                        PsiDocumentManager psiDocumentManager = PsiDocumentManager.getInstance(context.getProject());
+                        psiDocumentManager.commitAllDocuments();
+                        RangeMarker rangeMarker = document.createRangeMarker(classNameEnd, classNameEnd + tempSuffix.length());
+
+                        ShortenReferences.instance$.process((JetFile) context.getFile(), startOffset, classNameEnd);
+                        psiDocumentManager.commitAllDocuments();
+                        psiDocumentManager.doPostponedOperationsAndUnblockDocument(document);
+
+                        if (rangeMarker.isValid()) {
+                            document.deleteString(rangeMarker.getStartOffset(), rangeMarker.getEndOffset());
+                        }
                     }
                 }
             }

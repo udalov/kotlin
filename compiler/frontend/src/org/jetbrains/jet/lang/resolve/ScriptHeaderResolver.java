@@ -20,8 +20,8 @@ import com.intellij.openapi.util.Key;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.lang.descriptors.PackageFragmentDescriptor;
 import org.jetbrains.jet.lang.descriptors.ScriptDescriptor;
-import org.jetbrains.jet.lang.descriptors.ScriptDescriptorImpl;
 import org.jetbrains.jet.lang.descriptors.ValueParameterDescriptor;
+import org.jetbrains.jet.lang.descriptors.impl.ScriptDescriptorImpl;
 import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.psi.JetScript;
 import org.jetbrains.jet.lang.resolve.name.FqName;
@@ -34,6 +34,8 @@ import javax.inject.Inject;
 import java.util.List;
 import java.util.Map;
 
+import static org.jetbrains.jet.lang.resolve.source.SourcePackage.toSourceElement;
+
 // SCRIPT: Resolve declarations in scripts
 public class ScriptHeaderResolver {
 
@@ -42,18 +44,11 @@ public class ScriptHeaderResolver {
     @NotNull
     private MutablePackageFragmentProvider packageFragmentProvider;
     @NotNull
-    private ScriptParameterResolver scriptParameterResolver;
-    @NotNull
     private BindingTrace trace;
 
     @Inject
     public void setPackageFragmentProvider(@NotNull MutablePackageFragmentProvider packageFragmentProvider) {
         this.packageFragmentProvider = packageFragmentProvider;
-    }
-
-    @Inject
-    public void setScriptParameterResolver(@NotNull ScriptParameterResolver scriptParameterResolver) {
-        this.scriptParameterResolver = scriptParameterResolver;
     }
 
     @Inject
@@ -72,7 +67,7 @@ public class ScriptHeaderResolver {
 
         FqName nameForScript = ScriptNameUtil.classNameForScript(script);
         Name className = nameForScript.shortName();
-        ScriptDescriptorImpl scriptDescriptor = new ScriptDescriptorImpl(ns, priority, outerScope, className);
+        ScriptDescriptorImpl scriptDescriptor = new ScriptDescriptorImpl(ns, priority, outerScope, className, toSourceElement(script));
 
         WritableScopeImpl scriptScope = new WritableScopeImpl(outerScope, scriptDescriptor, RedeclarationHandler.DO_NOTHING, "script");
         scriptScope.changeLockLevel(WritableScope.LockLevel.BOTH);
@@ -90,12 +85,12 @@ public class ScriptHeaderResolver {
         return priority == null ? 0 : priority;
     }
 
-    public void resolveScriptDeclarations(@NotNull TopDownAnalysisContext c) {
+    public static void resolveScriptDeclarations(@NotNull TopDownAnalysisContext c) {
         for (Map.Entry<JetScript, ScriptDescriptor> e : c.getScripts().entrySet()) {
             JetScript declaration = e.getKey();
             ScriptDescriptorImpl descriptor = (ScriptDescriptorImpl) e.getValue();
 
-            List<ValueParameterDescriptor> valueParameters = scriptParameterResolver.resolveScriptParameters(
+            List<ValueParameterDescriptor> valueParameters = ScriptParameterResolver.resolveScriptParameters(
                     declaration,
                     descriptor
             );

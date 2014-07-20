@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2013 JetBrains s.r.o.
+ * Copyright 2010-2014 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,33 +20,22 @@ import com.intellij.codeInsight.completion.CompletionType
 import org.jetbrains.jet.InTextDirectivesUtils
 import java.io.File
 import org.jetbrains.jet.plugin.PluginTestCaseBase
-import com.intellij.testFramework.fixtures.LightCodeInsightFixtureTestCase
 import org.testng.Assert
 import com.intellij.openapi.util.io.FileUtil
+import org.jetbrains.jet.test.util.configureWithExtraFile
+import org.jetbrains.jet.plugin.JetLightCodeInsightFixtureTestCase
 
-public abstract class AbstractCompletionWeigherTest() : LightCodeInsightFixtureTestCase() {
+public abstract class AbstractCompletionWeigherTest() : JetLightCodeInsightFixtureTestCase() {
     fun doTest(path: String) {
-        val fixture = myFixture!!
+        myFixture.configureWithExtraFile(path)
 
-        val testFile = File(path)
-
-        val dataFileName = FileUtil.getNameWithoutExtension(testFile) + ".Data.kt"
-        val dataFile = File(testFile.getParent(), dataFileName)
-
-        if (dataFile.exists()) {
-            fixture.configureByFiles(path, FileUtil.toSystemIndependentName(dataFile.getPath()))
-        }
-        else {
-            fixture.configureByFile(path)
-        }
-
-        val text = fixture.getEditor()!!.getDocument().getText()
+        val text = myFixture.getEditor().getDocument().getText()
 
         val items = InTextDirectivesUtils.findArrayWithPrefixes(text, "// ORDER:")
         Assert.assertTrue(!items.isEmpty(), """Some items should be defined with "// ORDER:" directive""")
 
-        fixture.complete(CompletionType.BASIC, InTextDirectivesUtils.getPrefixedInt(text, "// INVOCATION_COUNT:") ?: 1)
-        fixture.assertPreferredCompletionItems(InTextDirectivesUtils.getPrefixedInt(text, "// SELECTED:") ?: 0, *items)
+        myFixture.complete(CompletionType.BASIC, InTextDirectivesUtils.getPrefixedInt(text, "// INVOCATION_COUNT:") ?: 1)
+        myFixture.assertPreferredCompletionItems(InTextDirectivesUtils.getPrefixedInt(text, "// SELECTED:") ?: 0, *items)
     }
 
     protected override fun getTestDataPath() : String? {

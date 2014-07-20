@@ -19,6 +19,7 @@ package org.jetbrains.jet.codegen;
 import com.intellij.psi.PsiElement;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.jet.lang.resolve.java.diagnostics.JvmDeclarationOrigin;
 import org.jetbrains.org.objectweb.asm.AnnotationVisitor;
 import org.jetbrains.org.objectweb.asm.ClassVisitor;
 import org.jetbrains.org.objectweb.asm.FieldVisitor;
@@ -27,7 +28,7 @@ import org.jetbrains.org.objectweb.asm.MethodVisitor;
 public interface ClassBuilder {
     @NotNull
     FieldVisitor newField(
-            @Nullable PsiElement origin,
+            @NotNull JvmDeclarationOrigin origin,
             int access,
             @NotNull String name,
             @NotNull String desc,
@@ -37,7 +38,7 @@ public interface ClassBuilder {
 
     @NotNull
     MethodVisitor newMethod(
-            @Nullable PsiElement origin,
+            @NotNull JvmDeclarationOrigin origin,
             int access,
             @NotNull String name,
             @NotNull String desc,

@@ -20,17 +20,17 @@ import kotlin.Function0;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.descriptors.serialization.*;
+import org.jetbrains.jet.descriptors.serialization.context.DeserializationContext;
+import org.jetbrains.jet.descriptors.serialization.descriptors.AnnotationLoader;
+import org.jetbrains.jet.descriptors.serialization.descriptors.ConstantLoader;
 import org.jetbrains.jet.descriptors.serialization.descriptors.DeserializedPackageMemberScope;
-import org.jetbrains.jet.descriptors.serialization.descriptors.Deserializers;
-import org.jetbrains.jet.descriptors.serialization.descriptors.MemberFilter;
 import org.jetbrains.jet.lang.descriptors.ModuleDescriptor;
 import org.jetbrains.jet.lang.descriptors.PackageFragmentDescriptor;
-import org.jetbrains.jet.lang.descriptors.PackageFragmentDescriptorImpl;
 import org.jetbrains.jet.lang.descriptors.PackageFragmentProvider;
+import org.jetbrains.jet.lang.descriptors.impl.PackageFragmentDescriptorImpl;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
-import org.jetbrains.jet.storage.NotNullLazyValue;
 import org.jetbrains.jet.storage.StorageManager;
 
 import java.io.DataInputStream;
@@ -52,9 +52,40 @@ class BuiltinsPackageFragment extends PackageFragmentDescriptorImpl {
 
         packageFragmentProvider = new BuiltinsPackageFragmentProvider();
 
-        // TODO: support annotations
-        members = new DeserializedPackageMemberScope(storageManager, this, Deserializers.UNSUPPORTED, MemberFilter.ALWAYS_TRUE,
-                                                     new BuiltInsDescriptorFinder(storageManager), loadPackage(), nameResolver);
+        Function0<Collection<Name>> classNames = new Function0<Collection<Name>>() {
+            @Override
+            @NotNull
+            public Collection<Name> invoke() {
+                InputStream in = getStream(BuiltInsSerializationUtil.getClassNamesFilePath(getFqName()));
+
+                try {
+                    DataInputStream data = new DataInputStream(in);
+                    try {
+                        int size = data.readInt();
+                        List<Name> result = new ArrayList<Name>(size);
+                        for (int i = 0; i < size; i++) {
+                            result.add(nameResolver.getName(data.readInt()));
+                        }
+                        return result;
+                    }
+                    finally {
+                        data.close();
+                    }
+                }
+                catch (IOException e) {
+                    throw new IllegalStateException(e);
+                }
+            }
+        };
+
+        BuiltInsClassDataFinder builtInsClassDataFinder = new BuiltInsClassDataFinder();
+        DeserializationContext deserializationContext = new DeserializationContext(
+                storageManager, module, builtInsClassDataFinder,
+                // TODO: support annotations
+                AnnotationLoader.UNSUPPORTED, ConstantLoader.UNSUPPORTED, packageFragmentProvider,
+                new ClassDeserializer(storageManager, builtInsClassDataFinder), nameResolver
+        );
+        members = new DeserializedPackageMemberScope(this, loadPackage(), deserializationContext, classNames);
     }
 
     @NotNull
@@ -114,43 +145,10 @@ class BuiltinsPackageFragment extends PackageFragmentDescriptorImpl {
         }
     }
 
-    private class BuiltInsDescriptorFinder extends AbstractDescriptorFinder {
-        private final NotNullLazyValue<Collection<Name>> classNames;
-
-        public BuiltInsDescriptorFinder(@NotNull StorageManager storageManager) {
-            // TODO: support annotations
-            super(storageManager, Deserializers.UNSUPPORTED, packageFragmentProvider);
-
-            classNames = storageManager.createLazyValue(new Function0<Collection<Name>>() {
-                @Override
-                @NotNull
-                public Collection<Name> invoke() {
-                    InputStream in = getStream(BuiltInsSerializationUtil.getClassNamesFilePath(getFqName()));
-
-                    try {
-                        DataInputStream data = new DataInputStream(in);
-                        try {
-                            int size = data.readInt();
-                            List<Name> result = new ArrayList<Name>(size);
-                            for (int i = 0; i < size; i++) {
-                                result.add(nameResolver.getName(data.readInt()));
-                            }
-                            return result;
-                        }
-                        finally {
-                            data.close();
-                        }
-                    }
-                    catch (IOException e) {
-                        throw new IllegalStateException(e);
-                    }
-                }
-            });
-        }
-
+    private class BuiltInsClassDataFinder implements ClassDataFinder {
         @Nullable
         @Override
-        protected ClassData getClassData(@NotNull ClassId classId) {
+        public ClassData findClassData(@NotNull ClassId classId) {
             InputStream stream = getStreamNullable(BuiltInsSerializationUtil.getClassMetadataPath(classId));
             if (stream == null) {
                 return null;
@@ -172,12 +170,6 @@ class BuiltinsPackageFragment extends PackageFragmentDescriptorImpl {
             catch (IOException e) {
                 throw new IllegalStateException(e);
             }
-        }
-
-        @NotNull
-        @Override
-        public Collection<Name> getClassNames(@NotNull FqName packageName) {
-            return packageName.equals(KotlinBuiltIns.BUILT_INS_PACKAGE_FQ_NAME) ? classNames.invoke() : Collections.<Name>emptyList();
         }
     }
 }

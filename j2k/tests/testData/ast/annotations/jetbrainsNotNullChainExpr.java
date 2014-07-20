@@ -1,4 +1,6 @@
 //file
+// !forceNotNullTypes: false
+// !specifyLocalVariableTypeByDefault: true
 package test;
 
 import org.jetbrains.annotations.NotNull;
@@ -9,7 +11,7 @@ class Foo {
 
 class Bar {
   @NotNull
-  Foo fooNotNull = Foo();
+  Foo fooNotNull = new Foo();
   Foo fooNullable = null;
 }
 

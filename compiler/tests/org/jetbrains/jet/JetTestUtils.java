@@ -51,14 +51,13 @@ import org.jetbrains.jet.config.CommonConfigurationKeys;
 import org.jetbrains.jet.config.CompilerConfiguration;
 import org.jetbrains.jet.lang.PlatformToKotlinClassMap;
 import org.jetbrains.jet.lang.descriptors.DependencyKind;
-import org.jetbrains.jet.lang.descriptors.ModuleDescriptorImpl;
+import org.jetbrains.jet.lang.descriptors.impl.ModuleDescriptorImpl;
 import org.jetbrains.jet.lang.descriptors.impl.MutablePackageFragmentDescriptor;
 import org.jetbrains.jet.lang.diagnostics.Diagnostic;
 import org.jetbrains.jet.lang.diagnostics.Errors;
 import org.jetbrains.jet.lang.diagnostics.Severity;
 import org.jetbrains.jet.lang.diagnostics.rendering.DefaultErrorMessages;
 import org.jetbrains.jet.lang.psi.JetFile;
-import org.jetbrains.jet.lang.psi.JetPsiFactory;
 import org.jetbrains.jet.lang.resolve.*;
 import org.jetbrains.jet.lang.resolve.java.AnalyzerFacadeForJVM;
 import org.jetbrains.jet.lang.resolve.lazy.JvmResolveUtil;
@@ -92,6 +91,7 @@ import static org.jetbrains.jet.ConfigurationKind.JDK_AND_ANNOTATIONS;
 import static org.jetbrains.jet.cli.jvm.JVMConfigurationKeys.ANNOTATIONS_PATH_KEY;
 import static org.jetbrains.jet.cli.jvm.JVMConfigurationKeys.CLASSPATH_KEY;
 import static org.jetbrains.jet.jvm.compiler.LoadDescriptorUtil.compileKotlinToDirAndGetAnalyzeExhaust;
+import static org.jetbrains.jet.lang.psi.PsiPackage.JetPsiFactory;
 
 public class JetTestUtils {
     private static final Pattern KT_FILES = Pattern.compile(".*?.kt");
@@ -425,7 +425,7 @@ public class JetTestUtils {
 
     public static void resolveAllKotlinFiles(JetCoreEnvironment environment) throws IOException {
         List<String> paths = environment.getConfiguration().get(CommonConfigurationKeys.SOURCE_ROOTS_KEY);
-        assert paths != null;
+        if (paths == null) return;
         List<JetFile> jetFiles = Lists.newArrayList();
         for (String path : paths) {
             jetFiles.add(loadJetFile(environment.getProject(), new File(path)));
@@ -442,16 +442,15 @@ public class JetTestUtils {
 
     public static void assertEqualsToFile(@NotNull File expectedFile, @NotNull String actual) {
         try {
+            String actualText = UtilPackage.removeTrailingWhitespacesFromEachLine(StringUtil.convertLineSeparators(actual.trim()));
+
             if (!expectedFile.exists()) {
-                FileUtil.writeToFile(expectedFile, actual);
+                FileUtil.writeToFile(expectedFile, actualText);
                 Assert.fail("Expected data file did not exist. Generating: " + expectedFile);
             }
             String expected = FileUtil.loadFile(expectedFile, CharsetToolkit.UTF8, true);
 
-            String expectedText = UtilPackage.removeTrailingWhitespacesFromEachLine(
-                    StringUtil.convertLineSeparators(expected.trim()));
-            String actualText = UtilPackage.removeTrailingWhitespacesFromEachLine(
-                    StringUtil.convertLineSeparators(actual.trim()));
+            String expectedText = UtilPackage.removeTrailingWhitespacesFromEachLine(StringUtil.convertLineSeparators(expected.trim()));
 
             if (!Comparing.equal(expectedText, actualText)) {
                 throw new FileComparisonFailure("Actual data differs from file content: " + expectedFile.getName(),
@@ -813,7 +812,7 @@ public class JetTestUtils {
 
     public static JetFile loadJetFile(@NotNull Project project, @NotNull File ioFile) throws IOException {
         String text = FileUtil.loadFile(ioFile, true);
-        return JetPsiFactory.createPhysicalFile(project, ioFile.getName(), text);
+        return JetPsiFactory(project).createPhysicalFile(ioFile.getName(), text);
     }
 
     @NotNull

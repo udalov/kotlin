@@ -25,6 +25,7 @@ import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.descriptors.annotations.Annotations;
 import org.jetbrains.jet.lang.descriptors.impl.AnonymousFunctionDescriptor;
+import org.jetbrains.jet.lang.descriptors.impl.LocalVariableDescriptor;
 import org.jetbrains.jet.lang.diagnostics.Diagnostic;
 import org.jetbrains.jet.lang.diagnostics.Errors;
 import org.jetbrains.jet.lang.evaluate.ConstantExpressionEvaluator;
@@ -39,10 +40,7 @@ import org.jetbrains.jet.lang.resolve.calls.autocasts.Nullability;
 import org.jetbrains.jet.lang.resolve.calls.context.BasicCallResolutionContext;
 import org.jetbrains.jet.lang.resolve.calls.context.CheckValueArgumentsMode;
 import org.jetbrains.jet.lang.resolve.calls.context.TemporaryTraceAndCache;
-import org.jetbrains.jet.lang.resolve.calls.model.DataFlowInfoForArgumentsImpl;
-import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCall;
-import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCallImpl;
-import org.jetbrains.jet.lang.resolve.calls.model.VariableAsFunctionResolvedCall;
+import org.jetbrains.jet.lang.resolve.calls.model.*;
 import org.jetbrains.jet.lang.resolve.calls.results.OverloadResolutionResults;
 import org.jetbrains.jet.lang.resolve.calls.results.OverloadResolutionResultsImpl;
 import org.jetbrains.jet.lang.resolve.calls.results.OverloadResolutionResultsUtil;
@@ -76,6 +74,7 @@ import static org.jetbrains.jet.lang.resolve.BindingContext.*;
 import static org.jetbrains.jet.lang.resolve.DescriptorUtils.getStaticNestedClassesScope;
 import static org.jetbrains.jet.lang.resolve.calls.context.ContextDependency.INDEPENDENT;
 import static org.jetbrains.jet.lang.resolve.scopes.receivers.ReceiverValue.NO_RECEIVER;
+import static org.jetbrains.jet.lang.resolve.source.SourcePackage.toSourceElement;
 import static org.jetbrains.jet.lang.types.TypeUtils.NO_EXPECTED_TYPE;
 import static org.jetbrains.jet.lang.types.TypeUtils.noExpectedType;
 import static org.jetbrains.jet.lang.types.expressions.ControlStructureTypingUtils.createCallForSpecialConstruction;
@@ -212,7 +211,7 @@ public class BasicExpressionTypingVisitor extends ExpressionTypingVisitor {
             context.trace.report(CAST_NEVER_SUCCEEDS.on(expression.getOperationReference()));
         }
         else {
-            JetTypeChecker typeChecker = JetTypeChecker.INSTANCE;
+            JetTypeChecker typeChecker = JetTypeChecker.DEFAULT;
             // Upcast?
             if (typeChecker.isSubtypeOf(actualType, targetType)) {
                 if (!typeChecker.isSubtypeOf(targetType, actualType)) {
@@ -378,8 +377,10 @@ public class BasicExpressionTypingVisitor extends ExpressionTypingVisitor {
         if (labelName != null) {
             LabelResolver.LabeledReceiverResolutionResult resolutionResult =
                     LabelResolver.INSTANCE.resolveThisOrSuperLabel(expression, context, Name.identifier(labelName));
-            if (onlyClassReceivers && resolutionResult.success()) {
-                if (!isDeclaredInClass(resolutionResult.getReceiverParameterDescriptor())) {
+            if (resolutionResult.success()) {
+                ReceiverParameterDescriptor receiverParameterDescriptor = resolutionResult.getReceiverParameterDescriptor();
+                recordThisOrSuperCallInTraceAndCallExtension(context, receiverParameterDescriptor, expression);
+                if (onlyClassReceivers && !isDeclaredInClass(receiverParameterDescriptor)) {
                     return LabelResolver.LabeledReceiverResolutionResult.labelResolutionSuccess(NO_RECEIVER_PARAMETER);
                 }
             }
@@ -402,7 +403,6 @@ public class BasicExpressionTypingVisitor extends ExpressionTypingVisitor {
             if (result != NO_RECEIVER_PARAMETER) {
                 context.trace.record(REFERENCE_TARGET, expression.getInstanceReference(), result.getContainingDeclaration());
                 recordThisOrSuperCallInTraceAndCallExtension(context, result, expression);
-
             }
             return LabelResolver.LabeledReceiverResolutionResult.labelResolutionSuccess(result);
         }
@@ -426,7 +426,7 @@ public class BasicExpressionTypingVisitor extends ExpressionTypingVisitor {
                                         new DataFlowInfoForArgumentsImpl(call));
         resolvedCall.markCallAsCompleted();
 
-        trace.record(RESOLVED_CALL, expression, resolvedCall);
+        trace.record(RESOLVED_CALL, call, resolvedCall);
         trace.record(CALL, expression, call);
 
         context.callResolverExtension.run(resolvedCall,
@@ -471,7 +471,7 @@ public class BasicExpressionTypingVisitor extends ExpressionTypingVisitor {
         JetSimpleNameExpression reference = expression.getCallableReference();
 
         boolean[] result = new boolean[1];
-        FunctionDescriptor descriptor = resolveCallableReferenceTarget(lhsType, context, expression, result);
+        CallableDescriptor descriptor = resolveCallableReferenceTarget(lhsType, context, expression, result);
 
         if (!result[0]) {
             context.trace.report(UNRESOLVED_REFERENCE.on(reference, reference));
@@ -480,8 +480,8 @@ public class BasicExpressionTypingVisitor extends ExpressionTypingVisitor {
 
         ReceiverParameterDescriptor receiverParameter = descriptor.getReceiverParameter();
         ReceiverParameterDescriptor expectedThisObject = descriptor.getExpectedThisObject();
-        if (receiverParameter != null && expectedThisObject != null) {
-            context.trace.report(EXTENSION_IN_CLASS_REFERENCE_NOT_ALLOWED.on(reference, descriptor));
+        if (receiverParameter != null && expectedThisObject != null && descriptor instanceof CallableMemberDescriptor) {
+            context.trace.report(EXTENSION_IN_CLASS_REFERENCE_NOT_ALLOWED.on(reference, (CallableMemberDescriptor) descriptor));
             return null;
         }
 
@@ -492,14 +492,37 @@ public class BasicExpressionTypingVisitor extends ExpressionTypingVisitor {
         else if (expectedThisObject != null) {
             receiverType = expectedThisObject.getType();
         }
+        boolean isExtension = receiverParameter != null;
 
+        if (descriptor instanceof FunctionDescriptor) {
+            return createFunctionReferenceType(expression, context, (FunctionDescriptor) descriptor, receiverType, isExtension);
+        }
+        else if (descriptor instanceof PropertyDescriptor) {
+            return createPropertyReferenceType(expression, context, (PropertyDescriptor) descriptor, receiverType, isExtension);
+        }
+        else if (descriptor instanceof VariableDescriptor) {
+            context.trace.report(UNSUPPORTED.on(reference, "References to variables aren't supported yet"));
+            return null;
+        }
+
+        throw new UnsupportedOperationException("Callable reference resolved to an unsupported descriptor: " + descriptor);
+    }
+
+    @Nullable
+    private JetType createFunctionReferenceType(
+            @NotNull JetCallableReferenceExpression expression,
+            @NotNull ExpressionTypingContext context,
+            @NotNull FunctionDescriptor descriptor,
+            @Nullable JetType receiverType,
+            boolean isExtension
+    ) {
         //noinspection ConstantConditions
         JetType type = components.reflectionTypes.getKFunctionType(
                 Annotations.EMPTY,
                 receiverType,
-                DescriptorUtils.getValueParametersTypes(descriptor.getValueParameters()),
+                getValueParametersTypes(descriptor.getValueParameters()),
                 descriptor.getReturnType(),
-                receiverParameter != null
+                isExtension
         );
 
         if (type.isError()) {
@@ -510,7 +533,9 @@ public class BasicExpressionTypingVisitor extends ExpressionTypingVisitor {
         AnonymousFunctionDescriptor functionDescriptor = new AnonymousFunctionDescriptor(
                 context.scope.getContainingDeclaration(),
                 Annotations.EMPTY,
-                CallableMemberDescriptor.Kind.DECLARATION);
+                CallableMemberDescriptor.Kind.DECLARATION,
+                toSourceElement(expression)
+        );
 
         FunctionDescriptorUtil.initializeFromFunctionType(functionDescriptor, type, null, Modality.FINAL, Visibilities.PUBLIC);
 
@@ -520,7 +545,32 @@ public class BasicExpressionTypingVisitor extends ExpressionTypingVisitor {
     }
 
     @Nullable
-    private FunctionDescriptor resolveCallableReferenceTarget(
+    private JetType createPropertyReferenceType(
+            @NotNull JetCallableReferenceExpression expression,
+            @NotNull ExpressionTypingContext context,
+            @NotNull PropertyDescriptor descriptor,
+            @Nullable JetType receiverType,
+            boolean isExtension
+    ) {
+        JetType type = components.reflectionTypes.getKPropertyType(Annotations.EMPTY, receiverType, descriptor.getType(), isExtension,
+                                                                   descriptor.isVar());
+
+        if (type.isError()) {
+            context.trace.report(REFLECTION_TYPES_NOT_LOADED.on(expression.getDoubleColonTokenReference()));
+            return null;
+        }
+
+        LocalVariableDescriptor localVariable =
+                new LocalVariableDescriptor(context.scope.getContainingDeclaration(), Annotations.EMPTY, Name.special("<anonymous>"),
+                                            type, /* mutable = */ false, toSourceElement(expression));
+
+        context.trace.record(VARIABLE, expression, localVariable);
+
+        return type;
+    }
+
+    @Nullable
+    private CallableDescriptor resolveCallableReferenceTarget(
             @Nullable JetType lhsType,
             @NotNull ExpressionTypingContext context,
             @NotNull JetCallableReferenceExpression expression,
@@ -541,7 +591,7 @@ public class BasicExpressionTypingVisitor extends ExpressionTypingVisitor {
         ReceiverValue receiver = new TransientReceiver(lhsType);
         TemporaryTraceAndCache temporaryWithReceiver = TemporaryTraceAndCache.create(
                 context, "trace to resolve callable reference with receiver", reference);
-        FunctionDescriptor descriptor = resolveCallableNotCheckingArguments(
+        CallableDescriptor descriptor = resolveCallableNotCheckingArguments(
                 reference, receiver, context.replaceTraceAndCache(temporaryWithReceiver), result);
         if (result[0]) {
             temporaryWithReceiver.commit();
@@ -551,7 +601,7 @@ public class BasicExpressionTypingVisitor extends ExpressionTypingVisitor {
         JetScope staticScope = getStaticNestedClassesScope((ClassDescriptor) classifier);
         TemporaryTraceAndCache temporaryForStatic = TemporaryTraceAndCache.create(
                 context, "trace to resolve callable reference in static scope", reference);
-        FunctionDescriptor possibleStaticNestedClassConstructor = resolveCallableNotCheckingArguments(reference, NO_RECEIVER,
+        CallableDescriptor possibleStaticNestedClassConstructor = resolveCallableNotCheckingArguments(reference, NO_RECEIVER,
                 context.replaceTraceAndCache(temporaryForStatic).replaceScope(staticScope), result);
         if (result[0]) {
             temporaryForStatic.commit();
@@ -562,7 +612,7 @@ public class BasicExpressionTypingVisitor extends ExpressionTypingVisitor {
     }
 
     @Nullable
-    private FunctionDescriptor resolveCallableNotCheckingArguments(
+    private CallableDescriptor resolveCallableNotCheckingArguments(
             @NotNull JetSimpleNameExpression reference,
             @NotNull ReceiverValue receiver,
             @NotNull ExpressionTypingContext context,
@@ -570,22 +620,41 @@ public class BasicExpressionTypingVisitor extends ExpressionTypingVisitor {
     ) {
         Call call = CallMaker.makeCall(reference, receiver, null, reference, ThrowingList.<ValueArgument>instance());
 
-        TemporaryBindingTrace trace = TemporaryBindingTrace.create(context.trace, "trace to resolve as function", reference);
-
-        ExpressionTypingContext contextForResolve = context.replaceBindingTrace(trace).replaceExpectedType(NO_EXPECTED_TYPE);
+        TemporaryTraceAndCache funTrace = TemporaryTraceAndCache.create(context, "trace to resolve callable reference as function",
+                                                                        reference);
         ResolvedCall<FunctionDescriptor> function = components.expressionTypingServices.getCallExpressionResolver()
-                .getResolvedCallForFunction(call, reference, contextForResolve, CheckValueArgumentsMode.DISABLED, result);
-        if (!result[0]) return null;
+                .getResolvedCallForFunction(call, reference, context.replaceTraceAndCache(funTrace).replaceExpectedType(NO_EXPECTED_TYPE),
+                                            CheckValueArgumentsMode.DISABLED, result);
+        if (result[0]) {
+            funTrace.commit();
 
-        if (function instanceof VariableAsFunctionResolvedCall) {
-            // TODO: KProperty
-            context.trace.report(UNSUPPORTED.on(reference, "References to variables aren't supported yet"));
-            context.trace.report(UNRESOLVED_REFERENCE.on(reference, reference));
-            return null;
+            if (function instanceof VariableAsFunctionResolvedCall) {
+                context.trace.report(UNSUPPORTED.on(reference, "References to variables aren't supported yet"));
+                return null;
+            }
+
+            return function != null ? function.getResultingDescriptor() : null;
         }
 
-        trace.commit();
-        return function != null ? function.getResultingDescriptor() : null;
+        TemporaryTraceAndCache varTrace = TemporaryTraceAndCache.create(context, "trace to resolve callable reference as variable",
+                                                                        reference);
+        OverloadResolutionResults<VariableDescriptor> variableResults =
+                components.expressionTypingServices.getCallResolver().resolveSimpleProperty(
+                        BasicCallResolutionContext.create(context.replaceTraceAndCache(varTrace).replaceExpectedType(NO_EXPECTED_TYPE),
+                                                          call, CheckValueArgumentsMode.DISABLED)
+                );
+        if (!variableResults.isNothing()) {
+            ResolvedCall<VariableDescriptor> variable =
+                    OverloadResolutionResultsUtil.getResultingCall(variableResults, context.contextDependency);
+
+            varTrace.commit();
+            if (variable != null) {
+                result[0] = true;
+                return variable.getResultingDescriptor();
+            }
+        }
+
+        return null;
     }
 
     @Override
@@ -661,13 +730,13 @@ public class BasicExpressionTypingVisitor extends ExpressionTypingVisitor {
         JetType result;
         if (operationType == JetTokens.PLUSPLUS || operationType == JetTokens.MINUSMINUS) {
             assert returnType != null : "returnType is null for " + resolutionResults.getResultingDescriptor();
-            if (JetTypeChecker.INSTANCE.isSubtypeOf(returnType, KotlinBuiltIns.getInstance().getUnitType())) {
+            if (KotlinBuiltIns.getInstance().isUnit(returnType)) {
                 result = ErrorUtils.createErrorType(KotlinBuiltIns.getInstance().getUnit().getName().asString());
                 context.trace.report(INC_DEC_SHOULD_NOT_RETURN_UNIT.on(operationSign));
             }
             else {
                 JetType receiverType = receiver.getType();
-                if (!JetTypeChecker.INSTANCE.isSubtypeOf(returnType, receiverType)) {
+                if (!JetTypeChecker.DEFAULT.isSubtypeOf(returnType, receiverType)) {
                     context.trace.report(RESULT_TYPE_MISMATCH.on(operationSign, name.asString(), receiverType, returnType));
                 }
                 else {
@@ -713,7 +782,7 @@ public class BasicExpressionTypingVisitor extends ExpressionTypingVisitor {
         JetSimpleNameExpression operationSign = expression.getOperationReference();
         assert operationSign.getReferencedNameElementType() == JetTokens.EXCLEXCL;
 
-        Call call = createCallForSpecialConstruction(expression, Collections.singletonList(baseExpression));
+        Call call = createCallForSpecialConstruction(expression, expression.getOperationReference(), Collections.singletonList(baseExpression));
         components.controlStructureTypingUtils.resolveSpecialConstructionAsCall(
                 call, "ExclExcl", Collections.singletonList("baseExpr"), Collections.singletonList(true), context, null);
         JetTypeInfo baseTypeInfo = BindingContextUtils.getRecordedTypeInfo(baseExpression, context.trace.getBindingContext());
@@ -838,7 +907,8 @@ public class BasicExpressionTypingVisitor extends ExpressionTypingVisitor {
             result = JetTypeInfo.create(KotlinBuiltIns.getInstance().getBooleanType(), context.dataFlowInfo);
         }
         else if (OperatorConventions.IN_OPERATIONS.contains(operationType)) {
-            result = checkInExpression(expression, operationSign, left, right, context);
+            ValueArgument leftArgument = CallMaker.makeValueArgument(left, left != null ? left : operationSign);
+            result = checkInExpression(expression, operationSign, leftArgument, right, context);
         }
         else if (OperatorConventions.BOOLEAN_OPERATIONS.containsKey(operationType)) {
             result = visitBooleanOperationExpression(operationType, left, right, context);
@@ -882,7 +952,7 @@ public class BasicExpressionTypingVisitor extends ExpressionTypingVisitor {
                 context.trace, "trace to resolve 'equals(Any?)' interpreting as of type Any? an expression:", right);
         traceInterpretingRightAsNullableAny.record(EXPRESSION_TYPE, right, KotlinBuiltIns.getInstance().getNullableAnyType());
 
-        Call call = CallMaker.makeCallWithExpressions(operationSign, receiver, null, operationSign, Collections.singletonList(right));
+        Call call = CallMaker.makeCallWithExpressions(expression, receiver, null, operationSign, Collections.singletonList(right));
         ExpressionTypingContext newContext = context.replaceBindingTrace(traceInterpretingRightAsNullableAny);
         OverloadResolutionResults<FunctionDescriptor> resolutionResults =
                 components.callResolver.resolveCallWithGivenName(newContext, call, operationSign, OperatorConventions.EQUALS);
@@ -982,7 +1052,7 @@ public class BasicExpressionTypingVisitor extends ExpressionTypingVisitor {
             return JetTypeInfo.create(null, context.dataFlowInfo);
         }
 
-        Call call = createCallForSpecialConstruction(expression, Lists.newArrayList(left, right));
+        Call call = createCallForSpecialConstruction(expression, expression.getOperationReference(), Lists.newArrayList(left, right));
         ResolvedCall<FunctionDescriptor> resolvedCall = components.controlStructureTypingUtils.resolveSpecialConstructionAsCall(
                 call, "Elvis", Lists.newArrayList("left", "right"), Lists.newArrayList(true, false), contextWithExpectedType, null);
         JetTypeInfo leftTypeInfo = BindingContextUtils.getRecordedTypeInfo(left, context.trace.getBindingContext());
@@ -1006,10 +1076,11 @@ public class BasicExpressionTypingVisitor extends ExpressionTypingVisitor {
     public JetTypeInfo checkInExpression(
             @NotNull JetElement callElement,
             @NotNull JetSimpleNameExpression operationSign,
-            @Nullable JetExpression left,
+            @NotNull ValueArgument leftArgument,
             @Nullable JetExpression right,
             @NotNull ExpressionTypingContext context
     ) {
+        JetExpression left = leftArgument.getArgumentExpression();
         ExpressionTypingContext contextWithNoExpectedType = context.replaceExpectedType(NO_EXPECTED_TYPE);
         if (right == null) {
             if (left != null) facade.getTypeInfo(left, contextWithNoExpectedType);
@@ -1023,7 +1094,7 @@ public class BasicExpressionTypingVisitor extends ExpressionTypingVisitor {
 
         OverloadResolutionResults<FunctionDescriptor> resolutionResult = components.callResolver.resolveCallWithGivenName(
                 contextWithDataFlow,
-                CallMaker.makeCallWithExpressions(callElement, receiver, null, operationSign, Collections.singletonList(left)),
+                CallMaker.makeCall(callElement, receiver, null, operationSign, Collections.singletonList(leftArgument)),
                 operationSign,
                 OperatorConventions.CONTAINS);
         JetType containsType = OverloadResolutionResultsUtil.getResultingType(resolutionResult, context.contextDependency);

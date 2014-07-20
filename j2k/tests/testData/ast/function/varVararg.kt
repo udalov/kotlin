@@ -1,7 +1,8 @@
 package demo
 
-open class Test() {
-    open fun test(vararg var args: Any?) {
-        args = array<Int?>(1, 2, 3)
+class Test {
+    fun test(vararg args: Any) {
+        var args = args
+        args = array<Int>(1, 2, 3)
     }
 }

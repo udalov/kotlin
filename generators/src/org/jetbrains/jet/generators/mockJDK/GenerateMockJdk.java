@@ -252,6 +252,7 @@ public class GenerateMockJdk {
             "java/util/Properties.class",
             "java/util/Random.class",
             "java/util/RandomAccess.class",
+            "java/util/Objects.class",
             "java/util/Set.class",
             "java/util/SortedMap.class",
             "java/util/SortedSet.class",
@@ -270,6 +271,7 @@ public class GenerateMockJdk {
             "javax/swing/SwingConstants.class",
             "javax/swing/SwingUtilities.class",
             "javax/swing/table/TableModel.class",
+            "sun/util/calendar/BaseCalendar.class",
             "META-INF/",
             "META-INF/MANIFEST.MF",
     };

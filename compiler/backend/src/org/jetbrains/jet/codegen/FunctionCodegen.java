@@ -31,9 +31,7 @@ import org.jetbrains.jet.codegen.bridges.BridgesPackage;
 import org.jetbrains.jet.codegen.context.CodegenContext;
 import org.jetbrains.jet.codegen.context.MethodContext;
 import org.jetbrains.jet.codegen.context.PackageFacadeContext;
-import org.jetbrains.jet.lang.resolve.java.jvmSignature.JvmMethodParameterKind;
-import org.jetbrains.jet.lang.resolve.java.jvmSignature.JvmMethodParameterSignature;
-import org.jetbrains.jet.lang.resolve.java.jvmSignature.JvmMethodSignature;
+import org.jetbrains.jet.codegen.optimization.OptimizationMethodVisitor;
 import org.jetbrains.jet.codegen.state.GenerationState;
 import org.jetbrains.jet.codegen.state.JetTypeMapper;
 import org.jetbrains.jet.lang.descriptors.*;
@@ -45,6 +43,10 @@ import org.jetbrains.jet.lang.resolve.calls.CallResolverUtil;
 import org.jetbrains.jet.lang.resolve.constants.ArrayValue;
 import org.jetbrains.jet.lang.resolve.constants.CompileTimeConstant;
 import org.jetbrains.jet.lang.resolve.constants.JavaClassValue;
+import org.jetbrains.jet.lang.resolve.java.diagnostics.JvmDeclarationOrigin;
+import org.jetbrains.jet.lang.resolve.java.jvmSignature.JvmMethodParameterKind;
+import org.jetbrains.jet.lang.resolve.java.jvmSignature.JvmMethodParameterSignature;
+import org.jetbrains.jet.lang.resolve.java.jvmSignature.JvmMethodSignature;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 import org.jetbrains.org.objectweb.asm.AnnotationVisitor;
@@ -66,15 +68,15 @@ import static org.jetbrains.jet.codegen.AsmUtil.*;
 import static org.jetbrains.jet.codegen.JvmSerializationBindings.*;
 import static org.jetbrains.jet.codegen.binding.CodegenBinding.isLocalNamedFun;
 import static org.jetbrains.jet.lang.descriptors.CallableMemberDescriptor.Kind.DECLARATION;
-import static org.jetbrains.jet.lang.resolve.BindingContextUtils.callableDescriptorToDeclaration;
-import static org.jetbrains.jet.lang.resolve.BindingContextUtils.descriptorToDeclaration;
+import static org.jetbrains.jet.lang.resolve.DescriptorToSourceUtils.callableDescriptorToDeclaration;
 import static org.jetbrains.jet.lang.resolve.DescriptorUtils.isFunctionLiteral;
 import static org.jetbrains.jet.lang.resolve.DescriptorUtils.isTrait;
 import static org.jetbrains.jet.lang.resolve.java.AsmTypeConstants.OBJECT_TYPE;
 import static org.jetbrains.jet.lang.resolve.java.JvmAnnotationNames.OLD_JET_VALUE_PARAMETER_ANNOTATION;
+import static org.jetbrains.jet.lang.resolve.java.diagnostics.DiagnosticsPackage.OtherOrigin;
 import static org.jetbrains.org.objectweb.asm.Opcodes.*;
 
-public class FunctionCodegen extends ParentCodegenAwareImpl {
+public class FunctionCodegen extends ParentCodegenAware {
     private final CodegenContext owner;
 
     private final ClassBuilder v;
@@ -99,7 +101,8 @@ public class FunctionCodegen extends ParentCodegenAwareImpl {
         JvmMethodSignature method = typeMapper.mapSignature(functionDescriptor, kind);
 
         if (kind != OwnerKind.TRAIT_IMPL || function.hasBody()) {
-            generateMethod(function, method, functionDescriptor,
+            generateMethod(OtherOrigin(function, functionDescriptor),
+                           method, functionDescriptor,
                            new FunctionGenerationStrategy.FunctionDefault(state, functionDescriptor, function));
         }
 
@@ -108,7 +111,7 @@ public class FunctionCodegen extends ParentCodegenAwareImpl {
     }
 
     public void generateMethod(
-            @Nullable PsiElement origin,
+            @NotNull JvmDeclarationOrigin origin,
             @NotNull JvmMethodSignature jvmSignature,
             @NotNull FunctionDescriptor functionDescriptor,
             @NotNull FunctionGenerationStrategy strategy
@@ -117,7 +120,7 @@ public class FunctionCodegen extends ParentCodegenAwareImpl {
     }
 
     public void generateMethod(
-            @Nullable PsiElement origin,
+            @NotNull JvmDeclarationOrigin origin,
             @NotNull JvmMethodSignature jvmSignature,
             @NotNull FunctionDescriptor functionDescriptor,
             @NotNull MethodContext methodContext,
@@ -141,11 +144,13 @@ public class FunctionCodegen extends ParentCodegenAwareImpl {
             v.getSerializationBindings().put(METHOD_FOR_FUNCTION, functionDescriptor, asmMethod);
         }
 
-        AnnotationCodegen.forMethod(mv, typeMapper).genAnnotations(functionDescriptor);
+        AnnotationCodegen.forMethod(mv, typeMapper).genAnnotations(functionDescriptor, asmMethod.getReturnType());
 
         generateParameterAnnotations(functionDescriptor, mv, jvmSignature);
 
         generateJetValueParameterAnnotations(mv, functionDescriptor, jvmSignature);
+
+        generateBridges(functionDescriptor);
 
         if (state.getClassBuilderMode() == ClassBuilderMode.LIGHT_CLASSES || isAbstractMethod(functionDescriptor, methodContextKind)) {
             generateLocalVariableTable(
@@ -157,16 +162,16 @@ public class FunctionCodegen extends ParentCodegenAwareImpl {
                     new Label(),
                     methodContextKind
             );
+
+            mv.visitEnd();
             return;
         }
 
         generateMethodBody(mv, functionDescriptor, methodContext, jvmSignature, strategy, getParentCodegen());
 
-        endVisit(mv, null, origin);
+        endVisit(mv, null, origin.getElement());
 
         methodContext.recordSyntheticAccessorIfNeeded(functionDescriptor, bindingContext);
-
-        generateBridges(functionDescriptor);
     }
 
     private void generateParameterAnnotations(
@@ -178,7 +183,8 @@ public class FunctionCodegen extends ParentCodegenAwareImpl {
         List<JvmMethodParameterSignature> kotlinParameterTypes = jvmSignature.getValueParameters();
 
         for (int i = 0; i < kotlinParameterTypes.size(); i++) {
-            JvmMethodParameterKind kind = kotlinParameterTypes.get(i).getKind();
+            JvmMethodParameterSignature parameterSignature = kotlinParameterTypes.get(i);
+            JvmMethodParameterKind kind = parameterSignature.getKind();
             if (kind.isSkippedInGenericSignature()) {
                 markEnumOrInnerConstructorParameterAsSynthetic(mv, i);
                 continue;
@@ -187,13 +193,13 @@ public class FunctionCodegen extends ParentCodegenAwareImpl {
             if (kind == JvmMethodParameterKind.VALUE) {
                 ValueParameterDescriptor parameter = iterator.next();
                 v.getSerializationBindings().put(INDEX_FOR_VALUE_PARAMETER, parameter, i);
-                AnnotationCodegen.forParameter(i, mv, typeMapper).genAnnotations(parameter);
+                AnnotationCodegen.forParameter(i, mv, typeMapper).genAnnotations(parameter, parameterSignature.getAsmType());
             }
         }
     }
 
     @SuppressWarnings("deprecation")
-    private void generateJetValueParameterAnnotations(
+    private static void generateJetValueParameterAnnotations(
             @NotNull MethodVisitor mv,
             @NotNull FunctionDescriptor functionDescriptor,
             @NotNull JvmMethodSignature jvmSignature
@@ -203,10 +209,7 @@ public class FunctionCodegen extends ParentCodegenAwareImpl {
 
         for (int i = 0; i < kotlinParameterTypes.size(); i++) {
             JvmMethodParameterKind kind = kotlinParameterTypes.get(i).getKind();
-            if (kind.isSkippedInGenericSignature()) {
-                markEnumOrInnerConstructorParameterAsSynthetic(mv, i);
-                continue;
-            }
+            if (kind.isSkippedInGenericSignature()) continue;
 
             String name;
             boolean nullableType;
@@ -294,11 +297,7 @@ public class FunctionCodegen extends ParentCodegenAwareImpl {
             generateStaticDelegateMethodBody(mv, signature.getAsmMethod(), (PackageFacadeContext) context.getParentContext());
         }
         else {
-            FrameMap frameMap = strategy.getFrameMap(typeMapper, context);
-
-            for (ValueParameterDescriptor parameter : functionDescriptor.getValueParameters()) {
-                frameMap.enter(parameter, typeMapper.mapType(parameter));
-            }
+            FrameMap frameMap = createFrameMap(parentCodegen.state, functionDescriptor, signature, isStatic(context.getContextKind()));
 
             Label methodEntry = new Label();
             mv.visitLabel(methodEntry);
@@ -308,7 +307,7 @@ public class FunctionCodegen extends ParentCodegenAwareImpl {
                 genNotNullAssertionsForParameters(new InstructionAdapter(mv), parentCodegen.state, functionDescriptor, frameMap);
             }
 
-            strategy.generateBody(mv, signature, context, parentCodegen);
+            strategy.generateBody(mv, frameMap, signature, context, parentCodegen);
         }
 
         Label methodEnd = new Label();
@@ -388,12 +387,15 @@ public class FunctionCodegen extends ParentCodegenAwareImpl {
     }
 
     private static boolean needIndexForVar(JvmMethodParameterKind kind) {
-        return kind == JvmMethodParameterKind.CAPTURED_LOCAL_VARIABLE || kind == JvmMethodParameterKind.SUPER_OF_ANONYMOUS_CALL_PARAM;
+        return kind == JvmMethodParameterKind.CAPTURED_LOCAL_VARIABLE ||
+               kind == JvmMethodParameterKind.ENUM_NAME_OR_ORDINAL ||
+               kind == JvmMethodParameterKind.SUPER_CALL_PARAM;
     }
 
     public static void endVisit(MethodVisitor mv, @Nullable String description, @Nullable PsiElement method) {
         try {
             mv.visitMaxs(-1, -1);
+            mv.visitEnd();
         }
         catch (ProcessCanceledException e) {
             throw e;
@@ -409,11 +411,15 @@ public class FunctionCodegen extends ParentCodegenAwareImpl {
                     (bytecode != null ? "\nbytecode:\n" + bytecode : ""),
                     t, method);
         }
-        mv.visitEnd();
     }
 
     private static String renderByteCodeIfAvailable(MethodVisitor mv) {
         String bytecode = null;
+
+        if (mv instanceof OptimizationMethodVisitor) {
+            mv = ((OptimizationMethodVisitor) mv).getTraceMethodVisitorIfPossible();
+        }
+
         if (mv instanceof TraceMethodVisitor) {
             TraceMethodVisitor traceMethodVisitor = (TraceMethodVisitor) mv;
             StringWriter sw = new StringWriter();
@@ -447,9 +453,9 @@ public class FunctionCodegen extends ParentCodegenAwareImpl {
         );
 
         if (!bridgesToGenerate.isEmpty()) {
-            PsiElement origin = descriptor.getKind() == DECLARATION ? callableDescriptorToDeclaration(bindingContext, descriptor) : null;
+            PsiElement origin = descriptor.getKind() == DECLARATION ? callableDescriptorToDeclaration(descriptor) : null;
             for (Bridge<Method> bridge : bridgesToGenerate) {
-                generateBridge(origin, bridge.getFrom(), bridge.getTo());
+                generateBridge(origin, descriptor, bridge.getFrom(), bridge.getTo());
             }
         }
     }
@@ -493,7 +499,7 @@ public class FunctionCodegen extends ParentCodegenAwareImpl {
                     }
                 }
         );
-        return strings.toArray(new String[strings.size()]);
+        return ArrayUtil.toStringArray(strings);
     }
 
     static void generateConstructorWithoutParametersIfNeeded(
@@ -506,7 +512,7 @@ public class FunctionCodegen extends ParentCodegenAwareImpl {
             return;
         }
         int flags = getVisibilityAccessFlag(constructorDescriptor);
-        MethodVisitor mv = classBuilder.newMethod(null, flags, "<init>", "()V", null,
+        MethodVisitor mv = classBuilder.newMethod(OtherOrigin(constructorDescriptor), flags, "<init>", "()V", null,
                                                   getThrownExceptions(constructorDescriptor, state.getTypeMapper()));
 
         if (state.getClassBuilderMode() == ClassBuilderMode.LIGHT_CLASSES) return;
@@ -558,7 +564,7 @@ public class FunctionCodegen extends ParentCodegenAwareImpl {
 
         Method defaultMethod = typeMapper.mapDefaultMethod(functionDescriptor, kind, owner);
 
-        MethodVisitor mv = v.newMethod(null, flags | (isConstructor ? 0 : ACC_STATIC),
+        MethodVisitor mv = v.newMethod(OtherOrigin(functionDescriptor), flags | (isConstructor ? 0 : ACC_STATIC),
                                        defaultMethod.getName(),
                                        defaultMethod.getDescriptor(), null,
                                        getThrownExceptions(functionDescriptor, typeMapper));
@@ -567,7 +573,7 @@ public class FunctionCodegen extends ParentCodegenAwareImpl {
             if (this.owner instanceof PackageFacadeContext) {
                 mv.visitCode();
                 generateStaticDelegateMethodBody(mv, defaultMethod, (PackageFacadeContext) this.owner);
-                endVisit(mv, "default method delegation", callableDescriptorToDeclaration(state.getBindingContext(), functionDescriptor));
+                endVisit(mv, "default method delegation", callableDescriptorToDeclaration(functionDescriptor));
             }
             else {
                 generateDefaultImpl(owner, signature, functionDescriptor, isStatic(kind), mv, loadStrategy, function);
@@ -586,7 +592,7 @@ public class FunctionCodegen extends ParentCodegenAwareImpl {
     ) {
         mv.visitCode();
         generateDefaultImplBody(methodContext, signature, functionDescriptor, isStatic, mv, loadStrategy, function, getParentCodegen(), state);
-        endVisit(mv, "default method", callableDescriptorToDeclaration(state.getBindingContext(), functionDescriptor));
+        endVisit(mv, "default method", callableDescriptorToDeclaration(functionDescriptor));
     }
 
     public static void generateDefaultImplBody(
@@ -600,29 +606,9 @@ public class FunctionCodegen extends ParentCodegenAwareImpl {
             @NotNull MemberCodegen<?> parentCodegen,
             @NotNull GenerationState state
     ) {
-        FrameMap frameMap = new FrameMap();
-
-        if (!isStatic) {
-            frameMap.enterTemp(OBJECT_TYPE);
-        }
+        FrameMap frameMap = createFrameMap(state, functionDescriptor, signature, isStatic);
 
         ExpressionCodegen codegen = new ExpressionCodegen(mv, frameMap, signature.getReturnType(), methodContext, state, parentCodegen);
-
-        Type[] argTypes = signature.getAsmMethod().getArgumentTypes();
-        List<ValueParameterDescriptor> paramDescrs = functionDescriptor.getValueParameters();
-        Iterator<ValueParameterDescriptor> iterator = paramDescrs.iterator();
-
-        int countOfExtraVarsInMethodArgs = 0;
-
-        for (JvmMethodParameterSignature parameterSignature : signature.getValueParameters()) {
-            if (parameterSignature.getKind() != JvmMethodParameterKind.VALUE) {
-                countOfExtraVarsInMethodArgs++;
-                frameMap.enterTemp(parameterSignature.getAsmType());
-            }
-            else {
-                frameMap.enter(iterator.next(), parameterSignature.getAsmType());
-            }
-        }
 
         int maskIndex = frameMap.enterTemp(Type.INT_TYPE);
 
@@ -632,10 +618,17 @@ public class FunctionCodegen extends ParentCodegenAwareImpl {
         loadExplicitArgumentsOnStack(iv, OBJECT_TYPE, isStatic, signature);
         generator.putHiddenParams();
 
-        for (int index = 0; index < paramDescrs.size(); index++) {
-            ValueParameterDescriptor parameterDescriptor = paramDescrs.get(index);
+        List<JvmMethodParameterSignature> mappedParameters = signature.getValueParameters();
+        int capturedArgumentsCount = 0;
+        while (capturedArgumentsCount < mappedParameters.size() &&
+               mappedParameters.get(capturedArgumentsCount).getKind() != JvmMethodParameterKind.VALUE) {
+            capturedArgumentsCount++;
+        }
 
-            Type t = argTypes[countOfExtraVarsInMethodArgs + index];
+        List<ValueParameterDescriptor> valueParameters = functionDescriptor.getValueParameters();
+        for (int index = 0; index < valueParameters.size(); index++) {
+            ValueParameterDescriptor parameterDescriptor = valueParameters.get(index);
+            Type type = mappedParameters.get(capturedArgumentsCount + index).getAsmType();
 
             int parameterIndex = frameMap.getIndex(parameterDescriptor);
             if (parameterDescriptor.declaresDefaultValue()) {
@@ -647,18 +640,19 @@ public class FunctionCodegen extends ParentCodegenAwareImpl {
 
                 loadStrategy.putValueOnStack(parameterDescriptor, codegen);
 
-                iv.store(parameterIndex, t);
+                iv.store(parameterIndex, type);
 
                 iv.mark(loadArg);
             }
 
-            generator.putValueIfNeeded(parameterDescriptor, t, StackValue.local(parameterIndex, t));
+            generator.putValueIfNeeded(parameterDescriptor, type, StackValue.local(parameterIndex, type));
         }
 
         CallableMethod method;
         if (functionDescriptor instanceof ConstructorDescriptor) {
             method = state.getTypeMapper().mapToCallableMethod((ConstructorDescriptor) functionDescriptor);
-        } else {
+        }
+        else {
             method = state.getTypeMapper().mapToCallableMethod(functionDescriptor, false, methodContext);
         }
 
@@ -667,6 +661,30 @@ public class FunctionCodegen extends ParentCodegenAwareImpl {
         iv.areturn(signature.getReturnType());
     }
 
+    @NotNull
+    private static FrameMap createFrameMap(
+            @NotNull GenerationState state,
+            @NotNull FunctionDescriptor function,
+            @NotNull JvmMethodSignature signature,
+            boolean isStatic
+    ) {
+        FrameMap frameMap = new FrameMap();
+        if (!isStatic) {
+            frameMap.enterTemp(OBJECT_TYPE);
+        }
+
+        for (JvmMethodParameterSignature parameter : signature.getValueParameters()) {
+            if (parameter.getKind() != JvmMethodParameterKind.VALUE) {
+                frameMap.enterTemp(parameter.getAsmType());
+            }
+        }
+
+        for (ValueParameterDescriptor parameter : function.getValueParameters()) {
+            frameMap.enter(parameter, state.getTypeMapper().mapType(parameter));
+        }
+
+        return frameMap;
+    }
 
     private static void loadExplicitArgumentsOnStack(
             @NotNull InstructionAdapter iv,
@@ -720,10 +738,15 @@ public class FunctionCodegen extends ParentCodegenAwareImpl {
         return true;
     }
 
-    private void generateBridge(@Nullable PsiElement origin, @NotNull Method bridge, @NotNull Method delegateTo) {
+    private void generateBridge(
+            @Nullable PsiElement origin,
+            @NotNull FunctionDescriptor descriptor,
+            @NotNull Method bridge,
+            @NotNull Method delegateTo
+    ) {
         int flags = ACC_PUBLIC | ACC_BRIDGE | ACC_SYNTHETIC; // TODO.
 
-        MethodVisitor mv = v.newMethod(null, flags, delegateTo.getName(), bridge.getDescriptor(), null, null);
+        MethodVisitor mv = v.newMethod(OtherOrigin(descriptor), flags, delegateTo.getName(), bridge.getDescriptor(), null, null);
         if (state.getClassBuilderMode() != ClassBuilderMode.FULL) return;
 
         mv.visitCode();
@@ -756,48 +779,50 @@ public class FunctionCodegen extends ParentCodegenAwareImpl {
 
     public void genDelegate(
             FunctionDescriptor functionDescriptor,
-            ClassDescriptor toClass,
-            StackValue field,
-            JvmMethodSignature jvmDelegateMethodSignature,
-            JvmMethodSignature jvmOverriddenMethodSignature
+            final ClassDescriptor toClass,
+            final StackValue field,
+            final JvmMethodSignature jvmDelegateMethodSignature,
+            final JvmMethodSignature jvmOverriddenMethodSignature
     ) {
-        Method overriddenMethod = jvmOverriddenMethodSignature.getAsmMethod();
-        Method delegateMethod = jvmDelegateMethodSignature.getAsmMethod();
+        generateMethod(
+                OtherOrigin(functionDescriptor), jvmDelegateMethodSignature, functionDescriptor,
+                new FunctionGenerationStrategy() {
+                    @Override
+                    public void generateBody(
+                            @NotNull MethodVisitor mv,
+                            @NotNull FrameMap frameMap,
+                            @NotNull JvmMethodSignature signature,
+                            @NotNull MethodContext context,
+                            @NotNull MemberCodegen<?> parentCodegen
+                    ) {
+                        Method overriddenMethod = jvmOverriddenMethodSignature.getAsmMethod();
+                        Method delegateMethod = jvmDelegateMethodSignature.getAsmMethod();
 
-        int flags = ACC_PUBLIC;
+                        Type[] argTypes = delegateMethod.getArgumentTypes();
+                        Type[] originalArgTypes = overriddenMethod.getArgumentTypes();
 
-        MethodVisitor mv = v.newMethod(null, flags, delegateMethod.getName(), delegateMethod.getDescriptor(), null,
-                                       getThrownExceptions(functionDescriptor, typeMapper));
-        if (state.getClassBuilderMode() != ClassBuilderMode.FULL) return;
+                        InstructionAdapter iv = new InstructionAdapter(mv);
+                        iv.load(0, OBJECT_TYPE);
+                        field.put(field.type, iv);
+                        for (int i = 0, reg = 1; i < argTypes.length; i++) {
+                            StackValue.local(reg, argTypes[i]).put(originalArgTypes[i], iv);
+                            //noinspection AssignmentToForLoopParameter
+                            reg += argTypes[i].getSize();
+                        }
 
-        mv.visitCode();
+                        String internalName = typeMapper.mapType(toClass).getInternalName();
+                        if (toClass.getKind() == ClassKind.TRAIT) {
+                            iv.invokeinterface(internalName, overriddenMethod.getName(), overriddenMethod.getDescriptor());
+                        }
+                        else {
+                            iv.invokevirtual(internalName, overriddenMethod.getName(), overriddenMethod.getDescriptor());
+                        }
 
-        Type[] argTypes = delegateMethod.getArgumentTypes();
-        Type[] originalArgTypes = overriddenMethod.getArgumentTypes();
+                        StackValue.onStack(overriddenMethod.getReturnType()).put(delegateMethod.getReturnType(), iv);
 
-        InstructionAdapter iv = new InstructionAdapter(mv);
-        iv.load(0, OBJECT_TYPE);
-        field.put(field.type, iv);
-        for (int i = 0, reg = 1; i < argTypes.length; i++) {
-            StackValue.local(reg, argTypes[i]).put(originalArgTypes[i], iv);
-            //noinspection AssignmentToForLoopParameter
-            reg += argTypes[i].getSize();
-        }
-
-        String internalName = typeMapper.mapType(toClass).getInternalName();
-        if (toClass.getKind() == ClassKind.TRAIT) {
-            iv.invokeinterface(internalName, overriddenMethod.getName(), overriddenMethod.getDescriptor());
-        }
-        else {
-            iv.invokevirtual(internalName, overriddenMethod.getName(), overriddenMethod.getDescriptor());
-        }
-
-        StackValue.onStack(overriddenMethod.getReturnType()).put(delegateMethod.getReturnType(), iv);
-
-        iv.areturn(delegateMethod.getReturnType());
-        endVisit(mv, "Delegate method " + functionDescriptor + " to " + jvmOverriddenMethodSignature,
-                 descriptorToDeclaration(bindingContext, functionDescriptor.getContainingDeclaration()));
-
-        generateBridges(functionDescriptor);
+                        iv.areturn(delegateMethod.getReturnType());
+                    }
+                }
+        );
     }
 }

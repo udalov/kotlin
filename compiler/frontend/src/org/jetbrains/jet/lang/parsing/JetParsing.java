@@ -19,6 +19,7 @@ package org.jetbrains.jet.lang.parsing;
 import com.intellij.lang.PsiBuilder;
 import com.intellij.psi.tree.IElementType;
 import com.intellij.psi.tree.TokenSet;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.JetNodeType;
 import org.jetbrains.jet.lexer.JetKeywordToken;
@@ -52,6 +53,8 @@ public class JetParsing extends AbstractJetParsing {
     private static final TokenSet RECEIVER_TYPE_TERMINATORS = TokenSet.create(DOT, SAFE_ACCESS);
     private static final TokenSet VALUE_PARAMETER_FIRST =
             TokenSet.orSet(TokenSet.create(IDENTIFIER, LBRACKET, VAL_KEYWORD, VAR_KEYWORD), MODIFIER_KEYWORDS);
+    private static final TokenSet LAMBDA_VALUE_PARAMETER_FIRST =
+            TokenSet.orSet(TokenSet.create(IDENTIFIER, LBRACKET), MODIFIER_KEYWORDS);
 
     static JetParsing createForTopLevel(SemanticWhitespaceAwarePsiBuilder builder) {
         JetParsing jetParsing = new JetParsing(builder);
@@ -622,19 +625,21 @@ public class JetParsing extends AbstractJetParsing {
      *   : ("{" memberDeclaration* "}")?
      *   ;
      */
-    /*package*/ void parseClassBody() {
+    private void parseClassBody() {
         PsiBuilder.Marker body = mark();
 
         myBuilder.enableNewlines();
-        expect(LBRACE, "Expecting a class body", TokenSet.create(LBRACE));
 
-        while (!eof()) {
-            if (at(RBRACE)) {
-                break;
+        if (expect(LBRACE, "Expecting a class body")) {
+            while (!eof()) {
+                if (at(RBRACE)) {
+                    break;
+                }
+                parseMemberDeclaration();
             }
-            parseMemberDeclaration();
+            expect(RBRACE, "Missing '}");
         }
-        expect(RBRACE, "Missing '}");
+
         myBuilder.restoreNewlinesState();
 
         body.done(CLASS_BODY);
@@ -1474,14 +1479,7 @@ public class JetParsing extends AbstractJetParsing {
                                    TokenSet.create(EQ, COMMA, GT, RBRACKET, DOT, RPAR, RBRACE, LBRACE, SEMICOLON), extraRecoverySet));
         }
 
-        while (at(QUEST)) {
-            PsiBuilder.Marker precede = typeRefMarker.precede();
-
-            advance(); // QUEST
-            typeRefMarker.done(NULLABLE_TYPE);
-
-            typeRefMarker = precede;
-        }
+        typeRefMarker = parseNullableTypeSuffix(typeRefMarker);
 
         if (at(DOT)) {
             // This is a receiver for a function type
@@ -1506,6 +1504,17 @@ public class JetParsing extends AbstractJetParsing {
             functionType.done(FUNCTION_TYPE);
         }
 //        myBuilder.restoreJoiningComplexTokensState();
+        return typeRefMarker;
+    }
+
+    @NotNull
+    PsiBuilder.Marker parseNullableTypeSuffix(@NotNull PsiBuilder.Marker typeRefMarker) {
+        while (at(QUEST)) {
+            PsiBuilder.Marker precede = typeRefMarker.precede();
+            advance(); // QUEST
+            typeRefMarker.done(NULLABLE_TYPE);
+            typeRefMarker = precede;
+        }
         return typeRefMarker;
     }
 
@@ -1728,6 +1737,7 @@ public class JetParsing extends AbstractJetParsing {
                     error("Expecting a parameter declaration");
                     break;
                 }
+
                 if (isFunctionTypeContents) {
                     if (!tryParseValueParameter()) {
                         PsiBuilder.Marker valueParameter = mark();
@@ -1739,12 +1749,13 @@ public class JetParsing extends AbstractJetParsing {
                 else {
                     parseValueParameter();
                 }
+
                 if (at(COMMA)) {
                     advance(); // COMMA
                 }
                 else {
                     if (!at(RPAR)) error("Expecting comma or ')'");
-                    if (!atSet(VALUE_PARAMETER_FIRST)) break;
+                    if (!atSet(isFunctionTypeContents ? LAMBDA_VALUE_PARAMETER_FIRST : VALUE_PARAMETER_FIRST)) break;
                 }
             }
         }

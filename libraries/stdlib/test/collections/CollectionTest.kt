@@ -6,20 +6,20 @@ import org.junit.Test as test
 
 class CollectionTest {
 
-    test fun appendString() {
+    test fun joinTo() {
         val data = arrayListOf("foo", "bar")
         val buffer = StringBuilder()
-        val text = data.appendString(buffer, "-", "{", "}")
+        data.joinTo(buffer, "-", "{", "}")
         assertEquals("{foo-bar}", buffer.toString())
     }
 
-    test fun makeString() {
+    test fun join() {
         val data = arrayListOf("foo", "bar")
-        val text = data.makeString("-", "<", ">")
+        val text = data.join("-", "<", ">")
         assertEquals("<foo-bar>", text)
 
         val big = arrayListOf("a", "b", "c", "d", "e", "f")
-        val text2 = big.makeString(limit = 3, truncated = "*")
+        val text2 = big.join(limit = 3, truncated = "*")
         assertEquals("a, b, c, *", text2)
     }
 
@@ -120,6 +120,20 @@ class CollectionTest {
         }
     }
 
+    test
+    fun merge() {
+        expect(listOf("ab", "bc", "cd")) {
+            listOf("a", "b", "c").merge(listOf("b", "c", "d")) { a, b -> a + b }
+        }
+    }
+
+    test
+    fun zip() {
+        expect(listOf("a" to "b", "b" to "c", "c" to "d")) {
+            listOf("a", "b", "c").zip(listOf("b", "c", "d"))
+        }
+    }
+
     test fun partition() {
         val data = arrayListOf("foo", "bar", "something", "xyz")
         val pair = data.partition { it.size == 3 }
@@ -151,9 +165,16 @@ class CollectionTest {
     }
 
     test fun groupBy() {
-        val words = arrayListOf("a", "ab", "abc", "def", "abcd")
+        val words = arrayListOf("a", "abc", "ab", "def", "abcd")
         val byLength = words.groupBy { it.length }
         assertEquals(4, byLength.size())
+
+        // verify that order of keys is preserved
+        val listOfPairs = byLength.toList()
+        assertEquals(1, listOfPairs[0].first)
+        assertEquals(3, listOfPairs[1].first)
+        assertEquals(2, listOfPairs[2].first)
+        assertEquals(4, listOfPairs[3].first)
 
         val l3 = byLength.getOrElse(3, { ArrayList<String>() })
         assertEquals(2, l3.size)

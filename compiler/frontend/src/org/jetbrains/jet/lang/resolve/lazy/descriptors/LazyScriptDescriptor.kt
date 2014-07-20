@@ -26,15 +26,9 @@ import org.jetbrains.jet.lang.resolve.scopes.receivers.ScriptReceiver
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns
 import org.jetbrains.jet.lang.descriptors.impl.ReceiverParameterDescriptorImpl
 import org.jetbrains.jet.lang.resolve.BindingContext
-import org.jetbrains.jet.lang.psi.JetFile
 import org.jetbrains.kotlin.util.sure
 import org.jetbrains.jet.lang.resolve.ScriptParameterResolver
-import org.jetbrains.jet.lang.resolve.TopDownAnalysisParameters
 import org.jetbrains.jet.lang.resolve.ScriptBodyResolver
-import org.jetbrains.jet.lang.resolve.lazy.data.JetClassLikeInfo
-import org.jetbrains.jet.lang.resolve.ScriptNameUtil
-import org.jetbrains.jet.lang.descriptors.ClassKind
-import org.jetbrains.jet.lang.descriptors.ClassDescriptor
 import org.jetbrains.jet.lang.descriptors.impl.ScriptCodeDescriptor
 import org.jetbrains.jet.lang.types.DeferredType
 import org.jetbrains.jet.lang.resolve.scopes.JetScope
@@ -43,17 +37,13 @@ import org.jetbrains.jet.lang.resolve.scopes.ChainedScope
 import org.jetbrains.jet.lang.resolve.lazy.ForceResolveUtil
 import org.jetbrains.jet.lang.types.TypeSubstitutor
 import org.jetbrains.jet.lang.descriptors.DeclarationDescriptorVisitor
-import org.jetbrains.jet.lang.psi.JetParameter
-import org.jetbrains.jet.lang.psi.JetTypeParameter
 import org.jetbrains.jet.lang.resolve.scopes.RedeclarationHandler
-import org.jetbrains.jet.lang.psi.JetCallableDeclaration
 import org.jetbrains.jet.lang.resolve.scopes.WritableScope
-import org.jetbrains.jet.lang.resolve.BindingTrace
-import org.jetbrains.jet.lang.resolve.TemporaryBindingTrace
+import org.jetbrains.jet.lang.descriptors.PropertyDescriptor
+import org.jetbrains.jet.lang.resolve.source.toSourceElement
 
 public class LazyScriptDescriptor(
         val resolveSession: ResolveSession,
-        scriptParameterResolver: ScriptParameterResolver,
         scriptBodyResolver: ScriptBodyResolver,
         val jetScript: JetScript,
         val _priority: Int
@@ -63,9 +53,9 @@ public class LazyScriptDescriptor(
             resolveSession.getPackageFragment(fqName).sure("Package not found $fqName")
         },
         Annotations.EMPTY,
-        ScriptDescriptor.NAME
+        ScriptDescriptor.NAME,
+        jetScript.toSourceElement()
  ) {
-
     {
         resolveSession.getTrace().record(BindingContext.SCRIPT, jetScript, this)
     }
@@ -76,19 +66,22 @@ public class LazyScriptDescriptor(
 
     override fun getPriority() = _priority
 
-    override fun getClassDescriptor() = resolveSession.getClassDescriptorForScript(jetScript)
+    override fun getClassDescriptor() = resolveSession.getClassDescriptorForScript(jetScript) as LazyScriptClassDescriptor
+
+    override fun getScriptResultProperty(): PropertyDescriptor = getClassDescriptor().getScopeForMemberLookup().getScriptResultProperty()
 
     private val _scriptCodeDescriptor = resolveSession.getStorageManager().createLazyValue {
         val result = ScriptCodeDescriptor(this)
         result.initialize(
                 _implicitReceiver,
-                scriptParameterResolver.resolveScriptParameters(jetScript, this),
+                ScriptParameterResolver.resolveScriptParameters(jetScript, this),
                 DeferredType.create(resolveSession.getStorageManager(), resolveSession.getTrace()) {
                     scriptBodyResolver.resolveScriptReturnType(jetScript, this, resolveSession.getTrace())
                 }
         )
         result
     }
+
     override fun getScriptCodeDescriptor() = _scriptCodeDescriptor()
 
     override fun getScopeForBodyResolution(): JetScope {

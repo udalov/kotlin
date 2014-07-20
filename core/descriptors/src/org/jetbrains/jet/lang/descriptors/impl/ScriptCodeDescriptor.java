@@ -29,15 +29,14 @@ import java.util.List;
 public class ScriptCodeDescriptor extends FunctionDescriptorImpl {
 
     public ScriptCodeDescriptor(@NotNull ScriptDescriptor containingDeclaration) {
-        super(containingDeclaration, null, Annotations.EMPTY, Name.special("<script-code>"), Kind.DECLARATION);
-        setVisibility(Visibilities.LOCAL);
+        super(containingDeclaration, null, Annotations.EMPTY, Name.special("<script-code>"), Kind.DECLARATION, SourceElement.NO_SOURCE);
     }
 
     public void initialize(
             @NotNull ReceiverParameterDescriptor expectedThisObject,
             @NotNull List<ValueParameterDescriptor> valueParameters,
             @NotNull JetType returnType) {
-        super.initialize(null, expectedThisObject, Collections.<TypeParameterDescriptor>emptyList(), valueParameters, returnType, Modality.FINAL, Visibilities.LOCAL);
+        super.initialize(null, expectedThisObject, Collections.<TypeParameterDescriptor>emptyList(), valueParameters, returnType, Modality.FINAL, Visibilities.INTERNAL);
     }
 
     @NotNull

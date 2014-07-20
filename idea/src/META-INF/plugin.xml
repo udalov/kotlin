@@ -6,7 +6,7 @@
   <version>@snapshot@</version>
   <vendor url="http://www.jetbrains.com">JetBrains Inc.</vendor>
 
-  <idea-version since-build="135.666" until-build="136.9999"/>
+  <idea-version since-build="138.977" until-build="138.9999"/>
 
   <depends optional="true" config-file="junit.xml">JUnit</depends>
   <depends optional="true" config-file="gradle.xml">org.jetbrains.plugins.gradle</depends>
@@ -96,6 +96,17 @@
             text="Configure Kotlin (JavaScript) in Project">
       <add-to-group group-id="KotlinToolsGroup"/>
     </action>
+
+    <action id="ExtractFunction" class="org.jetbrains.jet.plugin.refactoring.extractFunction.ExtractFunctionAction"
+            text="Extract _Function..." use-shortcut-of="ExtractMethod">
+      <add-to-group group-id="IntroduceActionsGroup" anchor="after" relative-to-action="ExtractMethod"/>
+    </action>
+
+    <action id="ExtractFunctionToScope" class="org.jetbrains.jet.plugin.refactoring.extractFunction.ExtractFunctionToScopeAction"
+            text="Extract Function to _Scope...">
+      <keyboard-shortcut keymap="$default" first-keystroke="control alt shift M"/>
+      <add-to-group group-id="IntroduceActionsGroup" anchor="after" relative-to-action="ExtractFunction"/>
+    </action>
   </actions>
 
   <extensions defaultExtensionNs="com.intellij">
@@ -107,12 +118,6 @@
 
     <applicationService serviceInterface="org.jetbrains.jet.lang.resolve.kotlin.KotlinBinaryClassCache"
                         serviceImplementation="org.jetbrains.jet.lang.resolve.kotlin.KotlinBinaryClassCache"/>
-
-    <applicationService serviceInterface="org.jetbrains.jet.lang.resolve.lazy.declarations.DeclarationProviderFactoryService"
-                        serviceImplementation="org.jetbrains.jet.plugin.stubindex.resolve.PluginDeclarationProviderFactoryService"/>
-
-    <projectService serviceInterface="org.jetbrains.jet.lang.resolve.java.JetFilesProvider"
-                    serviceImplementation="org.jetbrains.jet.plugin.project.PluginJetFilesProvider"/>
 
     <projectService serviceInterface="org.jetbrains.jet.plugin.caches.resolve.KotlinCacheService"
                     serviceImplementation="org.jetbrains.jet.plugin.caches.resolve.KotlinCacheService"/>
@@ -141,6 +146,15 @@
     <projectService serviceInterface="org.jetbrains.jet.plugin.compiler.configuration.KotlinCompilerSettings"
                     serviceImplementation="org.jetbrains.jet.plugin.compiler.configuration.KotlinCompilerSettings"/>
 
+    <projectService serviceInterface="org.jetbrains.jet.asJava.KotlinLightClassForPackage$FileStubCache"
+                    serviceImplementation="org.jetbrains.jet.asJava.KotlinLightClassForPackage$FileStubCache"/>
+
+    <projectService serviceInterface="org.jetbrains.jet.plugin.debugger.evaluate.KotlinEvaluateExpressionCache"
+                    serviceImplementation="org.jetbrains.jet.plugin.debugger.evaluate.KotlinEvaluateExpressionCache"/>
+
+    <projectService serviceInterface="org.jetbrains.jet.lang.resolve.lazy.declarations.DeclarationProviderFactoryService"
+                    serviceImplementation="org.jetbrains.jet.plugin.stubindex.resolve.PluginDeclarationProviderFactoryService"/>
+
     <errorHandler implementation="org.jetbrains.jet.plugin.reporter.KotlinReportSubmitter"/>
 
     <internalFileTemplate name="Kotlin File"/>
@@ -154,7 +168,7 @@
 
     <fileTypeFactory implementation="org.jetbrains.jet.plugin.JetFileFactory"/>
 
-    <compileServer.plugin classpath="jps/kotlin-jps-plugin.jar"/>
+    <compileServer.plugin classpath="jps/kotlin-jps-plugin.jar;kotlin-runtime.jar;kotlin-plugin.jar"/>
 
     <lang.syntaxHighlighterFactory key="jet" implementationClass="org.jetbrains.jet.plugin.highlighter.JetSyntaxHighlighterFactory"/>
     <lang.braceMatcher language="jet" implementationClass="org.jetbrains.jet.plugin.JetPairMatcher"/>
@@ -263,6 +277,7 @@
     <highlightRangeExtension implementation="org.jetbrains.jet.plugin.highlighter.JetPsiChecker"/>
 
     <annotator language="jet" implementationClass="org.jetbrains.jet.plugin.highlighter.DebugInfoAnnotator"/>
+    <annotator language="jet" implementationClass="org.jetbrains.jet.plugin.highlighter.DuplicateJvmSignatureAnnotator"/>
     <problemHighlightFilter implementation="org.jetbrains.jet.plugin.highlighter.KotlinProblemHighlightFilter"/>
 
     <extendWordSelectionHandler implementation="org.jetbrains.jet.plugin.editor.wordSelection.JetStatementGroupSelectioner"/>
@@ -272,6 +287,7 @@
     <typedHandler implementation="org.jetbrains.jet.plugin.editor.KotlinTypedHandler"/>
     <enterHandlerDelegate implementation="org.jetbrains.jet.plugin.editor.KotlinEnterHandler"
                           id="KotlinEnterHandler" order="before EnterBetweenBracesHandler"/>
+    <lang.smartEnterProcessor language="jet" implementationClass="org.jetbrains.jet.plugin.editor.KotlinSmartEnterHandler"/>
     <backspaceHandlerDelegate implementation="org.jetbrains.jet.plugin.editor.KotlinBackspaceHandler"/>
 
     <copyPastePostProcessor implementation="org.jetbrains.jet.plugin.conversion.copy.ConvertJavaCopyPastePostProcessor"/>
@@ -371,14 +387,15 @@
     <directClassInheritorsSearch implementation="org.jetbrains.jet.plugin.search.ideaExtensions.KotlinDirectInheritorsSearcher"/>
     <definitionsScopedSearch implementation="org.jetbrains.jet.plugin.search.ideaExtensions.KotlinDefinitionsSearcher"/>
     <annotatedElementsSearch implementation="org.jetbrains.jet.plugin.search.ideaExtensions.KotlinAnnotatedElementsSearcher"/>
-    <methodReferencesSearch implementation="org.jetbrains.jet.plugin.search.ideaExtensions.KotlinLightMethodUsagesSearcher"/>
+    <methodReferencesSearch implementation="org.jetbrains.jet.plugin.search.ideaExtensions.KotlinLightPropertyAccessorsReferenceSearcher"/>
 
     <exceptionFilter implementation="org.jetbrains.jet.plugin.filters.JetExceptionFilterFactory" order="first"/>
 
-    <toolWindow id="Kotlin"
-                factoryClass="org.jetbrains.jet.plugin.internal.KotlinInternalToolWindowFactory"
+    <toolWindow id="Kotlin Bytecode"
+                factoryClass="org.jetbrains.jet.plugin.internal.KotlinBytecodeToolWindow$Factory"
                 anchor="right"
                 icon="/org/jetbrains/jet/plugin/icons/kotlin13.png"
+                canCloseContents="true"
         />
 
     <applicationService serviceInterface="org.jetbrains.jet.plugin.editor.JetEditorOptions"
@@ -727,29 +744,29 @@
     <localInspection implementationClass="org.jetbrains.jet.plugin.inspections.ExplicitGetInspection"
         displayName="Explicit 'get'"
         groupName="Kotlin"
-        enabledByDefault="true"
-        level="WARNING"
+        enabledByDefault="false"
+        level="WEAK WARNING"
         />
 
     <localInspection implementationClass="org.jetbrains.jet.plugin.inspections.IfThenToElvisInspection"
         displayName="If-Then foldable to '?:'"
         groupName="Kotlin"
         enabledByDefault="true"
-        level="WARNING"
+        level="WEAK WARNING"
         />
 
     <localInspection implementationClass="org.jetbrains.jet.plugin.inspections.IfThenToSafeAccessInspection"
         displayName="If-Then foldable to '?.'"
         groupName="Kotlin"
         enabledByDefault="true"
-        level="WARNING"
+        level="WEAK WARNING"
         />
 
     <localInspection implementationClass="org.jetbrains.jet.plugin.inspections.RemoveExplicitTypeArgsInspection"
         displayName="Type arguments are unnecessary"
         groupName="Kotlin"
         enabledByDefault="true"
-        level="WARNING"
+        level="WEAK WARNING"
         />
 
     <localInspection implementationClass="org.jetbrains.jet.plugin.inspections.SimplifyBinaryNegationInspection"

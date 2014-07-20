@@ -17,38 +17,46 @@
 package org.jetbrains.jet.cli.jvm.compiler;
 
 import com.google.common.base.Predicates;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.util.Disposer;
 import com.intellij.psi.PsiFile;
+import com.intellij.util.ArrayUtil;
 import kotlin.Function0;
+import kotlin.Function1;
+import kotlin.Unit;
 import kotlin.modules.AllModules;
 import kotlin.modules.Module;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.analyzer.AnalyzeExhaust;
+import org.jetbrains.jet.asJava.FilteredJvmDiagnostics;
 import org.jetbrains.jet.cli.common.CLIConfigurationKeys;
 import org.jetbrains.jet.cli.common.CompilerPlugin;
 import org.jetbrains.jet.cli.common.CompilerPluginContext;
 import org.jetbrains.jet.cli.common.messages.AnalyzerWithCompilerReport;
 import org.jetbrains.jet.cli.common.messages.MessageCollector;
-import org.jetbrains.jet.cli.common.output.OutputDirector;
-import org.jetbrains.jet.cli.common.output.SingleDirectoryDirector;
 import org.jetbrains.jet.cli.jvm.JVMConfigurationKeys;
 import org.jetbrains.jet.codegen.*;
 import org.jetbrains.jet.codegen.inline.InlineCodegenUtil;
+import org.jetbrains.jet.codegen.optimization.OptimizationUtils;
 import org.jetbrains.jet.codegen.state.GenerationState;
 import org.jetbrains.jet.codegen.state.Progress;
 import org.jetbrains.jet.config.CommonConfigurationKeys;
 import org.jetbrains.jet.config.CompilerConfiguration;
-import org.jetbrains.jet.lang.descriptors.ModuleDescriptorImpl;
+import org.jetbrains.jet.lang.descriptors.impl.ModuleDescriptorImpl;
 import org.jetbrains.jet.lang.parsing.JetScriptDefinition;
 import org.jetbrains.jet.lang.parsing.JetScriptDefinitionProvider;
 import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.resolve.AnalyzerScriptParameter;
 import org.jetbrains.jet.lang.resolve.BindingTrace;
+import org.jetbrains.jet.lang.resolve.BindingTraceContext;
 import org.jetbrains.jet.lang.resolve.ScriptNameUtil;
 import org.jetbrains.jet.lang.resolve.java.AnalyzerFacadeForJVM;
 import org.jetbrains.jet.lang.resolve.java.PackageClassUtils;
+import org.jetbrains.jet.lang.resolve.kotlin.incremental.IncrementalCacheProvider;
+import org.jetbrains.jet.lang.resolve.kotlin.incremental.IncrementalPackage;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.plugin.MainFunctionDetector;
 import org.jetbrains.jet.utils.KotlinPaths;
@@ -57,25 +65,19 @@ import java.io.File;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 public class KotlinToJVMBytecodeCompiler {
-
-    private static final boolean COMPILE_CHUNK_AS_ONE_MODULE = true;
 
     private KotlinToJVMBytecodeCompiler() {
     }
 
-    @Nullable
-    public static ClassFileFactory compileModule(CompilerConfiguration configuration, Module module, File directory) {
-        List<String> sourceFiles = module.getSourceFiles();
-        if (sourceFiles.isEmpty()) {
-            throw new CompileEnvironmentException("No source files where defined in module " + module.getModuleName());
-        }
+    @NotNull
+    private static List<String> getAbsolutePaths(@NotNull File directory, @NotNull Module module) {
+        List<String> result = Lists.newArrayList();
 
-        CompilerConfiguration compilerConfiguration = configuration.copy();
-        for (String sourceFile : sourceFiles) {
+        for (String sourceFile : module.getSourceFiles()) {
             File source = new File(sourceFile);
             if (!source.isAbsolute()) {
                 source = new File(directory, sourceFile);
@@ -85,81 +87,94 @@ public class KotlinToJVMBytecodeCompiler {
                 throw new CompileEnvironmentException("'" + source + "' does not exist in module " + module.getModuleName());
             }
 
-            compilerConfiguration.add(CommonConfigurationKeys.SOURCE_ROOTS_KEY, source.getPath());
+            result.add(source.getAbsolutePath());
         }
-
-        for (String classpathRoot : module.getClasspathRoots()) {
-            compilerConfiguration.add(JVMConfigurationKeys.CLASSPATH_KEY, new File(classpathRoot));
-        }
-
-        for (String annotationsRoot : module.getAnnotationsRoots()) {
-            compilerConfiguration.add(JVMConfigurationKeys.ANNOTATIONS_PATH_KEY, new File(annotationsRoot));
-        }
-
-        Disposable parentDisposable = Disposer.newDisposable();
-        JetCoreEnvironment moduleEnvironment = null;
-        try {
-            moduleEnvironment = JetCoreEnvironment.createForProduction(parentDisposable, compilerConfiguration);
-
-
-            GenerationState generationState = analyzeAndGenerate(moduleEnvironment);
-            if (generationState == null) {
-                return null;
-            }
-            return generationState.getFactory();
-        } finally {
-            if (moduleEnvironment != null) {
-                Disposer.dispose(parentDisposable);
-            }
-        }
+        return result;
     }
 
     private static void writeOutput(
-            CompilerConfiguration configuration,
-            ClassFileFactory outputFiles,
-            OutputDirector outputDir,
-            File jarPath,
+            @NotNull CompilerConfiguration configuration,
+            @NotNull ClassFileFactory outputFiles,
+            @Nullable File outputDir,
+            @Nullable File jarPath,
             boolean jarRuntime,
-            FqName mainClass
+            @Nullable FqName mainClass
     ) {
         MessageCollector messageCollector = configuration.get(CLIConfigurationKeys.MESSAGE_COLLECTOR_KEY, MessageCollector.NONE);
         CompileEnvironmentUtil.writeOutputToDirOrJar(jarPath, outputDir, jarRuntime, mainClass, outputFiles, messageCollector);
     }
 
     public static boolean compileModules(
-            CompilerConfiguration configuration,
-            @NotNull final ModuleChunk chunk,
+            @NotNull CompilerConfiguration configuration,
+            @NotNull List<Module> chunk,
             @NotNull File directory,
             @Nullable File jarPath,
             boolean jarRuntime
     ) {
-        List<Module> modules = chunk.getModules();
-        if (COMPILE_CHUNK_AS_ONE_MODULE && modules.size() > 1) {
-            modules = Collections.<Module>singletonList(new ChunkAsOneModule(chunk));
-        }
-        for (Module module : modules) {
-            ClassFileFactory outputFiles = compileModule(configuration, module, directory);
-            if (outputFiles == null) {
+        Map<Module, ClassFileFactory> outputFiles = Maps.newHashMap();
+
+        CompilerConfiguration compilerConfiguration = createCompilerConfiguration(configuration, chunk, directory);
+
+        Disposable parentDisposable = Disposer.newDisposable();
+        JetCoreEnvironment environment = null;
+        try {
+            environment = JetCoreEnvironment.createForProduction(parentDisposable, compilerConfiguration);
+
+            AnalyzeExhaust exhaust = analyze(environment);
+            if (exhaust == null) {
                 return false;
             }
-            OutputDirector outputDir = new OutputDirector() {
-                @NotNull
-                @Override
-                public File getOutputDirectory(@NotNull Collection<? extends File> sourceFiles) {
-                    for (File sourceFile : sourceFiles) {
-                        // Note that here we track original modules:
-                        Module module = chunk.findModuleBySourceFile(sourceFile);
-                        if (module != null) {
-                            return new File(module.getOutputDirectory());
-                        }
-                    }
-                    throw new IllegalStateException("No module found for source files: " + sourceFiles);
-                }
-            };
 
-            writeOutput(configuration, outputFiles, outputDir, jarPath, jarRuntime, null);
+            exhaust.throwIfError();
+
+            for (Module module : chunk) {
+                List<JetFile> jetFiles = CompileEnvironmentUtil.getJetFiles(
+                        environment.getProject(), getAbsolutePaths(directory, module), new Function1<String, Unit>() {
+                            @Override
+                            public Unit invoke(String s) {
+                                throw new IllegalStateException("Should have been checked before: " + s);
+                            }
+                        }
+                );
+                GenerationState generationState =
+                        generate(environment, exhaust, jetFiles, module.getModuleName(), new File(module.getOutputDirectory()));
+                outputFiles.put(module, generationState.getFactory());
+            }
+        }
+        finally {
+            if (environment != null) {
+                Disposer.dispose(parentDisposable);
+            }
+        }
+
+        for (Module module : chunk) {
+            writeOutput(configuration, outputFiles.get(module), new File(module.getOutputDirectory()), jarPath, jarRuntime, null);
         }
         return true;
+    }
+
+    @NotNull
+    private static CompilerConfiguration createCompilerConfiguration(
+            @NotNull CompilerConfiguration base,
+            @NotNull List<Module> chunk,
+            @NotNull File directory
+    ) {
+        CompilerConfiguration configuration = base.copy();
+        for (Module module : chunk) {
+            configuration.addAll(CommonConfigurationKeys.SOURCE_ROOTS_KEY, getAbsolutePaths(directory, module));
+
+            for (String classpathRoot : module.getClasspathRoots()) {
+                configuration.add(JVMConfigurationKeys.CLASSPATH_KEY, new File(classpathRoot));
+            }
+
+            for (String annotationsRoot : module.getAnnotationsRoots()) {
+                configuration.add(JVMConfigurationKeys.ANNOTATIONS_PATH_KEY, new File(annotationsRoot));
+            }
+
+            configuration.add(JVMConfigurationKeys.MODULE_IDS, module.getModuleName());
+        }
+
+        return configuration;
     }
 
     @Nullable
@@ -180,7 +195,7 @@ public class KotlinToJVMBytecodeCompiler {
     }
 
     public static boolean compileBunchOfSources(
-            JetCoreEnvironment environment,
+            @NotNull JetCoreEnvironment environment,
             @Nullable File jar,
             @Nullable File outputDir,
             boolean includeRuntime
@@ -194,8 +209,7 @@ public class KotlinToJVMBytecodeCompiler {
         FqName mainClass = findMainClass(generationState, environment.getSourceFiles());
 
         try {
-            OutputDirector outputDirector = outputDir != null ? new SingleDirectoryDirector(outputDir) : null;
-            writeOutput(environment.getConfiguration(), generationState.getFactory(), outputDirector, jar, includeRuntime, mainClass);
+            writeOutput(environment.getConfiguration(), generationState.getFactory(), outputDir, jar, includeRuntime, mainClass);
             return true;
         }
         finally {
@@ -212,7 +226,7 @@ public class KotlinToJVMBytecodeCompiler {
         if (scriptClass == null) return;
 
         try {
-            scriptClass.getConstructor(String[].class).newInstance(new Object[]{scriptArgs.toArray(new String[scriptArgs.size()])});
+            scriptClass.getConstructor(String[].class).newInstance(new Object[] {ArrayUtil.toStringArray(scriptArgs)});
         }
         catch (RuntimeException e) {
             throw e;
@@ -262,7 +276,7 @@ public class KotlinToJVMBytecodeCompiler {
 
         exhaust.throwIfError();
 
-        return generate(environment, exhaust);
+        return generate(environment, exhaust, environment.getSourceFiles(), null, null);
     }
 
     @Nullable
@@ -270,7 +284,7 @@ public class KotlinToJVMBytecodeCompiler {
         AnalyzerWithCompilerReport analyzerWithCompilerReport = new AnalyzerWithCompilerReport(
                 environment.getConfiguration().get(CLIConfigurationKeys.MESSAGE_COLLECTOR_KEY));
         analyzerWithCompilerReport.analyzeAndReport(
-                new Function0<AnalyzeExhaust>() {
+                environment.getSourceFiles(), new Function0<AnalyzeExhaust>() {
                     @NotNull
                     @Override
                     public AnalyzeExhaust invoke() {
@@ -283,9 +297,11 @@ public class KotlinToJVMBytecodeCompiler {
                                 sharedTrace,
                                 Predicates.<PsiFile>alwaysTrue(),
                                 sharedModule,
-                                new CliSourcesMemberFilter(environment));
+                                environment.getConfiguration().get(JVMConfigurationKeys.MODULE_IDS),
+                                environment.getConfiguration().get(JVMConfigurationKeys.INCREMENTAL_CACHE_BASE_DIR)
+                        );
                     }
-                }, environment.getSourceFiles()
+                }
         );
 
         AnalyzeExhaust exhaust = analyzerWithCompilerReport.getAnalyzeExhaust();
@@ -301,17 +317,47 @@ public class KotlinToJVMBytecodeCompiler {
     }
 
     @NotNull
-    private static GenerationState generate(@NotNull JetCoreEnvironment environment, @NotNull AnalyzeExhaust exhaust) {
+    private static GenerationState generate(
+            @NotNull JetCoreEnvironment environment,
+            @NotNull AnalyzeExhaust exhaust,
+            @NotNull List<JetFile> sourceFiles,
+            @Nullable String moduleId,
+            File outputDirectory
+    ) {
         CompilerConfiguration configuration = environment.getConfiguration();
+        File incrementalCacheDir = configuration.get(JVMConfigurationKeys.INCREMENTAL_CACHE_BASE_DIR);
+        IncrementalCacheProvider incrementalCacheProvider = IncrementalCacheProvider.object$.getInstance();
+
+        Collection<FqName> packagesWithRemovedFiles =
+                incrementalCacheDir == null || moduleId == null || incrementalCacheProvider == null
+                ? null
+                : IncrementalPackage.getPackagesWithRemovedFiles(
+                        incrementalCacheProvider.getIncrementalCache(incrementalCacheDir), moduleId, environment.getSourceFiles());
+        BindingTraceContext diagnosticHolder = new BindingTraceContext();
         GenerationState generationState = new GenerationState(
-                environment.getProject(), ClassBuilderFactories.BINARIES, Progress.DEAF,
-                exhaust.getModuleDescriptor(), exhaust.getBindingContext(), environment.getSourceFiles(),
+                environment.getProject(),
+                ClassBuilderFactories.BINARIES,
+                Progress.DEAF,
+                exhaust.getModuleDescriptor(),
+                exhaust.getBindingContext(),
+                sourceFiles,
                 configuration.get(JVMConfigurationKeys.GENERATE_NOT_NULL_ASSERTIONS, false),
                 configuration.get(JVMConfigurationKeys.GENERATE_NOT_NULL_PARAMETER_ASSERTIONS, false),
                 GenerationState.GenerateClassFilter.GENERATE_ALL,
-                configuration.get(JVMConfigurationKeys.ENABLE_INLINE, InlineCodegenUtil.DEFAULT_INLINE_FLAG)
-        );
+                configuration.get(JVMConfigurationKeys.ENABLE_INLINE, InlineCodegenUtil.DEFAULT_INLINE_FLAG),
+                configuration.get(JVMConfigurationKeys.ENABLE_OPTIMIZATION, OptimizationUtils.DEFAULT_OPTIMIZATION_FLAG),
+                packagesWithRemovedFiles,
+                moduleId,
+                diagnosticHolder,
+                outputDirectory);
         KotlinCodegenFacade.compileCorrectFiles(generationState, CompilationErrorHandler.THROW_EXCEPTION);
+        AnalyzerWithCompilerReport.reportDiagnostics(
+                new FilteredJvmDiagnostics(
+                        diagnosticHolder.getBindingContext().getDiagnostics(),
+                        exhaust.getBindingContext().getDiagnostics()
+                ),
+                environment.getConfiguration().get(CLIConfigurationKeys.MESSAGE_COLLECTOR_KEY)
+        );
         return generationState;
     }
 }

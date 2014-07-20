@@ -16,6 +16,9 @@
 
 package org.jetbrains.jet.lang.cfg;
 
+import org.jetbrains.annotations.NotNull;
+
 public interface Label {
+    @NotNull
     String getName();
 }

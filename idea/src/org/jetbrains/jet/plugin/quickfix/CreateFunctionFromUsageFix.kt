@@ -42,12 +42,9 @@ import com.intellij.util.ArrayUtil
 import com.intellij.util.IncorrectOperationException
 import org.jetbrains.jet.lang.descriptors.*
 import org.jetbrains.jet.lang.diagnostics.Diagnostic
-import org.jetbrains.jet.lang.diagnostics.DiagnosticWithParameters1
-import org.jetbrains.jet.lang.diagnostics.DiagnosticWithParameters2
 import org.jetbrains.jet.lang.diagnostics.Errors
 import org.jetbrains.jet.lang.psi.*
 import org.jetbrains.jet.lang.resolve.BindingContext
-import org.jetbrains.jet.lang.resolve.BindingContextUtils
 import org.jetbrains.jet.lang.resolve.DescriptorUtils
 import org.jetbrains.jet.lang.resolve.name.Name
 import org.jetbrains.jet.lang.resolve.scopes.JetScope
@@ -71,6 +68,8 @@ import java.util.ArrayList
 import java.util.Properties
 import org.jetbrains.jet.plugin.caches.resolve.getAnalysisResults
 import org.jetbrains.jet.plugin.caches.resolve.getBindingContext
+import org.jetbrains.jet.lang.diagnostics.DiagnosticFactory
+import org.jetbrains.jet.lang.resolve.DescriptorToSourceUtils
 
 private val TYPE_PARAMETER_LIST_VARIABLE_NAME = "typeParameterList"
 private val TEMPLATE_FROM_USAGE_FUNCTION_BODY = "New Kotlin Function Body.kt"
@@ -108,11 +107,9 @@ private class TypeCandidate(public val theType: JetType, scope: JetScope? = null
 /**
  * Represents an element in the class selection list.
  */
-private class ClassCandidate(public val typeCandidate: TypeCandidate, file: JetFile, context: BindingContext) {
+private class ClassCandidate(public val typeCandidate: TypeCandidate, file: JetFile) {
     public val jetClass: JetClass = DescriptorToDeclarationUtil.getDeclaration(
-            file,
-            DescriptorUtils.getClassDescriptorForType(typeCandidate.theType),
-            context
+            file, DescriptorUtils.getClassDescriptorForType(typeCandidate.theType)
     ) as JetClass
 }
 
@@ -474,7 +471,7 @@ private fun JetNamedDeclaration.guessType(context: BindingContext): Array<JetTyp
     if (expectedTypes.isEmpty() || expectedTypes.any { expectedType -> ErrorUtils.containsErrorType(expectedType) }) {
         return array<JetType>()
     }
-    val theType = TypeUtils.intersect(JetTypeChecker.INSTANCE, expectedTypes)
+    val theType = TypeUtils.intersect(JetTypeChecker.DEFAULT, expectedTypes)
     if (theType != null) {
         return array<JetType>(theType)
     }
@@ -492,8 +489,8 @@ private class JetTypeSubstitution(public val forType: JetType, public val byType
 private fun JetType.substitute(substitution: JetTypeSubstitution, variance: Variance): JetType {
     if (when (variance) {
         Variance.INVARIANT      -> this == substitution.forType
-        Variance.IN_VARIANCE    -> JetTypeChecker.INSTANCE.isSubtypeOf(this, substitution.forType)
-        Variance.OUT_VARIANCE   -> JetTypeChecker.INSTANCE.isSubtypeOf(substitution.forType, this)
+        Variance.IN_VARIANCE    -> JetTypeChecker.DEFAULT.isSubtypeOf(this, substitution.forType)
+        Variance.OUT_VARIANCE   -> JetTypeChecker.DEFAULT.isSubtypeOf(substitution.forType, this)
     }) {
         return substitution.byType
     }
@@ -548,7 +545,7 @@ public class CreateFunctionFromUsageFix internal (
         }
         else {
             // class selection
-            val list = JBList(ownerTypeCandidates.map { ClassCandidate(it, currentFile, currentFileContext) })
+            val list = JBList(ownerTypeCandidates.map { ClassCandidate(it, currentFile) })
             val renderer = QuickFixUtil.ClassCandidateListCellRenderer()
             list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION)
             list.setCellRenderer(renderer)
@@ -572,7 +569,7 @@ public class CreateFunctionFromUsageFix internal (
         // gather relevant information
         ownerClassDescriptor = DescriptorUtils.getClassDescriptorForType(selectedReceiverType.theType)
         val receiverType = ownerClassDescriptor.getDefaultType()
-        val classDeclaration = BindingContextUtils.classDescriptorToDeclaration(currentFileContext, ownerClassDescriptor)
+        val classDeclaration = DescriptorToSourceUtils.classDescriptorToDeclaration(ownerClassDescriptor)
         if (classDeclaration is JetClass) {
             ownerClass = classDeclaration
             isExtension = !ownerClass.isWritable()
@@ -623,29 +620,29 @@ public class CreateFunctionFromUsageFix internal (
     }
 
     private fun createFunctionSkeleton(): JetNamedFunction {
-        val project = currentFile.getProject()
         val parametersString = parameters.indices.map { i -> "p$i: Any" }.makeString(", ")
         val returnTypeString = if (isUnit) "" else ": Any"
+        val psiFactory = JetPsiFactory(currentFile)
         if (isExtension) {
             // create as extension function
             val ownerTypeString = selectedReceiverType.renderedType!!
-            val func = JetPsiFactory.createFunction(project, "fun $ownerTypeString.$functionName($parametersString)$returnTypeString { }")
+            val func = psiFactory.createFunction("fun $ownerTypeString.$functionName($parametersString)$returnTypeString { }")
             containingFile = currentFile
             containingFileEditor = currentFileEditor
             return currentFile.add(func) as JetNamedFunction
         }
         else {
             // create as regular function
-            val func = JetPsiFactory.createFunction(project, "fun $functionName($parametersString)$returnTypeString { }")
+            val func = psiFactory.createFunction("fun $functionName($parametersString)$returnTypeString { }")
             containingFile = ownerClass.getContainingJetFile()
 
             NavigationUtil.activateFileWithPsiElement(containingFile)
-            containingFileEditor = FileEditorManager.getInstance(project)!!.getSelectedTextEditor()!!
+            containingFileEditor = FileEditorManager.getInstance(currentFile.getProject())!!.getSelectedTextEditor()!!
 
             var classBody = ownerClass.getBody()
             if (classBody == null) {
-                classBody = ownerClass.add(JetPsiFactory.createEmptyClassBody(project)) as JetClassBody
-                ownerClass.addBefore(JetPsiFactory.createWhiteSpace(project), classBody)
+                classBody = ownerClass.add(psiFactory.createEmptyClassBody()) as JetClassBody
+                ownerClass.addBefore(psiFactory.createWhiteSpace(), classBody)
             }
             val rBrace = classBody!!.getRBrace()
             //TODO: Assert rbrace not null? It can be if the class isn't closed.
@@ -740,7 +737,7 @@ public class CreateFunctionFromUsageFix internal (
             typeRefsToShorten: MutableList<JetTypeReference>, parameterTypeExpressions: List<TypeExpression>,
             returnTypeExpression: TypeExpression?) {
         if (isExtension) {
-            val receiverTypeRef = JetPsiFactory.createType(func.getProject(), selectedReceiverType.theType.renderLong(typeParameterNameMap))
+            val receiverTypeRef = JetPsiFactory(func).createType(selectedReceiverType.theType.renderLong(typeParameterNameMap))
             replaceWithLongerName(receiverTypeRef, selectedReceiverType.theType)
 
             val funcReceiverTypeRef = func.getReceiverTypeRef()
@@ -801,7 +798,7 @@ public class CreateFunctionFromUsageFix internal (
             throw IncorrectOperationException("Failed to parse file template", e)
         }
 
-        val newBodyExpression = JetPsiFactory.createFunctionBody(func.getProject(), bodyText)
+        val newBodyExpression = JetPsiFactory(func).createFunctionBody(bodyText)
         func.getBodyExpression()!!.replace(newBodyExpression)
     }
 
@@ -869,8 +866,7 @@ public class CreateFunctionFromUsageFix internal (
     }
 
     private fun replaceWithLongerName(typeRef: JetTypeReference, theType: JetType) {
-        val project = typeRef.getProject()
-        val fullyQualifiedReceiverTypeRef = JetPsiFactory.createType(project, theType.renderLong(typeParameterNameMap))
+        val fullyQualifiedReceiverTypeRef = JetPsiFactory(typeRef).createType(theType.renderLong(typeParameterNameMap))
         typeRef.replace(fullyQualifiedReceiverTypeRef)
     }
 
@@ -917,9 +913,7 @@ public class CreateFunctionFromUsageFix internal (
         public fun createCreateHasNextFunctionFromUsageFactory(): JetSingleIntentionActionFactory {
             return object : JetSingleIntentionActionFactory() {
                 override fun createAction(diagnostic: Diagnostic?): IntentionAction? {
-                    assert(diagnostic!!.getFactory() == Errors.HAS_NEXT_MISSING || diagnostic.getFactory() == Errors.HAS_NEXT_FUNCTION_NONE_APPLICABLE)
-                    [suppress("UNCHECKED_CAST")]
-                    val diagnosticWithParameters = diagnostic as DiagnosticWithParameters1<JetExpression, JetType>
+                    val diagnosticWithParameters = DiagnosticFactory.cast(diagnostic!!, Errors.HAS_NEXT_MISSING, Errors.HAS_NEXT_FUNCTION_NONE_APPLICABLE)
                     val ownerType = TypeOrExpressionThereof(diagnosticWithParameters.getA(), Variance.IN_VARIANCE)
 
                     val forExpr = QuickFixUtil.getParentElementOfType(diagnostic, javaClass<JetForExpression>()) ?: return null
@@ -932,9 +926,7 @@ public class CreateFunctionFromUsageFix internal (
         public fun createCreateNextFunctionFromUsageFactory(): JetSingleIntentionActionFactory {
             return object : JetSingleIntentionActionFactory() {
                 override fun createAction(diagnostic: Diagnostic?): IntentionAction? {
-                    assert(diagnostic!!.getFactory() == Errors.NEXT_MISSING || diagnostic.getFactory() == Errors.NEXT_NONE_APPLICABLE)
-                    [suppress("UNCHECKED_CAST")]
-                    val diagnosticWithParameters = diagnostic as DiagnosticWithParameters1<JetExpression, JetType>
+                    val diagnosticWithParameters = DiagnosticFactory.cast(diagnostic!!, Errors.NEXT_MISSING, Errors.NEXT_NONE_APPLICABLE)
                     val ownerType = TypeOrExpressionThereof(diagnosticWithParameters.getA(), Variance.IN_VARIANCE)
 
                     val forExpr = QuickFixUtil.getParentElementOfType(diagnostic, javaClass<JetForExpression>()) ?: return null
@@ -971,9 +963,7 @@ public class CreateFunctionFromUsageFix internal (
         public fun createCreateComponentFunctionFromUsageFactory(): JetSingleIntentionActionFactory {
             return object : JetSingleIntentionActionFactory() {
                 override fun createAction(diagnostic: Diagnostic?): IntentionAction? {
-                    assert(diagnostic!!.getFactory() == Errors.COMPONENT_FUNCTION_MISSING)
-                    [suppress("UNCHECKED_CAST")]
-                    val diagnosticWithParameters = (diagnostic as DiagnosticWithParameters2<JetExpression, Name, JetType>)
+                    val diagnosticWithParameters = Errors.COMPONENT_FUNCTION_MISSING.cast(diagnostic!!)
                     val name = diagnosticWithParameters.getA()
                     val componentNumberMatcher = COMPONENT_FUNCTION_PATTERN.matcher(name.getIdentifier())
                     if (!componentNumberMatcher.matches()) return null

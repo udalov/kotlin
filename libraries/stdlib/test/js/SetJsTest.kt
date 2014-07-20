@@ -3,19 +3,62 @@ package test.collections
 import kotlin.test.*
 import org.junit.Test
 import java.util.HashSet
+import java.util.LinkedHashSet
 
 class ComplexSetJsTest : SetJsTest() {
+    // Helper function with generic parameter to force to use ComlpexHashMap
+    fun doTest<T>() {
+        HashSet<T>()
+        HashSet<T>(3)
+        HashSet<T>(3, 0.5f)
+
+        val set = HashSet<T>(data as HashSet<T>)
+
+        assertEquals(data, set)
+    }
+
+    test override fun constructors() {
+        doTest<String>()
+    }
+
     // hashSetOf returns ComlpexHashSet because it is Generic
-    override fun createEmptyMutableSet(): MutableSet<String> = hashSetOf<String>()
+    override fun createEmptyMutableSet(): MutableSet<String> = hashSetOf()
+    override fun createEmptyMutableSetWithNullableValues(): MutableSet<String?> = hashSetOf()
 }
 
 class PrimitiveSetJsTest : SetJsTest() {
-    override fun createEmptyMutableSet(): MutableSet<String> = HashSet<String>()
+    override fun createEmptyMutableSet(): MutableSet<String> = HashSet()
+    override fun createEmptyMutableSetWithNullableValues(): MutableSet<String?> = HashSet()
+    test override fun constructors() {
+        HashSet<String>()
+        HashSet<String>(3)
+        HashSet<String>(3, 0.5f)
+
+        val set = HashSet<String>(data)
+
+        assertEquals(data, set)
+    }
+}
+
+class LinkedHashSetTest : SetJsTest() {
+    override fun createEmptyMutableSet(): MutableSet<String> = LinkedHashSet()
+    override fun createEmptyMutableSetWithNullableValues(): MutableSet<String?> = LinkedHashSet()
+    test override fun constructors() {
+        LinkedHashSet<String>()
+        LinkedHashSet<String>(3)
+        LinkedHashSet<String>(3, 0.5f)
+
+        val set = LinkedHashSet<String>(data)
+
+        assertEquals(data, set)
+    }
 }
 
 abstract class SetJsTest {
     val data: Set<String> = createTestMutableSet()
     val empty: Set<String> = createEmptyMutableSet()
+
+    val SPECIAL_NAMES = array("__proto__", "constructor", "toString", "toLocaleString", "valueOf", "hasOwnProperty", "isPrototypeOf", "propertyIsEnumerable")
 
     Test fun size() {
         assertEquals(2, data.size())
@@ -117,8 +160,48 @@ abstract class SetJsTest {
         assertTrue(data.isEmpty())
     }
 
+    Test fun specialNamesNotContainsInEmptySet() {
+        for (element in SPECIAL_NAMES) {
+            assertFalse(empty.contains(element), "unexpected element: $element")
+        }
+    }
+
+    Test fun specialNamesNotContainsInNonEmptySet() {
+        for (element in SPECIAL_NAMES) {
+            assertFalse(data.contains(element), "unexpected element: $element")
+        }
+    }
+
+    Test fun putAndGetSpecialNamesToSet() {
+        val s = createTestMutableSet()
+
+        for (element in SPECIAL_NAMES) {
+            assertFalse(s.contains(element), "unexpected element: $element")
+
+            s.add(element)
+            assertTrue(s.contains(element), "element not found: $element")
+
+            s.remove(element)
+            assertFalse(s.contains(element), "unexpected element after remove: $element")
+        }
+    }
+
+    test abstract fun constructors()
+
+    Test fun nullAsValue() {
+        val set = createEmptyMutableSetWithNullableValues()
+
+        assertTrue(set.isEmpty(), "Set should be empty")
+        set.add(null)
+        assertFalse(set.isEmpty(), "Set should not be empty")
+        assertTrue(set.contains(null), "Set should contains null")
+        assertTrue(set.remove(null), "Expected true when remove null")
+        assertTrue(set.isEmpty(), "Set should be empty")
+    }
+
     //Helpers
     abstract fun createEmptyMutableSet(): MutableSet<String>
+    abstract fun createEmptyMutableSetWithNullableValues(): MutableSet<String?>
 
     fun createTestMutableSet(): MutableSet<String> {
         val set = createEmptyMutableSet()

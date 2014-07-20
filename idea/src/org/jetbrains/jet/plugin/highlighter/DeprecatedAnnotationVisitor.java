@@ -30,6 +30,7 @@ import org.jetbrains.jet.lang.descriptors.annotations.AnnotationDescriptor;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.DescriptorUtils;
+import org.jetbrains.jet.lang.resolve.bindingContextUtil.BindingContextUtilPackage;
 import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCall;
 import org.jetbrains.jet.lang.resolve.calls.model.VariableAsFunctionResolvedCall;
 import org.jetbrains.jet.lang.resolve.constants.CompileTimeConstant;
@@ -62,7 +63,7 @@ public class DeprecatedAnnotationVisitor extends AfterAnalysisHighlightingVisito
     @Override
     public void visitReferenceExpression(@NotNull JetReferenceExpression expression) {
         super.visitReferenceExpression(expression);
-        ResolvedCall resolvedCall = bindingContext.get(BindingContext.RESOLVED_CALL, expression);
+        ResolvedCall resolvedCall = BindingContextUtilPackage.getResolvedCall(expression, bindingContext);
         if (resolvedCall != null && resolvedCall instanceof VariableAsFunctionResolvedCall) {
             // Deprecated for invoke()
             JetCallExpression parent = PsiTreeUtil.getParentOfType(expression, JetCallExpression.class);
@@ -229,18 +230,28 @@ public class DeprecatedAnnotationVisitor extends AfterAnalysisHighlightingVisito
     }
 
     private static String composeTooltipString(@NotNull DeclarationDescriptor declarationDescriptor, @NotNull AnnotationDescriptor descriptor) {
-        return "'" + getDescriptorString(declarationDescriptor) + "' is deprecated. " + getMessageFromAnnotationDescriptor(descriptor);
+        String fact = "'" + getDescriptorString(declarationDescriptor) + "' is deprecated.";
+        String message = getMessageFromAnnotationDescriptor(descriptor);
+        return message == null ? fact : fact + " " + message;
     }
 
+    @Nullable
     private static String getMessageFromAnnotationDescriptor(@NotNull AnnotationDescriptor descriptor) {
         ClassDescriptor classDescriptor = TypeUtils.getClassDescriptor(descriptor.getType());
-        assert classDescriptor != null : "ClassDescriptor for kotlin.deprecated mustn't be null";
-        ValueParameterDescriptor parameter =
-                DescriptorResolverUtils.getAnnotationParameterByName(DEFAULT_ANNOTATION_MEMBER_NAME, classDescriptor);
-        assert parameter != null : "kotlin.deprecated must have one parameter called value";
-        CompileTimeConstant<?> valueArgument = descriptor.getValueArgument(parameter);
-        assert valueArgument != null : "kotlin.deprecated must have value argument";
-        return (String) valueArgument.getValue();
+        if (classDescriptor != null) {
+            ValueParameterDescriptor parameter =
+                    DescriptorResolverUtils.getAnnotationParameterByName(DEFAULT_ANNOTATION_MEMBER_NAME, classDescriptor);
+            if (parameter != null) {
+                CompileTimeConstant<?> valueArgument = descriptor.getValueArgument(parameter);
+                if (valueArgument != null) {
+                    Object value = valueArgument.getValue();
+                    if (value instanceof String) {
+                        return String.valueOf(value);
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     private static String getDescriptorString(@NotNull DeclarationDescriptor descriptor) {

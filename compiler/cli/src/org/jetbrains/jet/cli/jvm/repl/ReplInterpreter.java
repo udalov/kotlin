@@ -41,10 +41,9 @@ import org.jetbrains.jet.codegen.CompilationErrorHandler;
 import org.jetbrains.jet.codegen.KotlinCodegenFacade;
 import org.jetbrains.jet.codegen.state.GenerationState;
 import org.jetbrains.jet.config.CompilerConfiguration;
-import org.jetbrains.jet.descriptors.serialization.descriptors.MemberFilter;
 import org.jetbrains.jet.di.InjectorForTopDownAnalyzerForJvm;
-import org.jetbrains.jet.lang.descriptors.ModuleDescriptorImpl;
 import org.jetbrains.jet.lang.descriptors.ScriptDescriptor;
+import org.jetbrains.jet.lang.descriptors.impl.ModuleDescriptorImpl;
 import org.jetbrains.jet.lang.descriptors.impl.PackageLikeBuilderDummy;
 import org.jetbrains.jet.lang.parsing.JetParserDefinition;
 import org.jetbrains.jet.lang.psi.JetFile;
@@ -108,7 +107,7 @@ public class ReplInterpreter {
                 new ExceptionTracker(), // dummy
                 Predicates.<PsiFile>alwaysTrue()
         );
-        injector = new InjectorForTopDownAnalyzerForJvm(project, topDownAnalysisParameters, trace, module, MemberFilter.ALWAYS_TRUE);
+        injector = new InjectorForTopDownAnalyzerForJvm(project, topDownAnalysisParameters, trace, module);
         topDownAnalysisContext = new TopDownAnalysisContext(topDownAnalysisParameters);
         module.addFragmentProvider(SOURCES, injector.getTopDownAnalyzer().getPackageFragmentProvider());
         module.addFragmentProvider(BUILT_INS, KotlinBuiltIns.getInstance().getBuiltInsModule().getPackageFragmentProvider());
@@ -249,7 +248,8 @@ public class ReplInterpreter {
 
         BindingContext bindingContext = AnalyzeExhaust.success(trace.getBindingContext(), module).getBindingContext();
         GenerationState generationState = new GenerationState(psiFile.getProject(), ClassBuilderFactories.BINARIES,
-                                                              module, bindingContext, Collections.singletonList(psiFile));
+                                                              module, bindingContext, Collections.singletonList(psiFile)
+        );
 
         compileScript(psiFile.getScript(), scriptClassType, earlierScripts, generationState,
                       CompilationErrorHandler.THROW_EXCEPTION);
@@ -319,7 +319,7 @@ public class ReplInterpreter {
         injector.getTopDownAnalyzer().doProcess(topDownAnalysisContext,
                                                 scope, new PackageLikeBuilderDummy(), Collections.singletonList(psiFile));
 
-        boolean hasErrors = AnalyzerWithCompilerReport.reportDiagnostics(trace.getBindingContext(), messageCollector);
+        boolean hasErrors = AnalyzerWithCompilerReport.reportDiagnostics(trace.getBindingContext().getDiagnostics(), messageCollector);
         if (hasErrors) {
             return null;
         }

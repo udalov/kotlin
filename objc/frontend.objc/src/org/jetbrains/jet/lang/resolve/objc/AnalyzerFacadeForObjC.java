@@ -19,15 +19,15 @@ package org.jetbrains.jet.lang.resolve.objc;
 import com.google.common.base.Predicates;
 import com.intellij.openapi.project.Project;
 import com.intellij.psi.PsiFile;
+import com.intellij.psi.search.GlobalSearchScope;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.analyzer.AnalyzeExhaust;
 import org.jetbrains.jet.analyzer.AnalyzerFacade;
 import org.jetbrains.jet.context.ContextPackage;
 import org.jetbrains.jet.context.GlobalContextImpl;
-import org.jetbrains.jet.descriptors.serialization.descriptors.MemberFilter;
 import org.jetbrains.jet.di.InjectorForTopDownAnalyzerForObjC;
 import org.jetbrains.jet.lang.descriptors.DependencyKind;
-import org.jetbrains.jet.lang.descriptors.ModuleDescriptorImpl;
+import org.jetbrains.jet.lang.descriptors.impl.ModuleDescriptorImpl;
 import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.resolve.*;
 import org.jetbrains.jet.lang.resolve.java.AnalyzerFacadeForJVM;
@@ -44,7 +44,7 @@ public enum AnalyzerFacadeForObjC implements AnalyzerFacade {
 
     @NotNull
     @Override
-    public Setup createSetup(@NotNull Project project, @NotNull Collection<JetFile> files) {
+    public Setup createSetup(@NotNull Project project, @NotNull Collection<JetFile> files, @NotNull GlobalSearchScope filesScope) {
         // TODO
         throw new UnsupportedOperationException();
     }
@@ -61,7 +61,7 @@ public enum AnalyzerFacadeForObjC implements AnalyzerFacade {
         GlobalContextImpl global = ContextPackage.GlobalContext();
         BindingTrace trace = new BindingTraceContext();
         InjectorForTopDownAnalyzerForObjC injector = new InjectorForTopDownAnalyzerForObjC(
-                project, global, new ObservableBindingTrace(trace), module, MemberFilter.ALWAYS_TRUE
+                project, global, new ObservableBindingTrace(trace), module
         );
 
         module.addFragmentProvider(DependencyKind.SOURCES, injector.getObjCPackageFragmentProvider());

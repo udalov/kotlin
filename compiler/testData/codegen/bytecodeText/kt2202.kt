@@ -10,7 +10,7 @@ class A {
 
 class B {
     var foo = 1
-        private set
+        private set(value) { $foo = value }
 
     fun foo() {
        foo = 2
@@ -18,4 +18,4 @@ class B {
 }
 
 // 0 INVOKEVIRTUAL
-// 4 INVOKESPECIAL
+// 2 INVOKESPECIAL [AB]\.

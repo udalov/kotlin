@@ -23,13 +23,17 @@ import com.intellij.psi.tree.IElementType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.codegen.binding.CalculatedClosure;
+import org.jetbrains.jet.codegen.binding.CodegenBinding;
 import org.jetbrains.jet.codegen.state.GenerationState;
 import org.jetbrains.jet.codegen.state.JetTypeMapper;
 import org.jetbrains.jet.lang.descriptors.*;
+import org.jetbrains.jet.lang.psi.JetFile;
+import org.jetbrains.jet.lang.resolve.DescriptorToSourceUtils;
 import org.jetbrains.jet.lang.resolve.DescriptorUtils;
 import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCall;
 import org.jetbrains.jet.lang.resolve.java.*;
 import org.jetbrains.jet.lang.resolve.java.descriptor.JavaCallableMemberDescriptor;
+import org.jetbrains.jet.lang.resolve.kotlin.PackagePartClassUtils;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
@@ -39,18 +43,22 @@ import org.jetbrains.org.objectweb.asm.Label;
 import org.jetbrains.org.objectweb.asm.MethodVisitor;
 import org.jetbrains.org.objectweb.asm.Type;
 import org.jetbrains.org.objectweb.asm.commons.InstructionAdapter;
+import org.jetbrains.org.objectweb.asm.commons.Method;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static org.jetbrains.jet.codegen.JvmCodegenUtil.*;
+import static org.jetbrains.jet.codegen.JvmCodegenUtil.isInterface;
 import static org.jetbrains.jet.lang.resolve.DescriptorUtils.*;
 import static org.jetbrains.jet.lang.resolve.java.AsmTypeConstants.JAVA_STRING_TYPE;
+import static org.jetbrains.jet.lang.resolve.java.AsmTypeConstants.getType;
 import static org.jetbrains.jet.lang.resolve.java.JvmAnnotationNames.ABI_VERSION_FIELD_NAME;
 import static org.jetbrains.jet.lang.resolve.java.JvmAnnotationNames.KotlinSyntheticClass;
+import static org.jetbrains.jet.lang.resolve.java.diagnostics.JvmDeclarationOrigin.NO_ORIGIN;
 import static org.jetbrains.jet.lang.resolve.java.mapping.PrimitiveTypesUtil.asmTypeForPrimitive;
+import static org.jetbrains.jet.lang.types.TypeUtils.isNullableType;
 import static org.jetbrains.org.objectweb.asm.Opcodes.*;
 
 public class AsmUtil {
@@ -62,6 +70,12 @@ public class AsmUtil {
             KotlinBuiltIns.getInstance().getFloat(),
             KotlinBuiltIns.getInstance().getDouble(),
             KotlinBuiltIns.getInstance().getChar()
+    );
+
+    private static final Set<Type> STRING_BUILDER_OBJECT_APPEND_ARG_TYPES = Sets.newHashSet(
+            getType(String.class),
+            getType(StringBuffer.class),
+            getType(CharSequence.class)
     );
 
     private static final int NO_FLAG_LOCAL = 0;
@@ -140,6 +154,11 @@ public class AsmUtil {
         return Type.getType(internalName.substring(1));
     }
 
+    @NotNull
+    public static Method method(@NotNull String name, @NotNull Type returnType, @NotNull Type... parameterTypes) {
+        return new Method(name, Type.getMethodDescriptor(returnType, parameterTypes));
+    }
+
     public static boolean isAbstractMethod(FunctionDescriptor functionDescriptor, OwnerKind kind) {
         return (functionDescriptor.getModality() == Modality.ABSTRACT
                 || isInterface(functionDescriptor.getContainingDeclaration()))
@@ -156,6 +175,12 @@ public class AsmUtil {
 
     public static int getMethodAsmFlags(FunctionDescriptor functionDescriptor, OwnerKind kind) {
         int flags = getCommonCallableFlags(functionDescriptor);
+
+        for (AnnotationCodegen.JvmFlagAnnotation flagAnnotation : AnnotationCodegen.METHOD_FLAGS) {
+            if (flagAnnotation.hasAnnotation(functionDescriptor.getOriginal())) {
+                flags |= flagAnnotation.getJvmFlag();
+            }
+        }
 
         if (functionDescriptor.getModality() == Modality.FINAL && !(functionDescriptor instanceof ConstructorDescriptor)) {
             DeclarationDescriptor containingDeclaration = functionDescriptor.getContainingDeclaration();
@@ -294,21 +319,25 @@ public class AsmUtil {
         return null;
     }
 
-    @NotNull
-    public static Type getTraitImplThisParameterType(@NotNull ClassDescriptor traitDescriptor, @NotNull JetTypeMapper typeMapper) {
-        JetType jetType = getSuperClass(traitDescriptor);
-        Type type = typeMapper.mapType(jetType);
-        if (type.getInternalName().equals("java/lang/Object")) {
-            return typeMapper.mapType(traitDescriptor.getDefaultType());
-        }
-        return type;
-    }
-
-    private static Type stringValueOfOrStringBuilderAppendType(Type type) {
+    private static Type stringValueOfType(Type type) {
         int sort = type.getSort();
         return sort == Type.OBJECT || sort == Type.ARRAY
-                   ? AsmTypeConstants.OBJECT_TYPE
-                   : sort == Type.BYTE || sort == Type.SHORT ? Type.INT_TYPE : type;
+               ? AsmTypeConstants.OBJECT_TYPE
+               : sort == Type.BYTE || sort == Type.SHORT ? Type.INT_TYPE : type;
+    }
+
+    private static Type stringBuilderAppendType(Type type) {
+        switch (type.getSort()) {
+            case Type.OBJECT:
+                return STRING_BUILDER_OBJECT_APPEND_ARG_TYPES.contains(type) ? type : AsmTypeConstants.OBJECT_TYPE;
+            case Type.ARRAY:
+                return AsmTypeConstants.OBJECT_TYPE;
+            case Type.BYTE:
+            case Type.SHORT:
+                return Type.INT_TYPE;
+            default:
+                return type;
+        }
     }
 
     public static void genThrow(@NotNull MethodVisitor mv, @NotNull String exception, @NotNull String message) {
@@ -341,7 +370,7 @@ public class AsmUtil {
         //noinspection PointlessBitwiseExpression
         int access = NO_FLAG_PACKAGE_PRIVATE | ACC_SYNTHETIC | ACC_FINAL;
         for (Pair<String, Type> field : allFields) {
-            builder.newField(null, access, field.first, field.second.getDescriptor(), null, null);
+            builder.newField(NO_ORIGIN, access, field.first, field.second.getDescriptor(), null, null);
         }
     }
 
@@ -370,12 +399,12 @@ public class AsmUtil {
     }
 
     public static void genInvokeAppendMethod(InstructionAdapter v, Type type) {
-        type = stringValueOfOrStringBuilderAppendType(type);
+        type = stringBuilderAppendType(type);
         v.invokevirtual("java/lang/StringBuilder", "append", "(" + type.getDescriptor() + ")Ljava/lang/StringBuilder;");
     }
 
     public static StackValue genToString(InstructionAdapter v, StackValue receiver, Type receiverType) {
-        Type type = stringValueOfOrStringBuilderAppendType(receiverType);
+        Type type = stringValueOfType(receiverType);
         receiver.put(type, v);
         v.invokestatic("java/lang/String", "valueOf", "(" + type.getDescriptor() + ")Ljava/lang/String;");
         return StackValue.onStack(JAVA_STRING_TYPE);
@@ -705,6 +734,58 @@ public class AsmUtil {
 
     @NotNull
     public static Type asmTypeByFqNameWithoutInnerClasses(@NotNull FqName fqName) {
-        return Type.getObjectType(JvmClassName.byFqNameWithoutInnerClasses(fqName).getInternalName());
+        return Type.getObjectType(internalNameByFqNameWithoutInnerClasses(fqName));
+    }
+
+    @NotNull
+    public static String internalNameByFqNameWithoutInnerClasses(@NotNull FqName fqName) {
+        return JvmClassName.byFqNameWithoutInnerClasses(fqName).getInternalName();
+    }
+
+    public static void writeOuterClassAndEnclosingMethod(
+            @NotNull ClassDescriptor descriptor,
+            @NotNull DeclarationDescriptor originalDescriptor,
+            @NotNull JetTypeMapper typeMapper,
+            @NotNull ClassBuilder v
+    ) {
+        String outerClassName = getOuterClassName(descriptor, originalDescriptor, typeMapper);
+        FunctionDescriptor function = DescriptorUtils.getParentOfType(descriptor, FunctionDescriptor.class);
+
+        if (function != null) {
+            Method method = typeMapper.mapSignature(function).getAsmMethod();
+            v.visitOuterClass(outerClassName, method.getName(), method.getDescriptor());
+        }
+        else {
+            v.visitOuterClass(outerClassName, null, null);
+        }
+    }
+
+    @NotNull
+    private static String getOuterClassName(@NotNull ClassDescriptor classDescriptor, @NotNull DeclarationDescriptor originalDescriptor, @NotNull JetTypeMapper typeMapper) {
+        DeclarationDescriptor container = classDescriptor.getContainingDeclaration();
+        while (container != null) {
+            if (container instanceof ClassDescriptor) {
+                return typeMapper.mapClass((ClassDescriptor)container).getInternalName();
+            } else if (CodegenBinding.isLocalFunOrLambda(container)) {
+                ClassDescriptor descriptor =
+                        CodegenBinding.anonymousClassForFunction(typeMapper.getBindingContext(), (FunctionDescriptor) container);
+                return typeMapper.mapClass(descriptor).getInternalName();
+            }
+
+            container = container.getContainingDeclaration();
+        }
+
+        JetFile containingFile = DescriptorToSourceUtils.getContainingFile(originalDescriptor);
+        assert containingFile != null : "Containing file should be present for " + classDescriptor;
+        return PackagePartClassUtils.getPackagePartInternalName(containingFile);
+    }
+
+    public static void putJavaLangClassInstance(@NotNull InstructionAdapter v, @NotNull Type type) {
+        if (isPrimitive(type)) {
+            v.getstatic(boxType(type).getInternalName(), "TYPE", "Ljava/lang/Class;");
+        }
+        else {
+            v.aconst(type);
+        }
     }
 }

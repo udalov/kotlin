@@ -1,6 +1,6 @@
 package test
 
-open class Test() : Base() {
+class Test : Base() {
     override fun hashCode(): Int {
         return super.hashCode()
     }
@@ -9,37 +9,41 @@ open class Test() : Base() {
         return super.equals(o)
     }
 
-    override fun clone(): Any? {
+    throws(javaClass<CloneNotSupportedException>())
+    override fun clone(): Any {
         return super.clone()
     }
 
-    override fun toString(): String? {
+    override fun toString(): String {
         return super.toString()
     }
 
+    throws(javaClass<Throwable>())
     override fun finalize() {
         super.finalize()
     }
 }
 
-open class Base() {
-    public open fun hashCode(): Int {
-        return System.identityHashCode(this)
+class Base {
+    override fun hashCode(): Int {
+        return super.hashCode()
     }
 
-    public open fun equals(o: Any?): Boolean {
-        return this.identityEquals(o)
+    override fun equals(o: Any?): Boolean {
+        return super.equals(o)
     }
 
-    protected open fun clone(): Any? {
+    throws(javaClass<CloneNotSupportedException>())
+    protected fun clone(): Any {
         return super.clone()
     }
 
-    public open fun toString(): String? {
-        return getJavaClass<Base>.getName() + '@' + Integer.toHexString(hashCode())
+    override fun toString(): String {
+        return super.toString()
     }
 
-    protected open fun finalize() {
+    throws(javaClass<Throwable>())
+    protected fun finalize() {
         super.finalize()
     }
 }

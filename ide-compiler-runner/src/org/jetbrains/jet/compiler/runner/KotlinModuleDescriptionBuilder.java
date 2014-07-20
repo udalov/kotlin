@@ -16,6 +16,9 @@
 
 package org.jetbrains.jet.compiler.runner;
 
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
 import java.io.File;
 import java.util.Collection;
 import java.util.List;
@@ -28,7 +31,8 @@ public interface KotlinModuleDescriptionBuilder {
             DependencyProvider dependencyProvider,
             List<File> sourceFiles,
             boolean tests,
-            Set<File> directoriesToFilterOut);
+            Set<File> directoriesToFilterOut
+    );
 
     CharSequence asText();
 

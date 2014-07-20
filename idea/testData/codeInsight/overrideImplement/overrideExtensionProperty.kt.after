@@ -1,0 +1,9 @@
+trait A {
+    val String.prop : Int
+}
+
+class B : A {
+
+    override val String.prop: Int
+        get() = 0
+}

@@ -19,6 +19,10 @@ package org.jetbrains.jet.lang.cfg.pseudocodeTraverser
 import org.jetbrains.jet.lang.cfg.pseudocode.*
 import java.util.*
 import org.jetbrains.jet.lang.cfg.pseudocodeTraverser.TraversalOrder.FORWARD
+import org.jetbrains.jet.lang.cfg.pseudocode.instructions.special.SubroutineSinkInstruction
+import org.jetbrains.jet.lang.cfg.pseudocode.instructions.special.LocalFunctionDeclarationInstruction
+import org.jetbrains.jet.lang.cfg.pseudocode.instructions.Instruction
+import org.jetbrains.jet.lang.cfg.pseudocode.instructions.special.SubroutineEnterInstruction
 
 fun Pseudocode.traverse(
         traversalOrder: TraversalOrder,
@@ -27,7 +31,7 @@ fun Pseudocode.traverse(
     val instructions = getInstructions(traversalOrder)
     for (instruction in instructions) {
         if (instruction is LocalFunctionDeclarationInstruction) {
-            instruction.getBody().traverse(traversalOrder, analyzeInstruction)
+            instruction.body.traverse(traversalOrder, analyzeInstruction)
         }
         analyzeInstruction(instruction)
     }
@@ -41,7 +45,7 @@ fun <D> Pseudocode.traverse(
     val instructions = getInstructions(traversalOrder)
     for (instruction in instructions) {
         if (instruction is LocalFunctionDeclarationInstruction) {
-            instruction.getBody().traverse(traversalOrder, edgesMap, analyzeInstruction)
+            instruction.body.traverse(traversalOrder, edgesMap, analyzeInstruction)
         }
         val edges = edgesMap.get(instruction)
         if (edges != null) {
@@ -81,7 +85,7 @@ private fun <D> Pseudocode.initializeEdgesMap(
     for (instruction in instructions) {
         edgesMap.put(instruction, initialEdge)
         if (instruction is LocalFunctionDeclarationInstruction) {
-            instruction.getBody().initializeEdgesMap(edgesMap, initialDataValue)
+            instruction.body.initializeEdgesMap(edgesMap, initialDataValue)
         }
     }
 }
@@ -126,7 +130,7 @@ private fun <D> Pseudocode.collectDataFromSubgraph(
         }
 
         if (instruction is LocalFunctionDeclarationInstruction) {
-            val subroutinePseudocode = instruction.getBody()
+            val subroutinePseudocode = instruction.body
             val previous = if (mergeDataWithLocalDeclarations) previousInstructions else Collections.emptyList()
             subroutinePseudocode.collectDataFromSubgraph(
                     traversalOrder, mergeDataWithLocalDeclarations,
@@ -177,18 +181,10 @@ fun traverseFollowingInstructions(
 
     while (!stack.isEmpty()) {
         val instruction = stack.pop()
-        visited.add(instruction)
+        if (!visited.add(instruction)) continue
+        if (handler != null && !handler(instruction)) return false
 
-        val followingInstructions = instruction.getNextInstructions(order)
-
-        for (followingInstruction in followingInstructions) {
-            if (!visited.contains(followingInstruction)) {
-                if (handler != null && !handler(instruction)) {
-                    return false
-                }
-                stack.push(followingInstruction)
-            }
-        }
+        instruction.getNextInstructions(order).forEach { stack.push(it) }
     }
     return true
 }
@@ -208,10 +204,10 @@ fun Pseudocode.getInstructions(traversalOrder: TraversalOrder): MutableList<Inst
         if (traversalOrder == FORWARD) getInstructions() else getReversedInstructions()
 
 fun Instruction.getNextInstructions(traversalOrder: TraversalOrder): Collection<Instruction> =
-        if (traversalOrder == FORWARD) getNextInstructions() else getPreviousInstructions()
+        if (traversalOrder == FORWARD) nextInstructions else previousInstructions
 
 fun Instruction.getPreviousInstructions(traversalOrder: TraversalOrder): Collection<Instruction> =
-        if (traversalOrder == FORWARD) getPreviousInstructions() else getNextInstructions()
+        if (traversalOrder == FORWARD) previousInstructions else nextInstructions
 
 fun Instruction.isStartInstruction(traversalOrder: TraversalOrder): Boolean =
         if (traversalOrder == FORWARD) this is SubroutineEnterInstruction else this is SubroutineSinkInstruction

@@ -16,6 +16,9 @@
 
 package org.jetbrains.jet.lang.diagnostics.rendering;
 
+import com.google.common.collect.ImmutableList;
+import kotlin.Function1;
+import kotlin.KotlinPackage;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.lang.diagnostics.Diagnostic;
 import org.jetbrains.jet.lang.diagnostics.DiagnosticFactory;
@@ -31,16 +34,40 @@ import org.jetbrains.jet.renderer.Renderer;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.Collection;
+import java.util.List;
+import java.util.ServiceLoader;
 
 import static org.jetbrains.jet.lang.diagnostics.Errors.*;
 import static org.jetbrains.jet.lang.diagnostics.rendering.Renderers.*;
 import static org.jetbrains.jet.renderer.DescriptorRenderer.*;
 
 public class DefaultErrorMessages {
-    public static final DiagnosticFactoryToRendererMap MAP = new DiagnosticFactoryToRendererMap();
-    public static final DiagnosticRenderer<Diagnostic> RENDERER = new DispatchingDiagnosticRenderer(MAP);
+
+    public interface Extension {
+        @NotNull
+        DiagnosticFactoryToRendererMap getMap();
+    }
+
+    private static final DiagnosticFactoryToRendererMap MAP = new DiagnosticFactoryToRendererMap();
+    public static final List<DiagnosticFactoryToRendererMap> MAPS = ImmutableList.<DiagnosticFactoryToRendererMap>builder()
+                    .addAll(
+                            KotlinPackage.map(
+                                ServiceLoader.load(Extension.class, DefaultErrorMessages.class.getClassLoader()),
+                                new Function1<Extension, DiagnosticFactoryToRendererMap>() {
+                                    @Override
+                                    public DiagnosticFactoryToRendererMap invoke(Extension extension) {
+                                        return extension.getMap();
+                                    }
+                                }
+                            )
+                    )
+                    .add(MAP)
+                    .build();
+
+    public static final DiagnosticRenderer<Diagnostic> RENDERER = new DispatchingDiagnosticRenderer(MAPS);
 
     static {
+
         MAP.put(UNRESOLVED_REFERENCE, "Unresolved reference: {0}", ELEMENT_TEXT);
 
         MAP.put(INVISIBLE_REFERENCE, "Cannot access ''{0}'': it is ''{1}'' in ''{2}''", NAME, TO_STRING, NAME);
@@ -65,6 +92,7 @@ public class DefaultErrorMessages {
             }
         });
         MAP.put(ILLEGAL_MODIFIER, "Illegal modifier ''{0}''", TO_STRING);
+        MAP.put(INAPPLICABLE_ANNOTATION, "This annotation is not applicable to class members");
 
         MAP.put(REDUNDANT_MODIFIER, "Modifier ''{0}'' is redundant because ''{1}'' is present", TO_STRING, TO_STRING);
         MAP.put(ABSTRACT_MODIFIER_IN_TRAIT, "Modifier ''abstract'' is redundant in trait");
@@ -131,6 +159,7 @@ public class DefaultErrorMessages {
         MAP.put(MUST_BE_INITIALIZED_OR_BE_ABSTRACT, "Property must be initialized or be abstract");
         MAP.put(PROPERTY_INITIALIZER_IN_TRAIT, "Property initializers are not allowed in traits");
         MAP.put(FINAL_PROPERTY_IN_TRAIT, "Abstract property in trait cannot be final");
+        MAP.put(EXTENSION_PROPERTY_WITH_BACKING_FIELD, "Extension property cannot be initialized because it has no backing field");
         MAP.put(PROPERTY_INITIALIZER_NO_BACKING_FIELD, "Initializer is not allowed here because this property has no backing field");
         MAP.put(ABSTRACT_PROPERTY_IN_NON_ABSTRACT_CLASS, "Abstract property ''{0}'' in non-abstract class ''{1}''", STRING, NAME);
         MAP.put(ABSTRACT_FUNCTION_IN_NON_ABSTRACT_CLASS, "Abstract function ''{0}'' in non-abstract class ''{1}''", STRING, NAME);
@@ -183,7 +212,7 @@ public class DefaultErrorMessages {
         MAP.put(INITIALIZATION_USING_BACKING_FIELD_OPEN_SETTER,
                 "Setter of this property can be overridden, so initialization using backing field required", NAME);
 
-        MAP.put(UNREACHABLE_CODE, "Unreachable code");
+        MAP.put(UNREACHABLE_CODE, "Unreachable code", TO_STRING);
 
         MAP.put(MANY_CLASS_OBJECTS, "Only one class object is allowed per class");
         MAP.put(CLASS_OBJECT_NOT_ALLOWED, "A class object is not allowed here");
@@ -390,6 +419,7 @@ public class DefaultErrorMessages {
                 RENDER_CLASS_OR_OBJECT, FQ_NAMES_IN_TYPES);
 
         MAP.put(CONFLICTING_OVERLOADS, "''{0}'' is already defined in {1}", COMPACT_WITH_MODIFIERS, STRING);
+        MAP.put(ILLEGAL_PLATFORM_NAME, "Illegal platform name: ''{0}''", STRING);
 
         MAP.put(FUNCTION_EXPECTED, "Expression ''{0}''{1} cannot be invoked as a function. The function 'invoke()' is not found", ELEMENT_TEXT, new Renderer<JetType>() {
             @NotNull
@@ -485,6 +515,8 @@ public class DefaultErrorMessages {
         MAP.put(USAGE_IS_NOT_INLINABLE, "Illegal usage of inline-parameter ''{0}'' in ''{1}''. Annotate the parameter with [noinline]", ELEMENT_TEXT, SHORT_NAMES_IN_TYPES);
         MAP.put(NULLABLE_INLINE_PARAMETER, "Inline-parameter ''{0}'' of ''{1}'' must not be nullable. Annotate the parameter with [noinline] or make not nullable", ELEMENT_TEXT, SHORT_NAMES_IN_TYPES);
         MAP.put(RECURSION_IN_INLINE, "Inline-function ''{1}'' can't be recursive", ELEMENT_TEXT, SHORT_NAMES_IN_TYPES);
+        //Inline non Locals
+        MAP.put(NON_LOCAL_RETURN_NOT_ALLOWED, "Can''t inline ''{0}'' here: it may contain non-local returns. Annotate parameter declaration ''{0}'' with ''inlineOptions(ONLY_LOCAL_RETURN)''", ELEMENT_TEXT, SHORT_NAMES_IN_TYPES, SHORT_NAMES_IN_TYPES);
 
         MAP.setImmutable();
 
@@ -493,8 +525,8 @@ public class DefaultErrorMessages {
                 try {
                     Object fieldValue = field.get(null);
                     if (fieldValue instanceof DiagnosticFactory) {
-                        if (MAP.get((DiagnosticFactory) fieldValue) == null) {
-                            throw new IllegalStateException("No default diagnostic renderer is provided for " + ((DiagnosticFactory)fieldValue).getName());
+                        if (MAP.get((DiagnosticFactory<?>) fieldValue) == null) {
+                            throw new IllegalStateException("No default diagnostic renderer is provided for " + ((DiagnosticFactory<?>)fieldValue).getName());
                         }
                     }
                 }

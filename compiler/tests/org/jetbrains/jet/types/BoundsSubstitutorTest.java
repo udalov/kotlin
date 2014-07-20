@@ -22,16 +22,17 @@ import org.jetbrains.jet.cli.jvm.compiler.JetCoreEnvironment;
 import org.jetbrains.jet.lang.descriptors.FunctionDescriptor;
 import org.jetbrains.jet.lang.descriptors.ModuleDescriptor;
 import org.jetbrains.jet.lang.psi.JetFile;
-import org.jetbrains.jet.lang.psi.JetPsiFactory;
-import org.jetbrains.jet.lang.resolve.DescriptorUtils;
 import org.jetbrains.jet.lang.resolve.lazy.KotlinTestWithEnvironment;
 import org.jetbrains.jet.lang.resolve.lazy.LazyResolveTestUtil;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.Name;
+import org.jetbrains.jet.lang.types.BoundsSubstitutor;
 import org.jetbrains.jet.renderer.DescriptorRenderer;
 
 import java.util.Collection;
 import java.util.Collections;
+
+import static org.jetbrains.jet.lang.psi.PsiPackage.JetPsiFactory;
 
 public class BoundsSubstitutorTest extends KotlinTestWithEnvironment {
     @Override
@@ -70,13 +71,13 @@ public class BoundsSubstitutorTest extends KotlinTestWithEnvironment {
     //}
 
     private void doTest(String text, String expected) {
-        JetFile jetFile = JetPsiFactory.createFile(getProject(), "fun.kt", text);
+        JetFile jetFile = JetPsiFactory(getProject()).createFile("fun.kt", text);
         ModuleDescriptor module = LazyResolveTestUtil.resolveLazily(Collections.singletonList(jetFile), getEnvironment());
         Collection<FunctionDescriptor> functions = module.getPackage(FqName.ROOT).getMemberScope().getFunctions(Name.identifier("f"));
         assert functions.size() == 1 : "Many functions defined";
         FunctionDescriptor function = ContainerUtil.getFirstItem(functions);
 
-        FunctionDescriptor substituted = DescriptorUtils.substituteBounds(function);
+        FunctionDescriptor substituted = BoundsSubstitutor.substituteBounds(function);
         String actual = DescriptorRenderer.COMPACT.render(substituted);
         assertEquals(expected, actual);
     }

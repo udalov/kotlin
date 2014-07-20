@@ -26,9 +26,11 @@ import org.jetbrains.jet.lang.descriptors.impl.ClassDescriptorImpl;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.BindingTrace;
+import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCall;
 import org.jetbrains.jet.lang.resolve.java.JvmAbi;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.Name;
+import org.jetbrains.jet.lang.resolve.name.SpecialNames;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
 import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
@@ -41,6 +43,7 @@ import java.util.*;
 
 import static org.jetbrains.jet.codegen.JvmCodegenUtil.isInterface;
 import static org.jetbrains.jet.lang.resolve.BindingContext.*;
+import static org.jetbrains.jet.lang.resolve.bindingContextUtil.BindingContextUtilPackage.getResolvedCall;
 
 public class CodegenBinding {
     public static final WritableSlice<ClassDescriptor, MutableClosure> CLOSURE = Slices.createSimpleSlice();
@@ -97,11 +100,6 @@ public class CodegenBinding {
         return asmTypeForScriptDescriptor(bindingContext, scriptDescriptor);
     }
 
-    public static ClassDescriptor enclosingClassDescriptor(BindingContext bindingContext, ClassDescriptor descriptor) {
-        CalculatedClosure closure = bindingContext.get(CLOSURE, descriptor);
-        return closure == null ? null : closure.getEnclosingClass();
-    }
-
     @NotNull
     public static ClassDescriptor anonymousClassForFunction(
             @NotNull BindingContext bindingContext,
@@ -141,7 +139,7 @@ public class CodegenBinding {
     ) {
         ClassDescriptorImpl classDescriptor =
                 new ClassDescriptorImpl(scriptDescriptor, Name.special("<script-" + asmType.getInternalName() + ">"), Modality.FINAL,
-                                        Collections.singleton(KotlinBuiltIns.getInstance().getAnyType()));
+                                        Collections.singleton(KotlinBuiltIns.getInstance().getAnyType()), SourceElement.NO_SOURCE);
         classDescriptor.initialize(JetScope.EMPTY, Collections.<ConstructorDescriptor>emptySet(), null);
 
         recordClosure(bindingTrace, null, classDescriptor, null, asmType);
@@ -154,8 +152,8 @@ public class CodegenBinding {
             return false;
         }
 
-        ClassDescriptor enclosing = enclosingClassDescriptor(bindingContext, classDescriptor);
-        if (enclosing == null) {
+        MutableClosure closure = bindingContext.get(CLOSURE, classDescriptor);
+        if (closure == null || closure.getEnclosingClass() == null) {
             return false;
         }
 
@@ -169,7 +167,7 @@ public class CodegenBinding {
             @Nullable ClassDescriptor enclosing,
             @NotNull Type asmType
     ) {
-        JetDelegatorToSuperCall superCall = findSuperCall(bindingTrace.getBindingContext(), element);
+        ResolvedCall<ConstructorDescriptor> superCall = findSuperCall(bindingTrace.getBindingContext(), element);
 
         CallableDescriptor enclosingReceiver = null;
         if (classDescriptor.getContainingDeclaration() instanceof CallableDescriptor) {
@@ -185,7 +183,7 @@ public class CodegenBinding {
 
         MutableClosure closure = new MutableClosure(superCall, enclosing, enclosingReceiver);
 
-        assert PsiCodegenPredictor.checkPredictedNameFromPsi(bindingTrace.getBindingContext(), classDescriptor, asmType);
+        assert PsiCodegenPredictor.checkPredictedNameFromPsi(classDescriptor, asmType);
         bindingTrace.record(ASM_TYPE, classDescriptor, asmType);
         bindingTrace.record(CLOSURE, classDescriptor, closure);
 
@@ -267,10 +265,15 @@ public class CodegenBinding {
         return sortedAnswer;
     }
 
-    public static boolean isLocalNamedFun(DeclarationDescriptor fd) {
+    public static boolean isLocalNamedFun(@Nullable DeclarationDescriptor fd) {
+        return isLocalFunOrLambda(fd) && !fd.getName().isSpecial();
+    }
+
+    /*named or not*/
+    public static boolean isLocalFunOrLambda(@Nullable DeclarationDescriptor fd) {
         if (fd instanceof FunctionDescriptor) {
             FunctionDescriptor descriptor = (FunctionDescriptor) fd;
-            return descriptor.getVisibility() == Visibilities.LOCAL && !descriptor.getName().isSpecial();
+            return descriptor.getVisibility() == Visibilities.LOCAL;
         }
         return false;
     }
@@ -284,7 +287,7 @@ public class CodegenBinding {
         }
 
         Type asmType = Type.getObjectType(getAsmTypeImpl(bindingContext, klass));
-        assert PsiCodegenPredictor.checkPredictedNameFromPsi(bindingContext, klass, asmType);
+        assert PsiCodegenPredictor.checkPredictedNameFromPsi(klass, asmType);
         return asmType;
     }
 
@@ -292,8 +295,9 @@ public class CodegenBinding {
     private static String getAsmTypeImpl(@NotNull BindingContext bindingContext, @NotNull ClassDescriptor klass) {
         DeclarationDescriptor container = klass.getContainingDeclaration();
 
+        Name name = SpecialNames.safeIdentifier(klass.getName());
         if (container instanceof PackageFragmentDescriptor) {
-            String shortName = klass.getName().getIdentifier();
+            String shortName = name.getIdentifier();
             FqName fqName = ((PackageFragmentDescriptor) container).getFqName();
             return fqName.isRoot() ? shortName : fqName.asString().replace('.', '/') + '/' + shortName;
         }
@@ -307,17 +311,15 @@ public class CodegenBinding {
             case CLASS_OBJECT:
                 return containerInternalName + JvmAbi.CLASS_OBJECT_SUFFIX;
             default:
-                return containerInternalName + "$" + klass.getName().getIdentifier();
+                return containerInternalName + "$" + name.getIdentifier();
         }
     }
 
-    public static boolean hasThis0(BindingContext bindingContext, ClassDescriptor classDescriptor) {
-        //noinspection SuspiciousMethodCalls
-        CalculatedClosure closure = bindingContext.get(CLOSURE, classDescriptor);
-        return closure != null && closure.getCaptureThis() != null;
-    }
-
-    private static JetDelegatorToSuperCall findSuperCall(BindingContext bindingContext, JetElement classOrObject) {
+    @Nullable
+    private static ResolvedCall<ConstructorDescriptor> findSuperCall(
+            @NotNull BindingContext bindingContext,
+            @Nullable JetElement classOrObject
+    ) {
         if (!(classOrObject instanceof JetClassOrObject)) {
             return null;
         }
@@ -328,16 +330,17 @@ public class CodegenBinding {
 
         for (JetDelegationSpecifier specifier : ((JetClassOrObject) classOrObject).getDelegationSpecifiers()) {
             if (specifier instanceof JetDelegatorToSuperCall) {
-                JetTypeReference typeReference = specifier.getTypeReference();
-
-                JetType superType = bindingContext.get(TYPE, typeReference);
-                assert superType != null: String.format(
+                JetType supertype = bindingContext.get(TYPE, specifier.getTypeReference());
+                assert supertype != null : String.format(
                         "No type in binding context for  \n---\n%s\n---\n", JetPsiUtil.getElementTextWithContext(specifier));
 
-                ClassDescriptor superClassDescriptor = (ClassDescriptor) superType.getConstructor().getDeclarationDescriptor();
-                assert superClassDescriptor != null;
-                if (!isInterface(superClassDescriptor)) {
-                    return (JetDelegatorToSuperCall) specifier;
+                ClassifierDescriptor superClass = supertype.getConstructor().getDeclarationDescriptor();
+                if (superClass != null && !isInterface(superClass)) {
+                    ResolvedCall<?> resolvedCall = getResolvedCall(specifier, bindingContext);
+                    if (resolvedCall != null && resolvedCall.getResultingDescriptor() instanceof ConstructorDescriptor) {
+                        //noinspection unchecked
+                        return (ResolvedCall<ConstructorDescriptor>) resolvedCall;
+                    }
                 }
             }
         }

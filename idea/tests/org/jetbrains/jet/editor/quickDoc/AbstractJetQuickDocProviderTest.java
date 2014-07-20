@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2013 JetBrains s.r.o.
+ * Copyright 2010-2014 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,9 +16,6 @@
 
 package org.jetbrains.jet.editor.quickDoc;
 
-import com.google.common.base.Predicates;
-import com.google.common.collect.Collections2;
-import com.google.common.collect.Lists;
 import com.intellij.codeInsight.documentation.DocumentationManager;
 import com.intellij.codeInsight.navigation.CtrlMouseHandler;
 import com.intellij.openapi.util.io.FileUtil;
@@ -26,22 +23,19 @@ import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.psi.PsiElement;
 import com.intellij.rt.execution.junit.FileComparisonFailure;
 import com.intellij.testFramework.LightProjectDescriptor;
-import com.intellij.testFramework.fixtures.LightCodeInsightFixtureTestCase;
-import com.intellij.util.ArrayUtil;
-import junit.framework.Assert;
-import junit.framework.ComparisonFailure;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.InTextDirectivesUtils;
+import org.jetbrains.jet.plugin.JetLightCodeInsightFixtureTestCase;
 import org.jetbrains.jet.plugin.ProjectDescriptorWithStdlibSources;
+import org.jetbrains.jet.test.util.UtilPackage;
+import org.junit.Assert;
 
 import java.io.File;
-import java.util.Collection;
 import java.util.List;
 
-public abstract class AbstractJetQuickDocProviderTest extends LightCodeInsightFixtureTestCase {
+public abstract class AbstractJetQuickDocProviderTest extends JetLightCodeInsightFixtureTestCase {
     public void doTest(@NotNull String path) throws Exception {
-        myFixture.configureByFiles(ArrayUtil.toStringArray(getTestFiles(path)));
+        UtilPackage.configureWithExtraFile(myFixture, path, "_Data");
 
         PsiElement element = myFixture.getFile().findElementAt(myFixture.getEditor().getCaretModel().getOffset());
         assertNotNull("Can't find element at caret in file: " + path, element);
@@ -63,16 +57,18 @@ public abstract class AbstractJetQuickDocProviderTest extends LightCodeInsightFi
                     testDataFile.getAbsolutePath());
         }
         else if (directives.size() == 1) {
+            assertNotNull(info);
+
             String expectedInfo = directives.get(0);
 
             // We can avoid testing for too long comments with \n character by placing '...' in test data
-            if (info != null && expectedInfo.endsWith("...")) {
+            if (expectedInfo.endsWith("...")) {
                 if (!info.startsWith(StringUtil.trimEnd(expectedInfo, "..."))) {
-                    throw new ComparisonFailure(null, expectedInfo, info);
+                    wrapToFileComparisonFailure(info, path, textData);
                 }
             }
-            else {
-                Assert.assertEquals(expectedInfo, info);
+            else if (!expectedInfo.equals(info)) {
+                wrapToFileComparisonFailure(info, path, textData);
             }
         }
         else {
@@ -80,34 +76,20 @@ public abstract class AbstractJetQuickDocProviderTest extends LightCodeInsightFi
         }
     }
 
+    private static void wrapToFileComparisonFailure(String info, String filePath, String fileData) {
+        int newLineIndex = info.indexOf('\n');
+        if (newLineIndex != -1) {
+            info = info.substring(0, newLineIndex) + "...";
+        }
+
+        String correctedFileText = fileData.replaceFirst("//\\s?INFO: .*", "// INFO: " + info);
+        throw new FileComparisonFailure("Unexpected info", fileData, correctedFileText, new File(filePath).getAbsolutePath());
+    }
+
+
     @NotNull
     @Override
     protected LightProjectDescriptor getProjectDescriptor() {
         return ProjectDescriptorWithStdlibSources.INSTANCE;
-    }
-
-    @Nullable
-    private static Collection<String> getTestFiles(@NotNull String path) {
-        File testFile = new File(path);
-        String testFileName = FileUtil.getNameWithoutExtension(testFile);
-
-        List<String> filePaths = Lists.newArrayList();
-
-        filePaths.add(path);
-
-        filePaths.add(checkDataFileWithSuffix(testFile, testFileName, "_Data.kt"));
-        filePaths.add(checkDataFileWithSuffix(testFile, testFileName, "_Data.java"));
-
-        return Collections2.filter(filePaths, Predicates.notNull());
-    }
-
-    private static String checkDataFileWithSuffix(File testFile, String testFileName, String dataFileSuffix) {
-        String ktDataFileName = testFileName + dataFileSuffix;
-        File ktDataFile = new File(testFile.getParent(), ktDataFileName);
-        if (ktDataFile.exists()) {
-            return FileUtil.normalize(ktDataFile.getPath());
-        }
-
-        return null;
     }
 }

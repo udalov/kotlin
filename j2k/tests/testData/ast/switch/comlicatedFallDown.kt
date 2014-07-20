@@ -1,13 +1,13 @@
 package demo
 
-public open class SwitchDemo() {
+public class SwitchDemo {
     class object {
-        public open fun print(o: Any?) {
-            System.out?.println(o)
+        public fun print(o: Any) {
+            System.out.println(o)
         }
 
-        public open fun test(i: Int) {
-            var monthString: String? = "<empty>"
+        public fun test(i: Int) {
+            var monthString = "<empty>"
             when (i) {
                 1 -> {
                     print(1)
@@ -31,9 +31,7 @@ public open class SwitchDemo() {
                     print(4)
                     print(5)
                 }
-                5 -> {
-                    print(5)
-                }
+                5 -> print(5)
                 6 -> {
                     print(6)
                     print(7)
@@ -73,19 +71,17 @@ public open class SwitchDemo() {
                     print(11)
                     monthString = "December"
                 }
-                12 -> {
-                    monthString = "December"
-                }
-                else -> {
-                    monthString = "Invalid month"
-                }
+                12 -> monthString = "December"
+                else -> monthString = "Invalid month"
             }
-            System.out?.println(monthString)
+            System.out.println(monthString)
         }
 
-        public open fun main(args: Array<String?>?) {
-            for (i in 1..12) test(i)
+        public fun main(args: Array<String>) {
+            for (i in 1..12)
+                test(i)
         }
     }
 }
-fun main(args: Array<String>) = SwitchDemo.main(args as Array<String?>?)
+
+fun main(args: Array<String>) = SwitchDemo.main(args)

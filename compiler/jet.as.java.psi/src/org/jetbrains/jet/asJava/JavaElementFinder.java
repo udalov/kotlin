@@ -34,12 +34,10 @@ import com.intellij.util.SmartList;
 import com.intellij.util.containers.SLRUCache;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.jet.codegen.PackageCodegen;
-import org.jetbrains.jet.lang.psi.JetClassOrObject;
-import org.jetbrains.jet.lang.psi.JetEnumEntry;
-import org.jetbrains.jet.lang.psi.JetFile;
+import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.java.JavaPsiFacadeKotlinHacks;
 import org.jetbrains.jet.lang.resolve.java.PackageClassUtils;
+import org.jetbrains.jet.lang.resolve.kotlin.PackagePartClassUtils;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.NamePackage;
 
@@ -144,18 +142,16 @@ public class JavaElementFinder extends PsiElementFinder implements JavaPsiFacade
 
     private void findPackageClass(FqName qualifiedName, GlobalSearchScope scope, List<PsiClass> answer) {
         Collection<JetFile> filesForPackage = lightClassGenerationSupport.findFilesForPackage(qualifiedName, scope);
+        if (PackagePartClassUtils.getPackageFilesWithCallables(filesForPackage).isEmpty()) return;
 
-        if (!filesForPackage.isEmpty() && PackageCodegen.shouldGeneratePackageClass(filesForPackage)) {
-            KotlinLightClassForPackage lightClass = KotlinLightClassForPackage.create(psiManager, qualifiedName, scope, filesForPackage);
-            if (lightClass != null) {
-                answer.add(lightClass);
+        KotlinLightClassForPackage lightClass = KotlinLightClassForPackage.create(psiManager, qualifiedName, scope, filesForPackage);
+        if (lightClass == null) return;
 
-                if (filesForPackage.size() > 1) {
-                    for (JetFile file : filesForPackage) {
-                        FakeLightClassForFileOfPackage fakeLightClass = new FakeLightClassForFileOfPackage(psiManager, lightClass, file);
-                        answer.add(fakeLightClass);
-                    }
-                }
+        answer.add(lightClass);
+
+        if (filesForPackage.size() > 1) {
+            for (JetFile file : filesForPackage) {
+                answer.add(new FakeLightClassForFileOfPackage(psiManager, lightClass, file));
             }
         }
     }

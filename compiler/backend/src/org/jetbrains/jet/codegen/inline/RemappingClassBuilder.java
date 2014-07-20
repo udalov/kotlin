@@ -16,19 +16,18 @@
 
 package org.jetbrains.jet.codegen.inline;
 
-import com.intellij.psi.PsiElement;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.jet.codegen.ClassBuilder;
+import org.jetbrains.jet.codegen.DelegatingClassBuilder;
+import org.jetbrains.jet.lang.resolve.java.diagnostics.JvmDeclarationOrigin;
 import org.jetbrains.org.objectweb.asm.AnnotationVisitor;
 import org.jetbrains.org.objectweb.asm.ClassVisitor;
 import org.jetbrains.org.objectweb.asm.FieldVisitor;
 import org.jetbrains.org.objectweb.asm.MethodVisitor;
 import org.jetbrains.org.objectweb.asm.commons.*;
-import org.jetbrains.jet.codegen.ClassBuilder;
-import org.jetbrains.jet.codegen.JvmSerializationBindings;
 
-public class RemappingClassBuilder implements ClassBuilder {
-
+public class RemappingClassBuilder extends DelegatingClassBuilder {
     private final ClassBuilder builder;
     private final Remapper remapper;
 
@@ -39,8 +38,14 @@ public class RemappingClassBuilder implements ClassBuilder {
 
     @Override
     @NotNull
+    protected ClassBuilder getDelegate() {
+        return builder;
+    }
+
+    @Override
+    @NotNull
     public FieldVisitor newField(
-            @Nullable PsiElement origin,
+            @NotNull JvmDeclarationOrigin origin,
             int access,
             @NotNull String name,
             @NotNull String desc,
@@ -53,20 +58,16 @@ public class RemappingClassBuilder implements ClassBuilder {
     @Override
     @NotNull
     public MethodVisitor newMethod(
-            @Nullable PsiElement origin,
+            @NotNull JvmDeclarationOrigin origin,
             int access,
             @NotNull String name,
             @NotNull String desc,
             @Nullable String signature,
             @Nullable String[] exceptions
     ) {
-        return new RemappingMethodAdapter(access, desc, builder.newMethod(origin, access, name, remapper.mapMethodDesc(desc), signature, exceptions), remapper);
-    }
-
-    @Override
-    @NotNull
-    public JvmSerializationBindings getSerializationBindings() {
-        return builder.getSerializationBindings();
+        return new RemappingMethodAdapter(access, desc,
+                                          builder.newMethod(origin, access, name, remapper.mapMethodDesc(desc), signature, exceptions),
+                                          remapper);
     }
 
     @Override
@@ -76,47 +77,8 @@ public class RemappingClassBuilder implements ClassBuilder {
     }
 
     @Override
-    public void done() {
-        builder.done();
-    }
-
-    @Override
     @NotNull
     public ClassVisitor getVisitor() {
         return new RemappingClassAdapter(builder.getVisitor(), remapper);
-    }
-
-    @Override
-    public void defineClass(
-            @Nullable PsiElement origin,
-            int version,
-            int access,
-            @NotNull String name,
-            @Nullable String signature,
-            @NotNull String superName,
-            @NotNull String[] interfaces
-    ) {
-        builder.defineClass(origin, version, access, name, signature, superName, interfaces);
-    }
-
-    @Override
-    public void visitSource(@NotNull String name, @Nullable String debug) {
-        builder.visitSource(name, debug);
-    }
-
-    @Override
-    public void visitOuterClass(@NotNull String owner, @Nullable String name, @Nullable String desc) {
-        builder.visitOuterClass(owner, name, desc);
-    }
-
-    @Override
-    public void visitInnerClass(@NotNull String name, @Nullable String outerName, @Nullable String innerName, int access) {
-        builder.visitInnerClass(name, outerName, innerName, access);
-    }
-
-    @Override
-    @NotNull
-    public String getThisName() {
-        return builder.getThisName();
     }
 }

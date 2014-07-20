@@ -20,26 +20,35 @@ import com.intellij.openapi.editor.Editor
 import org.jetbrains.jet.lang.psi.JetCallExpression
 import org.jetbrains.jet.lang.psi.JetFunctionLiteralExpression
 import org.jetbrains.jet.lang.psi.JetPsiFactory
+import org.jetbrains.jet.lang.psi.JetExpression
+import org.jetbrains.jet.lang.psi.JetLabeledExpression
 
 public class MoveLambdaOutsideParenthesesIntention : JetSelfTargetingIntention<JetCallExpression>(
         "move.lambda.outside.parentheses", javaClass()) {
 
+    private fun isLambdaOrLabeledLambda(expression: JetExpression?): Boolean =
+            expression is JetFunctionLiteralExpression ||
+                    (expression is JetLabeledExpression && isLambdaOrLabeledLambda(expression.getBaseExpression()))
+
     override fun isApplicableTo(element: JetCallExpression): Boolean {
         val args = element.getValueArguments()
-        return args.size > 0 && args.last?.getArgumentExpression() is JetFunctionLiteralExpression
+        return args.size > 0 && isLambdaOrLabeledLambda(args.last?.getArgumentExpression())
     }
 
     override fun applyTo(element: JetCallExpression, editor: Editor) {
         val args = element.getValueArguments()
-        val literal = args.last!!.getArgumentExpression()?.getText() // we know args.last is non null
-        val callText = element.getText()
-        if (callText == null || literal == null) return
-        val endIndex = callText.lastIndexOf(",")
-        val newCall = if (endIndex > 0) {
-            "${callText.substring(0, endIndex)}) $literal"
-        } else {
-            "${callText.substring(0, callText.indexOf("("))} $literal"
-        }
-        element.replace(JetPsiFactory.createExpression(element.getProject(), newCall))
+        val functionLiteral = args.last!!.getArgumentExpression()?.getText()
+        val calleeText = element.getCalleeExpression()?.getText()
+        if (calleeText == null || functionLiteral == null) return
+
+        val params = args.subList(0, args.size - 1).map { it?.asElement()?.getText() ?: "" }.makeString(", ", "(", ")")
+
+        val newCall =
+            if (params == "()") {
+                "$calleeText $functionLiteral"
+            } else {
+                "$calleeText$params $functionLiteral"
+            }
+        element.replace(JetPsiFactory(element).createExpression(newCall))
     }
 }

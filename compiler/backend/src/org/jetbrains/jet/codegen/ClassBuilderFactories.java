@@ -17,6 +17,7 @@
 package org.jetbrains.jet.codegen;
 
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.jet.lang.resolve.java.diagnostics.JvmDeclarationOrigin;
 import org.jetbrains.org.objectweb.asm.ClassWriter;
 import org.jetbrains.org.objectweb.asm.util.TraceClassVisitor;
 
@@ -33,8 +34,9 @@ public class ClassBuilderFactories {
             return ClassBuilderMode.FULL;
         }
 
+        @NotNull
         @Override
-        public ClassBuilder newClassBuilder() {
+        public ClassBuilder newClassBuilder(@NotNull JvmDeclarationOrigin origin) {
             throw new IllegalStateException();
         }
 
@@ -57,8 +59,9 @@ public class ClassBuilderFactories {
             return ClassBuilderMode.FULL;
         }
 
+        @NotNull
         @Override
-        public ClassBuilder newClassBuilder() {
+        public ClassBuilder newClassBuilder(@NotNull JvmDeclarationOrigin origin) {
             return new TraceBuilder(new BinaryClassWriter());
         }
 
@@ -86,8 +89,9 @@ public class ClassBuilderFactories {
             return ClassBuilderMode.FULL;
         }
 
+        @NotNull
         @Override
-        public ClassBuilder newClassBuilder() {
+        public ClassBuilder newClassBuilder(@NotNull JvmDeclarationOrigin origin) {
             return new AbstractClassBuilder.Concrete(new BinaryClassWriter());
         }
 

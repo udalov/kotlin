@@ -340,7 +340,8 @@ public class ObjCDescriptorResolver {
                 name,
                 typeResolver.resolveType(parameter.getType()),
                 /* declaresDefaultValue */ false,
-                /* varargElementType */ null
+                /* varargElementType */ null,
+                SourceElement.NO_SOURCE
         );
     }
 }

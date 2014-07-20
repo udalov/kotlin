@@ -179,7 +179,7 @@ public class MoveKotlinTopLevelDeclarationsProcessor(project: Project, val optio
                 val referenceToContext = JetFileReferencesResolver.resolve(element = declaration, visitReceivers = false)
                 for ((refExpr, bindingContext) in referenceToContext) {
                     val refTarget = bindingContext[BindingContext.REFERENCE_TARGET, refExpr]?.let { descriptor ->
-                        DescriptorToDeclarationUtil.getDeclaration(declaration.getProject(), descriptor, bindingContext)
+                        DescriptorToDeclarationUtil.getDeclaration(declaration.getProject(), descriptor)
                     }
                     if (refTarget == null || refTarget.isInsideOf(elementsToMove)) continue
 
@@ -243,7 +243,11 @@ public class MoveKotlinTopLevelDeclarationsProcessor(project: Project, val optio
             val newPackageFqName = (targetFile as JetFile).getPackageFqName()
 
             val packageNameInfo = PackageNameInfo(file!!.getPackageFqName(), newPackageFqName)
-            declaration.updateInternalReferencesOnPackageNameChange(packageNameInfo, ShorteningMode.NO_SHORTENING)
+            declaration.updateInternalReferencesOnPackageNameChange(
+                    packageNameInfo,
+                    updateImportedReferences = true,
+                    shorteningMode = ShorteningMode.NO_SHORTENING
+            )
 
             val newElement = targetFile.add(declaration) as JetNamedDeclaration
             declaration.delete()

@@ -1,47 +1,32 @@
-public open class Test(_myName: String?, _a: Boolean, _b: Double, _c: Float, _d: Long, _e: Int, _f: Short, _g: Char) {
-    private val myName: String?
-    private var a: Boolean = false
-    private var b: Double = 0.toDouble()
-    private var c: Float = 0.toFloat()
-    private var d: Long = 0
-    private var e: Int = 0
-    private var f: Short = 0
-    private var g: Char = ' '
+public fun Test(): Test {
+    return Test(null)
+}
 
-    {
-        myName = _myName
-        a = _a
-        b = _b
-        c = _c
-        d = _d
-        e = _e
-        f = _f
-        g = _g
-    }
+public fun Test(name: String): Test {
+    return Test(Test.foo(name))
+}
+
+public class Test(private val myName: String) {
+    var a: Boolean = false
+    var b: Double = 0.toDouble()
+    var c: Float = 0.toFloat()
+    var d: Long = 0
+    var e: Int = 0
+    protected var f: Short = 0
+    protected var g: Char = ' '
 
     class object {
 
-        public open fun init(): Test {
-            val __ = Test(null, false, 0.toDouble(), 0.toFloat(), 0, 0, 0, ' ')
-            return __
-        }
-
-        public open fun init(name: String?): Test {
-            val __ = Test(foo(name), false, 0.toDouble(), 0.toFloat(), 0, 0, 0, ' ')
-            return __
-        }
-
-
-        open fun foo(n: String?): String? {
+        fun foo(n: String): String {
             return ""
         }
     }
 }
 
-public open class User() {
+public class User {
     class object {
-        public open fun main() {
-            var t: Test? = Test.init("name")
+        public fun main() {
+            val t = Test("name")
         }
     }
 }

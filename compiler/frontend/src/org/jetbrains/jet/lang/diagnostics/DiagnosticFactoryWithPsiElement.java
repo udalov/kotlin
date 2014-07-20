@@ -21,7 +21,7 @@ import com.intellij.psi.PsiElement;
 
 import java.util.List;
 
-public abstract class DiagnosticFactoryWithPsiElement<E extends PsiElement> extends DiagnosticFactory {
+public abstract class DiagnosticFactoryWithPsiElement<E extends PsiElement, D extends Diagnostic> extends DiagnosticFactory<D> {
     protected final PositioningStrategy<? super E> positioningStrategy;
 
     public DiagnosticFactoryWithPsiElement(Severity severity, PositioningStrategy<? super E> positioningStrategy) {
@@ -30,7 +30,7 @@ public abstract class DiagnosticFactoryWithPsiElement<E extends PsiElement> exte
     }
 
     protected List<TextRange> getTextRanges(ParametrizedDiagnostic<E> diagnostic) {
-        return positioningStrategy.mark(diagnostic.getPsiElement());
+        return positioningStrategy.markDiagnostic(diagnostic);
     }
 
     protected boolean isValid(ParametrizedDiagnostic<E> diagnostic) {

@@ -24,6 +24,7 @@ import com.intellij.psi.stubs.StubElement;
 import com.intellij.util.containers.Stack;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.jet.lang.resolve.java.diagnostics.JvmDeclarationOrigin;
 import org.jetbrains.org.objectweb.asm.ClassVisitor;
 import org.jetbrains.org.objectweb.asm.FieldVisitor;
 import org.jetbrains.org.objectweb.asm.MethodVisitor;
@@ -97,7 +98,7 @@ public class StubClassBuilder extends AbstractClassBuilder {
     @NotNull
     @Override
     public MethodVisitor newMethod(
-            @Nullable PsiElement origin,
+            @NotNull JvmDeclarationOrigin origin,
             int access,
             @NotNull String name,
             @NotNull String desc,
@@ -108,7 +109,7 @@ public class StubClassBuilder extends AbstractClassBuilder {
 
         if (internalVisitor != EMPTY_METHOD_VISITOR) {
             // If stub for method generated
-            markLastChild(origin);
+            markLastChild(origin.getElement());
         }
 
         return internalVisitor;
@@ -117,7 +118,7 @@ public class StubClassBuilder extends AbstractClassBuilder {
     @NotNull
     @Override
     public FieldVisitor newField(
-            @Nullable PsiElement origin,
+            @NotNull JvmDeclarationOrigin origin,
             int access,
             @NotNull String name,
             @NotNull String desc,
@@ -128,7 +129,7 @@ public class StubClassBuilder extends AbstractClassBuilder {
 
         if (internalVisitor != EMPTY_FIELD_VISITOR) {
             // If stub for field generated
-            markLastChild(origin);
+            markLastChild(origin.getElement());
         }
 
         return internalVisitor;

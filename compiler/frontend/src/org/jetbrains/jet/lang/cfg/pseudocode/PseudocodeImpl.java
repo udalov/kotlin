@@ -17,10 +17,19 @@
 package org.jetbrains.jet.lang.cfg.pseudocode;
 
 import com.google.common.collect.*;
+import com.intellij.openapi.util.NotNullLazyValue;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.cfg.Label;
 import org.jetbrains.jet.lang.cfg.LoopInfo;
+import org.jetbrains.jet.lang.cfg.pseudocode.instructions.*;
+import org.jetbrains.jet.lang.cfg.pseudocode.instructions.jumps.AbstractJumpInstruction;
+import org.jetbrains.jet.lang.cfg.pseudocode.instructions.jumps.ConditionalJumpInstruction;
+import org.jetbrains.jet.lang.cfg.pseudocode.instructions.jumps.NondeterministicJumpInstruction;
+import org.jetbrains.jet.lang.cfg.pseudocode.instructions.special.LocalFunctionDeclarationInstruction;
+import org.jetbrains.jet.lang.cfg.pseudocode.instructions.special.SubroutineEnterInstruction;
+import org.jetbrains.jet.lang.cfg.pseudocode.instructions.special.SubroutineExitInstruction;
+import org.jetbrains.jet.lang.cfg.pseudocode.instructions.special.SubroutineSinkInstruction;
 import org.jetbrains.jet.lang.cfg.pseudocodeTraverser.PseudocodeTraverserPackage;
 import org.jetbrains.jet.lang.psi.JetElement;
 import org.jetbrains.jet.lang.psi.JetExpression;
@@ -41,6 +50,7 @@ public class PseudocodeImpl implements Pseudocode {
             this.name = name;
         }
 
+        @NotNull
         @Override
         public String getName() {
             return name;
@@ -77,6 +87,17 @@ public class PseudocodeImpl implements Pseudocode {
 
     private final List<Instruction> mutableInstructionList = new ArrayList<Instruction>();
     private final List<Instruction> instructions = new ArrayList<Instruction>();
+
+    private final Map<JetElement, PseudoValue> elementsToValues = new HashMap<JetElement, PseudoValue>();
+
+    private final NotNullLazyValue<Map<PseudoValue, List<? extends Instruction>>> valueUsages =
+            new NotNullLazyValue<Map<PseudoValue, List<? extends Instruction>>>() {
+                @NotNull
+                @Override
+                protected Map<PseudoValue, List<? extends Instruction>> compute() {
+                    return PseudocodePackage.collectValueUsages(PseudocodeImpl.this);
+                }
+            };
 
     private Pseudocode parent = null;
     private Set<LocalFunctionDeclarationInstruction> localDeclarations = null;
@@ -172,30 +193,10 @@ public class PseudocodeImpl implements Pseudocode {
         return Lists.newArrayList(traversedInstructions);
     }
 
-    //for tests only
-    @NotNull
-    public List<Instruction> getAllInstructions() {
-        return mutableInstructionList;
-    }
-
     @Override
     @NotNull
-    public List<Instruction> getDeadInstructions() {
-        List<Instruction> deadInstructions = Lists.newArrayList();
-        for (Instruction instruction : mutableInstructionList) {
-            if (isDead(instruction)) {
-                deadInstructions.add(instruction);
-            }
-        }
-        return deadInstructions;
-    }
-
-    private static boolean isDead(@NotNull Instruction instruction) {
-        if (!((InstructionImpl)instruction).isDead()) return false;
-        for (Instruction copy : instruction.getCopies()) {
-            if (!((InstructionImpl)copy).isDead()) return false;
-        }
-        return true;
+    public List<Instruction> getInstructionsIncludingDeadCode() {
+        return mutableInstructionList;
     }
 
     //for tests only
@@ -252,6 +253,23 @@ public class PseudocodeImpl implements Pseudocode {
     @NotNull
     public SubroutineEnterInstruction getEnterInstruction() {
         return (SubroutineEnterInstruction) mutableInstructionList.get(0);
+    }
+
+    @Nullable
+    @Override
+    public PseudoValue getElementValue(@Nullable JetElement element) {
+        return elementsToValues.get(element);
+    }
+
+    @NotNull
+    @Override
+    public List<? extends Instruction> getUsages(@Nullable PseudoValue value) {
+        List<? extends Instruction> result = valueUsages.getValue().get(value);
+        return result != null ? result : Collections.<Instruction>emptyList();
+    }
+
+    /*package*/ void bindElementToValue(@NotNull JetElement element, @NotNull PseudoValue value) {
+        elementsToValues.put(element, value);
     }
 
     /*package*/ void bindLabel(Label label) {
@@ -314,7 +332,7 @@ public class PseudocodeImpl implements Pseudocode {
             public void visitConditionalJump(ConditionalJumpInstruction instruction) {
                 Instruction nextInstruction = getNextPosition(currentPosition);
                 Instruction jumpTarget = getJumpTarget(instruction.getTargetLabel());
-                if (instruction.onTrue()) {
+                if (instruction.getOnTrue()) {
                     instruction.setNextOnFalse(nextInstruction);
                     instruction.setNextOnTrue(jumpTarget);
                 }
@@ -369,7 +387,7 @@ public class PseudocodeImpl implements Pseudocode {
         Set<Instruction> instructionSet = Sets.newHashSet(instructions);
         for (Instruction instruction : mutableInstructionList) {
             if (!instructionSet.contains(instruction)) {
-                ((InstructionImpl)instruction).die();
+                ((InstructionImpl)instruction).setMarkedAsDead(true);
                 for (Instruction nextInstruction : instruction.getNextInstructions()) {
                     nextInstruction.getPreviousInstructions().remove(instruction);
                 }

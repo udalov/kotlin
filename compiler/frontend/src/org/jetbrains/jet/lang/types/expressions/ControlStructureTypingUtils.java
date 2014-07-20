@@ -86,7 +86,7 @@ public class ControlStructureTypingUtils {
 
         SimpleFunctionDescriptorImpl function = SimpleFunctionDescriptorImpl.create(
                 ErrorUtils.getErrorModule(),//todo hack to avoid returning true in 'isError(DeclarationDescriptor)'
-                Annotations.EMPTY, specialFunctionName, CallableMemberDescriptor.Kind.DECLARATION);
+                Annotations.EMPTY, specialFunctionName, CallableMemberDescriptor.Kind.DECLARATION, SourceElement.NO_SOURCE);
 
         TypeParameterDescriptor typeParameter = TypeParameterDescriptorImpl.createWithDefaultBound(
                 function, Annotations.EMPTY, false, Variance.INVARIANT,
@@ -99,7 +99,9 @@ public class ControlStructureTypingUtils {
         for (int i = 0; i < argumentNames.size(); i++) {
             JetType argumentType = isArgumentNullable.get(i) ? nullableType : type;
             ValueParameterDescriptorImpl valueParameter = new ValueParameterDescriptorImpl(
-                    function, null, i, Annotations.EMPTY, Name.identifier(argumentNames.get(i)), argumentType, false, null);
+                    function, null, i, Annotations.EMPTY, Name.identifier(argumentNames.get(i)),
+                    argumentType, false, null, SourceElement.NO_SOURCE
+            );
             valueParameters.add(valueParameter);
         }
         function.initialize(
@@ -158,11 +160,12 @@ public class ControlStructureTypingUtils {
 
     /*package*/ static Call createCallForSpecialConstruction(
             @NotNull final JetExpression expression,
+            @NotNull final JetExpression calleeExpression,
             @NotNull List<? extends JetExpression> arguments
     ) {
         final List<ValueArgument> valueArguments = Lists.newArrayList();
         for (JetExpression argument : arguments) {
-            valueArguments.add(CallMaker.makeValueArgument(argument, argument));
+            valueArguments.add(CallMaker.makeValueArgument(argument));
         }
         return new Call() {
             @Nullable
@@ -186,7 +189,7 @@ public class ControlStructureTypingUtils {
             @Nullable
             @Override
             public JetExpression getCalleeExpression() {
-                return expression;
+                return calleeExpression;
             }
 
             @Nullable
@@ -323,12 +326,15 @@ public class ControlStructureTypingUtils {
             }
 
             @Override
+            public void bindCall(@NotNull BindingTrace trace, @NotNull Call call) {
+                trace.record(CALL, call.getCalleeExpression(), call);
+            }
+
+            @Override
             public <D extends CallableDescriptor> void bindResolvedCall(
                     @NotNull BindingTrace trace, @NotNull ResolvedCall<D> resolvedCall
             ) {
-                trace.record(RESOLVED_CALL, call.getCalleeExpression(), resolvedCall);
-                trace.record(CALL, call.getCalleeExpression(), call);
-
+                trace.record(RESOLVED_CALL, call, resolvedCall);
             }
 
             @Override
@@ -342,8 +348,7 @@ public class ControlStructureTypingUtils {
                 if (status.hasErrorInConstrainingTypes()) {
                     return;
                 }
-                JetExpression expression = call.getCalleeExpression();
-                if (expression == null) return;
+                JetExpression expression = (JetExpression) call.getCallElement();
                 if (status.hasOnlyErrorsFromPosition(ConstraintPosition.EXPECTED_TYPE_POSITION) || status.hasConflictingConstraints()) {
                     expression.accept(checkTypeVisitor, new CheckTypeContext(trace, data.expectedType));
                     return;

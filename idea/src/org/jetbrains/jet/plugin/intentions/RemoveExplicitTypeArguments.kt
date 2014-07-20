@@ -20,7 +20,6 @@ import com.intellij.openapi.editor.Editor
 import org.jetbrains.jet.lang.psi.JetCallExpression
 import org.jetbrains.jet.plugin.project.AnalyzerFacadeWithCache
 import org.jetbrains.jet.lang.resolve.BindingContext
-import org.jetbrains.jet.lang.psi.JetPsiFactory
 import org.jetbrains.jet.lang.resolve.calls.util.DelegatingCall
 import org.jetbrains.jet.lang.resolve.calls.autocasts.DataFlowInfo
 import org.jetbrains.jet.lang.types.TypeUtils
@@ -31,30 +30,56 @@ import java.util.ArrayList
 import org.jetbrains.jet.di.InjectorForMacros
 import org.jetbrains.jet.lang.resolve.BindingTraceContext
 import org.jetbrains.jet.plugin.caches.resolve.getLazyResolveSession
+import org.jetbrains.jet.lang.psi.JetProperty
+import org.jetbrains.jet.lang.psi.JetTypeArgumentList
+import org.jetbrains.jet.lang.psi.JetReturnExpression
+import org.jetbrains.jet.lang.psi.JetDeclarationWithBody
+import org.jetbrains.jet.lang.resolve.bindingContextUtil.getResolvedCall
+import org.jetbrains.jet.lang.psi.psiUtil.getTextWithLocation
 
-public class RemoveExplicitTypeArguments : JetSelfTargetingIntention<JetCallExpression>(
+public class RemoveExplicitTypeArguments : JetSelfTargetingIntention<JetTypeArgumentList>(
         "remove.explicit.type.arguments", javaClass()) {
 
-    override fun isApplicableTo(element: JetCallExpression): Boolean {
+    override fun isApplicableTo(element: JetTypeArgumentList): Boolean {
+        val callExpression = element.getParent()
+        if (callExpression !is JetCallExpression) return false
 
-        val context = AnalyzerFacadeWithCache.getContextForElement(element)
-        if (element.getTypeArguments().isEmpty()) return false
+        val context = AnalyzerFacadeWithCache.getContextForElement(callExpression)
+        if (callExpression.getTypeArguments().isEmpty()) return false
 
-        val resolveSession = element.getLazyResolveSession()
-        val injector = InjectorForMacros(element.getProject(), resolveSession.getModuleDescriptor())
+        val resolveSession = callExpression.getLazyResolveSession()
+        val injector = InjectorForMacros(callExpression.getProject(), resolveSession.getModuleDescriptor())
 
-        val scope = context[BindingContext.RESOLUTION_SCOPE, element]
-        val originalCall = context[BindingContext.RESOLVED_CALL, element.getCalleeExpression()]?.getCall()
+        val scope = context[BindingContext.RESOLUTION_SCOPE, callExpression]
+        val originalCall = callExpression.getResolvedCall(context)
         if (originalCall == null || scope !is JetScope) return false
-        val untypedCall = CallWithoutTypeArgs(originalCall)
+        val untypedCall = CallWithoutTypeArgs(originalCall.getCall())
 
-        val jType = context[BindingContext.EXPECTED_EXPRESSION_TYPE, element] ?: TypeUtils.NO_EXPECTED_TYPE
-        val dataFlow = context[BindingContext.EXPRESSION_DATA_FLOW_INFO, element] ?: DataFlowInfo.EMPTY
-        val resolvedCall = injector.getExpressionTypingServices()?.getCallResolver()?.resolveFunctionCall(
+        // todo Check with expected type for other expressions
+        // If always use expected type from trace there is a problem with nested calls:
+        // the expression type for them can depend on their explicit type arguments (via outer call),
+        // therefore we should resolve outer call with erased type arguments for inner call
+        val parent = callExpression.getParent()
+        val expectedTypeIsExplicitInCode = when (parent) {
+            is JetProperty -> parent.getInitializer() == callExpression && parent.getTypeRef() != null
+            is JetDeclarationWithBody -> parent.getBodyExpression() == callExpression
+            is JetReturnExpression -> true
+            else -> false
+        }
+        val jType = if (expectedTypeIsExplicitInCode) {
+            context[BindingContext.EXPECTED_EXPRESSION_TYPE, callExpression] ?: TypeUtils.NO_EXPECTED_TYPE
+        }
+        else {
+            TypeUtils.NO_EXPECTED_TYPE
+        }
+        val dataFlow = context[BindingContext.EXPRESSION_DATA_FLOW_INFO, callExpression] ?: DataFlowInfo.EMPTY
+        val resolutionResults = injector.getExpressionTypingServices()?.getCallResolver()?.resolveFunctionCall(
                 BindingTraceContext(), scope, untypedCall, jType, dataFlow, false)
+        assert (resolutionResults?.isSingleResult() ?: true) { "Removing type arguments changed resolve for: " +
+                "${callExpression.getTextWithLocation()} to ${resolutionResults?.getResultCode()}" }
 
-        val args = context[BindingContext.RESOLVED_CALL, element.getCalleeExpression()]?.getTypeArguments()
-        val newArgs = resolvedCall?.getResultingCall()?.getTypeArguments()
+        val args = originalCall.getTypeArguments()
+        val newArgs = resolutionResults?.getResultingCall()?.getTypeArguments()
 
         return args == newArgs
     }
@@ -69,15 +94,7 @@ public class RemoveExplicitTypeArguments : JetSelfTargetingIntention<JetCallExpr
 
     }
 
-    override fun applyTo(element: JetCallExpression, editor: Editor) {
-        val text = element.getText()
-        val typeArgs = element.getTypeArgumentList()
-        if (text == null || typeArgs == null) return
-        val base = typeArgs.getTextOffset() - element.getTextOffset()
-        val untypedText = "${text.substring(0, base)}${text.substring(base + typeArgs.getTextLength())}"
-        element.replace(JetPsiFactory.createExpression(element.getProject(), untypedText))
+    override fun applyTo(element: JetTypeArgumentList, editor: Editor) {
+        element.delete()
     }
 }
-
-
-

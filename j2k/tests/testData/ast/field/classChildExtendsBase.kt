@@ -1,7 +1,7 @@
-open class Base() {
-    private var myFirst: String? = null
+class Base {
+    private val myFirst: String? = null
 }
 
-open class Child() : Base() {
-    private var mySecond: String? = null
+class Child : Base() {
+    private val mySecond: String? = null
 }

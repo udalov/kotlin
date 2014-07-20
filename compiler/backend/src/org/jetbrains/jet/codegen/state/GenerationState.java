@@ -23,27 +23,27 @@ import org.jetbrains.jet.codegen.*;
 import org.jetbrains.jet.codegen.binding.CodegenBinding;
 import org.jetbrains.jet.codegen.inline.InlineCodegenUtil;
 import org.jetbrains.jet.codegen.intrinsics.IntrinsicMethods;
+import org.jetbrains.jet.codegen.optimization.OptimizationClassBuilderFactory;
+import org.jetbrains.jet.codegen.optimization.OptimizationUtils;
 import org.jetbrains.jet.lang.descriptors.ModuleDescriptor;
 import org.jetbrains.jet.lang.descriptors.ScriptDescriptor;
+import org.jetbrains.jet.lang.diagnostics.DiagnosticHolder;
 import org.jetbrains.jet.lang.psi.JetClassOrObject;
 import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.reflect.ReflectionTypes;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.BindingTrace;
 import org.jetbrains.jet.lang.resolve.DelegatingBindingTrace;
+import org.jetbrains.jet.lang.resolve.name.FqName;
 
+import java.io.File;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 public class GenerationState {
     public interface GenerateClassFilter {
         boolean shouldProcess(JetClassOrObject classOrObject);
-
-        GenerateClassFilter ONLY_PACKAGE_CLASS = new GenerateClassFilter() {
-            @Override
-            public boolean shouldProcess(JetClassOrObject classOrObject) {
-                return false;
-            }
-        };
 
         GenerateClassFilter GENERATE_ALL = new GenerateClassFilter() {
             @Override
@@ -96,7 +96,19 @@ public class GenerationState {
     @Nullable
     private List<ScriptDescriptor> earlierScriptsForReplInterpreter;
 
-    private final JvmFunctionImplTypes functionImplTypes;
+    private final JvmRuntimeTypes runtimeTypes;
+
+    @NotNull
+    private final ModuleDescriptor module;
+
+    @NotNull
+    private final Collection<FqName> packagesWithRemovedFiles;
+
+    @Nullable
+    private final String moduleId; // for PackageCodegen in incremental compilation mode
+
+    @Nullable
+    private final File outDirectory; // TODO: temporary hack, see JetTypeMapperWithOutDirectory state for details
 
     public GenerationState(
             @NotNull Project project,
@@ -106,7 +118,9 @@ public class GenerationState {
             @NotNull List<JetFile> files
     ) {
         this(project, builderFactory, Progress.DEAF, module, bindingContext, files, true, false, GenerateClassFilter.GENERATE_ALL,
-             InlineCodegenUtil.DEFAULT_INLINE_FLAG);
+             InlineCodegenUtil.DEFAULT_INLINE_FLAG, OptimizationUtils.DEFAULT_OPTIMIZATION_FLAG,
+             null, null, DiagnosticHolder.DO_NOTHING, null
+        );
     }
 
     public GenerationState(
@@ -119,28 +133,43 @@ public class GenerationState {
             boolean generateNotNullAssertions,
             boolean generateNotNullParamAssertions,
             GenerateClassFilter generateClassFilter,
-            boolean inlineEnabled
+            boolean inlineEnabled,
+            boolean optimizationEnabled,
+            @Nullable Collection<FqName> packagesWithRemovedFiles,
+            @Nullable String moduleId,
+            @NotNull DiagnosticHolder diagnostics,
+            @Nullable File outDirectory
     ) {
         this.project = project;
         this.progress = progress;
+        this.module = module;
         this.files = files;
+        this.moduleId = moduleId;
+        this.packagesWithRemovedFiles = packagesWithRemovedFiles == null ? Collections.<FqName>emptySet() : packagesWithRemovedFiles;
         this.classBuilderMode = builderFactory.getClassBuilderMode();
         this.inlineEnabled = inlineEnabled;
 
         this.bindingTrace = new DelegatingBindingTrace(bindingContext, "trace in GenerationState");
         this.bindingContext = bindingTrace.getBindingContext();
 
-        this.typeMapper = new JetTypeMapper(this.bindingContext, classBuilderMode);
+        this.outDirectory = outDirectory;
+        this.typeMapper = new JetTypeMapperWithOutDirectory(this.bindingContext, classBuilderMode, outDirectory);
 
         this.intrinsics = new IntrinsicMethods();
-        this.classFileFactory = new ClassFileFactory(this, builderFactory);
+
+        if (optimizationEnabled) {
+            builderFactory = new OptimizationClassBuilderFactory(builderFactory);
+        }
+
+        this.classFileFactory = new ClassFileFactory(this, new BuilderFactoryForDuplicateSignatureDiagnostics(
+                builderFactory, this.bindingContext, diagnostics));
 
         this.generateNotNullAssertions = generateNotNullAssertions;
         this.generateNotNullParamAssertions = generateNotNullParamAssertions;
         this.generateClassFilter = generateClassFilter;
 
         ReflectionTypes reflectionTypes = new ReflectionTypes(module);
-        this.functionImplTypes = new JvmFunctionImplTypes(reflectionTypes);
+        this.runtimeTypes = new JvmRuntimeTypes(reflectionTypes);
     }
 
     @NotNull
@@ -207,8 +236,8 @@ public class GenerationState {
     }
 
     @NotNull
-    public JvmFunctionImplTypes getJvmFunctionImplTypes() {
-        return functionImplTypes;
+    public JvmRuntimeTypes getJvmRuntimeTypes() {
+        return runtimeTypes;
     }
 
     public boolean isInlineEnabled() {
@@ -238,5 +267,25 @@ public class GenerationState {
 
     public void setEarlierScriptsForReplInterpreter(@Nullable List<ScriptDescriptor> earlierScriptsForReplInterpreter) {
         this.earlierScriptsForReplInterpreter = earlierScriptsForReplInterpreter;
+    }
+
+    @NotNull
+    public ModuleDescriptor getModule() {
+        return module;
+    }
+
+    @NotNull
+    public Collection<FqName> getPackagesWithRemovedFiles() {
+        return packagesWithRemovedFiles;
+    }
+
+    @Nullable
+    public String getModuleId() {
+        return moduleId;
+    }
+
+    @Nullable
+    public File getOutDirectory() {
+        return outDirectory;
     }
 }

@@ -1,0 +1,6 @@
+-Simple.kt
+ -Test
+  foo(): Int
+  other(): Unit
+  some: Int
+  str: String

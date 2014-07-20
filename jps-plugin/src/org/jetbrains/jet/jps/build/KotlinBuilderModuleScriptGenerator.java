@@ -17,6 +17,7 @@
 package org.jetbrains.jet.jps.build;
 
 import com.intellij.openapi.util.io.FileUtil;
+import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.util.containers.ContainerUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -29,8 +30,6 @@ import org.jetbrains.jps.builders.java.JavaSourceRootDescriptor;
 import org.jetbrains.jps.builders.logging.ProjectBuilderLogger;
 import org.jetbrains.jps.incremental.CompileContext;
 import org.jetbrains.jps.incremental.ModuleBuildTarget;
-import org.jetbrains.jps.incremental.messages.BuildMessage;
-import org.jetbrains.jps.incremental.messages.CompilerMessage;
 import org.jetbrains.jps.model.java.JpsAnnotationRootType;
 import org.jetbrains.jps.model.java.JpsJavaSdkType;
 import org.jetbrains.jps.model.library.JpsLibrary;
@@ -57,11 +56,12 @@ public class KotlinBuilderModuleScriptGenerator {
     public static File generateModuleDescription(
             CompileContext context,
             ModuleChunk chunk,
-            List<File> sourceFiles // ignored for non-incremental compilation
+            List<File> sourceFiles, // ignored for non-incremental compilation
+            boolean hasRemovedFiles
     )
             throws IOException
     {
-        KotlinModuleDescriptionBuilder builder = FACTORY.create();
+        KotlinModuleDescriptionBuilder builder = FACTORY.create(getIncrementalCacheDir(context).getAbsolutePath());
 
         boolean noSources = true;
 
@@ -77,7 +77,7 @@ public class KotlinBuilderModuleScriptGenerator {
                 sourceFiles = new ArrayList<File>(KotlinSourceFileCollector.getAllKotlinSourceFiles(target));
             }
 
-            if (sourceFiles.size() > 0) {
+            if (sourceFiles.size() > 0 || hasRemovedFiles) {
                 noSources = false;
 
                 if (logger.isEnabled()) {
@@ -98,11 +98,15 @@ public class KotlinBuilderModuleScriptGenerator {
 
         if (noSources) return null;
 
-        File scriptFile = new File(getOutputDir(chunk.representativeTarget()), "script." + FACTORY.getFileExtension());
+        File scriptFile = File.createTempFile("kjps", StringUtil.sanitizeJavaIdentifier(chunk.getName()) + ".script.xml");
 
-        writeScriptToFile(context, builder.asText(), scriptFile);
+        FileUtil.writeToFile(scriptFile, builder.asText().toString());
 
         return scriptFile;
+    }
+
+    public static File getIncrementalCacheDir(CompileContext context) {
+        return new File(context.getProjectDescriptor().dataManager.getDataPaths().getDataStorageRoot(), "kotlin");
     }
 
     @NotNull
@@ -123,15 +127,6 @@ public class KotlinBuilderModuleScriptGenerator {
                 processor.processAnnotationRoots(findAnnotationRoots(target));
             }
         };
-    }
-
-    private static void writeScriptToFile(CompileContext context, CharSequence moduleScriptText, File scriptFile) throws IOException {
-        FileUtil.writeToFile(scriptFile, moduleScriptText.toString());
-        context.processMessage(new CompilerMessage(
-                "Kotlin",
-                BuildMessage.Kind.INFO,
-                "Created script file: " + scriptFile
-        ));
     }
 
     @NotNull

@@ -30,14 +30,14 @@ import static org.jetbrains.jet.lexer.JetTokens.*;
 
 public class QuickFixes {
 
-    private static final Multimap<DiagnosticFactory, JetIntentionActionsFactory> factories = HashMultimap.create();
-    private static final Multimap<DiagnosticFactory, IntentionAction> actions = HashMultimap.create();
+    private static final Multimap<DiagnosticFactory<?>, JetIntentionActionsFactory> factories = HashMultimap.create();
+    private static final Multimap<DiagnosticFactory<?>, IntentionAction> actions = HashMultimap.create();
 
-    public static Collection<JetIntentionActionsFactory> getActionsFactories(DiagnosticFactory diagnosticFactory) {
+    public static Collection<JetIntentionActionsFactory> getActionsFactories(DiagnosticFactory<?> diagnosticFactory) {
         return factories.get(diagnosticFactory);
     }
 
-    public static Collection<IntentionAction> getActions(DiagnosticFactory diagnosticFactory) {
+    public static Collection<IntentionAction> getActions(DiagnosticFactory<?> diagnosticFactory) {
         return actions.get(diagnosticFactory);
     }
 
@@ -143,8 +143,6 @@ public class QuickFixes {
         
         factories.put(CANNOT_CHANGE_ACCESS_PRIVILEGE, ChangeVisibilityModifierFix.createFactory());
         factories.put(CANNOT_WEAKEN_ACCESS_PRIVILEGE, ChangeVisibilityModifierFix.createFactory());
-
-        factories.put(UNRESOLVED_REFERENCE, MigrateSureInProjectFix.createFactory());
 
         factories.put(REDUNDANT_NULLABLE, RemoveNullableFix.createFactory(RemoveNullableFix.NullableKind.REDUNDANT));
         factories.put(NULLABLE_SUPERTYPE, RemoveNullableFix.createFactory(RemoveNullableFix.NullableKind.SUPERTYPE));

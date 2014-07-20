@@ -19,12 +19,11 @@ package org.jetbrains.jet.di;
 import com.intellij.openapi.project.Project;
 import org.jetbrains.jet.context.GlobalContextImpl;
 import org.jetbrains.jet.storage.LockBasedStorageManager;
-import org.jetbrains.jet.lang.descriptors.ModuleDescriptorImpl;
+import org.jetbrains.jet.lang.descriptors.impl.ModuleDescriptorImpl;
 import org.jetbrains.jet.lang.PlatformToKotlinClassMap;
 import org.jetbrains.jet.lang.resolve.lazy.declarations.DeclarationProviderFactory;
 import org.jetbrains.jet.lang.resolve.BindingTrace;
 import org.jetbrains.jet.lang.resolve.lazy.ResolveSession;
-import org.jetbrains.jet.lang.types.DependencyClassByQualifiedNameResolverDummyImpl;
 import org.jetbrains.jet.lang.resolve.AnnotationResolver;
 import org.jetbrains.jet.lang.resolve.calls.CallResolver;
 import org.jetbrains.jet.lang.resolve.calls.ArgumentTypeResolver;
@@ -40,11 +39,11 @@ import org.jetbrains.jet.lang.resolve.DelegatedPropertyResolver;
 import org.jetbrains.jet.lang.resolve.TypeResolver;
 import org.jetbrains.jet.lang.resolve.QualifiedExpressionResolver;
 import org.jetbrains.jet.lang.resolve.calls.CallResolverExtensionProvider;
+import org.jetbrains.jet.lang.resolve.calls.CallCompleter;
 import org.jetbrains.jet.lang.resolve.calls.CandidateResolver;
 import org.jetbrains.jet.lang.psi.JetImportsFactory;
 import org.jetbrains.jet.lang.resolve.lazy.ScopeProvider;
 import org.jetbrains.jet.lang.resolve.ScriptBodyResolver;
-import org.jetbrains.jet.lang.resolve.ScriptParameterResolver;
 import org.jetbrains.annotations.NotNull;
 import javax.annotation.PreDestroy;
 
@@ -60,7 +59,6 @@ public class InjectorForLazyResolve {
     private final DeclarationProviderFactory declarationProviderFactory;
     private final BindingTrace bindingTrace;
     private final ResolveSession resolveSession;
-    private final DependencyClassByQualifiedNameResolverDummyImpl dependencyClassByQualifiedNameResolverDummy;
     private final AnnotationResolver annotationResolver;
     private final CallResolver callResolver;
     private final ArgumentTypeResolver argumentTypeResolver;
@@ -76,11 +74,11 @@ public class InjectorForLazyResolve {
     private final TypeResolver typeResolver;
     private final QualifiedExpressionResolver qualifiedExpressionResolver;
     private final CallResolverExtensionProvider callResolverExtensionProvider;
+    private final CallCompleter callCompleter;
     private final CandidateResolver candidateResolver;
     private final JetImportsFactory jetImportsFactory;
     private final ScopeProvider scopeProvider;
     private final ScriptBodyResolver scriptBodyResolver;
-    private final ScriptParameterResolver scriptParameterResolver;
     
     public InjectorForLazyResolve(
         @NotNull Project project,
@@ -97,7 +95,6 @@ public class InjectorForLazyResolve {
         this.declarationProviderFactory = declarationProviderFactory;
         this.bindingTrace = bindingTrace;
         this.resolveSession = new ResolveSession(project, globalContext, moduleDescriptor, declarationProviderFactory, bindingTrace);
-        this.dependencyClassByQualifiedNameResolverDummy = new DependencyClassByQualifiedNameResolverDummyImpl();
         this.annotationResolver = new AnnotationResolver();
         this.callResolver = new CallResolver();
         this.argumentTypeResolver = new ArgumentTypeResolver();
@@ -114,10 +111,10 @@ public class InjectorForLazyResolve {
         this.qualifiedExpressionResolver = new QualifiedExpressionResolver();
         this.callResolverExtensionProvider = new CallResolverExtensionProvider();
         this.candidateResolver = new CandidateResolver();
+        this.callCompleter = new CallCompleter(argumentTypeResolver, candidateResolver);
         this.jetImportsFactory = new JetImportsFactory();
         this.scopeProvider = new ScopeProvider(getResolveSession());
         this.scriptBodyResolver = new ScriptBodyResolver();
-        this.scriptParameterResolver = new ScriptParameterResolver();
 
         this.resolveSession.setAnnotationResolve(annotationResolver);
         this.resolveSession.setDescriptorResolver(descriptorResolver);
@@ -125,7 +122,6 @@ public class InjectorForLazyResolve {
         this.resolveSession.setQualifiedExpressionResolver(qualifiedExpressionResolver);
         this.resolveSession.setScopeProvider(scopeProvider);
         this.resolveSession.setScriptBodyResolver(scriptBodyResolver);
-        this.resolveSession.setScriptParameterResolver(scriptParameterResolver);
         this.resolveSession.setTypeResolver(typeResolver);
 
         annotationResolver.setCallResolver(callResolver);
@@ -133,6 +129,7 @@ public class InjectorForLazyResolve {
         annotationResolver.setTypeResolver(typeResolver);
 
         callResolver.setArgumentTypeResolver(argumentTypeResolver);
+        callResolver.setCallCompleter(callCompleter);
         callResolver.setCandidateResolver(candidateResolver);
         callResolver.setExpressionTypingServices(expressionTypingServices);
         callResolver.setTypeResolver(typeResolver);
@@ -181,8 +178,6 @@ public class InjectorForLazyResolve {
         jetImportsFactory.setProject(project);
 
         scriptBodyResolver.setExpressionTypingServices(expressionTypingServices);
-
-        scriptParameterResolver.setDependencyClassByQualifiedNameResolver(dependencyClassByQualifiedNameResolverDummy);
 
     }
     

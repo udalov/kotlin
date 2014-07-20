@@ -16,8 +16,10 @@
 
 package org.jetbrains.jet.j2k.ast
 
-import org.jetbrains.jet.j2k.ast.types.Type
+import org.jetbrains.jet.j2k.*
 
-class ReferenceElement(val reference: Identifier, val types: List<Type>) : Element {
-    override fun toKotlin() = reference.toKotlin() + types.toKotlin(", ", "<", ">")
+class ReferenceElement(val reference: Identifier, val types: List<Type>) : Element() {
+    override fun generateCode(builder: CodeBuilder) {
+        builder.append(reference).append(types, ", ", "<", ">")
+    }
 }

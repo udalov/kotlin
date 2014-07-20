@@ -17,13 +17,13 @@
 package org.jetbrains.jet.codegen;
 
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.org.objectweb.asm.Opcodes;
 import org.jetbrains.jet.ConfigurationKind;
+import org.jetbrains.jet.lang.resolve.java.JvmAbi;
+import org.jetbrains.org.objectweb.asm.Opcodes;
 
 import java.lang.reflect.*;
 
-import static org.jetbrains.jet.codegen.CodegenTestUtil.assertIsCurrentTime;
-import static org.jetbrains.jet.codegen.CodegenTestUtil.findDeclaredMethodByName;
+import static org.jetbrains.jet.codegen.CodegenTestUtil.*;
 
 public class PropertyGenTest extends CodegenTestCase {
     @Override
@@ -40,16 +40,12 @@ public class PropertyGenTest extends CodegenTestCase {
 
     public void testPrivateVal() throws Exception {
         loadFile();
-        Class aClass = generateClass("PrivateVal");
-        Field[] fields = aClass.getDeclaredFields();
-        assertEquals(1, fields.length);  // prop
-        Field field = fields[0];
-        assertEquals("prop", field.getName());
+        generateClass("PrivateVal").getDeclaredField("prop");
     }
 
     public void testPrivateVar() throws Exception {
         loadFile();
-        Class aClass = generateClass("PrivateVar");
+        Class<?> aClass = generateClass("PrivateVar");
         Object instance = aClass.newInstance();
         Method setter = findDeclaredMethodByName(aClass, "setValueOfX");
         setter.invoke(instance, 239);
@@ -59,7 +55,7 @@ public class PropertyGenTest extends CodegenTestCase {
 
     public void testPublicVar() throws Exception {
         loadText("class PublicVar() { public var foo : Int = 0; }");
-        Class aClass = generateClass("PublicVar");
+        Class<?> aClass = generateClass("PublicVar");
         Object instance = aClass.newInstance();
         Method setter = findDeclaredMethodByName(aClass, "setFoo");
         setter.invoke(instance, 239);
@@ -69,14 +65,14 @@ public class PropertyGenTest extends CodegenTestCase {
 
     public void testAccessorsInInterface() {
         loadText("class AccessorsInInterface() { public var foo : Int = 0; }");
-        Class aClass = generateClass("AccessorsInInterface");
+        Class<?> aClass = generateClass("AccessorsInInterface");
         assertNotNull(findDeclaredMethodByName(aClass, "getFoo"));
         assertNotNull(findDeclaredMethodByName(aClass, "setFoo"));
     }
 
     public void testPrivatePropertyInPackage() throws Exception {
         loadText("private val x = 239");
-        Class nsClass = generatePackagePartClass();
+        Class<?> nsClass = generatePackagePartClass();
         Field[] fields = nsClass.getDeclaredFields();
         assertEquals(1, fields.length);
         Field field = fields[0];
@@ -121,7 +117,7 @@ public class PropertyGenTest extends CodegenTestCase {
 
     public void testAccessorsWithoutBody() throws Exception {
         loadText("class AccessorsWithoutBody() { protected var foo: Int = 349\n get\n  private set\n fun setter() { foo = 610; } } ");
-        Class aClass = generateClass("AccessorsWithoutBody");
+        Class<?> aClass = generateClass("AccessorsWithoutBody");
         Object instance = aClass.newInstance();
         Method getFoo = findDeclaredMethodByName(aClass, "getFoo");
         getFoo.setAccessible(true);
@@ -144,7 +140,7 @@ public class PropertyGenTest extends CodegenTestCase {
 
     public void testPropertyReceiverOnStack() throws Exception {
         loadFile();
-        Class aClass = generateClass("Evaluator");
+        Class<?> aClass = generateClass("Evaluator");
         Constructor constructor = aClass.getConstructor(StringBuilder.class);
         StringBuilder sb = new StringBuilder("xyzzy");
         Object instance = constructor.newInstance(sb);
@@ -155,7 +151,7 @@ public class PropertyGenTest extends CodegenTestCase {
 
     public void testAbstractVal() throws Exception {
         loadText("abstract class Foo { public abstract val x: String }");
-        Class aClass = generateClass("Foo");
+        Class<?> aClass = generateClass("Foo");
         assertNotNull(aClass.getMethod("getX"));
     }
 
@@ -168,88 +164,93 @@ public class PropertyGenTest extends CodegenTestCase {
 
     public void testKt1846() {
         loadFile("regressions/kt1846.kt");
-        Class aClass = generateClass("A");
+        Class<?> aClass = generateClass("A");
         try {
-            Method v1 = aClass.getMethod("getV1");
+            aClass.getMethod("getV1");
             System.out.println(generateToText());
             fail();
         }
         catch (NoSuchMethodException e) {
             try {
-                Method v1 = aClass.getMethod("setV1");
+                aClass.getMethod("setV1");
                 System.out.println(generateToText());
                 fail();
             }
             catch (NoSuchMethodException ee) {
-                //
+                // ok
             }
         }
     }
 
-    public void testKt2589() {
+    public void testKt2589() throws Exception {
         loadFile("regressions/kt2589.kt");
-        Class aClass = generateClass("Foo");
+        Class<?> aClass = generateClass("Foo");
         assertTrue((aClass.getModifiers() & Opcodes.ACC_FINAL) == 0);
 
-        try {
-            Field foo = aClass.getDeclaredField("foo");
-            assertTrue((foo.getModifiers() & Opcodes.ACC_PRIVATE) != 0);
-            assertTrue((foo.getModifiers() & Opcodes.ACC_FINAL) == 0);
+        Field foo = aClass.getDeclaredField("foo");
+        assertTrue((foo.getModifiers() & Opcodes.ACC_PRIVATE) != 0);
+        assertTrue((foo.getModifiers() & Opcodes.ACC_FINAL) == 0);
 
-            Field bar = aClass.getDeclaredField("bar");
-            assertTrue((bar.getModifiers() & Opcodes.ACC_PRIVATE) != 0);
-            assertTrue((bar.getModifiers() & Opcodes.ACC_FINAL) != 0);
+        Field bar = aClass.getDeclaredField("bar");
+        assertTrue((bar.getModifiers() & Opcodes.ACC_PRIVATE) != 0);
+        assertTrue((bar.getModifiers() & Opcodes.ACC_FINAL) != 0);
 
-            Method getFoo = aClass.getDeclaredMethod("getFoo");
-            assertTrue((getFoo.getModifiers() & Opcodes.ACC_PUBLIC) != 0);
-            assertTrue((getFoo.getModifiers() & Opcodes.ACC_FINAL) != 0);
+        Method getFoo = aClass.getDeclaredMethod("getFoo");
+        assertTrue((getFoo.getModifiers() & Opcodes.ACC_PUBLIC) != 0);
+        assertTrue((getFoo.getModifiers() & Opcodes.ACC_FINAL) != 0);
 
-            Method getBar = aClass.getDeclaredMethod("getBar");
-            assertTrue((getBar.getModifiers() & Opcodes.ACC_PROTECTED) != 0);
-            assertTrue((getBar.getModifiers() & Opcodes.ACC_FINAL) == 0);
+        Method getBar = aClass.getDeclaredMethod("getBar");
+        assertTrue((getBar.getModifiers() & Opcodes.ACC_PROTECTED) != 0);
+        assertTrue((getBar.getModifiers() & Opcodes.ACC_FINAL) == 0);
+    }
+
+    public void testKt2677() throws Exception {
+        loadFile("regressions/kt2677.kt");
+        Class<?> derived = generateClass("DerivedWeatherReport");
+        Class<?> weatherReport = derived.getSuperclass();
+
+        {
+            Method get = derived.getDeclaredMethod("getForecast");
+            Type type = get.getGenericReturnType();
+            assertInstanceOf(type, ParameterizedType.class);
+            ParameterizedType parameterizedType = (ParameterizedType) type;
+            assertEquals(String.class, parameterizedType.getActualTypeArguments()[0]);
+
+            Method set = derived.getDeclaredMethod("setForecast", (Class<?>) parameterizedType.getRawType());
+            type = set.getGenericParameterTypes()[0];
+            parameterizedType = (ParameterizedType) type;
+            assertInstanceOf(type, ParameterizedType.class);
+            assertEquals(String.class, parameterizedType.getActualTypeArguments()[0]);
         }
-        catch (Throwable e) {
-            System.out.println(generateToText());
-            throw new RuntimeException(e);
+        {
+            Method get = weatherReport.getDeclaredMethod("getForecast");
+            Type type = get.getGenericReturnType();
+            assertInstanceOf(type, ParameterizedType.class);
+            ParameterizedType parameterizedType = (ParameterizedType) type;
+            assertEquals(String.class, parameterizedType.getActualTypeArguments()[0]);
+
+            Method set = weatherReport.getDeclaredMethod("setForecast", (Class<?>) parameterizedType.getRawType());
+            type = set.getGenericParameterTypes()[0];
+            parameterizedType = (ParameterizedType) type;
+            assertInstanceOf(type, ParameterizedType.class);
+            assertEquals(String.class, parameterizedType.getActualTypeArguments()[0]);
         }
     }
 
-    public void testKt2677() {
-        loadFile("regressions/kt2677.kt");
-        Class aClass = generateClass("DerivedWeatherReport");
-        Class bClass = aClass.getSuperclass();
+    public void testPrivateClassPropertyAccessors() throws Exception {
+        loadFile("properties/privateClassPropertyAccessors.kt");
+        Class<?> c = generateClass("C");
+        findDeclaredMethodByName(c, "getValWithGet");
+        findDeclaredMethodByName(c, "getVarWithGetSet");
+        findDeclaredMethodByName(c, "setVarWithGetSet");
+        findDeclaredMethodByName(c, "getDelegated");
+        findDeclaredMethodByName(c, "setDelegated");
+        findDeclaredMethodByName(c, "getExtension");
+        findDeclaredMethodByName(c, "setExtension");
 
-        try {
-            {
-                Method get = aClass.getDeclaredMethod("getForecast");
-                Type type = get.getGenericReturnType();
-                assertInstanceOf(type, ParameterizedType.class);
-                ParameterizedType parameterizedType = (ParameterizedType) type;
-                assertEquals(String.class, parameterizedType.getActualTypeArguments()[0]);
+        findDeclaredMethodByName(initializedClassLoader.loadClass("C" + JvmAbi.CLASS_OBJECT_SUFFIX), "getClassObjectVal");
 
-                Method set = aClass.getDeclaredMethod("setForecast", (Class)parameterizedType.getRawType());
-                type = set.getGenericParameterTypes()[0];
-                parameterizedType = (ParameterizedType) type;
-                assertInstanceOf(type, ParameterizedType.class);
-                assertEquals(String.class, parameterizedType.getActualTypeArguments()[0]);
-            }
-            {
-                Method get = bClass.getDeclaredMethod("getForecast");
-                Type type = get.getGenericReturnType();
-                assertInstanceOf(type, ParameterizedType.class);
-                ParameterizedType parameterizedType = (ParameterizedType) type;
-                assertEquals(String.class, parameterizedType.getActualTypeArguments()[0]);
-
-                Method set = bClass.getDeclaredMethod("setForecast", (Class)parameterizedType.getRawType());
-                type = set.getGenericParameterTypes()[0];
-                parameterizedType = (ParameterizedType) type;
-                assertInstanceOf(type, ParameterizedType.class);
-                assertEquals(String.class, parameterizedType.getActualTypeArguments()[0]);
-            }
-        }
-        catch (Throwable e) {
-            System.out.println(generateToText());
-            throw new RuntimeException(e);
-        }
+        assertNull("Property should not have a getter", findDeclaredMethodByNameOrNull(c, "getVarNoAccessors"));
+        assertNull("Property should not have a setter", findDeclaredMethodByNameOrNull(c, "setVarNoAccessors"));
     }
 }

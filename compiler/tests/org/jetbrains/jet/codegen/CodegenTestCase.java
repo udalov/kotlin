@@ -27,6 +27,7 @@ import org.jetbrains.jet.OutputFile;
 import org.jetbrains.jet.cli.jvm.JVMConfigurationKeys;
 import org.jetbrains.jet.cli.jvm.compiler.JetCoreEnvironment;
 import org.jetbrains.jet.codegen.forTestCompile.ForTestCompileRuntime;
+import org.jetbrains.jet.lang.resolve.kotlin.PackagePartClassUtils;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.utils.UtilsPackage;
 import org.jetbrains.org.objectweb.asm.ClassReader;
@@ -52,12 +53,9 @@ import static org.jetbrains.jet.codegen.CodegenTestUtil.*;
 import static org.jetbrains.jet.lang.resolve.java.PackageClassUtils.getPackageClassFqName;
 
 public abstract class CodegenTestCase extends UsefulTestCase {
-
-    // for environment and classloader
     protected JetCoreEnvironment myEnvironment;
     protected CodegenTestFiles myFiles;
-
-    private ClassFileFactory classFileFactory;
+    protected ClassFileFactory classFileFactory;
     protected GeneratedClassLoader initializedClassLoader;
 
     protected void createEnvironmentWithMockJdkAndIdeaAnnotations(@NotNull ConfigurationKind configurationKind) {
@@ -108,6 +106,14 @@ public abstract class CodegenTestCase extends UsefulTestCase {
 
     protected void loadFile() {
         loadFile(getPrefix() + "/" + getTestName(true) + ".kt");
+    }
+
+    @NotNull
+    protected String relativePath(@NotNull File file) {
+        String stringToCut = "compiler/testData/codegen/";
+        String systemIndependentPath = file.getPath().replace(File.separatorChar, '/');
+        assert systemIndependentPath.startsWith(stringToCut) : "File path is not absolute: " + file;
+        return systemIndependentPath.substring(stringToCut.length());
     }
 
     @NotNull
@@ -174,7 +180,7 @@ public abstract class CodegenTestCase extends UsefulTestCase {
 
     @NotNull
     protected Class<?> generatePackagePartClass() {
-        String name = PackageCodegen.getPackagePartInternalName(myFiles.getPsiFile());
+        String name = PackagePartClassUtils.getPackagePartInternalName(myFiles.getPsiFile());
         return generateClass(name);
     }
 
@@ -276,12 +282,7 @@ public abstract class CodegenTestCase extends UsefulTestCase {
 
     @NotNull
     protected Method generateFunction(@NotNull String name) {
-        Class<?> aClass = generatePackageClass();
-        Method method = findDeclaredMethodByName(aClass, name);
-        if (method == null) {
-            throw new IllegalArgumentException("Couldn't find method " + name + " in class " + aClass);
-        }
-        return method;
+        return findDeclaredMethodByName(generatePackageClass(), name);
     }
 
     @NotNull

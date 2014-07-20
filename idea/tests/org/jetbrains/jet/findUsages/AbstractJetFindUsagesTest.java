@@ -21,6 +21,7 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Collections2;
 import com.google.common.collect.Ordering;
+import com.intellij.codeInsight.TargetElementUtilBase;
 import com.intellij.find.FindManager;
 import com.intellij.find.findUsages.*;
 import com.intellij.find.impl.FindManagerImpl;
@@ -29,9 +30,9 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.io.FileUtil;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.psi.*;
+import com.intellij.psi.PsiPackage;
 import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.testFramework.LightProjectDescriptor;
-import com.intellij.testFramework.fixtures.LightCodeInsightFixtureTestCase;
 import com.intellij.usageView.UsageInfo;
 import com.intellij.usages.UsageGroup;
 import com.intellij.usages.UsageInfo2UsageAdapter;
@@ -48,6 +49,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.InTextDirectivesUtils;
 import org.jetbrains.jet.lang.psi.*;
+import org.jetbrains.jet.plugin.JetLightCodeInsightFixtureTestCase;
 import org.jetbrains.jet.plugin.JetWithJdkAndRuntimeLightProjectDescriptor;
 import org.jetbrains.jet.plugin.PluginTestCaseBase;
 import org.jetbrains.jet.plugin.findUsages.KotlinClassFindUsagesOptions;
@@ -61,7 +63,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
-public abstract class AbstractJetFindUsagesTest extends LightCodeInsightFixtureTestCase {
+public abstract class AbstractJetFindUsagesTest extends JetLightCodeInsightFixtureTestCase {
 
     public static final UsageViewPresentation USAGE_VIEW_PRESENTATION = new UsageViewPresentation();
 
@@ -201,6 +203,13 @@ public abstract class AbstractJetFindUsagesTest extends LightCodeInsightFixtureT
                 return new JavaVariableFindUsagesOptions(project);
             }
         },
+        JAVA_PACKAGE {
+            @NotNull
+            @Override
+            public FindUsagesOptions parse(@NotNull String text, @NotNull Project project) {
+                return new JavaPackageFindUsagesOptions(project);
+            }
+        },
         DEFAULT {
             @NotNull
             @Override
@@ -245,6 +254,9 @@ public abstract class AbstractJetFindUsagesTest extends LightCodeInsightFixtureT
             }
             if (klass == PsiField.class) {
                 return JAVA_FIELD;
+            }
+            if (klass == PsiPackage.class) {
+                return JAVA_PACKAGE;
             }
             if (klass == JetTypeParameter.class) {
                 return DEFAULT;
@@ -301,7 +313,11 @@ public abstract class AbstractJetFindUsagesTest extends LightCodeInsightFixtureT
         }
         myFixture.configureByFile(path);
 
-        T caretElement = PsiTreeUtil.getParentOfType(myFixture.getElementAtCaret(), caretElementClass, false);
+        PsiElement originalElement =
+                InTextDirectivesUtils.isDirectiveDefined(mainFileText, "// FIND_BY_REF")
+                ? TargetElementUtilBase.findTargetElement(myFixture.getEditor(), TargetElementUtilBase.REFERENCED_ELEMENT_ACCEPTED)
+                : myFixture.getElementAtCaret();
+        T caretElement = PsiTreeUtil.getParentOfType(originalElement, caretElementClass, false);
         assertNotNull(String.format("Element with type '%s' wasn't found at caret position", caretElementClass), caretElement);
 
         FindUsagesOptions options = parser != null ? parser.parse(mainFileText, getProject()) : null;

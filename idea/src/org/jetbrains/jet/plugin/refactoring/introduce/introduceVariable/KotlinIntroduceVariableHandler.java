@@ -31,11 +31,8 @@ import com.intellij.psi.PsiWhiteSpace;
 import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.refactoring.HelpID;
 import com.intellij.refactoring.introduce.inplace.OccurrencesChooser;
-import kotlin.Function1;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor;
-import org.jetbrains.jet.lang.descriptors.VariableDescriptor;
 import org.jetbrains.jet.analyzer.AnalyzerPackage;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.BindingContext;
@@ -63,6 +60,9 @@ import org.jetbrains.jet.plugin.refactoring.introduce.KotlinIntroduceHandlerBase
 import org.jetbrains.jet.renderer.DescriptorRenderer;
 
 import java.util.*;
+
+import static org.jetbrains.jet.lang.psi.PsiPackage.JetPsiFactory;
+import static org.jetbrains.jet.lang.resolve.bindingContextUtil.BindingContextUtilPackage.getResolvedCall;
 
 public class KotlinIntroduceVariableHandler extends KotlinIntroduceHandlerBase {
 
@@ -139,7 +139,7 @@ public class KotlinIntroduceVariableHandler extends KotlinIntroduceHandlerBase {
             JetType typeNoExpectedType = AnalyzerPackage.computeTypeInfoInContext(
                     expression, scope, bindingTrace, dataFlowInfo, TypeUtils.NO_EXPECTED_TYPE, resolveSession.getModuleDescriptor()
             ).getType();
-            if (expressionType != null && typeNoExpectedType != null && !JetTypeChecker.INSTANCE.equalTypes(expressionType,
+            if (expressionType != null && typeNoExpectedType != null && !JetTypeChecker.DEFAULT.equalTypes(expressionType,
                                                                                                            typeNoExpectedType)) {
                 noTypeInference = true;
             }
@@ -149,7 +149,7 @@ public class KotlinIntroduceVariableHandler extends KotlinIntroduceHandlerBase {
             return;
         }
         if (expressionType != null &&
-            JetTypeChecker.INSTANCE.equalTypes(KotlinBuiltIns.getInstance().getUnitType(), expressionType)) {
+            JetTypeChecker.DEFAULT.equalTypes(KotlinBuiltIns.getInstance().getUnitType(), expressionType)) {
             showErrorHint(project, editor, JetRefactoringBundle.message("cannot.refactor.expression.has.unit.type"));
             return;
         }
@@ -203,7 +203,7 @@ public class KotlinIntroduceVariableHandler extends KotlinIntroduceHandlerBase {
                 final Ref<JetProperty> propertyRef = new Ref<JetProperty>();
                 final ArrayList<JetExpression> references = new ArrayList<JetExpression>();
                 final Ref<JetExpression> reference = new Ref<JetExpression>();
-                final Runnable introduceRunnable = introduceVariable(project, expression, suggestedNames, allReplaces, commonContainer,
+                final Runnable introduceRunnable = introduceVariable(expression, suggestedNames, allReplaces, commonContainer,
                                                                      commonParent, replaceOccurrence, propertyRef, references,
                                                                      reference, finalNoTypeInference, finalNeedParentheses, expressionType);
                 final boolean finalReplaceOccurrence = replaceOccurrence;
@@ -241,16 +241,18 @@ public class KotlinIntroduceVariableHandler extends KotlinIntroduceHandlerBase {
         }
     }
 
-    private static Runnable introduceVariable(final @NotNull Project project, final JetExpression expression,
-                                              final String[] suggestedNames,
-                                              final List<JetExpression> allReplaces, final PsiElement commonContainer,
-                                              final PsiElement commonParent, final boolean replaceOccurrence,
-                                              final Ref<JetProperty> propertyRef,
-                                              final ArrayList<JetExpression> references,
-                                              final Ref<JetExpression> reference, 
-                                              final boolean noTypeInference,
-                                              final boolean needParentheses,
-                                              final JetType expressionType) {
+    private static Runnable introduceVariable(
+            final JetExpression expression,
+            final String[] suggestedNames,
+            final List<JetExpression> allReplaces, final PsiElement commonContainer,
+            final PsiElement commonParent, final boolean replaceOccurrence,
+            final Ref<JetProperty> propertyRef,
+            final ArrayList<JetExpression> references,
+            final Ref<JetExpression> reference,
+            final boolean noTypeInference,
+            final boolean needParentheses,
+            final JetType expressionType
+    ) {
         return new Runnable() {
             @Override
             public void run() {
@@ -272,7 +274,8 @@ public class KotlinIntroduceVariableHandler extends KotlinIntroduceHandlerBase {
                 else {
                     variableText += expression.getText();
                 }
-                JetProperty property = JetPsiFactory.createProperty(project, variableText);
+                JetPsiFactory psiFactory = JetPsiFactory(expression);
+                JetProperty property = psiFactory.createProperty(variableText);
                 PsiElement anchor = calculateAnchor(commonParent, commonContainer, allReplaces);
                 if (anchor == null) return;
                 boolean needBraces = !(commonContainer instanceof JetBlockExpression ||
@@ -280,21 +283,20 @@ public class KotlinIntroduceVariableHandler extends KotlinIntroduceHandlerBase {
                                        commonContainer instanceof JetClassInitializer);
                 if (!needBraces) {
                     property = (JetProperty)commonContainer.addBefore(property, anchor);
-                    commonContainer.addBefore(JetPsiFactory.createNewLine(project), anchor);
+                    commonContainer.addBefore(psiFactory.createNewLine(), anchor);
                 }
                 else {
-                    JetExpression emptyBody = JetPsiFactory.createEmptyBody(project);
+                    JetExpression emptyBody = psiFactory.createEmptyBody();
                     PsiElement firstChild = emptyBody.getFirstChild();
-                    emptyBody.addAfter(JetPsiFactory.createNewLine(project), firstChild);
+                    emptyBody.addAfter(psiFactory.createNewLine(), firstChild);
                     if (replaceOccurrence && commonContainer != null) {
                         for (JetExpression replace : allReplaces) {
                             boolean isActualExpression = expression == replace;
                             if (!needParentheses && !(replace.getParent() instanceof JetCallExpression)) {
-                                JetExpression element =
-                                        (JetExpression)replace.replace(JetPsiFactory.createExpression(project, suggestedNames[0]));
+                                JetExpression element = (JetExpression) replace.replace(psiFactory.createExpression(suggestedNames[0]));
                                 if (isActualExpression) reference.set(element);
                             } else {
-                                JetValueArgumentList argumentList = JetPsiFactory.createCallArguments(project, "(" + suggestedNames[0] + ")");
+                                JetValueArgumentList argumentList = psiFactory.createCallArguments("(" + suggestedNames[0] + ")");
                                 JetValueArgumentList element = (JetValueArgumentList) replace.replace(argumentList);
                                 if (isActualExpression) reference.set(element.getArguments().get(0).getArgumentExpression());
                             }
@@ -334,9 +336,9 @@ public class KotlinIntroduceVariableHandler extends KotlinIntroduceHandlerBase {
                         if (elem != null) {
                             reference.set((JetExpression)elem);
                         }
-                        emptyBody.addAfter(JetPsiFactory.createNewLine(project), firstChild);
+                        emptyBody.addAfter(psiFactory.createNewLine(), firstChild);
                         property = (JetProperty)emptyBody.addAfter(property, firstChild);
-                        emptyBody.addAfter(JetPsiFactory.createNewLine(project), firstChild);
+                        emptyBody.addAfter(psiFactory.createNewLine(), firstChild);
                         actualExpression = reference.get();
                         diff = actualExpression.getTextRange().getStartOffset() - emptyBody.getTextRange().getStartOffset();
                         actualExpressionText = actualExpression.getText();
@@ -352,7 +354,7 @@ public class KotlinIntroduceVariableHandler extends KotlinIntroduceHandlerBase {
                     }
                     else {
                         property = (JetProperty)emptyBody.addAfter(property, firstChild);
-                        emptyBody.addAfter(JetPsiFactory.createNewLine(project), firstChild);
+                        emptyBody.addAfter(psiFactory.createNewLine(), firstChild);
                         emptyBody = (JetExpression)anchor.replace(emptyBody);
                     }
                     for (PsiElement child : emptyBody.getChildren()) {
@@ -379,7 +381,7 @@ public class KotlinIntroduceVariableHandler extends KotlinIntroduceHandlerBase {
                                 PsiElement nextnext = next.getNextSibling();
                                 if (nextnext != null && nextnext.getNode().getElementType() == JetTokens.ELSE_KEYWORD) {
                                     if (next instanceof PsiWhiteSpace) {
-                                        next.replace(JetPsiFactory.createWhiteSpace(project));
+                                        next.replace(psiFactory.createWhiteSpace());
                                     }
                                 }
                             }
@@ -392,11 +394,11 @@ public class KotlinIntroduceVariableHandler extends KotlinIntroduceHandlerBase {
 
                         if (!needParentheses && !(replace.getParent() instanceof JetCallExpression)) {
                             JetExpression element =
-                                    (JetExpression)replace.replace(JetPsiFactory.createExpression(project, suggestedNames[0]));
+                                    (JetExpression)replace.replace(psiFactory.createExpression(suggestedNames[0]));
                             references.add(element);
                             if (isActualExpression) reference.set(element);
                         } else {
-                            JetValueArgumentList argumentList = JetPsiFactory.createCallArguments(project, "(" + suggestedNames[0] + ")");
+                            JetValueArgumentList argumentList = psiFactory.createCallArguments("(" + suggestedNames[0] + ")");
                             JetValueArgumentList element = (JetValueArgumentList) replace.replace(argumentList);
                             JetExpression argumentExpression = element.getArguments().get(0).getArgumentExpression();
                             references.add(argumentExpression);
@@ -464,6 +466,23 @@ public class KotlinIntroduceVariableHandler extends KotlinIntroduceHandlerBase {
             @Override
             public void visitExpression(@NotNull JetExpression expression) {
                 if (PsiEquivalenceUtil.areElementsEquivalent(expression, actualExpression, null, new Comparator<PsiElement>() {
+                    private boolean compareCalleesAndReceivers(@NotNull ResolvedCall<?> rc1, @NotNull ResolvedCall<?> rc2) {
+                        if (rc1.getResultingDescriptor() != rc2.getResultingDescriptor() ||
+                               rc1.getExplicitReceiverKind() != rc2.getExplicitReceiverKind()) return false;
+
+                        switch (rc1.getExplicitReceiverKind()) {
+                            case NO_EXPLICIT_RECEIVER:
+                                return rc1.getReceiverArgument() == rc2.getReceiverArgument()
+                                          && rc1.getThisObject() == rc2.getThisObject();
+                            case RECEIVER_ARGUMENT:
+                                return rc1.getThisObject() == rc2.getThisObject();
+                            case THIS_OBJECT:
+                                return rc1.getReceiverArgument() == rc2.getReceiverArgument();
+                            default:
+                                return true;
+                        }
+                    }
+
                     @Override
                     public int compare(@NotNull PsiElement element1, @NotNull PsiElement element2) {
                         if (element1.getNode().getElementType() == JetTokens.IDENTIFIER &&
@@ -473,14 +492,9 @@ public class KotlinIntroduceVariableHandler extends KotlinIntroduceHandlerBase {
                                 JetSimpleNameExpression expr1 = (JetSimpleNameExpression)element1.getParent();
                                 JetSimpleNameExpression expr2 = (JetSimpleNameExpression)element2.getParent();
 
-                                ResolvedCall<?> rc1 = bindingContext.get(BindingContext.RESOLVED_CALL, expr1);
-                                ResolvedCall<?> rc2 = bindingContext.get(BindingContext.RESOLVED_CALL, expr2);
-                                if (rc1 == null || rc2 == null) return rc1 == rc2 ? 0 : 1;
-
-                                return  rc1.getResultingDescriptor() == rc2.getResultingDescriptor()
-                                        && rc1.getExplicitReceiverKind() == rc2.getExplicitReceiverKind()
-                                        && rc1.getReceiverArgument() == rc2.getReceiverArgument()
-                                        && rc1.getThisObject() == rc2.getThisObject() ? 0 : 1;
+                                ResolvedCall<?> rc1 = getResolvedCall(expr1, bindingContext);
+                                ResolvedCall<?> rc2 = getResolvedCall(expr2, bindingContext);
+                                return (rc1 != null && rc2 != null) && compareCalleesAndReceivers(rc1, rc2) ? 0 : 1;
                             }
                         }
                         if (!element1.textMatches(element2)) {

@@ -19,28 +19,39 @@ package org.jetbrains.jet.lang.resolve.java;
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiFile;
+import com.intellij.psi.search.GlobalSearchScope;
+import kotlin.Function1;
+import kotlin.KotlinPackage;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.analyzer.AnalyzeExhaust;
 import org.jetbrains.jet.analyzer.AnalyzerFacade;
 import org.jetbrains.jet.context.ContextPackage;
 import org.jetbrains.jet.context.GlobalContext;
 import org.jetbrains.jet.context.GlobalContextImpl;
-import org.jetbrains.jet.descriptors.serialization.descriptors.MemberFilter;
 import org.jetbrains.jet.di.InjectorForLazyResolveWithJava;
 import org.jetbrains.jet.di.InjectorForTopDownAnalyzerForJvm;
 import org.jetbrains.jet.lang.descriptors.DependencyKind;
-import org.jetbrains.jet.lang.descriptors.ModuleDescriptorImpl;
+import org.jetbrains.jet.lang.descriptors.impl.ModuleDescriptorImpl;
 import org.jetbrains.jet.lang.psi.JetFile;
-import org.jetbrains.jet.lang.resolve.*;
+import org.jetbrains.jet.lang.resolve.BindingTrace;
+import org.jetbrains.jet.lang.resolve.BindingTraceContext;
+import org.jetbrains.jet.lang.resolve.ImportPath;
+import org.jetbrains.jet.lang.resolve.TopDownAnalysisParameters;
 import org.jetbrains.jet.lang.resolve.java.mapping.JavaToKotlinClassMap;
+import org.jetbrains.jet.lang.resolve.kotlin.incremental.IncrementalCache;
+import org.jetbrains.jet.lang.resolve.kotlin.incremental.IncrementalCacheProvider;
+import org.jetbrains.jet.lang.resolve.kotlin.incremental.IncrementalPackageFragmentProvider;
 import org.jetbrains.jet.lang.resolve.lazy.ResolveSession;
 import org.jetbrains.jet.lang.resolve.lazy.declarations.DeclarationProviderFactory;
 import org.jetbrains.jet.lang.resolve.lazy.declarations.DeclarationProviderFactoryService;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 
+import java.io.File;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 public enum AnalyzerFacadeForJVM implements AnalyzerFacade {
@@ -50,8 +61,8 @@ public enum AnalyzerFacadeForJVM implements AnalyzerFacade {
     public static final List<ImportPath> DEFAULT_IMPORTS = ImmutableList.of(
             new ImportPath("java.lang.*"),
             new ImportPath("kotlin.*"),
-            new ImportPath("kotlin.io.*"),
-            new ImportPath("kotlin.reflect.*")
+            new ImportPath("kotlin.jvm.*"),
+            new ImportPath("kotlin.io.*")
     );
 
     public static class JvmSetup extends BasicSetup {
@@ -74,8 +85,12 @@ public enum AnalyzerFacadeForJVM implements AnalyzerFacade {
 
     @NotNull
     @Override
-    public JvmSetup createSetup(@NotNull Project fileProject, @NotNull Collection<JetFile> files) {
-        return createSetup(fileProject, files, new BindingTraceContext(), true);
+    public JvmSetup createSetup(
+            @NotNull Project fileProject,
+            @NotNull Collection<JetFile> syntheticFiles,
+            @NotNull GlobalSearchScope filesScope
+    ) {
+        return createSetup(fileProject, syntheticFiles, filesScope, new BindingTraceContext(), true);
     }
 
     @NotNull
@@ -85,20 +100,27 @@ public enum AnalyzerFacadeForJVM implements AnalyzerFacade {
             @NotNull BindingTrace trace,
             boolean addBuiltIns
     ) {
-
-        return createSetup(project, files, trace, addBuiltIns).getLazyResolveSession();
+        List<VirtualFile> virtualFiles = KotlinPackage.map(files, new Function1<JetFile, VirtualFile>() {
+            @Override
+            public VirtualFile invoke(JetFile file) {
+                return file.getVirtualFile();
+            }
+        });
+        return createSetup(project, Collections.<JetFile>emptyList(),
+                           GlobalSearchScope.filesScope(project, virtualFiles), trace, addBuiltIns).getLazyResolveSession();
     }
 
-    private static JvmSetup createSetup(
-            Project project,
-            Collection<JetFile> files,
-            BindingTrace trace,
+    public static JvmSetup createSetup(
+            @NotNull Project project,
+            @NotNull Collection<JetFile> syntheticFiles,
+            @NotNull GlobalSearchScope filesScope,
+            @NotNull BindingTrace trace,
             boolean addBuiltIns
     ) {
         GlobalContextImpl globalContext = ContextPackage.GlobalContext();
 
-        DeclarationProviderFactory declarationProviderFactory =
-                DeclarationProviderFactoryService.createDeclarationProviderFactory(project, globalContext.getStorageManager(), files);
+        DeclarationProviderFactory declarationProviderFactory = DeclarationProviderFactoryService.object$
+                .createDeclarationProviderFactory(project, globalContext.getStorageManager(), syntheticFiles, filesScope);
 
         InjectorForLazyResolveWithJava resolveWithJava = new InjectorForLazyResolveWithJava(
                 project,
@@ -124,7 +146,8 @@ public enum AnalyzerFacadeForJVM implements AnalyzerFacade {
             BindingTrace trace,
             Predicate<PsiFile> filesToAnalyzeCompletely,
             ModuleDescriptorImpl module,
-            MemberFilter memberFilter
+            List<String> moduleIds,
+            File incrementalCacheDir
     ) {
         GlobalContext globalContext = ContextPackage.GlobalContext();
         TopDownAnalysisParameters topDownAnalysisParameters = TopDownAnalysisParameters.create(
@@ -135,10 +158,24 @@ public enum AnalyzerFacadeForJVM implements AnalyzerFacade {
                 false
         );
 
-        InjectorForTopDownAnalyzerForJvm injector = new InjectorForTopDownAnalyzerForJvm(project, topDownAnalysisParameters, trace, module,
-                                                                                         memberFilter);
+        InjectorForTopDownAnalyzerForJvm injector = new InjectorForTopDownAnalyzerForJvm(project, topDownAnalysisParameters, trace, module);
         try {
             module.addFragmentProvider(DependencyKind.BINARIES, injector.getJavaDescriptorResolver().getPackageFragmentProvider());
+
+            IncrementalCacheProvider incrementalCacheProvider = IncrementalCacheProvider.object$.getInstance();
+            if (incrementalCacheDir != null && moduleIds != null && incrementalCacheProvider != null) {
+                IncrementalCache incrementalCache = incrementalCacheProvider.getIncrementalCache(incrementalCacheDir);
+                for (String moduleId : moduleIds) {
+                    module.addFragmentProvider(
+                            DependencyKind.SOURCES,
+                            new IncrementalPackageFragmentProvider(
+                                    files, module, globalContext.getStorageManager(), injector.getDeserializationGlobalContextForJava(),
+                                    incrementalCache, moduleId, injector.getJavaDescriptorResolver()
+                            )
+                    );
+                }
+            }
+
             injector.getTopDownAnalyzer().analyzeFiles(topDownAnalysisParameters, files);
             return AnalyzeExhaust.success(trace.getBindingContext(), module);
         }

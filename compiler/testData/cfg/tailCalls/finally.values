@@ -1,0 +1,12 @@
+== test ==
+tailRecursive fun test() : Int {
+    try {
+        // do nothing
+    } finally {
+        test()
+    }
+}
+---------------------
+test()       <v0>: *   NEW: call(test(), test) -> <v0>
+{ test() }   <v0>: *   COPY
+=====================

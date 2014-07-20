@@ -16,26 +16,26 @@
 
 package org.jetbrains.jet.j2k.ast
 
-import org.jetbrains.jet.j2k.ast.types.Type
-import org.jetbrains.jet.j2k.Converter
+import org.jetbrains.jet.j2k.ConverterSettings
+import org.jetbrains.jet.j2k.CodeBuilder
+import org.jetbrains.jet.j2k.append
 
 class LocalVariable(
-        val identifier: Identifier,
-        val modifiersSet: Set<Modifier>,
-        val javaType: Type,
-        val initializer: Expression,
-        val converter: Converter
-) : Expression() {
+        private val identifier: Identifier,
+        private val annotations: Annotations,
+        private val modifiers: Modifiers,
+        private val explicitType: Type?,
+        private val initializer: Expression,
+        private val isVal: Boolean
+) : Element() {
 
-    fun isImmutable(): Boolean =
-            converter.settings.forceLocalVariableImmutability || modifiersSet.contains(Modifier.FINAL)
-
-    override fun toKotlin(): String {
-        if (initializer.isEmpty()) {
-            return "${identifier.toKotlin()} : ${javaType.toKotlin()}"
+    override fun generateCode(builder: CodeBuilder) {
+        builder append annotations append (if (isVal) "val " else "var ") append identifier
+        if (explicitType != null) {
+            builder append ":" append explicitType
         }
-
-        val shouldSpecifyType = converter.settings.specifyLocalVariableTypeByDefault
-        return "${identifier.toKotlin()} ${if (shouldSpecifyType) ": ${javaType.toKotlin()} " else ""}= ${initializer.toKotlin()}"
+        if (!initializer.isEmpty) {
+            builder append " = " append initializer
+        }
     }
 }

@@ -1,3 +1,0 @@
-object {}
-
-// RESULT: Cannot perform an action because following types are unavailable from debugger scope: errors.MyClass.baseFun.&lt;no name provided&gt;

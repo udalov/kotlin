@@ -34,6 +34,8 @@ import org.jetbrains.jet.plugin.JetBundle;
 import org.jetbrains.jet.plugin.caches.resolve.ResolvePackage;
 import org.jetbrains.jet.renderer.DescriptorRenderer;
 
+import static org.jetbrains.jet.lang.psi.PsiPackage.JetPsiFactory;
+
 public class CastExpressionFix extends JetIntentionAction<JetExpression> {
     private final JetType type;
     private final String renderedType;
@@ -61,19 +63,20 @@ public class CastExpressionFix extends JetIntentionAction<JetExpression> {
         if (!super.isAvailable(project, editor, file)) return false;
         BindingContext context = ResolvePackage.getBindingContext((JetFile) file);
         JetType expressionType = context.get(BindingContext.EXPRESSION_TYPE, element);
-        return expressionType != null && JetTypeChecker.INSTANCE.isSubtypeOf(type, expressionType);
+        return expressionType != null && JetTypeChecker.DEFAULT.isSubtypeOf(type, expressionType);
     }
 
     @Override
     public void invoke(@NotNull Project project, Editor editor, JetFile file) throws IncorrectOperationException {
+        JetPsiFactory psiFactory = JetPsiFactory(file);
         JetBinaryExpressionWithTypeRHS castedExpression =
-                (JetBinaryExpressionWithTypeRHS) JetPsiFactory.createExpression(project, "(" + element.getText() + ") as " + renderedType);
+                (JetBinaryExpressionWithTypeRHS) psiFactory.createExpression("(" + element.getText() + ") as " + renderedType);
         if (JetPsiUtil.areParenthesesUseless((JetParenthesizedExpression) castedExpression.getLeft())) {
-            castedExpression = (JetBinaryExpressionWithTypeRHS) JetPsiFactory.createExpression(project, element.getText() + " as " + renderedType);
+            castedExpression = (JetBinaryExpressionWithTypeRHS) psiFactory.createExpression(element.getText() + " as " + renderedType);
         }
 
         JetParenthesizedExpression castedExpressionInParentheses =
-                (JetParenthesizedExpression) element.replace(JetPsiFactory.createExpression(project, "(" + castedExpression.getText() + ")"));
+                (JetParenthesizedExpression) element.replace(psiFactory.createExpression("(" + castedExpression.getText() + ")"));
 
         if (JetPsiUtil.areParenthesesUseless(castedExpressionInParentheses)) {
             castedExpressionInParentheses.replace(castedExpression);
@@ -86,10 +89,8 @@ public class CastExpressionFix extends JetIntentionAction<JetExpression> {
             @Nullable
             @Override
             public IntentionAction createAction(Diagnostic diagnostic) {
-                assert diagnostic.getFactory() == Errors.AUTOCAST_IMPOSSIBLE;
-                @SuppressWarnings("unchecked")
                 DiagnosticWithParameters2<JetExpression, JetType, String> diagnosticWithParameters =
-                        (DiagnosticWithParameters2<JetExpression, JetType, String>) diagnostic;
+                        Errors.AUTOCAST_IMPOSSIBLE.cast(diagnostic);
                 return new CastExpressionFix(diagnosticWithParameters.getPsiElement(), diagnosticWithParameters.getA());
             }
         };

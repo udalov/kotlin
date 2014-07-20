@@ -1,10 +1,12 @@
-open class Base() {
-    open fun foo()
+package a.b
+
+class Base {
+    fun foo()
 }
 
-open class A() : Base() {
-    open class C() {
-        open fun test() {
+class A : Base() {
+    inner class C {
+        fun test() {
             super@A.foo()
         }
     }

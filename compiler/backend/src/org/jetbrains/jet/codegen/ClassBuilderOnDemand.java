@@ -16,49 +16,28 @@
 
 package org.jetbrains.jet.codegen;
 
-import com.google.common.collect.Lists;
+import kotlin.Function0;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.jet.storage.LockBasedStorageManager;
+import org.jetbrains.jet.storage.NotNullLazyValue;
 
-import java.util.List;
+public class ClassBuilderOnDemand extends DelegatingClassBuilder {
+    private final NotNullLazyValue<ClassBuilder> classBuilder;
 
-public abstract class ClassBuilderOnDemand {
-
-    private ClassBuilder classBuilder;
-
-    private final List<ClassBuilderCallback> optionalDeclarations = Lists.newArrayList();
-
-    interface ClassBuilderCallback {
-        void doSomething(@NotNull ClassBuilder classBuilder);
+    public ClassBuilderOnDemand(@NotNull Function0<ClassBuilder> createClassBuilder) {
+        this.classBuilder = LockBasedStorageManager.NO_LOCKS.createLazyValue(createClassBuilder);
     }
 
+    @Override
     @NotNull
-    protected abstract ClassBuilder createClassBuilder();
-
-    public void addOptionalDeclaration(@NotNull ClassBuilderCallback callback) {
-        optionalDeclarations.add(callback);
-        if (classBuilder != null) {
-            callback.doSomething(classBuilder);
-        }
+    protected ClassBuilder getDelegate() {
+        return classBuilder.invoke();
     }
 
-    @NotNull
-    public ClassBuilder getClassBuilder() {
-        if (classBuilder == null) {
-            classBuilder = createClassBuilder();
-            for (ClassBuilderCallback callback : optionalDeclarations) {
-                callback.doSomething(classBuilder);
-            }
-        }
-        return classBuilder;
-    }
-
+    @Override
     public void done() {
-        if (classBuilder != null) {
-            classBuilder.done();
+        if (classBuilder.isComputed()) {
+            classBuilder.invoke().done();
         }
-    }
-
-    public boolean isActivated() {
-        return classBuilder != null;
     }
 }

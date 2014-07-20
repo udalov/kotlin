@@ -20,12 +20,14 @@ import com.intellij.codeInsight.intention.IntentionAction;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.util.PsiTreeUtil;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.diagnostics.Diagnostic;
 import org.jetbrains.jet.lang.diagnostics.DiagnosticWithParameters2;
 import org.jetbrains.jet.lang.diagnostics.Errors;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.BindingContextUtils;
+import org.jetbrains.jet.lang.resolve.bindingContextUtil.BindingContextUtilPackage;
 import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCall;
 import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.plugin.caches.resolve.ResolvePackage;
@@ -33,16 +35,14 @@ import org.jetbrains.jet.plugin.caches.resolve.ResolvePackage;
 import java.util.LinkedList;
 import java.util.List;
 
+//TODO: should use change signature to deal with cases of multiple overridden descriptors
 public class QuickFixFactoryForTypeMismatchError implements JetIntentionActionsFactory {
     @NotNull
     @Override
     public List<IntentionAction> createActions(Diagnostic diagnostic) {
         List<IntentionAction> actions = new LinkedList<IntentionAction>();
 
-        assert diagnostic.getFactory() == Errors.TYPE_MISMATCH;
-        @SuppressWarnings("unchecked")
-        DiagnosticWithParameters2<JetExpression, JetType, JetType> diagnosticWithParameters =
-                (DiagnosticWithParameters2<JetExpression, JetType, JetType>) diagnostic;
+        DiagnosticWithParameters2<JetExpression, JetType, JetType> diagnosticWithParameters = Errors.TYPE_MISMATCH.cast(diagnostic);
         JetExpression expression = diagnosticWithParameters.getPsiElement();
         JetType expectedType = diagnosticWithParameters.getA();
         JetType expressionType = diagnosticWithParameters.getB();
@@ -71,23 +71,22 @@ public class QuickFixFactoryForTypeMismatchError implements JetIntentionActionsF
 
         // Fixing overloaded operators:
         if (expression instanceof JetOperationExpression) {
-            ResolvedCall<?> resolvedCall =
-                    context.get(BindingContext.RESOLVED_CALL, ((JetOperationExpression) expression).getOperationReference());
+            ResolvedCall<?> resolvedCall = BindingContextUtilPackage.getResolvedCall(expression, context);
             if (resolvedCall != null) {
-                PsiElement declaration = BindingContextUtils.descriptorToDeclaration(context, resolvedCall.getResultingDescriptor());
-                if (declaration instanceof JetFunction) {
-                    actions.add(new ChangeFunctionReturnTypeFix((JetFunction) declaration, expectedType));
+                JetFunction declaration = getFunctionDeclaration(resolvedCall);
+                if (declaration != null) {
+                    actions.add(new ChangeFunctionReturnTypeFix(declaration, expectedType));
                 }
             }
         }
         if (expression.getParent() instanceof JetBinaryExpression) {
             JetBinaryExpression parentBinary = (JetBinaryExpression) expression.getParent();
             if (parentBinary.getRight() == expression) {
-                ResolvedCall<?> resolvedCall = context.get(BindingContext.RESOLVED_CALL, parentBinary.getOperationReference());
+                ResolvedCall<?> resolvedCall = BindingContextUtilPackage.getResolvedCall(parentBinary, context);
                 if (resolvedCall != null) {
-                    PsiElement declaration = BindingContextUtils.descriptorToDeclaration(context, resolvedCall.getResultingDescriptor());
-                    if (declaration instanceof JetFunction) {
-                        JetParameter binaryOperatorParameter = ((JetFunction) declaration).getValueParameterList().getParameters().get(0);
+                    JetFunction declaration = getFunctionDeclaration(resolvedCall);
+                    if (declaration != null) {
+                        JetParameter binaryOperatorParameter = declaration.getValueParameterList().getParameters().get(0);
                         actions.add(new ChangeParameterTypeFix(binaryOperatorParameter, expressionType));
                     }
                 }
@@ -96,12 +95,11 @@ public class QuickFixFactoryForTypeMismatchError implements JetIntentionActionsF
 
         // Change function return type when TYPE_MISMATCH is reported on call expression:
         if (expression instanceof JetCallExpression) {
-            ResolvedCall<?> resolvedCall =
-                    context.get(BindingContext.RESOLVED_CALL, ((JetCallExpression) expression).getCalleeExpression());
+            ResolvedCall<?> resolvedCall = BindingContextUtilPackage.getResolvedCall(expression, context);
             if (resolvedCall != null) {
-                PsiElement declaration = BindingContextUtils.descriptorToDeclaration(context, resolvedCall.getResultingDescriptor());
-                if (declaration instanceof JetFunction) {
-                    actions.add(new ChangeFunctionReturnTypeFix((JetFunction) declaration, expectedType));
+                JetFunction declaration = getFunctionDeclaration(resolvedCall);
+                if (declaration != null) {
+                    actions.add(new ChangeFunctionReturnTypeFix(declaration, expectedType));
                 }
             }
         }
@@ -130,5 +128,14 @@ public class QuickFixFactoryForTypeMismatchError implements JetIntentionActionsF
             }
         }
         return actions;
+    }
+
+    @Nullable
+    private static JetFunction getFunctionDeclaration(@NotNull ResolvedCall<?> resolvedCall) {
+        PsiElement result = QuickFixUtil.safeGetDeclaration(resolvedCall);
+        if (result instanceof JetFunction) {
+            return (JetFunction) result;
+        }
+        return null;
     }
 }

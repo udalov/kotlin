@@ -45,6 +45,7 @@ import javax.inject.Inject;
 import java.util.*;
 
 import static org.jetbrains.jet.lang.diagnostics.Errors.REDECLARATION;
+import static org.jetbrains.jet.lang.resolve.ScriptHeaderResolver.resolveScriptDeclarations;
 
 public class DeclarationResolver {
     @NotNull
@@ -53,8 +54,6 @@ public class DeclarationResolver {
     private ImportsResolver importsResolver;
     @NotNull
     private DescriptorResolver descriptorResolver;
-    @NotNull
-    private ScriptHeaderResolver scriptHeaderResolver;
     @NotNull
     private BindingTrace trace;
 
@@ -79,13 +78,6 @@ public class DeclarationResolver {
         this.trace = trace;
     }
 
-    // SCRIPT: inject script header resolver
-    @Inject
-    public void setScriptHeaderResolver(@NotNull ScriptHeaderResolver scriptHeaderResolver) {
-        this.scriptHeaderResolver = scriptHeaderResolver;
-    }
-
-
 
     public void process(@NotNull TopDownAnalysisContext c) {
         resolveAnnotationConstructors(c);
@@ -94,7 +86,7 @@ public class DeclarationResolver {
         resolveFunctionAndPropertyHeaders(c);
 
         // SCRIPT: Resolve script declarations
-        scriptHeaderResolver.resolveScriptDeclarations(c);
+        resolveScriptDeclarations(c);
 
         createFunctionsForDataClasses(c);
         importsResolver.processMembersImports(c);
@@ -211,11 +203,18 @@ public class DeclarationResolver {
             MutableClassDescriptor classDescriptor = (MutableClassDescriptor) entry.getValue();
 
             if (klass instanceof JetClass && klass.hasPrimaryConstructor() && KotlinBuiltIns.getInstance().isData(classDescriptor)) {
-                ConstructorDescriptor constructor = DescriptorUtils.getConstructorOfDataClass(classDescriptor);
+                ConstructorDescriptor constructor = getConstructorOfDataClass(classDescriptor);
                 createComponentFunctions(classDescriptor, constructor);
                 createCopyFunction(classDescriptor, constructor);
             }
         }
+    }
+
+    @NotNull
+    public static ConstructorDescriptor getConstructorOfDataClass(@NotNull ClassDescriptor classDescriptor) {
+        Collection<ConstructorDescriptor> constructors = classDescriptor.getConstructors();
+        assert constructors.size() == 1 : "Data class must have only one constructor: " + classDescriptor.getConstructors();
+        return constructors.iterator().next();
     }
 
     private void createComponentFunctions(@NotNull MutableClassDescriptor classDescriptor, @NotNull ConstructorDescriptor constructorDescriptor) {
@@ -331,7 +330,7 @@ public class DeclarationResolver {
             });
         }
         else {
-            declarations = Collections.singletonList(BindingContextUtils.descriptorToDeclaration(trace.getBindingContext(), declarationDescriptor));
+            declarations = Collections.singletonList(DescriptorToSourceUtils.descriptorToDeclaration(declarationDescriptor));
         }
         return declarations;
     }
@@ -345,9 +344,10 @@ public class DeclarationResolver {
 
             Collection<DeclarationDescriptor> allDescriptors = classDescriptor.getScopeForMemberLookup().getOwnDeclaredDescriptors();
 
-            ClassDescriptorWithResolutionScopes classObj = classDescriptor.getClassObjectDescriptor();
-            if (classObj != null) {
-                Collection<DeclarationDescriptor> classObjDescriptors = classObj.getScopeForMemberLookup().getOwnDeclaredDescriptors();
+            ClassDescriptor classObj = classDescriptor.getClassObjectDescriptor();
+            if (classObj instanceof ClassDescriptorWithResolutionScopes) {
+                Collection<DeclarationDescriptor> classObjDescriptors =
+                        ((ClassDescriptorWithResolutionScopes) classObj).getScopeForMemberLookup().getOwnDeclaredDescriptors();
                 if (!classObjDescriptors.isEmpty()) {
                     allDescriptors = Lists.newArrayList(allDescriptors);
                     allDescriptors.addAll(classObjDescriptors);
@@ -379,12 +379,12 @@ public class DeclarationResolver {
                             }
 
                             redeclarations.add(Pair.create(
-                                    BindingContextUtils.classDescriptorToDeclaration(trace.getBindingContext(), (ClassDescriptor) descriptor),
-                                    descriptor.getName()));
+                                    DescriptorToSourceUtils.classDescriptorToDeclaration((ClassDescriptor) descriptor), descriptor.getName()
+                            ));
                             if (descriptor2 instanceof PropertyDescriptor) {
                                 redeclarations.add(Pair.create(
-                                        BindingContextUtils.descriptorToDeclaration(trace.getBindingContext(), descriptor2),
-                                        descriptor2.getName()));
+                                        DescriptorToSourceUtils.descriptorToDeclaration(descriptor2), descriptor2.getName()
+                                ));
                             }
                         }
                     }

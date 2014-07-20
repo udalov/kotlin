@@ -36,8 +36,8 @@ import java.util.Set;
 import static org.jetbrains.jet.lang.diagnostics.Errors.*;
 
 public class CompileTimeConstantChecker {
-    private static final Set<DiagnosticFactory> errorsThatDependOnExpectedType =
-            Sets.<DiagnosticFactory>newHashSet(CONSTANT_EXPECTED_TYPE_MISMATCH, NULL_FOR_NONNULL_TYPE);
+    private static final Set<DiagnosticFactory<?>> errorsThatDependOnExpectedType =
+            Sets.<DiagnosticFactory<?>>newHashSet(CONSTANT_EXPECTED_TYPE_MISMATCH, NULL_FOR_NONNULL_TYPE);
 
     private final KotlinBuiltIns builtIns;
     private final BindingTrace trace;
@@ -90,7 +90,7 @@ public class CompileTimeConstantChecker {
 
         if (!noExpectedTypeOrError(expectedType)) {
             JetType valueType = value.getType(KotlinBuiltIns.getInstance());
-            if (!JetTypeChecker.INSTANCE.isSubtypeOf(valueType, expectedType)) {
+            if (!JetTypeChecker.DEFAULT.isSubtypeOf(valueType, expectedType)) {
                 return reportError(CONSTANT_EXPECTED_TYPE_MISMATCH.on(expression, "integer", expectedType));
             }
         }
@@ -107,7 +107,7 @@ public class CompileTimeConstantChecker {
         }
         if (!noExpectedTypeOrError(expectedType)) {
             JetType valueType = value.getType(KotlinBuiltIns.getInstance());
-            if (!JetTypeChecker.INSTANCE.isSubtypeOf(valueType, expectedType)) {
+            if (!JetTypeChecker.DEFAULT.isSubtypeOf(valueType, expectedType)) {
                 return reportError(CONSTANT_EXPECTED_TYPE_MISMATCH.on(expression, "floating-point", expectedType));
             }
         }
@@ -119,7 +119,7 @@ public class CompileTimeConstantChecker {
             @NotNull JetConstantExpression expression
     ) {
         if (!noExpectedTypeOrError(expectedType)
-            && !JetTypeChecker.INSTANCE.isSubtypeOf(builtIns.getBooleanType(), expectedType)) {
+            && !JetTypeChecker.DEFAULT.isSubtypeOf(builtIns.getBooleanType(), expectedType)) {
             return reportError(CONSTANT_EXPECTED_TYPE_MISMATCH.on(expression, "boolean", expectedType));
         }
         return false;
@@ -127,7 +127,7 @@ public class CompileTimeConstantChecker {
 
     private boolean checkCharValue(CompileTimeConstant<?> constant, JetType expectedType, JetConstantExpression expression) {
         if (!noExpectedTypeOrError(expectedType)
-            && !JetTypeChecker.INSTANCE.isSubtypeOf(builtIns.getCharType(), expectedType)) {
+            && !JetTypeChecker.DEFAULT.isSubtypeOf(builtIns.getCharType(), expectedType)) {
             return reportError(CONSTANT_EXPECTED_TYPE_MISMATCH.on(expression, "character", expectedType));
         }
 

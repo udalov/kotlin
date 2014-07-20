@@ -1,10 +1,7 @@
-{
-    var i: Int = 0
+run {
+    var i = 0
     while (i < 0) {
-        {}
-        {
-            j++
-            i++
-        }
+        j++
+        i++
     }
 }

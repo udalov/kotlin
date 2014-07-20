@@ -42,6 +42,7 @@ import java.util.List;
 import static org.jetbrains.jet.lang.diagnostics.Errors.*;
 import static org.jetbrains.jet.lang.resolve.BindingContext.*;
 import static org.jetbrains.jet.lang.resolve.calls.context.ContextDependency.INDEPENDENT;
+import static org.jetbrains.jet.lang.resolve.source.SourcePackage.toSourceElement;
 import static org.jetbrains.jet.lang.types.TypeUtils.*;
 import static org.jetbrains.jet.lang.types.expressions.CoercionStrategy.COERCION_TO_UNIT;
 
@@ -111,7 +112,7 @@ public class ClosureExpressionsTypingVisitor extends ExpressionTypingVisitor {
         functionDescriptor.setReturnType(safeReturnType);
 
         JetType receiver = DescriptorUtils.getReceiverParameterType(functionDescriptor.getReceiverParameter());
-        List<JetType> valueParametersTypes = DescriptorUtils.getValueParametersTypes(functionDescriptor.getValueParameters());
+        List<JetType> valueParametersTypes = ExpressionTypingUtils.getValueParametersTypes(functionDescriptor.getValueParameters());
         JetType resultType = KotlinBuiltIns.getInstance().getFunctionType(
                 Annotations.EMPTY, receiver, valueParametersTypes, safeReturnType);
         if (!noExpectedType(expectedType) && KotlinBuiltIns.getInstance().isFunctionOrExtensionFunctionType(expectedType)) {
@@ -131,7 +132,9 @@ public class ClosureExpressionsTypingVisitor extends ExpressionTypingVisitor {
         JetFunctionLiteral functionLiteral = expression.getFunctionLiteral();
         JetTypeReference receiverTypeRef = functionLiteral.getReceiverTypeRef();
         AnonymousFunctionDescriptor functionDescriptor = new AnonymousFunctionDescriptor(
-                context.scope.getContainingDeclaration(), Annotations.EMPTY, CallableMemberDescriptor.Kind.DECLARATION);
+                context.scope.getContainingDeclaration(), Annotations.EMPTY, CallableMemberDescriptor.Kind.DECLARATION,
+                toSourceElement(functionLiteral)
+        );
 
         List<ValueParameterDescriptor> valueParameterDescriptors = createValueParameterDescriptors(context, functionLiteral,
                                                                                                    functionDescriptor, functionTypeExpected);
@@ -180,14 +183,15 @@ public class ClosureExpressionsTypingVisitor extends ExpressionTypingVisitor {
             ValueParameterDescriptor valueParameterDescriptor = expectedValueParameters.get(0);
             ValueParameterDescriptor it = new ValueParameterDescriptorImpl(
                     functionDescriptor, null, 0, Annotations.EMPTY, Name.identifier("it"),
-                    valueParameterDescriptor.getType(), valueParameterDescriptor.hasDefaultValue(), valueParameterDescriptor.getVarargElementType()
+                    valueParameterDescriptor.getType(), valueParameterDescriptor.hasDefaultValue(), valueParameterDescriptor.getVarargElementType(),
+                    SourceElement.NO_SOURCE
             );
             valueParameterDescriptors.add(it);
             context.trace.record(AUTO_CREATED_IT, it);
         }
         else {
             if (expectedValueParameters != null && declaredValueParameters.size() != expectedValueParameters.size()) {
-                List<JetType> expectedParameterTypes = DescriptorUtils.getValueParametersTypes(expectedValueParameters);
+                List<JetType> expectedParameterTypes = ExpressionTypingUtils.getValueParametersTypes(expectedValueParameters);
                 context.trace.report(EXPECTED_PARAMETERS_NUMBER_MISMATCH.on(functionLiteral, expectedParameterTypes.size(), expectedParameterTypes));
             }
             for (int i = 0; i < declaredValueParameters.size(); i++) {
@@ -221,7 +225,7 @@ public class ClosureExpressionsTypingVisitor extends ExpressionTypingVisitor {
         if (typeReference != null) {
             type = components.expressionTypingServices.getTypeResolver().resolveType(context.scope, typeReference, context.trace, true);
             if (expectedType != null) {
-                if (!JetTypeChecker.INSTANCE.isSubtypeOf(expectedType, type)) {
+                if (!JetTypeChecker.DEFAULT.isSubtypeOf(expectedType, type)) {
                     context.trace.report(EXPECTED_PARAMETER_TYPE_MISMATCH.on(declaredParameter, expectedType));
                 }
             }
@@ -278,7 +282,7 @@ public class ClosureExpressionsTypingVisitor extends ExpressionTypingVisitor {
             // This is needed for ControlStructureTypingVisitor#visitReturnExpression() to properly type-check returned expressions
             functionDescriptor.setReturnType(declaredReturnType);
             if (expectedReturnType != null) {
-                if (!JetTypeChecker.INSTANCE.isSubtypeOf(declaredReturnType, expectedReturnType)) {
+                if (!JetTypeChecker.DEFAULT.isSubtypeOf(declaredReturnType, expectedReturnType)) {
                     context.trace.report(EXPECTED_RETURN_TYPE_MISMATCH.on(returnTypeRef, expectedReturnType));
                 }
             }

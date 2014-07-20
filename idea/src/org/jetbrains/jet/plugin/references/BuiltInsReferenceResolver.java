@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2013 JetBrains s.r.o.
+ * Copyright 2010-2014 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,12 +33,14 @@ import com.intellij.util.Function;
 import com.intellij.util.containers.ContainerUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.annotations.TestOnly;
 import org.jetbrains.jet.asJava.LightClassUtil;
 import org.jetbrains.jet.context.ContextPackage;
 import org.jetbrains.jet.context.GlobalContextImpl;
 import org.jetbrains.jet.di.InjectorForTopDownAnalyzerBasic;
 import org.jetbrains.jet.lang.PlatformToKotlinClassMap;
 import org.jetbrains.jet.lang.descriptors.*;
+import org.jetbrains.jet.lang.descriptors.impl.ModuleDescriptorImpl;
 import org.jetbrains.jet.lang.descriptors.impl.MutablePackageFragmentDescriptor;
 import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.resolve.*;
@@ -78,6 +80,11 @@ public class BuiltInsReferenceResolver extends AbstractProjectComponent {
                 initialize();
             }
         });
+    }
+
+    @TestOnly
+    public Set<JetFile> getBuiltInsSources() {
+        return builtInsSources;
     }
 
     private void initialize() {
@@ -167,14 +174,14 @@ public class BuiltInsReferenceResolver extends AbstractProjectComponent {
 
     @Nullable
     private DeclarationDescriptor findCurrentDescriptorForClass(@NotNull ClassDescriptor originalDescriptor) {
-        if (originalDescriptor.getKind().isSingleton()) {
+        // BindingContext doesn't contain an information about class descriptor of class object. For example see testEmptyRange.
+        if (DescriptorUtils.isClassObject(originalDescriptor)) {
             DeclarationDescriptor currentParent = findCurrentDescriptor(originalDescriptor.getContainingDeclaration());
             if (currentParent == null) return null;
             return ((ClassDescriptor) currentParent).getClassObjectDescriptor();
         }
-        else {
-            return bindingContext.get(BindingContext.FQNAME_TO_CLASS_DESCRIPTOR, DescriptorUtils.getFqName(originalDescriptor));
-        }
+
+        return bindingContext.get(BindingContext.FQNAME_TO_CLASS_DESCRIPTOR, DescriptorUtils.getFqName(originalDescriptor));
     }
 
     @Nullable
@@ -230,7 +237,7 @@ public class BuiltInsReferenceResolver extends AbstractProjectComponent {
 
         DeclarationDescriptor descriptor = findCurrentDescriptor(declarationDescriptor.getOriginal());
         if (descriptor != null) {
-            return BindingContextUtils.descriptorToDeclarations(bindingContext, descriptor);
+            return DescriptorToSourceUtils.descriptorToDeclarations(descriptor);
         }
         return Collections.emptyList();
     }

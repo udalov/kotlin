@@ -18,14 +18,18 @@ package org.jetbrains.jet.lang.cfg;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.jet.lang.cfg.pseudocode.PseudoValue;
 import org.jetbrains.jet.lang.cfg.pseudocode.Pseudocode;
-import org.jetbrains.jet.lang.descriptors.ReceiverParameterDescriptor;
-import org.jetbrains.jet.lang.descriptors.VariableDescriptor;
+import org.jetbrains.jet.lang.cfg.pseudocode.TypePredicate;
+import org.jetbrains.jet.lang.cfg.pseudocode.instructions.eval.*;
+import org.jetbrains.jet.lang.descriptors.ValueParameterDescriptor;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCall;
 import org.jetbrains.jet.lang.resolve.constants.CompileTimeConstant;
+import org.jetbrains.jet.lang.resolve.scopes.receivers.ReceiverValue;
 
 import java.util.List;
+import java.util.Map;
 
 public interface JetControlFlowBuilder {
     // Subroutines
@@ -64,16 +68,16 @@ public interface JetControlFlowBuilder {
 
     // Jumps
     void jump(@NotNull Label label, @NotNull JetElement element);
-    void jumpOnFalse(@NotNull Label label, @NotNull JetElement element);
-    void jumpOnTrue(@NotNull Label label, @NotNull JetElement element);
-    void nondeterministicJump(@NotNull Label label, @NotNull JetElement element); // Maybe, jump to label
+    void jumpOnFalse(@NotNull Label label, @NotNull JetElement element, @Nullable PseudoValue conditionValue);
+    void jumpOnTrue(@NotNull Label label, @NotNull JetElement element, @Nullable PseudoValue conditionValue);
+    void nondeterministicJump(@NotNull Label label, @NotNull JetElement element, @Nullable PseudoValue inputValue); // Maybe, jump to label
     void nondeterministicJump(@NotNull List<Label> label, @NotNull JetElement element);
     void jumpToError(@NotNull JetElement element);
 
-    void returnValue(@NotNull JetExpression returnExpression, @NotNull JetElement subroutine);
-    void returnNoValue(@NotNull JetElement returnExpression, @NotNull JetElement subroutine);
+    void returnValue(@NotNull JetExpression returnExpression, @NotNull PseudoValue returnValue, @NotNull JetElement subroutine);
+    void returnNoValue(@NotNull JetReturnExpression returnExpression, @NotNull JetElement subroutine);
 
-    void throwException(@NotNull JetThrowExpression throwExpression);
+    void throwException(@NotNull JetThrowExpression throwExpression, @NotNull PseudoValue thrownValue);
 
     // Loops
     LoopInfo enterLoop(@NotNull JetExpression expression, @Nullable Label loopExitPoint, @Nullable Label conditionEntryPoint);
@@ -91,27 +95,71 @@ public interface JetControlFlowBuilder {
     // Reading values
     void mark(@NotNull JetElement element);
 
+    @Nullable
+    PseudoValue getBoundValue(@Nullable JetElement element);
+    void bindValue(@NotNull PseudoValue value, @NotNull JetElement element);
+
     void loadUnit(@NotNull JetExpression expression);
-    void loadConstant(@NotNull JetExpression expression, @Nullable CompileTimeConstant<?> constant);
-    void createAnonymousObject(@NotNull JetObjectLiteralExpression expression);
-    void createFunctionLiteral(@NotNull JetFunctionLiteralExpression expression);
-    void loadStringTemplate(@NotNull JetStringTemplateExpression expression);
 
-    void readThis(@NotNull JetExpression expression, @Nullable ReceiverParameterDescriptor parameterDescriptor);
-    void readVariable(@NotNull JetExpression expression, @Nullable VariableDescriptor variableDescriptor);
+    @NotNull
+    InstructionWithValue loadConstant(@NotNull JetExpression expression, @Nullable CompileTimeConstant<?> constant);
+    @NotNull
+    InstructionWithValue createAnonymousObject(@NotNull JetObjectLiteralExpression expression);
+    @NotNull
+    InstructionWithValue createFunctionLiteral(@NotNull JetFunctionLiteralExpression expression);
+    @NotNull
+    InstructionWithValue loadStringTemplate(@NotNull JetStringTemplateExpression expression, @NotNull List<PseudoValue> inputValues);
 
-    void call(@NotNull JetExpression expression, @NotNull ResolvedCall<?> resolvedCall);
+    @NotNull
+    MagicInstruction magic(
+            @NotNull JetElement instructionElement,
+            @Nullable JetElement valueElement,
+            @NotNull List<PseudoValue> inputValues,
+            @NotNull Map<PseudoValue, TypePredicate> expectedTypes,
+            @NotNull MagicKind kind
+    );
+
+    @NotNull
+    MergeInstruction merge(
+            @NotNull JetExpression expression,
+            @NotNull List<PseudoValue> inputValues
+    );
+
+    @NotNull
+    ReadValueInstruction readVariable(
+            @NotNull JetExpression expression,
+            @NotNull ResolvedCall<?> resolvedCall,
+            @NotNull Map<PseudoValue, ReceiverValue> receiverValues
+    );
+
+    @NotNull
+    CallInstruction call(
+            @NotNull JetElement valueElement,
+            @NotNull ResolvedCall<?> resolvedCall,
+            @NotNull Map<PseudoValue, ReceiverValue> receiverValues,
+            @NotNull Map<PseudoValue, ValueParameterDescriptor> arguments
+    );
 
     enum PredefinedOperation {
         AND,
         OR,
         NOT_NULL_ASSERTION
     }
-    void predefinedOperation(@NotNull JetExpression expression, @Nullable PredefinedOperation operation);
+    @NotNull
+    OperationInstruction predefinedOperation(
+            @NotNull JetExpression expression,
+            @NotNull PredefinedOperation operation,
+            @NotNull List<PseudoValue> inputValues
+    );
 
     void compilationError(@NotNull JetElement element, @NotNull String message);
 
-    void write(@NotNull JetElement assignment, @NotNull JetElement lValue);
+    void write(
+            @NotNull JetElement assignment,
+            @NotNull JetElement lValue,
+            @NotNull PseudoValue rValue,
+            @NotNull AccessTarget target,
+            @NotNull Map<PseudoValue, ReceiverValue> receiverValues);
     
     // Other
     void unsupported(JetElement element);

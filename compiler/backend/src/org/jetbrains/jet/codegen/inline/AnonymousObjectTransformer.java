@@ -21,18 +21,20 @@ import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.util.ArrayUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.OutputFile;
-import org.jetbrains.jet.codegen.AsmUtil;
-import org.jetbrains.jet.codegen.ClassBuilder;
-import org.jetbrains.jet.codegen.FieldInfo;
-import org.jetbrains.jet.codegen.StackValue;
+import org.jetbrains.jet.codegen.*;
 import org.jetbrains.jet.codegen.state.GenerationState;
 import org.jetbrains.jet.codegen.state.JetTypeMapper;
 import org.jetbrains.org.objectweb.asm.*;
 import org.jetbrains.org.objectweb.asm.commons.InstructionAdapter;
-import org.jetbrains.org.objectweb.asm.tree.*;
+import org.jetbrains.org.objectweb.asm.tree.AbstractInsnNode;
+import org.jetbrains.org.objectweb.asm.tree.FieldInsnNode;
+import org.jetbrains.org.objectweb.asm.tree.MethodNode;
+import org.jetbrains.org.objectweb.asm.tree.VarInsnNode;
 
 import java.io.IOException;
 import java.util.*;
+
+import static org.jetbrains.jet.lang.resolve.java.diagnostics.JvmDeclarationOrigin.NO_ORIGIN;
 
 public class AnonymousObjectTransformer {
 
@@ -185,8 +187,10 @@ public class AnonymousObjectTransformer {
 
         MethodInliner inliner = new MethodInliner(sourceNode, parameters, inliningContext.subInline(inliningContext.nameGenerator.subGenerator("lambda")),
                                                   remapper, isSameModule, "Transformer for " + invocation.getOwnerInternalName());
-        InlineResult result = inliner.doInline(resultVisitor, new LocalVarRemapper(parameters, 0), false);
+
+        InlineResult result = inliner.doInline(resultVisitor, new LocalVarRemapper(parameters, 0), false, LabelOwner.NOT_APPLICABLE);
         resultVisitor.visitMaxs(-1, -1);
+        resultVisitor.visitEnd();
         return result;
     }
 
@@ -229,7 +233,7 @@ public class AnonymousObjectTransformer {
 
         String constructorDescriptor = Type.getMethodDescriptor(Type.VOID_TYPE, descTypes.toArray(new Type[descTypes.size()]));
 
-        MethodVisitor constructorVisitor = classBuilder.newMethod(null,
+        MethodVisitor constructorVisitor = classBuilder.newMethod(NO_ORIGIN,
                                                                   AsmUtil.NO_FLAG_PACKAGE_PRIVATE,
                                                                   "<init>", constructorDescriptor,
                                                                   null, ArrayUtil.EMPTY_STRING_ARRAY);
@@ -270,8 +274,10 @@ public class AnonymousObjectTransformer {
 
         MethodInliner inliner = new MethodInliner(constructor, constructorParameters, inliningContext.subInline(inliningContext.nameGenerator.subGenerator("lambda")),
                                                   remapper, isSameModule, "Transformer for constructor of " + invocation.getOwnerInternalName());
-        InlineResult result = inliner.doInline(capturedFieldInitializer, new LocalVarRemapper(constructorParameters, 0), false);
+        InlineResult result = inliner.doInline(capturedFieldInitializer, new LocalVarRemapper(constructorParameters, 0), false,
+                                               LabelOwner.NOT_APPLICABLE);
         constructorVisitor.visitMaxs(-1, -1);
+        constructorVisitor.visitEnd();
 
         AsmUtil.genClosureFields(capturedFieldsToGenerate, classBuilder);
         //TODO for inline method make public class
@@ -294,14 +300,14 @@ public class AnonymousObjectTransformer {
 
     @NotNull
     private ClassBuilder createClassBuilder() {
-        return new RemappingClassBuilder(state.getFactory().forLambdaInlining(newLambdaType, inliningContext.getRoot().callElement.getContainingFile()),
-                     new TypeRemapper(inliningContext.typeMapping));
+        ClassBuilder classBuilder = state.getFactory().newVisitor(NO_ORIGIN, newLambdaType, inliningContext.getRoot().callElement.getContainingFile());
+        return new RemappingClassBuilder(classBuilder, new TypeRemapper(inliningContext.typeMapping));
     }
 
     @NotNull
     private static MethodVisitor newMethod(@NotNull ClassBuilder builder, @NotNull MethodNode original) {
         return builder.newMethod(
-                null,
+                NO_ORIGIN,
                 original.access,
                 original.name,
                 original.desc,
@@ -382,20 +388,19 @@ public class AnonymousObjectTransformer {
         //For all inlined lambdas add their captured parameters
         //TODO: some of such parameters could be skipped - we should perform additional analysis
         Map<String, LambdaInfo> capturedLambdasToInline = new HashMap<String, LambdaInfo>(); //captured var of inlined parameter
-        List<CapturedParamInfo> allRecapturedParameters = new ArrayList<CapturedParamInfo>();
+        List<CapturedParamDesc> allRecapturedParameters = new ArrayList<CapturedParamDesc>();
         for (LambdaInfo info : capturedLambdas) {
-            for (CapturedParamInfo var : info.getCapturedVars()) {
-                CapturedParamInfo recapturedParamInfo = capturedParamBuilder.addCapturedParam(var,
-                                                                                              getNewFieldName(var.getOriginalFieldName()));
+            for (CapturedParamDesc desc : info.getCapturedVars()) {
+                CapturedParamInfo recapturedParamInfo = capturedParamBuilder.addCapturedParam(desc, getNewFieldName(desc.getFieldName()));
                 StackValue composed = StackValue.composed(StackValue.local(0, oldObjectType),
-                                                          StackValue.field(var.getType(),
+                                                          StackValue.field(desc.getType(),
                                                                            oldObjectType, /*TODO owner type*/
                                                                            recapturedParamInfo.getNewFieldName(), false)
                 );
                 recapturedParamInfo.setRemapValue(composed);
-                allRecapturedParameters.add(var);
+                allRecapturedParameters.add(desc);
 
-                constructorParamBuilder.addCapturedParam(var, recapturedParamInfo.getNewFieldName()).setRemapValue(composed);
+                constructorParamBuilder.addCapturedParam(recapturedParamInfo, recapturedParamInfo.getNewFieldName()).setRemapValue(composed);
             }
             capturedLambdasToInline.put(info.getLambdaClassType().getInternalName(), info);
         }

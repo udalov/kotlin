@@ -46,8 +46,6 @@ import org.jetbrains.jet.lang.descriptors.impl.PropertyDescriptorImpl
 import java.util.Collections
 import org.jetbrains.jet.lang.resolve.java.resolver.ExternalSignatureResolver
 import org.jetbrains.jet.lang.resolve.java.sam.SingleAbstractMethodUtils
-import org.jetbrains.jet.lang.resolve.java.descriptor.JavaPackageFragmentDescriptor
-import org.jetbrains.jet.lang.resolve.java.structure.JavaPropertyInitializerEvaluator
 import org.jetbrains.jet.utils.*
 
 public abstract class LazyJavaMemberScope(
@@ -71,11 +69,13 @@ public abstract class LazyJavaMemberScope(
 
     protected abstract fun computeMemberIndex(): MemberIndex
 
+    protected abstract fun computeNonDeclaredFunctions(result: MutableCollection<SimpleFunctionDescriptor>, name: Name)
+
     private val _functions = c.storageManager.createMemoizedFunction {
         (name: Name): Collection<FunctionDescriptor>
         ->
         val methods = memberIndex().findMethodsByName(name)
-        val functions = LinkedHashSet(
+        val functions = LinkedHashSet<SimpleFunctionDescriptor>(
                 methods.stream()
                       // values() and valueOf() are added manually, see LazyJavaClassDescriptor::getClassObjectDescriptor()
                       .filter{ m -> !DescriptorResolverUtils.shouldBeInEnumClassObject(m) }
@@ -89,18 +89,7 @@ public abstract class LazyJavaMemberScope(
                                   listOf(function).stream()
                       }.toList())
 
-        if (_containingDeclaration is JavaPackageFragmentDescriptor) {
-            val klass = c.javaClassResolver.resolveClassByFqName(_containingDeclaration.fqName.child(name))
-            if (klass is LazyJavaClassDescriptor && klass.getFunctionTypeForSamInterface() != null) {
-                functions.add(SingleAbstractMethodUtils.createSamConstructorFunction(_containingDeclaration, klass))
-            }
-        }
-
-        if (_containingDeclaration is ClassDescriptor) {
-            val functionsFromSupertypes = getFunctionsFromSupertypes(name, _containingDeclaration);
-
-            functions.addAll(DescriptorResolverUtils.resolveOverrides(name, functionsFromSupertypes, functions, _containingDeclaration, c.errorReporter));
-        }
+        computeNonDeclaredFunctions(functions, name)
 
         // Make sure that lazy things are computed before we release the lock
         for (f in functions) {
@@ -112,9 +101,20 @@ public abstract class LazyJavaMemberScope(
         functions
     }
 
-    internal fun resolveMethodToFunctionDescriptor(method: JavaMethod, record: Boolean = true): SimpleFunctionDescriptor {
+    data class MethodSignatureData(
+            val effectiveSignature: ExternalSignatureResolver.AlternativeMethodSignature,
+            val superFunctions: List<FunctionDescriptor>,
+            val errors: List<String>
+    )
 
-        val functionDescriptorImpl = JavaMethodDescriptor.createJavaMethod(_containingDeclaration, c.resolveAnnotations(method), method.getName())
+    abstract fun resolveMethodSignature(method: JavaMethod, methodTypeParameters: List<TypeParameterDescriptor>,
+                                        returnType: JetType, valueParameters: ResolvedValueParameters): MethodSignatureData
+
+    fun resolveMethodToFunctionDescriptor(method: JavaMethod, record: Boolean = true): JavaMethodDescriptor {
+
+        val functionDescriptorImpl = JavaMethodDescriptor.createJavaMethod(
+                _containingDeclaration, c.resolveAnnotations(method), method.getName(), c.sourceElementFactory.source(method)
+        )
 
         val c = c.child(functionDescriptorImpl, method.getTypeParameters().toSet())
 
@@ -134,30 +134,7 @@ public abstract class LazyJavaMemberScope(
             if (method.getContainingClass().isAnnotationType()) TypeUtils.makeNotNullable(it) else it
         }
 
-        val signatureErrors: MutableList<String>
-        val superFunctions: List<FunctionDescriptor>
-        val effectiveSignature: ExternalSignatureResolver.AlternativeMethodSignature
-        if (_containingDeclaration is PackageFragmentDescriptor) {
-            superFunctions = Collections.emptyList()
-            effectiveSignature = c.externalSignatureResolver.resolveAlternativeMethodSignature(
-                    method, false, returnType, null, valueParameters.descriptors, methodTypeParameters, false)
-            signatureErrors = effectiveSignature.getErrors()
-        }
-        else if (_containingDeclaration is ClassDescriptor) {
-            val propagated = c.externalSignatureResolver.resolvePropagatedSignature(
-                    method, _containingDeclaration, returnType, null, valueParameters.descriptors, methodTypeParameters)
-            superFunctions = propagated.getSuperMethods()
-            effectiveSignature = c.externalSignatureResolver.resolveAlternativeMethodSignature(
-                    method, !superFunctions.isEmpty(), propagated.getReturnType(),
-                    propagated.getReceiverType(), propagated.getValueParameters(), propagated.getTypeParameters(),
-                    propagated.hasStableParameterNames())
-
-            signatureErrors = ArrayList<String>(propagated.getErrors())
-            signatureErrors.addAll(effectiveSignature.getErrors())
-        }
-        else {
-            throw IllegalStateException("Unknown class or namespace descriptor: " + _containingDeclaration)
-        }
+        val (effectiveSignature, superFunctions, signatureErrors) = resolveMethodSignature(method, methodTypeParameters, returnType, valueParameters)
 
         functionDescriptorImpl.initialize(
                 effectiveSignature.getReceiverType(),
@@ -235,26 +212,23 @@ public abstract class LazyJavaMemberScope(
                     name,
                     outType,
                     false,
-                    varargElementType
+                    varargElementType,
+                    c.sourceElementFactory.source(javaParameter)
             )
         }.toList()
         return ResolvedValueParameters(descriptors, synthesizedNames)
     }
 
-    private fun resolveSamAdapter(original: SimpleFunctionDescriptor): SimpleFunctionDescriptor? {
+    private fun resolveSamAdapter(original: JavaMethodDescriptor): JavaMethodDescriptor? {
         return if (SingleAbstractMethodUtils.isSamAdapterNecessary(original))
-                    SingleAbstractMethodUtils.createSamAdapterFunction(original) as SimpleFunctionDescriptor
+                    SingleAbstractMethodUtils.createSamAdapterFunction(original) as JavaMethodDescriptor
                else null
-    }
-
-    private fun getFunctionsFromSupertypes(name: Name, descriptor: ClassDescriptor): Set<SimpleFunctionDescriptor> {
-        return descriptor.getTypeConstructor().getSupertypes().flatMap {
-            it.getMemberScope().getFunctions(name).map { f -> f as SimpleFunctionDescriptor }
-        }.toSet()
     }
 
     override fun getFunctions(name: Name) = _functions(name)
     protected open fun getAllFunctionNames(): Collection<Name> = memberIndex().getAllMethodNames()
+
+    protected abstract fun computeNonDeclaredProperties(name: Name, result: MutableCollection<PropertyDescriptor>)
 
     val _properties = c.storageManager.createMemoizedFunction {
         (name: Name) ->
@@ -262,18 +236,10 @@ public abstract class LazyJavaMemberScope(
 
         val field = memberIndex().findFieldByName(name)
         if (field != null && !field.isEnumEntry()) {
-            if (!DescriptorUtils.isEnumClassObject(_containingDeclaration)) {
-                properties.add(resolveProperty(field))
-            }
+            properties.add(resolveProperty(field))
         }
 
-        if (_containingDeclaration is ClassDescriptor) {
-            val propertiesFromSupertypes = getPropertiesFromSupertypes(name, _containingDeclaration);
-
-            properties.addAll(DescriptorResolverUtils.resolveOverrides(name, propertiesFromSupertypes, properties, _containingDeclaration,
-                                               c.errorReporter));
-
-        }
+        computeNonDeclaredProperties(name, properties)
 
         properties
     }
@@ -310,7 +276,8 @@ public abstract class LazyJavaMemberScope(
         val annotations = c.resolveAnnotations(field)
         val propertyName = field.getName()
 
-        return JavaPropertyDescriptor(_containingDeclaration, annotations, visibility, isVar, propertyName)
+        return JavaPropertyDescriptor(_containingDeclaration, annotations, visibility, isVar, propertyName,
+                                      c.sourceElementFactory.source(field))
     }
 
     private fun getPropertyType(field: JavaField): JetType {
@@ -320,12 +287,6 @@ public abstract class LazyJavaMemberScope(
             return TypeUtils.makeNotNullable(propertyType)
         }
         return propertyType
-    }
-
-    private fun getPropertiesFromSupertypes(name: Name, descriptor: ClassDescriptor): Set<PropertyDescriptor> {
-        return descriptor.getTypeConstructor().getSupertypes().flatMap {
-            it.getMemberScope().getProperties(name).map { p -> p as PropertyDescriptor }
-        }.toSet()
     }
 
     override fun getProperties(name: Name): Collection<VariableDescriptor> = _properties(name)

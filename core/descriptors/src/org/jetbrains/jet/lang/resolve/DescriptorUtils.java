@@ -17,8 +17,6 @@
 package org.jetbrains.jet.lang.resolve;
 
 import com.google.common.base.Predicate;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.*;
@@ -29,8 +27,10 @@ import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.resolve.name.SpecialNames;
 import org.jetbrains.jet.lang.resolve.scopes.FilteringScope;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
-import org.jetbrains.jet.lang.types.*;
-import org.jetbrains.jet.lang.types.checker.JetTypeChecker;
+import org.jetbrains.jet.lang.types.ErrorUtils;
+import org.jetbrains.jet.lang.types.JetType;
+import org.jetbrains.jet.lang.types.LazyType;
+import org.jetbrains.jet.lang.types.TypeConstructor;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 
 import java.util.ArrayList;
@@ -42,19 +42,6 @@ import static org.jetbrains.jet.lang.descriptors.ReceiverParameterDescriptor.NO_
 
 public class DescriptorUtils {
     private DescriptorUtils() {
-    }
-
-    @NotNull
-    public static <D extends CallableDescriptor> D substituteBounds(@NotNull D functionDescriptor) {
-        List<TypeParameterDescriptor> typeParameters = functionDescriptor.getTypeParameters();
-        if (typeParameters.isEmpty()) return functionDescriptor;
-
-        // TODO: this does not handle any recursion in the bounds
-        @SuppressWarnings("unchecked")
-        D substitutedFunction = (D) functionDescriptor.substitute(DescriptorSubstitutor.createUpperBoundsSubstitutor(typeParameters));
-        assert substitutedFunction != null : "Substituting upper bounds should always be legal";
-
-        return substitutedFunction;
     }
 
     @Nullable
@@ -71,29 +58,12 @@ public class DescriptorUtils {
     }
 
     /**
-     * The primary case for local extensions is the following:
-     *
-     * I had a locally declared extension function or a local variable of function type called foo
-     * And I called it on my x
-     * Now, someone added function foo() to the class of x
-     * My code should not change
-     *
-     * thus
-     *
-     * local extension prevail over members (and members prevail over all non-local extensions)
+     * Descriptor may be local itself or have a local ancestor
      */
-    public static boolean isLocal(DeclarationDescriptor containerOfTheCurrentLocality, DeclarationDescriptor candidate) {
-        if (candidate instanceof ValueParameterDescriptor) {
-            return true;
-        }
-        DeclarationDescriptor parent = candidate.getContainingDeclaration();
-        if (!(parent instanceof FunctionDescriptor)) {
-            return false;
-        }
-        FunctionDescriptor functionDescriptor = (FunctionDescriptor) parent;
-        DeclarationDescriptor current = containerOfTheCurrentLocality;
-        while (current != null) {
-            if (current == functionDescriptor) {
+    public static boolean isLocal(@NotNull DeclarationDescriptor descriptor) {
+        DeclarationDescriptor current = descriptor;
+        while (current instanceof MemberDescriptor) {
+            if (isAnonymousObject(current) || ((DeclarationDescriptorWithVisibility) current).getVisibility() == Visibilities.LOCAL) {
                 return true;
             }
             current = current.getContainingDeclaration();
@@ -147,20 +117,10 @@ public class DescriptorUtils {
         return descriptor.getContainingDeclaration() instanceof PackageFragmentDescriptor;
     }
 
+    // WARNING! Don't use this method in JVM backend, use JvmCodegenUtil.isCallInsideSameModuleAsDeclared() instead.
+    // The latter handles compilation against compiled part of our module correctly.
     public static boolean areInSameModule(@NotNull DeclarationDescriptor first, @NotNull DeclarationDescriptor second) {
         return getContainingModule(first).equals(getContainingModule(second));
-    }
-
-    @Nullable
-    public static DeclarationDescriptor findTopLevelParent(@NotNull DeclarationDescriptor declarationDescriptor) {
-        DeclarationDescriptor descriptor = declarationDescriptor;
-        if (declarationDescriptor instanceof PropertyAccessorDescriptor) {
-            descriptor = ((PropertyAccessorDescriptor) descriptor).getCorrespondingProperty();
-        }
-        while (!(descriptor == null || isTopLevelDeclaration(descriptor))) {
-            descriptor = descriptor.getContainingDeclaration();
-        }
-        return descriptor;
     }
 
     @Nullable
@@ -218,9 +178,15 @@ public class DescriptorUtils {
 
     private static boolean isSubtypeOfClass(@NotNull JetType type, @NotNull DeclarationDescriptor superClass) {
         DeclarationDescriptor descriptor = type.getConstructor().getDeclarationDescriptor();
-        if (descriptor != null && superClass == descriptor.getOriginal()) {
-            return true;
+        if (descriptor != null) {
+            DeclarationDescriptor originalDescriptor = descriptor.getOriginal();
+            if (originalDescriptor instanceof ClassifierDescriptor
+                     && superClass instanceof ClassifierDescriptor
+                     && ((ClassifierDescriptor) superClass).getTypeConstructor().equals(((ClassifierDescriptor) originalDescriptor).getTypeConstructor())) {
+                return true;
+            }
         }
+
         for (JetType superType : type.getConstructor().getSupertypes()) {
             if (isSubtypeOfClass(superType, superClass)) {
                 return true;
@@ -307,16 +273,6 @@ public class DescriptorUtils {
         return superClassDescriptor.equals(KotlinBuiltIns.getInstance().getAny());
     }
 
-    public static boolean isEnumClassObject(@NotNull DeclarationDescriptor descriptor) {
-        if (descriptor instanceof ClassDescriptor && ((ClassDescriptor) descriptor).getKind() == ClassKind.CLASS_OBJECT) {
-            DeclarationDescriptor containing = descriptor.getContainingDeclaration();
-            if ((containing instanceof ClassDescriptor) && ((ClassDescriptor) containing).getKind() == ClassKind.ENUM_CLASS) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     public static boolean isSyntheticClassObject(@NotNull DeclarationDescriptor descriptor) {
         if (isClassObject(descriptor)) {
             DeclarationDescriptor containing = descriptor.getContainingDeclaration();
@@ -351,55 +307,9 @@ public class DescriptorUtils {
         return (ClassDescriptor) classifier;
     }
 
-    @NotNull
-    public static ConstructorDescriptor getConstructorOfDataClass(ClassDescriptor classDescriptor) {
-        ConstructorDescriptor descriptor = getConstructorDescriptorIfOnlyOne(classDescriptor);
-        assert descriptor != null : "Data class must have only one constructor: " + classDescriptor.getConstructors();
-        return descriptor;
-    }
-
-    @NotNull
-    public static ConstructorDescriptor getConstructorOfSingletonObject(ClassDescriptor classDescriptor) {
-        ConstructorDescriptor descriptor = getConstructorDescriptorIfOnlyOne(classDescriptor);
-        assert descriptor != null : "Class of singleton object must have only one constructor: " + classDescriptor.getConstructors();
-        return descriptor;
-    }
-
-    @Nullable
-    private static ConstructorDescriptor getConstructorDescriptorIfOnlyOne(ClassDescriptor classDescriptor) {
-        Collection<ConstructorDescriptor> constructors = classDescriptor.getConstructors();
-        return constructors.size() != 1 ? null : constructors.iterator().next();
-    }
-
     @Nullable
     public static JetType getReceiverParameterType(@Nullable ReceiverParameterDescriptor receiverParameterDescriptor) {
-        if (receiverParameterDescriptor == null) {
-            return null;
-        }
-        return receiverParameterDescriptor.getType();
-    }
-
-    @NotNull
-    public static JetType getVarargParameterType(@NotNull JetType elementType) {
-        JetType primitiveArrayType = KotlinBuiltIns.getInstance().getPrimitiveArrayJetTypeByPrimitiveJetType(elementType);
-        return primitiveArrayType != null ? primitiveArrayType : KotlinBuiltIns.getInstance().getArrayType(Variance.INVARIANT, elementType);
-    }
-
-    @NotNull
-    public static List<JetType> getValueParametersTypes(@NotNull List<ValueParameterDescriptor> valueParameters) {
-        List<JetType> parameterTypes = Lists.newArrayList();
-        for (ValueParameterDescriptor parameter : valueParameters) {
-            parameterTypes.add(parameter.getType());
-        }
-        return parameterTypes;
-    }
-
-    public static boolean isInsideOuterClassOrItsSubclass(@Nullable DeclarationDescriptor nested, @NotNull ClassDescriptor outer) {
-        if (nested == null) return false;
-
-        if (nested instanceof ClassDescriptor && isSubclass((ClassDescriptor) nested, outer)) return true;
-
-        return isInsideOuterClassOrItsSubclass(nested.getContainingDeclaration(), outer);
+        return receiverParameterDescriptor == null ? null : receiverParameterDescriptor.getType();
     }
 
     public static boolean isConstructorOfStaticNestedClass(@Nullable CallableDescriptor descriptor) {
@@ -416,12 +326,6 @@ public class DescriptorUtils {
                !((ClassDescriptor) descriptor).isInner();
     }
 
-    @Nullable
-    public static ClassDescriptor getContainingClass(@NotNull JetScope scope) {
-        DeclarationDescriptor containingDeclaration = scope.getContainingDeclaration();
-        return getParentOfType(containingDeclaration, ClassDescriptor.class, false);
-    }
-
     @NotNull
     public static JetScope getStaticNestedClassesScope(@NotNull ClassDescriptor descriptor) {
         JetScope innerClassesScope = descriptor.getUnsubstitutedInnerClassesScope();
@@ -431,32 +335,6 @@ public class DescriptorUtils {
                 return descriptor instanceof ClassDescriptor && !((ClassDescriptor) descriptor).isInner();
             }
         });
-    }
-
-    public static boolean isEnumValueOfMethod(@NotNull FunctionDescriptor functionDescriptor) {
-        List<ValueParameterDescriptor> methodTypeParameters = functionDescriptor.getValueParameters();
-        JetType nullableString = TypeUtils.makeNullable(KotlinBuiltIns.getInstance().getStringType());
-        return "valueOf".equals(functionDescriptor.getName().asString())
-               && methodTypeParameters.size() == 1
-               && JetTypeChecker.INSTANCE.isSubtypeOf(methodTypeParameters.get(0).getType(), nullableString);
-    }
-
-    public static boolean isEnumValuesMethod(@NotNull FunctionDescriptor functionDescriptor) {
-        List<ValueParameterDescriptor> methodTypeParameters = functionDescriptor.getValueParameters();
-        return "values".equals(functionDescriptor.getName().asString())
-               && methodTypeParameters.isEmpty();
-    }
-
-    @NotNull
-    public static Set<ClassDescriptor> getAllSuperClasses(@NotNull ClassDescriptor klass) {
-        Set<JetType> allSupertypes = TypeUtils.getAllSupertypes(klass.getDefaultType());
-        Set<ClassDescriptor> allSuperclasses = Sets.newHashSet();
-        for (JetType supertype : allSupertypes) {
-            ClassDescriptor superclass = TypeUtils.getClassDescriptor(supertype);
-            assert superclass != null;
-            allSuperclasses.add(superclass);
-        }
-        return allSuperclasses;
     }
 
     /**
@@ -484,17 +362,6 @@ public class DescriptorUtils {
             descriptor = (D) overridden.iterator().next();
         }
         return descriptor;
-    }
-
-    public static boolean isPropertyCompileTimeConstant(@NotNull VariableDescriptor descriptor) {
-        if (descriptor.isVar()) {
-            return false;
-        }
-        if (isClassObject(descriptor.getContainingDeclaration()) || isTopLevelDeclaration(descriptor)) {
-            JetType type = descriptor.getType();
-            return KotlinBuiltIns.getInstance().isPrimitiveType(type) || KotlinBuiltIns.getInstance().getStringType().equals(type);
-        }
-        return false;
     }
 
     public static boolean shouldRecordInitializerForProperty(@NotNull VariableDescriptor variable, @NotNull JetType type) {

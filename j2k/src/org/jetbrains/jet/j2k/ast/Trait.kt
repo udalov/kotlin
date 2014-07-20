@@ -16,25 +16,21 @@
 
 package org.jetbrains.jet.j2k.ast
 
-import org.jetbrains.jet.j2k.Converter
-import org.jetbrains.jet.j2k.ast.types.Type
+import org.jetbrains.jet.j2k.CodeBuilder
 
-class Trait(
-        converter: Converter,
-        name: Identifier,
-        comments: MemberComments,
-        modifiers: Set<Modifier>,
-        typeParameterList: TypeParameterList,
-        extendsTypes: List<Type>,
-        baseClassParams: List<Expression>,
-        implementsTypes: List<Type>,
-        members: List<Element>
-) : Class(converter, name, comments, modifiers, typeParameterList,
-          extendsTypes, baseClassParams, implementsTypes, members) {
+class Trait(name: Identifier,
+            annotations: Annotations,
+            modifiers: Modifiers,
+            typeParameterList: TypeParameterList,
+            extendsTypes: List<Type>,
+            baseClassParams: List<Expression>,
+            implementsTypes: List<Type>,
+            body: ClassBody
+) : Class(name, annotations, modifiers, typeParameterList, extendsTypes, baseClassParams, implementsTypes, body) {
 
-    override val TYPE: String
+    override val keyword: String
         get() = "trait"
 
-    override fun primaryConstructorSignatureToKotlin() = ""
-    override fun needsOpenModifier() = false
+    override fun presentationModifiers(): Modifiers
+            = modifiers.filter { it in ACCESS_MODIFIERS }
 }

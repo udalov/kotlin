@@ -17,12 +17,14 @@
 package org.jetbrains.jet.codegen;
 
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.jet.lang.resolve.java.diagnostics.JvmDeclarationOrigin;
 
 public interface ClassBuilderFactory {
     @NotNull
     ClassBuilderMode getClassBuilderMode();
 
-    ClassBuilder newClassBuilder();
+    @NotNull
+    ClassBuilder newClassBuilder(@NotNull JvmDeclarationOrigin origin);
 
     String asText(ClassBuilder builder);
 

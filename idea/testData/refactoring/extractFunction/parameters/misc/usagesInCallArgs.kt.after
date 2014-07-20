@@ -1,12 +1,20 @@
-// NEXT_SIBLING:
-fun i(a: A, t: Int, u: Int, x: Int): Int {
-    return a.bar(t - x, u + x)
-}
-
+// PARAM_TYPES: A
+// PARAM_TYPES: kotlin.Int
+// PARAM_TYPES: kotlin.Int
+// PARAM_TYPES: kotlin.Int
+// PARAM_DESCRIPTOR: value-parameter val a: A defined in foo
+// PARAM_DESCRIPTOR: val t: kotlin.Int defined in foo
+// PARAM_DESCRIPTOR: val u: kotlin.Int defined in foo
+// PARAM_DESCRIPTOR: value-parameter val x: kotlin.Int defined in foo
+// SIBLING:
 public class A() {
     fun bar(a: Int, b: Int): Int {
         return a + b
     }
+}
+
+fun i(a: A, t: Int, u: Int, x: Int): Int {
+    return a.bar(t - x, u + x)
 }
 
 fun foo(a: A, x: Int): Int {

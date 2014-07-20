@@ -21,41 +21,59 @@ import org.jetbrains.jet.j2k.*
 import com.intellij.psi.PsiImportList
 import org.jetbrains.jet.lang.resolve.name.FqName
 import org.jetbrains.jet.lang.resolve.java.mapping.JavaToKotlinClassMap
-import org.jetbrains.jet.lang.resolve.name.isValidJavaFqName
+import com.intellij.psi.PsiJavaCodeReferenceElement
+import org.jetbrains.jet.asJava.KotlinLightClassForPackage
 
-
-class Import(val name: String) : Element {
-    override fun toKotlin() = "import " + name
+class Import(val name: String) : Element() {
+    override fun generateCode(builder: CodeBuilder) {
+        builder append "import " append name
+    }
 }
 
-class ImportList(val imports: List<Import>) : Element {
-    val filteredImports = imports.filter {
-        !it.name.isEmpty() && it.name !in NOT_NULL_ANNOTATIONS
-    }.filter {
-        // If name is invalid, like with star imports, don't try to filter
-        if (!isValidJavaFqName(it.name))
-            true
+class ImportList(public val imports: List<Import>) : Element() {
+    override val isEmpty: Boolean
+        get() = imports.isEmpty()
+
+    override fun generateCode(builder: CodeBuilder) {
+        builder.append(imports, "\n")
+    }
+}
+
+public fun Converter.convertImportList(importList: PsiImportList): ImportList =
+        ImportList(importList.getAllImportStatements().map { convertImport(it, true) }.filterNotNull()).assignPrototype(importList)
+
+public fun Converter.convertImport(anImport: PsiImportStatementBase, filter: Boolean): Import? {
+    fun doConvert(): Import? {
+        val reference = anImport.getImportReference()
+        if (reference == null) return null
+        val qualifiedName = quoteKeywords(reference.getQualifiedName()!!)
+        if (anImport.isOnDemand()) {
+            return Import(qualifiedName + ".*")
+        }
         else {
-            // If imported class has a kotlin analog, drop the import
-            val kotlinAnalogsForClass = JavaToKotlinClassMap.getInstance().mapPlatformClass(FqName(it.name))
-            kotlinAnalogsForClass.isEmpty()
+            return if (filter) {
+                val filteredName = filterImport(qualifiedName, reference)
+                if (filteredName != null) Import(filteredName) else null
+            }
+            else {
+                Import(qualifiedName)
+            }
         }
     }
 
-    override fun isEmpty(): Boolean {
-        return filteredImports.isEmpty()
-    }
-
-    override fun toKotlin() = filteredImports.toKotlin("\n")
+    return doConvert()?.assignPrototype(anImport)
 }
 
-fun Converter.convertImportList(importList: PsiImportList): ImportList =
-        ImportList(importList.getAllImportStatements() map { convertImport(it) })
+private fun filterImport(name: String, ref: PsiJavaCodeReferenceElement): String? {
+    if (name in ANNOTATIONS_TO_REMOVE) return null
 
-fun Converter.convertImport(i: PsiImportStatementBase): Import {
-    val reference = i.getImportReference()
-    if (reference != null) {
-        return Import(quoteKeywords(reference.getQualifiedName()!!) + if (i.isOnDemand()) ".*" else "")
+    // If imported class has a kotlin analog, drop the import
+    if (!JavaToKotlinClassMap.getInstance().mapPlatformClass(FqName(name)).isEmpty()) return null
+
+    val target = ref.resolve()
+    if (target is KotlinLightClassForPackage) {
+        return quoteKeywords(target.getFqName().parent().toString()) + ".*"
     }
-    return Import("")
+
+    return name
 }

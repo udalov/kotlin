@@ -132,14 +132,6 @@ public class OverloadResolver {
     ) {
         MultiMap<Name, CallableMemberDescriptor> functionsByName = MultiMap.create();
         
-        if (classDescriptor.getKind() == ClassKind.ENUM_CLASS) {
-            ClassDescriptorWithResolutionScopes classObjectDescriptor = classDescriptor.getClassObjectDescriptor();
-            assert classObjectDescriptor != null;
-            for (CallableMemberDescriptor memberDescriptor : classObjectDescriptor.getDeclaredCallableMembers()) {
-                functionsByName.putValue(memberDescriptor.getName(), memberDescriptor);
-            }
-        }
-
         for (CallableMemberDescriptor function : classDescriptor.getDeclaredCallableMembers()) {
             functionsByName.putValue(function.getName(), function);
         }
@@ -178,8 +170,7 @@ public class OverloadResolver {
 
                 OverloadUtil.OverloadCompatibilityInfo overloadable = OverloadUtil.isOverloadable(member, member2);
                 if (!overloadable.isSuccess()) {
-                    JetDeclaration jetDeclaration = (JetDeclaration) BindingContextUtils
-                            .descriptorToDeclaration(trace.getBindingContext(), member);
+                    JetDeclaration jetDeclaration = (JetDeclaration) DescriptorToSourceUtils.descriptorToDeclaration(member);
                     if (jetDeclaration != null) {
                         redeclarations.add(Pair.create(jetDeclaration, member));
                     }

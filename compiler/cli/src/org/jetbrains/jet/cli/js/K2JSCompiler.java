@@ -38,8 +38,6 @@ import org.jetbrains.jet.cli.common.messages.AnalyzerWithCompilerReport;
 import org.jetbrains.jet.cli.common.messages.CompilerMessageLocation;
 import org.jetbrains.jet.cli.common.messages.CompilerMessageSeverity;
 import org.jetbrains.jet.cli.common.messages.MessageCollector;
-import org.jetbrains.jet.cli.common.output.OutputDirector;
-import org.jetbrains.jet.cli.common.output.SingleDirectoryDirector;
 import org.jetbrains.jet.cli.common.output.outputUtils.OutputUtilsPackage;
 import org.jetbrains.jet.cli.jvm.compiler.JetCoreEnvironment;
 import org.jetbrains.jet.config.CommonConfigurationKeys;
@@ -136,8 +134,7 @@ public class K2JSCompiler extends CLICompiler<K2JSCompilerArguments> {
 
         OutputFileCollection outputFiles = translate(mainCallParameters, config, sourcesFiles, outputFile, outputPrefixFile, outputPostfixFile);
 
-        OutputDirector outputDirector = new SingleDirectoryDirector(outputFile.getParentFile());
-        OutputUtilsPackage.writeAll(outputFiles, outputDirector, messageCollector);
+        OutputUtilsPackage.writeAll(outputFiles, outputFile.getParentFile(), messageCollector);
 
         return OK;
     }
@@ -177,12 +174,12 @@ public class K2JSCompiler extends CLICompiler<K2JSCompilerArguments> {
     private static boolean analyzeAndReportErrors(@NotNull MessageCollector messageCollector,
             @NotNull final List<JetFile> sources, @NotNull final Config config) {
         AnalyzerWithCompilerReport analyzerWithCompilerReport = new AnalyzerWithCompilerReport(messageCollector);
-        analyzerWithCompilerReport.analyzeAndReport(new Function0<AnalyzeExhaust>() {
+        analyzerWithCompilerReport.analyzeAndReport(sources, new Function0<AnalyzeExhaust>() {
             @Override
             public AnalyzeExhaust invoke() {
                 return AnalyzerFacadeForJS.analyzeFiles(sources, Predicates.<PsiFile>alwaysTrue(), config);
             }
-        }, sources);
+        });
         return analyzerWithCompilerReport.hasErrors();
     }
 

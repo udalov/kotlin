@@ -32,7 +32,6 @@ import com.intellij.psi.util.PsiTreeUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.*;
-import org.jetbrains.jet.lang.descriptors.impl.MutableClassDescriptor;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.types.JetType;
@@ -46,6 +45,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
+import static org.jetbrains.jet.lang.psi.PsiPackage.JetPsiFactory;
+
 public abstract class OverrideImplementMethodsHandler implements LanguageCodeInsightActionHandler {
 
     private static final DescriptorRenderer OVERRIDE_RENDERER = new DescriptorRendererBuilder()
@@ -58,16 +59,15 @@ public abstract class OverrideImplementMethodsHandler implements LanguageCodeIns
     private static final Logger LOG = Logger.getInstance(OverrideImplementMethodsHandler.class.getCanonicalName());
 
     public static List<DescriptorClassMember> membersFromDescriptors(
-            JetFile file, Iterable<CallableMemberDescriptor> missingImplementations,
-            BindingContext bindingContext
+            JetFile file, Iterable<CallableMemberDescriptor> missingImplementations
     ) {
         List<DescriptorClassMember> members = new ArrayList<DescriptorClassMember>();
         for (CallableMemberDescriptor memberDescriptor : missingImplementations) {
-
-            PsiElement declaration = DescriptorToDeclarationUtil.getDeclaration(file, memberDescriptor, bindingContext);
+            PsiElement declaration = DescriptorToDeclarationUtil.getDeclaration(file, memberDescriptor);
             if (declaration == null) {
                 LOG.error("Can not find declaration for descriptor " + memberDescriptor);
-            } else {
+            }
+            else {
                 DescriptorClassMember member = new DescriptorClassMember(declaration, memberDescriptor);
                 members.add(member);
             }
@@ -82,9 +82,9 @@ public abstract class OverrideImplementMethodsHandler implements LanguageCodeIns
     ) {
         JetClassBody body = classOrObject.getBody();
         if (body == null) {
-            Project project = classOrObject.getProject();
-            classOrObject.add(JetPsiFactory.createWhiteSpace(project));
-            body = (JetClassBody) classOrObject.add(JetPsiFactory.createEmptyClassBody(project));
+            JetPsiFactory psiFactory = JetPsiFactory(classOrObject);
+            classOrObject.add(psiFactory.createWhiteSpace());
+            body = (JetClassBody) classOrObject.add(psiFactory.createEmptyClassBody());
         }
 
         PsiElement afterAnchor = findInsertAfterAnchor(editor, body);
@@ -132,12 +132,10 @@ public abstract class OverrideImplementMethodsHandler implements LanguageCodeIns
         for (DescriptorClassMember selectedElement : selectedElements) {
             DeclarationDescriptor descriptor = selectedElement.getDescriptor();
             if (descriptor instanceof SimpleFunctionDescriptor) {
-                overridingMembers.add(overrideFunction(file.getProject(),
-                                                       (SimpleFunctionDescriptor) descriptor));
+                overridingMembers.add(overrideFunction(file.getProject(), (SimpleFunctionDescriptor) descriptor));
             }
             else if (descriptor instanceof PropertyDescriptor) {
-                overridingMembers.add(
-                        overrideProperty(file.getProject(), (PropertyDescriptor) descriptor));
+                overridingMembers.add(overrideProperty(file.getProject(), (PropertyDescriptor) descriptor));
             }
         }
         return overridingMembers;
@@ -153,15 +151,20 @@ public abstract class OverrideImplementMethodsHandler implements LanguageCodeIns
                 /* copyOverrides = */ true);
         newDescriptor.addOverriddenDescriptor(descriptor);
 
-        StringBuilder bodyBuilder = new StringBuilder();
-        String initializer = CodeInsightUtils.defaultInitializer(descriptor.getType());
-        if (initializer != null) {
-            bodyBuilder.append(" = ").append(initializer);
+        StringBuilder body = new StringBuilder();
+        String defaultInitializer = CodeInsightUtils.defaultInitializer(descriptor.getType());
+        String initializer = defaultInitializer != null ? " = " + defaultInitializer : " = ?";
+        if (descriptor.getReceiverParameter() != null) {
+            body.append("\nget()");
+            body.append(initializer);
+            if (descriptor.isVar()) {
+                body.append("\nset(value) {}");
+            }
         }
         else {
-            bodyBuilder.append(" = ?");
+            body.append(initializer);
         }
-        return JetPsiFactory.createProperty(project, OVERRIDE_RENDERER.render(newDescriptor) + bodyBuilder.toString());
+        return JetPsiFactory(project).createProperty(OVERRIDE_RENDERER.render(newDescriptor) + body);
     }
 
     @NotNull
@@ -200,7 +203,7 @@ public abstract class OverrideImplementMethodsHandler implements LanguageCodeIns
         boolean returnsNotUnit = returnType != null && !builtIns.getUnitType().equals(returnType);
         String body = "{" + (returnsNotUnit && !isAbstractFun ? "return " : "") + delegationBuilder.toString() + "}";
 
-        return JetPsiFactory.createFunction(project, OVERRIDE_RENDERER.render(newDescriptor) + body);
+        return JetPsiFactory(project).createFunction(OVERRIDE_RENDERER.render(newDescriptor) + body);
     }
 
     @NotNull
@@ -252,7 +255,7 @@ public abstract class OverrideImplementMethodsHandler implements LanguageCodeIns
             HintManager.getInstance().showErrorHint(editor, getNoMethodsFoundHint());
             return;
         }
-        List<DescriptorClassMember> members = membersFromDescriptors((JetFile) file, missingImplementations, bindingContext);
+        List<DescriptorClassMember> members = membersFromDescriptors((JetFile) file, missingImplementations);
 
         final List<DescriptorClassMember> selectedElements;
         if (implementAll) {

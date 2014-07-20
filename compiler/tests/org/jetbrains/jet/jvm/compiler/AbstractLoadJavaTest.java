@@ -33,9 +33,12 @@ import org.jetbrains.jet.cli.jvm.compiler.JetCoreEnvironment;
 import org.jetbrains.jet.config.CommonConfigurationKeys;
 import org.jetbrains.jet.config.CompilerConfiguration;
 import org.jetbrains.jet.descriptors.serialization.descriptors.DeserializedClassDescriptor;
-import org.jetbrains.jet.descriptors.serialization.descriptors.MemberFilter;
 import org.jetbrains.jet.di.InjectorForTopDownAnalyzerForJvm;
-import org.jetbrains.jet.lang.descriptors.*;
+import org.jetbrains.jet.lang.descriptors.ClassDescriptor;
+import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor;
+import org.jetbrains.jet.lang.descriptors.DependencyKind;
+import org.jetbrains.jet.lang.descriptors.PackageViewDescriptor;
+import org.jetbrains.jet.lang.descriptors.impl.ModuleDescriptorImpl;
 import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.BindingTrace;
@@ -101,17 +104,25 @@ public abstract class AbstractLoadJavaTest extends TestCaseWithTmpdir {
     }
 
     protected void doTestCompiledKotlin(@NotNull String ktFileName) throws Exception {
+        doTestCompiledKotlin(ktFileName, ConfigurationKind.JDK_ONLY);
+    }
+
+    protected void doTestCompiledKotlinWithStdlib(@NotNull String ktFileName) throws Exception {
+        doTestCompiledKotlin(ktFileName, ConfigurationKind.ALL);
+    }
+
+    protected void doTestCompiledKotlin(@NotNull String ktFileName, @NotNull ConfigurationKind configurationKind) throws Exception {
         File ktFile = new File(ktFileName);
         File txtFile = new File(ktFileName.replaceFirst("\\.kt$", ".txt"));
         AnalyzeExhaust exhaust = compileKotlinToDirAndGetAnalyzeExhaust(Collections.singletonList(ktFile), tmpdir, getTestRootDisposable(),
-                                                                        ConfigurationKind.JDK_ONLY);
+                                                                        configurationKind);
 
         PackageViewDescriptor packageFromSource = exhaust.getModuleDescriptor().getPackage(TEST_PACKAGE_FQNAME);
         assert packageFromSource != null;
         junit.framework.Assert.assertEquals("test", packageFromSource.getName().asString());
 
         PackageViewDescriptor packageFromBinary = LoadDescriptorUtil.loadTestPackageAndBindingContextFromJavaRoot(
-                tmpdir, getTestRootDisposable(), ConfigurationKind.JDK_ONLY).first;
+                tmpdir, getTestRootDisposable(), configurationKind).first;
 
         for (DeclarationDescriptor descriptor : packageFromBinary.getMemberScope().getAllDescriptors()) {
             if (descriptor instanceof ClassDescriptor) {
@@ -160,8 +171,7 @@ public abstract class AbstractLoadJavaTest extends TestCaseWithTmpdir {
                 environment.getProject(),
                 parameters,
                 trace,
-                module,
-                MemberFilter.ALWAYS_TRUE);
+                module);
 
         module.addFragmentProvider(DependencyKind.BINARIES, injectorForAnalyzer.getJavaDescriptorResolver().getPackageFragmentProvider());
 
@@ -193,7 +203,7 @@ public abstract class AbstractLoadJavaTest extends TestCaseWithTmpdir {
         );
         JetFile jetFile = JetTestUtils.createFile(kotlinSrc.getPath(), FileUtil.loadFile(kotlinSrc, true), environment.getProject());
 
-        AnalyzeExhaust exhaust = JvmResolveUtil.analyzeFilesWithJavaIntegration(
+        AnalyzeExhaust exhaust = JvmResolveUtil.analyzeFilesWithJavaIntegrationAndCheckForErrors(
                 environment.getProject(), Collections.singleton(jetFile), Predicates.<PsiFile>alwaysTrue()
         );
         PackageViewDescriptor packageView = exhaust.getModuleDescriptor().getPackage(TEST_PACKAGE_FQNAME);

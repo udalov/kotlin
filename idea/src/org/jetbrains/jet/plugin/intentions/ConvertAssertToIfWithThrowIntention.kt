@@ -19,7 +19,6 @@ package org.jetbrains.jet.plugin.intentions
 import com.intellij.openapi.editor.Editor
 import org.jetbrains.jet.lang.psi.JetCallExpression
 import org.jetbrains.jet.plugin.project.AnalyzerFacadeWithCache
-import org.jetbrains.jet.lang.resolve.BindingContext
 import org.jetbrains.jet.lang.psi.JetPsiFactory
 import org.jetbrains.jet.lang.psi.JetPrefixExpression
 import org.jetbrains.jet.plugin.codeInsight.ShortenReferences
@@ -29,6 +28,7 @@ import kotlin.properties.Delegates
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns
 import org.jetbrains.jet.lang.psi.JetIfExpression
 import org.jetbrains.jet.lang.psi.JetDotQualifiedExpression
+import org.jetbrains.jet.lang.resolve.bindingContextUtil.getResolvedCall
 
 public class ConvertAssertToIfWithThrowIntention : JetSelfTargetingIntention<JetCallExpression>(
         "convert.assert.to.if.with.throw", javaClass()) {
@@ -43,7 +43,7 @@ public class ConvertAssertToIfWithThrowIntention : JetSelfTargetingIntention<Jet
         if (!(arguments == 1 && (lambdas == 1 || lambdas == 0)) && arguments != 2) return false
 
         val context = AnalyzerFacadeWithCache.getContextForElement(element)
-        val resolvedCall = context[BindingContext.RESOLVED_CALL, element.getCalleeExpression()]
+        val resolvedCall = element.getResolvedCall(context)
         if (resolvedCall == null) return false
 
         val valParameters = resolvedCall.getResultingDescriptor().getValueParameters()
@@ -61,6 +61,7 @@ public class ConvertAssertToIfWithThrowIntention : JetSelfTargetingIntention<Jet
         val condition = args[0]?.getArgumentExpression()
         val lambdas = element.getFunctionLiteralArguments()
 
+        val psiFactory = JetPsiFactory(element)
         val messageExpr =
                 if (args.size == 2) {
                     args[1]?.getArgumentExpression()
@@ -69,7 +70,7 @@ public class ConvertAssertToIfWithThrowIntention : JetSelfTargetingIntention<Jet
                     element.getFunctionLiteralArguments()[0]
                 }
                 else {
-                    JetPsiFactory.createExpression(element.getProject(), "\"Assertion failed\"")
+                    psiFactory.createExpression("\"Assertion failed\"")
                 }
 
         if (condition == null || messageExpr == null) return
@@ -85,11 +86,11 @@ public class ConvertAssertToIfWithThrowIntention : JetSelfTargetingIntention<Jet
                     "${messageExpr.getText()}"
                 }
 
-        val assertTypeRef = JetPsiFactory.createType(element.getProject(), "java.lang.AssertionError")
+        val assertTypeRef = psiFactory.createType("java.lang.AssertionError")
         ShortenReferences.process(assertTypeRef)
 
         val text = "if (!true) { throw ${assertTypeRef.getText()}(${message}) }"
-        val ifExpression = JetPsiFactory.createExpression(element.getProject(), text) as JetIfExpression
+        val ifExpression = psiFactory.createExpression(text) as JetIfExpression
 
         val ifCondition = ifExpression.getCondition() as JetPrefixExpression
         ifCondition.getBaseExpression()?.replace(condition)

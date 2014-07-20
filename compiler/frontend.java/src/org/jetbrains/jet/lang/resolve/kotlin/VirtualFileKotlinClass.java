@@ -50,7 +50,7 @@ public class VirtualFileKotlinClass implements KotlinJvmBinaryClass {
     }
 
     @Nullable
-    private static Pair<JvmClassName, KotlinClassHeader> readClassNameAndHeader(@NotNull byte[] fileContents) {
+    public static Pair<JvmClassName, KotlinClassHeader> readClassNameAndHeader(@NotNull byte[] fileContents) {
         final ReadKotlinClassHeaderAnnotationVisitor readHeaderVisitor = new ReadKotlinClassHeaderAnnotationVisitor();
         final Ref<JvmClassName> classNameRef = Ref.create();
         new ClassReader(fileContents).accept(new ClassVisitor(ASM5) {
@@ -157,8 +157,23 @@ public class VirtualFileKotlinClass implements KotlinJvmBinaryClass {
 
             @Override
             public org.jetbrains.org.objectweb.asm.AnnotationVisitor visitArray(String name) {
-                AnnotationArgumentVisitor av = v.visitArray(Name.guess(name));
-                return av == null ? null : convertAnnotationVisitor(av);
+                final AnnotationArrayArgumentVisitor arv = v.visitArray(Name.guess(name));
+                return arv == null ? null : new org.jetbrains.org.objectweb.asm.AnnotationVisitor(ASM5) {
+                    @Override
+                    public void visit(String name, Object value) {
+                        arv.visit(value);
+                    }
+
+                    @Override
+                    public void visitEnum(String name, String desc, String value) {
+                        arv.visitEnum(classNameFromAsmDesc(desc), Name.identifier(value));
+                    }
+
+                    @Override
+                    public void visitEnd() {
+                        arv.visitEnd();
+                    }
+                };
             }
 
             @Override

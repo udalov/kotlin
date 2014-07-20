@@ -543,6 +543,14 @@
             },
             iterator: function () {
                 return new Kotlin.RangeIterator(this.start, this.end, this.increment);
+            },
+            isEmpty: function () {
+                return this.start > this.end;
+            },
+            equals_za3rmp$: function(other) {
+                if (other == null)
+                    return false;
+                return this.start === other.start && this.end === other.end && this.increment === other.increment;
             }
     });
 
@@ -554,6 +562,9 @@
         }, {
         iterator: function () {
             return new Kotlin.RangeIterator(this.start, this.end, this.increment);
+        },
+        isEmpty: function() {
+            return this.increment > 0 ? this.start > this.end : this.start < this.end;
         }
     });
 
@@ -643,8 +654,15 @@
         function () {
             this.string = "";
         }, {
-        append: function (obj) {
-            this.string = this.string + obj.toString();
+        append: function (obj, from, to) {
+            if (from == undefined && to == undefined) {
+                this.string = this.string + obj.toString();
+            } else if (to == undefined) {
+                this.string = this.string + obj.toString().substring(from);
+            } else {
+                this.string = this.string + obj.toString().substring(from, to);
+            }
+
             return this;
         },
         reverse: function () {

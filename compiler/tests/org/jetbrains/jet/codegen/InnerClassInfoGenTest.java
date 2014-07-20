@@ -30,23 +30,13 @@ import java.util.List;
 import static org.jetbrains.org.objectweb.asm.Opcodes.*;
 
 public class InnerClassInfoGenTest extends CodegenTestCase {
-    private ClassFileFactory factory;
-
     @Override
     protected void setUp() throws Exception {
         super.setUp();
 
         createEnvironmentWithMockJdkAndIdeaAnnotations(ConfigurationKind.JDK_ONLY);
         loadFile("innerClassInfo/" + getTestName(true) + ".kt");
-        factory = generateClassesInFile();
     }
-
-    @Override
-    protected void tearDown() throws Exception {
-        factory = null;
-        super.tearDown();
-    }
-
 
     public void testInnerClassInfo() {
         InnerClassAttribute innerB = new InnerClassAttribute("A$B", "A", "B", ACC_PUBLIC | ACC_STATIC | ACC_FINAL);
@@ -76,6 +66,11 @@ public class InnerClassInfoGenTest extends CodegenTestCase {
         extractAndCompareInnerClasses("A$foo$C$1", innerC);
     }
 
+    public void testAnonymousObjectInline() {
+        InnerClassAttribute objectInInlineFun = new InnerClassAttribute("A$inlineFun$s$1", null, null, ACC_PUBLIC | ACC_STATIC | ACC_FINAL);
+        extractAndCompareInnerClasses("A", objectInInlineFun);
+    }
+
     public void testEnumEntry() {
         InnerClassAttribute innerE2 = new InnerClassAttribute("E$E2", "E", "E2", ACC_STATIC | ACC_FINAL);
 
@@ -91,7 +86,7 @@ public class InnerClassInfoGenTest extends CodegenTestCase {
 
     @NotNull
     private List<InnerClassAttribute> extractInnerClasses(@NotNull String className) {
-        OutputFile outputFile = factory.get(className + ".class");
+        OutputFile outputFile = generateClassesInFile().get(className + ".class");
         assertNotNull(outputFile);
         byte[] bytes = outputFile.asByteArray();
         ClassReader reader = new ClassReader(bytes);

@@ -1,17 +1,19 @@
 package demo
 
-open class WindowAdapter() {
-    public open fun windowClosing() {
+class WindowAdapter {
+    public fun windowClosing() {
     }
 }
 
-public class Client() : Frame() {
+public class Client : Frame() {
     {
-        var a: WindowAdapter? = object : WindowAdapter() {
+        val a = object : WindowAdapter() {
             override fun windowClosing() {
             }
         }
+
         addWindowListener(a)
+
         addWindowListener(object : WindowAdapter() {
             override fun windowClosing() {
             }

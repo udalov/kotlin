@@ -97,7 +97,7 @@ public class CodeInsightUtils {
         }
         if (endOffset != element2.getTextRange().getEndOffset()) return PsiElement.EMPTY_ARRAY;
 
-        ArrayList<PsiElement> array = new ArrayList<PsiElement>();
+        List<PsiElement> array = new ArrayList<PsiElement>();
         PsiElement stopElement = element2.getNextSibling();
         for (PsiElement currentElement = element1; currentElement != stopElement; currentElement = currentElement.getNextSibling()) {
             if (!(currentElement instanceof PsiWhiteSpace)) {
@@ -210,7 +210,7 @@ public class CodeInsightUtils {
     public static PsiElement getTopmostElementAtOffset(@NotNull PsiElement element, int offset) {
         do {
             PsiElement parent = element.getParent();
-            if (parent == null || (parent.getTextOffset() < offset)) {
+            if (parent == null || (parent.getTextOffset() < offset) || parent instanceof JetBlockExpression) {
                 break;
             }
             element = parent;

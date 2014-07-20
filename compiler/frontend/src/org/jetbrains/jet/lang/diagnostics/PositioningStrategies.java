@@ -23,6 +23,7 @@ import com.intellij.lang.ASTNode;
 import com.intellij.openapi.util.TextRange;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiNameIdentifierOwner;
+import kotlin.Function1;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.JetNodeTypes;
 import org.jetbrains.jet.lang.psi.*;
@@ -99,16 +100,30 @@ public class PositioningStrategies {
                 return markElement(nameIdentifier);
             }
             if (element instanceof JetObjectDeclaration) {
-                return markElement(((JetObjectDeclaration) element).getObjectKeyword());
+                PsiElement objectKeyword = ((JetObjectDeclaration) element).getObjectKeyword();
+                PsiElement parent = element.getParent();
+                if (parent instanceof JetClassObject) {
+                    PsiElement classKeyword = ((JetClassObject) parent).getClassKeywordNode();
+                    PsiElement start = classKeyword == null ? objectKeyword : classKeyword;
+                    return markRange(new TextRange(start.getTextRange().getStartOffset(), objectKeyword.getTextRange().getEndOffset()));
+                }
+                return markElement(objectKeyword);
             }
             return markElement(element);
         }
     };
 
-    public static final PositioningStrategy<PsiNameIdentifierOwner> NAMED_ELEMENT = new PositioningStrategy<PsiNameIdentifierOwner>() {
+    public static final PositioningStrategy<PsiNameIdentifierOwner> NAMED_ELEMENT = new DeclarationHeader<PsiNameIdentifierOwner>() {
+        @Override
+        public boolean isValid(@NotNull PsiNameIdentifierOwner element) {
+            return (element.getNameIdentifier() != null || element instanceof JetObjectDeclaration) && super.isValid(element);
+        }
+    };
+
+    private static class DeclarationHeader<T extends PsiElement> extends PositioningStrategy<T> {
         @NotNull
         @Override
-        public List<TextRange> mark(@NotNull PsiNameIdentifierOwner element) {
+        public List<TextRange> mark(@NotNull T element) {
             if (element instanceof JetNamedFunction) {
                 JetNamedFunction function = (JetNamedFunction)element;
                 PsiElement endOfSignatureElement;
@@ -147,8 +162,21 @@ public class PositioningStrategies {
                 return markRange(new TextRange(
                         property.getTextRange().getStartOffset(), endOfSignatureElement.getTextRange().getEndOffset()));
             }
+            else if (element instanceof JetPropertyAccessor) {
+                JetPropertyAccessor accessor = (JetPropertyAccessor) element;
+                PsiElement endOfSignatureElement = accessor.getReturnTypeReference();
+                if (endOfSignatureElement == null) {
+                    ASTNode rpar = accessor.getRightParenthesis();
+                    endOfSignatureElement = rpar == null ? null : rpar.getPsi();
+                }
+                if (endOfSignatureElement == null) {
+                    endOfSignatureElement = accessor.getNamePlaceholder();
+                }
+                return markRange(new TextRange(
+                        accessor.getTextRange().getStartOffset(), endOfSignatureElement.getTextRange().getEndOffset()));
+            }
             else if (element instanceof JetClass) {
-                PsiElement nameAsDeclaration = element.getNameIdentifier();
+                PsiElement nameAsDeclaration = ((JetClass) element).getNameIdentifier();
                 if (nameAsDeclaration == null) {
                     return markElement(element);
                 }
@@ -160,16 +188,11 @@ public class PositioningStrategies {
                         nameAsDeclaration.getTextRange().getStartOffset(), primaryConstructorParameterList.getTextRange().getEndOffset()));
             }
             else if (element instanceof JetObjectDeclaration) {
-                return NAME_IDENTIFIER.mark(element);
+                return NAME_IDENTIFIER.mark((JetObjectDeclaration) element);
             }
             return super.mark(element);
         }
-
-        @Override
-        public boolean isValid(@NotNull PsiNameIdentifierOwner element) {
-            return (element.getNameIdentifier() != null || element instanceof JetObjectDeclaration) && super.isValid(element);
-        }
-    };
+    }
 
     public static final PositioningStrategy<JetDeclaration> DECLARATION = new PositioningStrategy<JetDeclaration>() {
         @NotNull
@@ -187,6 +210,25 @@ public class PositioningStrategies {
                 return NAMED_ELEMENT.isValid((PsiNameIdentifierOwner) element);
             }
             return super.isValid(element);
+        }
+    };
+
+    public static final PositioningStrategy<PsiElement> DECLARATION_OR_DEFAULT = new DeclarationHeader<PsiElement>() {
+        @NotNull
+        @Override
+        public List<TextRange> mark(@NotNull PsiElement element) {
+            if (element instanceof JetDeclaration) {
+                return super.mark((JetDeclaration) element);
+            }
+            return DEFAULT.mark(element);
+        }
+
+        @Override
+        public boolean isValid(@NotNull PsiElement element) {
+            if (element instanceof JetDeclaration) {
+                return DECLARATION.isValid((JetDeclaration) element);
+            }
+            return DEFAULT.isValid(element);
         }
     };
 
@@ -485,6 +527,18 @@ public class PositioningStrategies {
             return super.mark(element);
         }
     };
+
+    public static PositioningStrategy<PsiElement> markTextRangesFromDiagnostic(
+            @NotNull final Function1<Diagnostic, List<TextRange>> getTextRanges
+    ) {
+        return new PositioningStrategy<PsiElement>() {
+            @NotNull
+            @Override
+            public List<TextRange> markDiagnostic(@NotNull ParametrizedDiagnostic<? extends PsiElement> diagnostic) {
+                return getTextRanges.invoke(diagnostic);
+            }
+        };
+    }
 
     private PositioningStrategies() {
     }

@@ -16,15 +16,60 @@
 
 package org.jetbrains.jet.j2k.ast
 
+import org.jetbrains.jet.j2k.*
+import java.util.HashSet
+
 enum class Modifier(val name: String) {
     PUBLIC: Modifier("public")
     PROTECTED: Modifier("protected")
     PRIVATE: Modifier("private")
-    INTERNAL: Modifier("internal")
-    STATIC: Modifier("static")
     ABSTRACT: Modifier("abstract")
-    FINAL: Modifier("final")
     OPEN: Modifier("open")
-    NOT_OPEN: Modifier("not open")
     OVERRIDE: Modifier("override")
+    INNER: Modifier("inner")
+
+    public fun toKotlin(): String = name
 }
+
+val ACCESS_MODIFIERS = setOf(Modifier.PUBLIC, Modifier.PROTECTED, Modifier.PRIVATE)
+
+class Modifiers(val modifiers: Collection<Modifier>) : Element() {
+    override fun generateCode(builder: CodeBuilder) {
+        builder.append(modifiers.sortBy { it.ordinal() }.map { it.toKotlin() }.joinToString(" "))
+    }
+
+    override val isEmpty: Boolean
+        get() = modifiers.isEmpty()
+
+    fun with(modifier: Modifier?): Modifiers = if (modifier != null) Modifiers(modifiers + listOf(modifier)).assignPrototypesFrom(this) else this
+
+    fun without(modifier: Modifier): Modifiers {
+        val set = HashSet(modifiers)
+        set.remove(modifier)
+        return Modifiers(set).assignPrototypesFrom(this)
+    }
+
+    fun contains(modifier: Modifier): Boolean = modifiers.contains(modifier)
+
+    val isPublic: Boolean get() = contains(Modifier.PUBLIC)
+    val isPrivate: Boolean get() = contains(Modifier.PRIVATE)
+    val isProtected: Boolean get() = contains(Modifier.PROTECTED)
+    val isInternal: Boolean get() = accessModifier() == null
+
+    fun accessModifier(): Modifier? = modifiers.firstOrNull { it in ACCESS_MODIFIERS }
+
+    class object {
+        val Empty = Modifiers(listOf())
+    }
+}
+
+fun Modifiers.filter(predicate: (Modifier) -> Boolean): Modifiers
+        = Modifiers(modifiers.filter(predicate)).assignPrototypesFrom(this)
+
+fun CodeBuilder.appendWithSpaceAfter(modifiers: Modifiers): CodeBuilder {
+    if (!modifiers.isEmpty) {
+        this append modifiers append " "
+    }
+    return this
+}
+

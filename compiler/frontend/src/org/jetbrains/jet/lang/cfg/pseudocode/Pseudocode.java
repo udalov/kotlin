@@ -18,6 +18,11 @@ package org.jetbrains.jet.lang.cfg.pseudocode;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.jet.lang.cfg.pseudocode.instructions.Instruction;
+import org.jetbrains.jet.lang.cfg.pseudocode.instructions.special.LocalFunctionDeclarationInstruction;
+import org.jetbrains.jet.lang.cfg.pseudocode.instructions.special.SubroutineEnterInstruction;
+import org.jetbrains.jet.lang.cfg.pseudocode.instructions.special.SubroutineExitInstruction;
+import org.jetbrains.jet.lang.cfg.pseudocode.instructions.special.SubroutineSinkInstruction;
 import org.jetbrains.jet.lang.psi.JetElement;
 
 import java.util.List;
@@ -40,7 +45,7 @@ public interface Pseudocode {
     List<Instruction> getReversedInstructions();
 
     @NotNull
-    List<Instruction> getDeadInstructions();
+    List<Instruction> getInstructionsIncludingDeadCode();
 
     @NotNull
     SubroutineExitInstruction getExitInstruction();
@@ -50,4 +55,10 @@ public interface Pseudocode {
 
     @NotNull
     SubroutineEnterInstruction getEnterInstruction();
+
+    @Nullable
+    PseudoValue getElementValue(@Nullable JetElement element);
+
+    @NotNull
+    List<? extends Instruction> getUsages(@Nullable PseudoValue value);
 }

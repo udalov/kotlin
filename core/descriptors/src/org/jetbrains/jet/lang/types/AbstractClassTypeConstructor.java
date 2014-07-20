@@ -41,8 +41,8 @@ public abstract class AbstractClassTypeConstructor implements TypeConstructor {
         ClassifierDescriptor otherDescriptor = ((TypeConstructor) other).getDeclarationDescriptor();
 
         // All error types have the same descriptor
-        if (myDescriptor != null && ErrorUtils.isError(myDescriptor)
-            || otherDescriptor != null && ErrorUtils.isError(otherDescriptor)) {
+        if (myDescriptor != null && !hasMeaningfulFqName(myDescriptor) ||
+            otherDescriptor != null && !hasMeaningfulFqName(otherDescriptor)) {
             return me == other;
         }
 
@@ -59,10 +59,14 @@ public abstract class AbstractClassTypeConstructor implements TypeConstructor {
 
     public static int hashCode(@NotNull TypeConstructor me) {
         ClassifierDescriptor descriptor = me.getDeclarationDescriptor();
-        if (descriptor instanceof ClassDescriptor && !ErrorUtils.isError(descriptor)) {
-            ClassDescriptor classDescriptor = (ClassDescriptor) descriptor;
-            return DescriptorUtils.getFqName(classDescriptor).hashCode();
+        if (descriptor instanceof ClassDescriptor && hasMeaningfulFqName(descriptor)) {
+            return DescriptorUtils.getFqName(descriptor).hashCode();
         }
         return System.identityHashCode(me);
+    }
+
+    private static boolean hasMeaningfulFqName(@NotNull ClassifierDescriptor descriptor) {
+        return !ErrorUtils.isError(descriptor) &&
+               !DescriptorUtils.isLocal(descriptor);
     }
 }

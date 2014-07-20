@@ -54,9 +54,6 @@ public abstract class ClassBodyCodegen extends MemberCodegen<JetClassOrObject> {
 
     @Override
     protected void generateBody() {
-        FunctionCodegen functionCodegen = new FunctionCodegen(context, v, state, this);
-        PropertyCodegen propertyCodegen = new PropertyCodegen(context, v, functionCodegen, this);
-
         if (kind != OwnerKind.TRAIT_IMPL) {
             //generate nested classes first and only then generate class body. It necessary to access to nested CodegenContexts
             for (JetDeclaration declaration : myClass.getDeclarations()) {
@@ -72,7 +69,7 @@ public abstract class ClassBodyCodegen extends MemberCodegen<JetClassOrObject> {
             }
         }
 
-        if (state.getClassBuilderMode() == ClassBuilderMode.FULL && !DescriptorUtils.isTrait(descriptor)) {
+        if (!DescriptorUtils.isTrait(descriptor)) {
             for (DeclarationDescriptor memberDescriptor : descriptor.getDefaultType().getMemberScope().getAllDescriptors()) {
                 if (memberDescriptor instanceof FunctionDescriptor) {
                     FunctionDescriptor member = (FunctionDescriptor) memberDescriptor;
@@ -93,7 +90,7 @@ public abstract class ClassBodyCodegen extends MemberCodegen<JetClassOrObject> {
 
     protected void generateDeclaration(PropertyCodegen propertyCodegen, JetDeclaration declaration) {
         if (declaration instanceof JetProperty || declaration instanceof JetNamedFunction) {
-            genFunctionOrProperty((JetTypeParameterListOwner) declaration, v);
+            genFunctionOrProperty(declaration);
         }
         else if (declaration instanceof JetClassOrObject) {
             if (declaration instanceof JetEnumEntry && !enumEntryNeedSubclass(state.getBindingContext(), (JetEnumEntry) declaration)) {

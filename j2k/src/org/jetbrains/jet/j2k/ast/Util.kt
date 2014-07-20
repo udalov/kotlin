@@ -16,90 +16,52 @@
 
 package org.jetbrains.jet.j2k.ast
 
-import java.util.ArrayList
-
-fun List<Node>.toKotlin(separator: String, prefix: String = "", suffix: String = ""): String {
-    val result = StringBuilder()
-    if (size() > 0) {
-        result.append(prefix)
-        var first = true
-        for (x in this) {
-            if (!first) result.append(separator)
-            first = false
-            result.append(x.toKotlin())
-        }
-        result.append(suffix)
-    }
-    return result.toString()
-}
-
-fun Collection<Modifier>.toKotlin(separator: String = " "): String {
-    val result = StringBuilder()
-    for (x in this) {
-        result.append(x.name)
-        result.append(separator)
-    }
-    return result.toString()
-}
+import org.jetbrains.jet.j2k.*
 
 fun String.withSuffix(suffix: String): String = if (isEmpty()) "" else this + suffix
 fun String.withPrefix(prefix: String): String = if (isEmpty()) "" else prefix + this
-fun Expression.withPrefix(prefix: String): String = if (isEmpty()) "" else prefix + toKotlin()
 
-open class WhiteSpaceSeparatedElementList(
-        val elements: List<Element>,
-        val minimalWhiteSpace: WhiteSpace,
-        val ensureSurroundedByWhiteSpace: Boolean = true
-) {
-    val nonEmptyElements = elements.filterNot { it.isEmpty() }
+fun CodeBuilder.appendWithPrefix(element: Element, prefix: String): CodeBuilder = if (!element.isEmpty) this append prefix append element else this
+fun CodeBuilder.appendWithSuffix(element: Element, suffix: String): CodeBuilder = if (!element.isEmpty) this append element append suffix else this
 
-    fun isEmpty() = nonEmptyElements.all { it is WhiteSpace }
+fun CodeBuilder.appendOperand(expression: Expression, operand: Expression, parenthesisForSamePrecedence: Boolean = false): CodeBuilder {
+    val parentPrecedence = expression.precedence() ?: throw IllegalArgumentException("Unknown precendence for $this")
+    val operandPrecedence = operand.precedence()
+    val needParenthesis = operandPrecedence != null &&
+            (parentPrecedence < operandPrecedence || parentPrecedence == operandPrecedence && parenthesisForSamePrecedence)
+    if (needParenthesis) append("(")
+    append(operand)
+    if (needParenthesis) append(")")
+    return this
+}
 
-    fun toKotlin(): String {
-        if (isEmpty()) {
-            return ""
+private fun Expression.precedence(): Int? {
+    return when(this) {
+        is QualifiedExpression, is MethodCallExpression, is ArrayAccessExpression, is PostfixOperator, is BangBangExpression, is StarExpression -> 0
+
+        is PrefixOperator -> 1
+
+        is TypeCastExpression -> 2
+
+        is BinaryExpression -> when(op) {
+            "*", "/", "%" -> 3
+            "+", "-" -> 4
+            "?:" -> 7
+            ">", "<", ">=", "<=" -> 9
+            "==", "!=", "===", "!===" -> 10
+            "&&" -> 11
+            "||" -> 12
+            else -> 6 /* simple name */
         }
-        return nonEmptyElements.surroundWithWhiteSpaces().insertAndMergeWhiteSpaces().map { it.toKotlin() }.makeString("")
-    }
 
-    private fun List<Element>.surroundWithWhiteSpaces(): List<Element> {
-        if (!ensureSurroundedByWhiteSpace) {
-            return this
-        }
-        val result = ArrayList<Element>()
-        result.add(minimalWhiteSpace)
-        result.addAll(this)
-        result.add(minimalWhiteSpace)
-        return result
-    }
+        is RangeExpression -> 5
 
+        is IsOperator -> 8
 
-    // ensure that there is whitespace between non-whitespace elements
-    // choose maximum among subsequent whitespaces
-    // all resulting whitespaces are at least minimal whitespace
-    private fun List<Element>.insertAndMergeWhiteSpaces(): List<Element> {
-        var currentWhiteSpace: WhiteSpace? = null
-        val result = ArrayList<Element>()
-        var isFirst = true
-        for (element in this) {
-            if (element is WhiteSpace) {
-                if (currentWhiteSpace == null || element > currentWhiteSpace!!) {
-                    currentWhiteSpace = if (element > minimalWhiteSpace) element else minimalWhiteSpace
-                }
-            }
-            else {
-                if (!isFirst) {
-                    //do not insert whitespace before first element
-                    result.add(currentWhiteSpace ?: minimalWhiteSpace)
-                }
-                result.add(element)
-                currentWhiteSpace = null
-            }
-            isFirst = false
-        }
-        if (currentWhiteSpace != null) {
-            result.add(currentWhiteSpace!!)
-        }
-        return result
+        is IfStatement -> 13
+
+        is AssignmentExpression -> 14
+
+        else -> null
     }
 }

@@ -1,3 +1,3 @@
-open class C() {
-    private var f: Foo? = null
+class C {
+    private val f: Foo? = null
 }

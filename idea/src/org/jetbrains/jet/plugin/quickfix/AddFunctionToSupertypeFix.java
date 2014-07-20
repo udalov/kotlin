@@ -28,7 +28,6 @@ import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.diagnostics.Diagnostic;
 import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.psi.JetNamedFunction;
-import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.DescriptorUtils;
 import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.lang.types.TypeUtils;
@@ -76,10 +75,10 @@ public class AddFunctionToSupertypeFix extends JetHintAction<JetNamedFunction> {
                 if (o1.equals(o2)) {
                     return 0;
                 }
-                if (JetTypeChecker.INSTANCE.isSubtypeOf(o1, o2)) {
+                if (JetTypeChecker.DEFAULT.isSubtypeOf(o1, o2)) {
                     return -1;
                 }
-                if (JetTypeChecker.INSTANCE.isSubtypeOf(o2, o1)) {
+                if (JetTypeChecker.DEFAULT.isSubtypeOf(o2, o1)) {
                     return 1;
                 }
                 return o1.toString().compareTo(o2.toString());
@@ -152,8 +151,7 @@ public class AddFunctionToSupertypeFix extends JetHintAction<JetNamedFunction> {
 
     @NotNull
     private JetAddFunctionToClassifierAction createAction(Project project, Editor editor, JetFile file) {
-        BindingContext bindingContext = ResolvePackage.getBindingContext(element);
-        return new JetAddFunctionToClassifierAction(project, editor, bindingContext, functionsToAdd);
+        return new JetAddFunctionToClassifierAction(project, editor, functionsToAdd);
     }
 
     public static JetIntentionActionsFactory createFactory() {

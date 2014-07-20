@@ -1,23 +1,25 @@
-package test
-
-open class Test() {
-    public open fun hashCode(): Int {
-        return System.identityHashCode(this)
+class X {
+    override fun hashCode(): Int {
+        return super.hashCode()
     }
 
-    public open fun equals(o: Any?): Boolean {
-        return this.identityEquals(o)
+    override fun equals(o: Any?): Boolean {
+        return super.equals(o)
     }
 
-    protected open fun clone(): Any? {
+    override fun toString(): String {
+        return super.toString()
+    }
+
+    throws(javaClass<CloneNotSupportedException>())
+    protected fun clone(): Any {
         return super.clone()
     }
+}
 
-    public open fun toString(): String? {
-        return getJavaClass<Test>.getName() + '@' + Integer.toHexString(hashCode())
-    }
-
-    protected open fun finalize() {
-        super.finalize()
+class Y : Thread() {
+    throws(javaClass<CloneNotSupportedException>())
+    override fun clone(): Any {
+        return super.clone()
     }
 }

@@ -1,13 +1,11 @@
 package demo
 
-open class Foo() {
-    class object {
-        open class Bar() {}
-    }
+class Foo {
+    class Bar
 }
 
-open class User() {
-    open fun main() {
-        var boo: Foo.Bar? = Foo.Bar()
+class User {
+    fun main() {
+        val boo = Foo.Bar()
     }
 }

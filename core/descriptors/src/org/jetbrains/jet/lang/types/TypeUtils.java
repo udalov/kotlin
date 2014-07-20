@@ -21,7 +21,6 @@ import com.google.common.collect.Collections2;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import com.intellij.openapi.util.Pair;
 import com.intellij.util.Processor;
 import kotlin.Function1;
 import kotlin.KotlinPackage;
@@ -142,7 +141,7 @@ public class TypeUtils {
     }
 
     public static boolean isIntersectionEmpty(@NotNull JetType typeA, @NotNull JetType typeB) {
-        return intersect(JetTypeChecker.INSTANCE, Sets.newLinkedHashSet(Lists.newArrayList(typeA, typeB))) == null;
+        return intersect(JetTypeChecker.DEFAULT, Sets.newLinkedHashSet(Lists.newArrayList(typeA, typeB))) == null;
     }
 
     @Nullable
@@ -376,9 +375,13 @@ public class TypeUtils {
     }
 
     private static void collectImmediateSupertypes(@NotNull JetType type, @NotNull Collection<JetType> result) {
+        boolean isNullable = type.isNullable();
         TypeSubstitutor substitutor = TypeSubstitutor.create(type);
         for (JetType supertype : type.getConstructor().getSupertypes()) {
-            result.add(substitutor.substitute(supertype, Variance.INVARIANT));
+            JetType substitutedType = substitutor.substitute(supertype, Variance.INVARIANT);
+            if (substitutedType != null) {
+                result.add(makeNullableIfNeeded(substitutedType, isNullable));
+            }
         }
     }
 
@@ -412,6 +415,20 @@ public class TypeUtils {
             if (bound.isNullable()) {
                 return true;
             }
+        }
+        return false;
+    }
+
+    /**
+     * A work-around of the generic nullability problem in the type checker
+     * @return true if a value of this type can be null
+     */
+    public static boolean isNullableType(@NotNull JetType type) {
+        if (type.isNullable()) {
+            return true;
+        }
+        if (type.getConstructor().getDeclarationDescriptor() instanceof TypeParameterDescriptor) {
+            return hasNullableSuperType(type);
         }
         return false;
     }
@@ -469,7 +486,7 @@ public class TypeUtils {
     }
 
     public static boolean equalTypes(@NotNull JetType a, @NotNull JetType b) {
-        return JetTypeChecker.INSTANCE.isSubtypeOf(a, b) && JetTypeChecker.INSTANCE.isSubtypeOf(b, a);
+        return JetTypeChecker.DEFAULT.isSubtypeOf(a, b) && JetTypeChecker.DEFAULT.isSubtypeOf(b, a);
     }
 
     public static boolean dependsOnTypeParameters(@NotNull JetType type, @NotNull Collection<TypeParameterDescriptor> typeParameters) {
@@ -537,12 +554,12 @@ public class TypeUtils {
     private static Set<JetType> getIntersectionOfSupertypes(@NotNull Collection<JetType> types) {
         Set<JetType> upperBounds = Sets.newHashSet();
         for (JetType type : types) {
-            Set<JetType> supertypes = Sets.newHashSet(type.getConstructor().getSupertypes());
+            Collection<JetType> supertypes = type.getConstructor().getSupertypes();
             if (upperBounds.isEmpty()) {
                 upperBounds.addAll(supertypes);
             }
             else {
-                upperBounds = Sets.intersection(upperBounds, supertypes);
+                upperBounds.retainAll(supertypes);
             }
         }
         return upperBounds;
@@ -582,26 +599,11 @@ public class TypeUtils {
             return getDefaultPrimitiveNumberType(numberValueTypeConstructor);
         }
         for (JetType primitiveNumberType : numberValueTypeConstructor.getSupertypes()) {
-            if (JetTypeChecker.INSTANCE.isSubtypeOf(primitiveNumberType, expectedType)) {
+            if (JetTypeChecker.DEFAULT.isSubtypeOf(primitiveNumberType, expectedType)) {
                 return primitiveNumberType;
             }
         }
         return getDefaultPrimitiveNumberType(numberValueTypeConstructor);
-    }
-
-    @NotNull
-    public static Pair<Collection<JetType>, Collection<JetType>> filterNumberTypes(@NotNull Collection<JetType> types) {
-        Collection<JetType> numberTypes = Sets.newLinkedHashSet();
-        Collection<JetType> otherTypes = Sets.newLinkedHashSet();
-        for (JetType type : types) {
-            if (type.getConstructor() instanceof IntegerValueTypeConstructor) {
-                numberTypes.add(type);
-            }
-            else {
-                otherTypes.add(type);
-            }
-        }
-        return Pair.create(otherTypes, numberTypes);
     }
 
     public static List<TypeConstructor> topologicallySortSuperclassesAndRecordAllInstances(
@@ -634,7 +636,7 @@ public class TypeUtils {
                 },
                 new DFS.NodeHandlerWithListResult<JetType, TypeConstructor>() {
                     @Override
-                    public void beforeChildren(JetType current) {
+                    public boolean beforeChildren(JetType current) {
                         TypeConstructor constructor = current.getConstructor();
 
                         Set<JetType> instances = constructorToAllInstances.get(constructor);
@@ -643,6 +645,8 @@ public class TypeUtils {
                             constructorToAllInstances.put(constructor, instances);
                         }
                         instances.add(current);
+
+                        return true;
                     }
 
                     @Override

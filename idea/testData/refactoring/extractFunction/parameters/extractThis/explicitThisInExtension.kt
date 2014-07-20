@@ -1,6 +1,8 @@
+// PARAM_TYPES: Z
+// PARAM_DESCRIPTOR: internal fun Z.foo(): kotlin.Int defined in root package
 class Z(val a: Int)
 
-// NEXT_SIBLING:
+// SIBLING:
 fun Z.foo(): Int {
     return <selection>this.a</selection> + 1
 }

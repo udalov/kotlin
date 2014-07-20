@@ -18,7 +18,6 @@ package org.jetbrains.jet.plugin.refactoring.introduce.introduceVariable
 
 import com.intellij.ide.DataManager
 import com.intellij.psi.PsiElement
-import com.intellij.testFramework.fixtures.LightCodeInsightFixtureTestCase
 import org.jetbrains.jet.JetTestCaseBuilder
 import org.jetbrains.jet.lang.psi.JetFile
 import org.jetbrains.jet.plugin.refactoring.extractFunction.ExtractKotlinFunctionHandler
@@ -32,8 +31,17 @@ import com.intellij.testFramework.fixtures.JavaCodeInsightTestFixture
 import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.psi.PsiWhiteSpace
 import org.jetbrains.jet.lang.psi.JetPackageDirective
+import org.jetbrains.jet.InTextDirectivesUtils
+import org.jetbrains.jet.renderer.DescriptorRenderer
+import java.util.ArrayList
+import com.intellij.util.containers.ContainerUtil
+import kotlin.test.assertEquals
+import org.jetbrains.jet.plugin.JetLightCodeInsightFixtureTestCase
+import com.intellij.testFramework.fixtures.LightCodeInsightFixtureTestCase
 
-public abstract class AbstractJetExtractionTest() : LightCodeInsightFixtureTestCase() {
+public abstract class AbstractJetExtractionTest() : JetLightCodeInsightFixtureTestCase() {
+    override fun getProjectDescriptor() = LightCodeInsightFixtureTestCase.JAVA_LATEST
+
     val fixture: JavaCodeInsightTestFixture get() = myFixture
 
     protected fun doIntroduceVariableTest(path: String) {
@@ -49,12 +57,12 @@ public abstract class AbstractJetExtractionTest() : LightCodeInsightFixtureTestC
 
     protected fun doExtractFunctionTest(path: String) {
         doTest(path) { file ->
-            var explicitNextSibling: PsiElement? = null
+            var explicitPreviousSibling: PsiElement? = null
             file.accept(
                     object: JetTreeVisitorVoid() {
-                        override fun visitComment(comment: PsiComment?) {
-                            if (comment?.getText() == "// NEXT_SIBLING:") {
-                                explicitNextSibling = PsiTreeUtil.skipSiblingsForward(
+                        override fun visitComment(comment: PsiComment) {
+                            if (comment.getText() == "// SIBLING:") {
+                                explicitPreviousSibling = PsiTreeUtil.skipSiblingsForward(
                                         comment,
                                         javaClass<PsiWhiteSpace>(),
                                         javaClass<PsiComment>(),
@@ -65,9 +73,26 @@ public abstract class AbstractJetExtractionTest() : LightCodeInsightFixtureTestC
                     }
             )
 
+            val fileText = file.getText()
+            val expectedDescriptors =
+                    InTextDirectivesUtils.findLinesWithPrefixesRemoved(fileText, "// PARAM_DESCRIPTOR: ").joinToString()
+            val expectedTypes =
+                    InTextDirectivesUtils.findLinesWithPrefixesRemoved(fileText, "// PARAM_TYPES: ").map { "[$it]" }.joinToString()
+
+            val renderer = DescriptorRenderer.DEBUG_TEXT
+
             val editor = fixture.getEditor()
-            selectElements(editor, file) { (elements, nextSibling) ->
-                ExtractKotlinFunctionHandler().doInvoke(editor, file, elements, explicitNextSibling ?: nextSibling)
+            selectElements(editor, file) { (elements, previousSibling) ->
+                ExtractKotlinFunctionHandler().doInvoke(editor, file, elements, explicitPreviousSibling ?: previousSibling) {
+                    val allParameters = ContainerUtil.createMaybeSingletonList(it.receiverParameter) + it.parameters
+                    val actualDescriptors = allParameters.map { renderer.render(it.originalDescriptor) }.joinToString()
+                    val actualTypes = allParameters.map {
+                        it.parameterTypeCandidates.map { renderer.renderType(it) }.joinToString(", ", "[", "]")
+                    }.joinToString()
+
+                    assertEquals(expectedDescriptors, actualDescriptors, "Expected descriptors mismatch.")
+                    assertEquals(expectedTypes, actualTypes, "Expected types mismatch.")
+                }
             }
         }
     }
@@ -88,7 +113,7 @@ public abstract class AbstractJetExtractionTest() : LightCodeInsightFixtureTestC
             JetTestUtils.assertEqualsToFile(afterFile, file.getText()!!)
         }
         catch(e: Exception) {
-            val message = if (e is ConflictsInTestsException) e.getMessages().sort().makeString(" ") else e.getMessage()
+            val message = if (e is ConflictsInTestsException) e.getMessages().sort().joinToString(" ") else e.getMessage()
             JetTestUtils.assertEqualsToFile(conflictFile, message?.replace("\n", " ") ?: e.javaClass.getName())
         }
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2013 JetBrains s.r.o.
+ * Copyright 2010-2014 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -54,6 +54,17 @@ public interface DescriptorRenderer extends Renderer<DeclarationDescriptor> {
             .setModifiers()
             .setStartFromName(true).build();
 
+    DescriptorRenderer ONLY_NAMES_WITH_SHORT_TYPES = new DescriptorRendererBuilder()
+            .setWithDefinedIn(false)
+            .setModifiers()
+            .setShortNames(true)
+            .setWithoutTypeParameters(true)
+            .setWithoutFunctionParameterNames(true)
+            .setReceiverAfterName(true)
+            .setRenderClassObjectName(true)
+            .setWithoutSuperTypes(true)
+            .setStartFromName(true).build();
+
     DescriptorRenderer FQ_NAMES_IN_TYPES = new DescriptorRendererBuilder().build();
 
     DescriptorRenderer SHORT_NAMES_IN_TYPES = new DescriptorRendererBuilder().setShortNames(true).setIncludeSynthesizedParameterNames(false).build();
@@ -62,6 +73,11 @@ public interface DescriptorRenderer extends Renderer<DeclarationDescriptor> {
 
     DescriptorRenderer HTML_COMPACT_WITH_MODIFIERS = new DescriptorRendererBuilder()
             .setWithDefinedIn(false)
+            .setTextFormat(TextFormat.HTML).build();
+
+    DescriptorRenderer HTML_NAMES_WITH_SHORT_TYPES = new DescriptorRendererBuilder()
+            .setWithDefinedIn(false)
+            .setShortNames(true)
             .setTextFormat(TextFormat.HTML).build();
 
     DescriptorRenderer HTML = new DescriptorRendererBuilder().setTextFormat(TextFormat.HTML).build();

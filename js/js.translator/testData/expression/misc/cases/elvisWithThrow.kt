@@ -1,9 +1,5 @@
 package foo
 
-fun assertEquals<T>(expected: T, actual: T) {
-    if (expected != actual) throw Exception("expected: $expected, actual: $actual")
-}
-
 var i = 0
 fun bar(): Any? {
     i++
@@ -11,7 +7,7 @@ fun bar(): Any? {
 }
 
 native
-val Exception.message: String = noImpl
+val Exception.message: String get() = noImpl
 
 fun box(): String {
     val a: String? = null

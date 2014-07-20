@@ -1,4 +1,16 @@
-// NEXT_SIBLING:
+// PARAM_TYPES: kotlin.Int, Comparable<Int>
+// PARAM_TYPES: kotlin.Int
+// PARAM_DESCRIPTOR: value-parameter val a: kotlin.Int defined in foo
+// PARAM_DESCRIPTOR: var b: kotlin.Int defined in foo
+// SIBLING:
+fun foo(a: Int): Int {
+    var b: Int = 1
+
+    b = i(a, b)
+
+    return b
+}
+
 fun i(a: Int, b: Int): Int {
     var b1 = b
     when {
@@ -11,12 +23,4 @@ fun i(a: Int, b: Int): Int {
     }
     println(b1)
     return b1
-}
-
-fun foo(a: Int): Int {
-    var b: Int = 1
-
-    b = i(a, b)
-
-    return b
 }

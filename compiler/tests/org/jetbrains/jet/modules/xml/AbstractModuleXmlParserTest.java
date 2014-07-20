@@ -18,25 +18,25 @@ package org.jetbrains.jet.modules.xml;
 
 import com.intellij.openapi.util.io.FileUtil;
 import junit.framework.TestCase;
+import kotlin.modules.Module;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.JetTestUtils;
 import org.jetbrains.jet.cli.common.messages.CompilerMessageLocation;
 import org.jetbrains.jet.cli.common.messages.CompilerMessageSeverity;
 import org.jetbrains.jet.cli.common.messages.MessageCollector;
 import org.jetbrains.jet.cli.common.messages.MessageRenderer;
-import org.jetbrains.jet.cli.common.modules.ModuleDescription;
+import org.jetbrains.jet.cli.common.modules.ModuleScriptData;
 import org.jetbrains.jet.cli.common.modules.ModuleXmlParser;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.List;
 
 public abstract class AbstractModuleXmlParserTest extends TestCase {
 
     protected void doTest(String xmlPath) throws IOException {
         File txtFile = new File(FileUtil.getNameWithoutExtension(xmlPath) + ".txt");
 
-        List<ModuleDescription> result = ModuleXmlParser.parse(xmlPath, new MessageCollector() {
+        ModuleScriptData result = ModuleXmlParser.parseModuleScript(xmlPath, new MessageCollector() {
             @Override
             public void report(
                     @NotNull CompilerMessageSeverity severity, @NotNull String message, @NotNull CompilerMessageLocation location
@@ -46,8 +46,12 @@ public abstract class AbstractModuleXmlParserTest extends TestCase {
         });
 
         StringBuilder sb = new StringBuilder();
-        for (ModuleDescription description : result) {
-            sb.append(description).append("\n");
+        if (result.getIncrementalCacheDir() != null) {
+            sb.append("incrementalCacheDir=").append(result.getIncrementalCacheDir()).append("\n\n");
+        }
+
+        for (Module module : result.getModules()) {
+            sb.append(moduleToString(module)).append("\n");
         }
 
         String actual = sb.toString();
@@ -58,5 +62,13 @@ public abstract class AbstractModuleXmlParserTest extends TestCase {
         }
 
         JetTestUtils.assertEqualsToFile(txtFile, actual);
+    }
+
+    private static String moduleToString(@NotNull Module module) {
+        return module.getModuleName() +
+               "\n\toutputDir=" + module.getOutputDirectory() +
+               "\n\tsources=" + module.getSourceFiles() +
+               "\n\tclasspath=" + module.getClasspathRoots() +
+               "\n\tannotations=" + module.getAnnotationsRoots();
     }
 }

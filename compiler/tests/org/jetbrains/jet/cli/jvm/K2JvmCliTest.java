@@ -56,4 +56,14 @@ public class K2JvmCliTest extends CliBaseTest {
     public void classpath() throws Exception {
         executeCompilerCompareOutputJVM();
     }
+
+    @Test
+    public void signatureClash() throws Exception {
+        executeCompilerCompareOutputJVM();
+    }
+
+    @Test
+    public void conflictingOverloads() throws Exception {
+        executeCompilerCompareOutputJVM();
+    }
 }

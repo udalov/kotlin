@@ -16,45 +16,35 @@
 
 package org.jetbrains.jet.j2k.ast
 
-import org.jetbrains.jet.j2k.ast.types.Type
 import org.jetbrains.jet.j2k.*
-import java.util.ArrayList
 
-open class Field(
+class Field(
         val identifier: Identifier,
-        comments: MemberComments,
-        modifiers: Set<Modifier>,
+        annotations: Annotations,
+        modifiers: Modifiers,
         val `type`: Type,
         val initializer: Element,
-        val writingAccesses: Int
-) : Member(comments, modifiers) {
+        val isVal: Boolean,
+        val explicitType: Boolean,
+        private val defaultInitializer: Boolean
+) : Member(annotations, modifiers) {
 
-    fun modifiersToKotlin(): String {
-        val modifierList = ArrayList<Modifier>()
-        if (isAbstract()) {
-            modifierList.add(Modifier.ABSTRACT)
+    override fun generateCode(builder: CodeBuilder) {
+        builder.append(annotations)
+                .appendWithSpaceAfter(modifiers)
+                .append(if (isVal) "val " else "var ")
+                .append(identifier)
+
+        if (explicitType) {
+            builder append ":" append `type`
         }
 
-        val modifier = accessModifier()
-        if (modifier != null) {
-            modifierList.add(modifier)
+        var initializerToUse = initializer
+        if (initializerToUse.isEmpty && defaultInitializer) {
+            initializerToUse = getDefaultInitializer(this) ?: Expression.Empty
         }
-
-        return modifierList.toKotlin() + (if (isVal()) "val " else "var ")
-    }
-
-    fun isVal(): Boolean = modifiers.contains(Modifier.FINAL)
-
-    override fun toKotlin(): String {
-        val declaration: String = commentsToKotlin() +
-        modifiersToKotlin() + identifier.toKotlin() + " : " + `type`.toKotlin()
-        if (initializer.isEmpty()) {
-            return declaration + ((if (isVal() && !isStatic() && writingAccesses != 0)
-                ""
-            else
-                " = " + getDefaultInitializer(this)))
+        if (!initializerToUse.isEmpty) {
+            builder append " = " append initializerToUse
         }
-
-        return declaration + " = " + initializer.toKotlin()
     }
 }

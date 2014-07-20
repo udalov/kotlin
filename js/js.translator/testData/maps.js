@@ -17,6 +17,35 @@
 (function () {
     "use strict";
 
+    /**
+     * @class
+     * @constructor
+     * @param {K} key
+     * @param {V} value
+     * @template K, V
+     */
+    function Entry(key, value) {
+        this.key = key;
+        this.value = value;
+    }
+
+    Entry.prototype.getKey = function () {
+        return this.key;
+    };
+
+    Entry.prototype.getValue = function () {
+        return this.value;
+    };
+
+    function hashMapPutAll (fromMap) {
+        var entries = fromMap.entrySet();
+        var it = entries.iterator();
+        while (it.hasNext()) {
+            var e = it.next();
+            this.put_wn2jw4$(e.getKey(), e.getValue());
+        }
+    }
+
     /** @const */
     var FUNCTION = "function";
     var arrayRemoveAt = (typeof Array.prototype.splice == FUNCTION) ?
@@ -39,6 +68,8 @@
                         };
 
     function hashObject(obj) {
+        if (obj == null) return "";
+
         var hashCode;
         if (typeof obj == "string") {
             return obj;
@@ -68,22 +99,10 @@
     }
 
     function equals_fixedValueNoEquals(fixedValue, variableValue) {
-        return (typeof variableValue.equals_za3rmp$ == FUNCTION) ?
+        return (variableValue != null && typeof variableValue.equals_za3rmp$ == FUNCTION) ?
+               // TODO: test this case
                variableValue.equals_za3rmp$(fixedValue) : (fixedValue === variableValue);
     }
-
-    function createKeyValCheck(kvStr) {
-        return function (kv) {
-            if (kv === null) {
-                throw new Error("null is not a valid " + kvStr);
-            }
-            else if (typeof kv == "undefined") {
-                throw new Error(kvStr + " must not be undefined");
-            }
-        };
-    }
-
-    var checkKey = createKeyValCheck("key"), checkValue = createKeyValCheck("value");
 
     /**
      * @constructor
@@ -138,7 +157,7 @@
 
     Bucket.prototype = {
         getEqualityFunction: function (searchValue) {
-            return (typeof searchValue.equals_za3rmp$ == FUNCTION) ? equals_fixedValueHasEquals : equals_fixedValueNoEquals;
+            return (searchValue != null && typeof searchValue.equals_za3rmp$ == FUNCTION) ? equals_fixedValueHasEquals : equals_fixedValueNoEquals;
         },
 
         getEntryForKey: createBucketSearcher(ENTRY),
@@ -149,7 +168,7 @@
             var result = this.getEntryAndIndexForKey(key);
             if (result) {
                 arrayRemoveAt(this.entries, result[0]);
-                return result[1];
+                return result;
             }
             return null;
         },
@@ -224,8 +243,6 @@
         var equalityFunction = (typeof equalityFunctionParam == FUNCTION) ? equalityFunctionParam : null;
 
         this.put_wn2jw4$ = function (key, value) {
-            checkKey(key);
-            checkValue(value);
             var hash = hashingFunction(key), bucket, bucketEntry, oldValue = null;
 
             // Check if a bucket exists for the bucket key
@@ -253,8 +270,6 @@
         };
 
         this.get_za3rmp$ = function (key) {
-            checkKey(key);
-
             var hash = hashingFunction(key);
 
             // Check if a bucket exists for the bucket key
@@ -271,7 +286,6 @@
         };
 
         this.containsKey_za3rmp$ = function (key) {
-            checkKey(key);
             var bucketKey = hashingFunction(key);
 
             // Check if a bucket exists for the bucket key
@@ -281,7 +295,6 @@
         };
 
         this.containsValue_za3rmp$ = function (value) {
-            checkValue(value);
             var i = buckets.length;
             while (i--) {
                 if (buckets[i].containsValue_za3rmp$(value)) {
@@ -325,17 +338,17 @@
         };
 
         this.remove_za3rmp$ = function (key) {
-            checkKey(key);
-
-            var hash = hashingFunction(key), bucketIndex, oldValue = null;
+            var hash = hashingFunction(key), bucketIndex, oldValue = null, result = null;
 
             // Check if a bucket exists for the bucket key
             var bucket = getBucketForHash(bucketsByHash, hash);
 
             if (bucket) {
                 // Remove entry from this bucket for this key
-                oldValue = bucket.removeEntryForKey(key);
-                if (oldValue !== null) {
+                result = bucket.removeEntryForKey(key);
+                if (result !== null) {
+                    oldValue = result[1];
+
                     // Entry was removed, so check if bucket is empty
                     if (!bucket.entries.length) {
                         // Bucket is empty, so remove it from the bucket collections
@@ -366,24 +379,8 @@
 
         /**
          * @param {Hashtable.<Key, Value>} hashtable
-         * @param {(function(Key, Value, Value): Value)=} conflictCallback
          */
-        this.putAll_za3j1t$ = function (hashtable, conflictCallback) {
-            var entries = hashtable._entries();
-            var entry, key, value, thisValue, i = entries.length;
-            var hasConflictCallback = (typeof conflictCallback == FUNCTION);
-            while (i--) {
-                entry = entries[i];
-                key = entry[0];
-                value = entry[1];
-
-                // Check for a conflict. The default behaviour is to overwrite the value for an existing key
-                if (hasConflictCallback && (thisValue = that.get(key))) {
-                    value = conflictCallback(key, thisValue, value);
-                }
-                that.put_wn2jw4$(key, value);
-            }
-        };
+        this.putAll_za3j1t$ = hashMapPutAll;
 
         this.clone = function () {
             var clone = new Hashtable(hashingFunctionParam, equalityFunctionParam);
@@ -400,26 +397,36 @@
             }
             return res;
         };
+
+        this.entrySet = function () {
+            var result = new Kotlin.ComplexHashSet();
+            var entries = this._entries();
+            var i = entries.length;
+            while (i--) {
+                var entry = entries[i];
+                result.add_za3rmp$(new Entry(entry[0], entry[1]));
+            }
+
+            return result;
+        }
     };
 
     Kotlin.HashTable = Hashtable;
-})();
 
-/**
- * @interface
- * @template Key, Value
- */
-Kotlin.Map = Kotlin.createClassNow();
+    /**
+     * @interface
+     * @template Key, Value
+     */
+    Kotlin.Map = Kotlin.createClassNow();
 
-Kotlin.HashMap = Kotlin.createClassNow(Kotlin.Map,
-    function () {
-        Kotlin.HashTable.call(this);
-    }
-);
+    Kotlin.HashMap = Kotlin.createClassNow(Kotlin.Map,
+        function () {
+            Kotlin.HashTable.call(this);
+        }
+    );
 
-Kotlin.ComplexHashMap = Kotlin.HashMap;
+    Kotlin.ComplexHashMap = Kotlin.HashMap;
 
-(function () {
     /**
      * @class
      * @implements Kotlin.Iterator.<Value>
@@ -477,7 +484,7 @@ Kotlin.ComplexHashMap = Kotlin.HashMap;
     Kotlin.PrimitiveHashMap = Kotlin.createClassNow(Kotlin.Map,
         function () {
             this.$size = 0;
-            this.map = {};
+            this.map = Object.create(null);
         }, {
             size: function () {
                 return this.$size;
@@ -486,12 +493,14 @@ Kotlin.ComplexHashMap = Kotlin.HashMap;
                 return this.$size === 0;
             },
             containsKey_za3rmp$: function (key) {
+                // TODO: should process "__proto__" separately?
                 return this.map[key] !== undefined;
             },
             containsValue_za3rmp$: function (value) {
                 var map = this.map;
                 for (var key in map) {
-                    if (map.hasOwnProperty(key) && map[key] === value) {
+                    //noinspection JSUnfilteredForInLoop
+                    if (map[key] === value) {
                         return true;
                     }
                 }
@@ -521,22 +530,23 @@ Kotlin.ComplexHashMap = Kotlin.HashMap;
                 this.$size = 0;
                 this.map = {};
             },
-            putAll_za3j1t$: function (fromMap) {
-                var map = fromMap.map;
+            putAll_za3j1t$: hashMapPutAll,
+            entrySet: function () {
+                var result = new Kotlin.ComplexHashSet();
+                var map = this.map;
                 for (var key in map) {
-                    if (map.hasOwnProperty(key)) {
-                        this.map[key] = map[key];
-                        this.$size++;
-                    }
+                    //noinspection JSUnfilteredForInLoop
+                    result.add_za3rmp$(new Entry(key, map[key]));
                 }
+
+                return result;
             },
             keySet: function () {
                 var result = new Kotlin.PrimitiveHashSet();
                 var map = this.map;
                 for (var key in map) {
-                    if (map.hasOwnProperty(key)) {
-                        result.add_za3rmp$(key);
-                    }
+                    //noinspection JSUnfilteredForInLoop
+                    result.add_za3rmp$(key);
                 }
 
                 return result;
@@ -548,6 +558,99 @@ Kotlin.ComplexHashMap = Kotlin.HashMap;
                 return this.map;
             }
     });
+
+    function LinkedHashMap() {
+        Kotlin.ComplexHashMap.call(this);
+        this.orderedKeys = [];
+
+        this.super_put_wn2jw4$ = this.put_wn2jw4$;
+        this.put_wn2jw4$ = function(key, value) {
+            if (!this.containsKey_za3rmp$(key)) {
+                this.orderedKeys.push(key);
+            }
+
+            return this.super_put_wn2jw4$(key, value);
+        };
+
+        this.super_remove_za3rmp$ = this.remove_za3rmp$;
+        this.remove_za3rmp$ = function(key) {
+            var i = this.orderedKeys.indexOf(key);
+            if (i != -1) {
+                this.orderedKeys.splice(i, 1);
+            }
+
+            return this.super_remove_za3rmp$(key);
+        };
+
+        this.super_clear = this.clear;
+        this.clear = function() {
+            this.super_clear();
+            this.orderedKeys = [];
+        };
+
+        this.keySet = function() {
+            // TODO return special Set which unsupported adding
+            var set = new Kotlin.LinkedHashSet();
+            set.map = this;
+            return set;
+        };
+
+        this.values = function() {
+            var set = new Kotlin.LinkedHashSet();
+
+            for (var i = 0, c = this.orderedKeys, l = c.length; i < l; i++) {
+                set.add_za3rmp$(this.get_za3rmp$(c[i]));
+            }
+
+            return set;
+        };
+
+        this.entrySet = function() {
+            var set = new Kotlin.LinkedHashSet();
+
+            for (var i = 0, c = this.orderedKeys, l = c.length; i < l; i++) {
+                set.add_za3rmp$(new Entry(c[i], this.get_za3rmp$(c[i])));
+            }
+
+            return set;
+        };
+    }
+
+    LinkedHashMap.prototype = Object.create(Kotlin.ComplexHashMap);
+
+    Kotlin.LinkedHashMap = LinkedHashMap;
+
+
+    Kotlin.LinkedHashSet = Kotlin.createClassNow(Kotlin.AbstractCollection,
+        /** @constructs */
+        function () {
+            this.map = new Kotlin.LinkedHashMap();
+        },
+        /** @lends {Kotlin.LinkedHashSet.prototype} */
+        {
+            size: function () {
+                return this.map.size()
+            },
+            contains_za3rmp$: function (element) {
+                return this.map.containsKey_za3rmp$(element);
+            },
+            iterator: function () {
+                return new SetIterator(this);
+            },
+            add_za3rmp$: function (element) {
+                return this.map.put_wn2jw4$(element, true) == null;
+            },
+            remove_za3rmp$: function (element) {
+                return this.map.remove_za3rmp$(element) != null;
+            },
+            clear: function () {
+                this.map.clear();
+            },
+            toArray: function () {
+                return this.map.orderedKeys.slice();
+            }
+    });
+
 }());
 
 /**

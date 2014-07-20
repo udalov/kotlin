@@ -25,11 +25,12 @@ import org.jetbrains.jet.di.InjectorForTests;
 import org.jetbrains.jet.lang.descriptors.FunctionDescriptor;
 import org.jetbrains.jet.lang.descriptors.ModuleDescriptor;
 import org.jetbrains.jet.lang.psi.JetNamedFunction;
-import org.jetbrains.jet.lang.psi.JetPsiFactory;
 import org.jetbrains.jet.lang.resolve.DescriptorResolver;
 import org.jetbrains.jet.lang.resolve.OverridingUtil;
 import org.jetbrains.jet.lang.resolve.calls.autocasts.DataFlowInfo;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
+
+import static org.jetbrains.jet.lang.psi.PsiPackage.JetPsiFactory;
 
 public class JetOverridingTest extends JetLiteFixture {
 
@@ -163,12 +164,12 @@ public class JetOverridingTest extends JetLiteFixture {
     private void assertOverridabilityRelation(String superFun, String subFun, boolean expectedIsError) {
         FunctionDescriptor a = makeFunction(superFun);
         FunctionDescriptor b = makeFunction(subFun);
-        OverridingUtil.OverrideCompatibilityInfo overridableWith = OverridingUtil.isOverridableBy(a, b);
+        OverridingUtil.OverrideCompatibilityInfo overridableWith = OverridingUtil.DEFAULT.isOverridableBy(a, b);
         assertEquals(overridableWith.getMessage(), expectedIsError, overridableWith.getResult() != OverridingUtil.OverrideCompatibilityInfo.Result.OVERRIDABLE);
     }
 
     private FunctionDescriptor makeFunction(String funDecl) {
-        JetNamedFunction function = JetPsiFactory.createFunction(getProject(), funDecl);
+        JetNamedFunction function = JetPsiFactory(getProject()).createFunction(funDecl);
         return descriptorResolver.resolveFunctionDescriptor(root, KotlinBuiltIns.getInstance().getBuiltInsPackageScope(), function,
                                                             JetTestUtils.DUMMY_TRACE, DataFlowInfo.EMPTY);
     }

@@ -33,6 +33,7 @@ import org.jetbrains.jet.JetNodeTypes
 import java.math.BigInteger
 import org.jetbrains.jet.lang.diagnostics.Errors
 import com.intellij.psi.util.PsiTreeUtil
+import org.jetbrains.jet.lang.resolve.bindingContextUtil.getResolvedCall
 
 public class ConstantExpressionEvaluator private (val trace: BindingTrace) : JetVisitor<CompileTimeConstant<*>, JetType>() {
 
@@ -40,6 +41,17 @@ public class ConstantExpressionEvaluator private (val trace: BindingTrace) : Jet
         public fun evaluate(expression: JetExpression, trace: BindingTrace, expectedType: JetType? = TypeUtils.NO_EXPECTED_TYPE): CompileTimeConstant<*>? {
             val evaluator = ConstantExpressionEvaluator(trace)
             return evaluator.evaluate(expression, expectedType)
+        }
+
+        public fun isPropertyCompileTimeConstant(descriptor: VariableDescriptor): Boolean {
+            if (descriptor.isVar()) {
+                return false
+            }
+            if (DescriptorUtils.isClassObject(descriptor.getContainingDeclaration()) || DescriptorUtils.isTopLevelDeclaration(descriptor)) {
+                val returnType = descriptor.getType()
+                return KotlinBuiltIns.getInstance().isPrimitiveType(returnType) || KotlinBuiltIns.getInstance().getStringType() == returnType
+            }
+            return false
         }
     }
 
@@ -168,7 +180,7 @@ public class ConstantExpressionEvaluator private (val trace: BindingTrace) : Jet
     }
 
     private fun evaluateCall(callExpression: JetExpression, receiverExpression: JetExpression, expectedType: JetType?): CompileTimeConstant<*>? {
-        val resolvedCall = trace.getBindingContext().get(BindingContext.RESOLVED_CALL, callExpression)
+        val resolvedCall = callExpression.getResolvedCall(trace.getBindingContext())
         if (resolvedCall == null) return null
 
         val resultingDescriptorName = resolvedCall.getResultingDescriptor().getName()
@@ -298,7 +310,7 @@ public class ConstantExpressionEvaluator private (val trace: BindingTrace) : Jet
             return EnumValue(enumDescriptor as ClassDescriptor, false);
         }
 
-        val resolvedCall = trace.getBindingContext().get(BindingContext.RESOLVED_CALL, expression)
+        val resolvedCall = expression.getResolvedCall(trace.getBindingContext())
         if (resolvedCall != null) {
             val callableDescriptor = resolvedCall.getResultingDescriptor()
             if (callableDescriptor is VariableDescriptor) {
@@ -311,7 +323,7 @@ public class ConstantExpressionEvaluator private (val trace: BindingTrace) : Jet
                         else
                             compileTimeConstant.getValue()
                 return createCompileTimeConstant(value, expectedType, isPure = false,
-                                                 canBeUsedInAnnotation = DescriptorUtils.isPropertyCompileTimeConstant(callableDescriptor),
+                                                 canBeUsedInAnnotation = isPropertyCompileTimeConstant(callableDescriptor),
                                                  usesVariableAsConstant = true)
             }
         }
@@ -340,7 +352,7 @@ public class ConstantExpressionEvaluator private (val trace: BindingTrace) : Jet
     }
 
     override fun visitCallExpression(expression: JetCallExpression, expectedType: JetType?): CompileTimeConstant<*>? {
-        val call = trace.getBindingContext().get(BindingContext.RESOLVED_CALL, expression.getCalleeExpression())
+        val call = expression.getResolvedCall(trace.getBindingContext())
         if (call == null) return null
 
         val resultingDescriptor = call.getResultingDescriptor()

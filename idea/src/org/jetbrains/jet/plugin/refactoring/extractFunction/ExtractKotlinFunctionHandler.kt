@@ -32,14 +32,11 @@ import org.jetbrains.jet.lang.psi.JetFile
 import com.intellij.psi.util.PsiTreeUtil
 import org.jetbrains.jet.lang.psi.JetElement
 import org.jetbrains.jet.plugin.refactoring.getAllExtractionContainers
-import com.intellij.refactoring.IntroduceTargetChooser
-import com.intellij.openapi.util.Pass
 import com.intellij.openapi.application.ApplicationManager
 import org.jetbrains.jet.lang.psi.psiUtil.getOutermostParentContainedIn
 import org.jetbrains.jet.plugin.refactoring.checkConflictsInteractively
 import org.jetbrains.jet.plugin.refactoring.executeWriteCommand
 import org.jetbrains.jet.lang.psi.JetBlockExpression
-import org.jetbrains.jet.lang.psi.JetClassOrObject
 import org.jetbrains.jet.lang.psi.JetClassBody
 import kotlin.test.fail
 import org.jetbrains.jet.lang.psi.JetDeclarationWithBody
@@ -50,38 +47,57 @@ import javax.swing.event.HyperlinkEvent
 import com.intellij.refactoring.BaseRefactoringProcessor.ConflictsInTestsException
 import com.intellij.ui.awt.RelativePoint
 import com.intellij.openapi.ui.popup.Balloon.Position
+import org.jetbrains.jet.lang.psi.psiUtil.getParentByType
+import org.jetbrains.jet.lang.psi.JetDeclaration
+import java.util.Collections
+import org.jetbrains.jet.lang.psi.JetProperty
+import org.jetbrains.jet.lang.psi.JetParameterList
+import org.jetbrains.jet.lang.psi.JetClassInitializer
+import org.jetbrains.jet.lang.psi.JetFunctionLiteral
+import com.intellij.ide.util.PsiElementListCellRenderer
+import com.intellij.openapi.util.text.StringUtil
+import javax.swing.Icon
+import org.jetbrains.jet.plugin.refactoring.getPsiElementPopup
+import com.intellij.psi.PsiNamedElement
+import org.jetbrains.jet.plugin.util.collapseSpaces
+import org.jetbrains.jet.plugin.project.AnalyzerFacadeWithCache
+import org.jetbrains.jet.lang.resolve.BindingContext
+import org.jetbrains.jet.lang.descriptors.FunctionDescriptor
+import org.jetbrains.jet.renderer.DescriptorRenderer
+import org.jetbrains.jet.lang.psi.JetPropertyAccessor
+import org.jetbrains.jet.lang.psi.JetClassOrObject
 
-public class ExtractKotlinFunctionHandler : RefactoringActionHandler {
+public class ExtractKotlinFunctionHandler(public val allContainersEnabled: Boolean = false) : RefactoringActionHandler {
     fun doInvoke(
             editor: Editor,
             file: JetFile,
             elements: List<PsiElement>,
-            nextSibling: PsiElement
+            targetSibling: PsiElement,
+            preprocessor: ((ExtractionDescriptor) -> Unit)? = null
     ) {
         val project = file.getProject()
 
-        val analysisResult = ExtractionData(file, elements, nextSibling).performAnalysis()
+        val analysisResult = ExtractionData(file, elements, targetSibling).performAnalysis()
 
         if (ApplicationManager.getApplication()!!.isUnitTestMode() && analysisResult.status != Status.SUCCESS) {
             throw ConflictsInTestsException(analysisResult.messages.map { it.renderMessage() })
         }
 
-        fun proceedWithExtraction() {
-            val validationResult = analysisResult.descriptor!!.validate()
-            if (!project.checkConflictsInteractively(validationResult.conflicts)) return
-
-            val descriptor =
-                    if (ApplicationManager.getApplication()!!.isUnitTestMode()) {
-                        validationResult.descriptor
-                    }
-                    else {
-                        val dialog = KotlinExtractFunctionDialog(project, validationResult)
-                        if (!dialog.showAndGet()) return
-
-                        dialog.getCurrentDescriptor()
-                    }
-
+        fun doRefactor(descriptor: ExtractionDescriptor) {
+            preprocessor?.invoke(descriptor)
             project.executeWriteCommand(EXTRACT_FUNCTION) { descriptor.generateFunction() }
+        }
+
+        fun validateAndRefactor() {
+            val validationResult = analysisResult.descriptor!!.validate()
+            project.checkConflictsInteractively(validationResult.conflicts) {
+                if (ApplicationManager.getApplication()!!.isUnitTestMode()) {
+                    doRefactor(validationResult.descriptor)
+                }
+                else {
+                    KotlinExtractFunctionDialog(project, validationResult) { doRefactor(it.getCurrentDescriptor()) }.show()
+                }
+            }
         }
 
         val message = analysisResult.messages.map { it.renderMessage() }.makeString("\n")
@@ -101,7 +117,7 @@ public class ExtractKotlinFunctionHandler : RefactoringActionHandler {
                                 MessageType.WARNING,
                                 { event ->
                                     if (event?.getEventType() == HyperlinkEvent.EventType.ACTIVATED) {
-                                        proceedWithExtraction()
+                                        validateAndRefactor()
                                     }
                                 }
                         )
@@ -112,15 +128,15 @@ public class ExtractKotlinFunctionHandler : RefactoringActionHandler {
                         .show(anchorPoint, Position.below)
             }
 
-            Status.SUCCESS -> proceedWithExtraction()
+            Status.SUCCESS -> validateAndRefactor()
         }
     }
 
     override fun invoke(project: Project, editor: Editor, file: PsiFile, dataContext: DataContext?) {
         if (file !is JetFile) return
 
-        selectElements(editor, file) { (elements, targetNextSibling) ->
-            doInvoke(editor, file, elements, targetNextSibling)
+        selectElements(editor, file, allContainersEnabled) { (elements, targetSibling) ->
+            doInvoke(editor, file, elements, targetSibling)
         }
     }
 
@@ -142,7 +158,8 @@ private fun showErrorHintByKey(project: Project, editor: Editor, key: String) {
 fun selectElements(
         editor: Editor,
         file: PsiFile,
-        continuation: (elements: List<PsiElement>, targetNextSibling: PsiElement) -> Unit
+        allContainersEnabled: Boolean = false,
+        continuation: (elements: List<PsiElement>, targetSibling: PsiElement) -> Unit
 ) {
     fun noExpressionError() {
         showErrorHintByKey(file.getProject(), editor, "cannot.refactor.no.expression")
@@ -167,48 +184,108 @@ fun selectElements(
         continuation(elements, outermostParent)
     }
 
+    fun getContainers(element: PsiElement, strict: Boolean): List<JetElement> {
+        if (allContainersEnabled) return element.getAllExtractionContainers(strict)
+
+        val declaration = element.getParentByType(javaClass<JetDeclaration>(), strict)?.let { declaration ->
+            stream(declaration) { it.getParentByType(javaClass<JetDeclaration>(), true) }.firstOrNull { it !is JetFunctionLiteral }
+        } ?: return Collections.emptyList()
+
+        val parent = declaration.getParent()?.let {
+            when (it) {
+                is JetProperty -> it.getParent()
+                is JetParameterList -> it.getParent()?.getParent()
+                else -> it
+            }
+        }
+        return when (parent) {
+            is JetFile -> Collections.singletonList(parent)
+            is JetClassBody -> {
+                element.getAllExtractionContainers(strict).filterIsInstance(javaClass<JetClassBody>())
+            }
+            else -> {
+                val enclosingDeclaration =
+                        PsiTreeUtil.getNonStrictParentOfType(parent, javaClass<JetDeclarationWithBody>(), javaClass<JetClassInitializer>())
+                val targetContainer = when (enclosingDeclaration) {
+                    is JetDeclarationWithBody -> enclosingDeclaration.getBodyExpression()
+                    is JetClassInitializer -> enclosingDeclaration.getBody()
+                    else -> null
+                }
+                if (targetContainer is JetBlockExpression) Collections.singletonList(targetContainer) else Collections.emptyList()
+            }
+        }
+    }
+
     fun selectTargetContainer(elements: List<PsiElement>) {
         val parent = PsiTreeUtil.findCommonParent(elements)
             ?: throw AssertionError("Should have at least one parent: ${elements.makeString("\n")}")
 
-        val containers = parent.getAllExtractionContainers(elements.size == 1)
+        val containers = getContainers(parent, elements.size == 1)
         if (containers.empty) {
             noContainerError()
             return
         }
 
-        if (ApplicationManager.getApplication()!!.isUnitTestMode()) {
+        if (containers.size == 1 || ApplicationManager.getApplication()!!.isUnitTestMode()) {
             onSelectionComplete(parent, elements, containers[0])
             return
         }
 
-        IntroduceTargetChooser.showChooser(
+        getPsiElementPopup(
                 editor,
-                containers,
-                object: Pass<JetElement>() {
-                    override fun pass(targetContainer: JetElement?) {
-                        if (targetContainer == null) {
-                            noContainerError()
-                            return
+                containers.copyToArray(),
+                object: PsiElementListCellRenderer<JetElement>() {
+                    private fun JetElement.renderName(): String? {
+                        if (this is JetPropertyAccessor) {
+                            return (getParent() as JetProperty).renderName() + if (isGetter()) ".get" else ".set"
                         }
+                        return (this as? PsiNamedElement)?.getName() ?: "<anonymous>"
+                    }
 
-                        onSelectionComplete(parent, elements, targetContainer)
+                    private fun JetElement.renderDeclaration(): String? {
+                        val name = renderName()
+                        val descriptor = AnalyzerFacadeWithCache.getContextForElement(this)[BindingContext.DECLARATION_TO_DESCRIPTOR, this]
+                        val params = (descriptor as? FunctionDescriptor)?.let { descriptor ->
+                            descriptor.getValueParameters()
+                                    .map { DescriptorRenderer.SHORT_NAMES_IN_TYPES.renderType(it.getType()) }
+                                    .joinToString(", ", "(", ")")
+                        } ?: ""
+                        return "$name$params"
                     }
+
+                    private fun JetElement.renderText(): String {
+                        return StringUtil.shortenTextWithEllipsis(getText()!!.collapseSpaces(), 53, 0)
+                    }
+
+                    private fun JetElement.getRepresentativeElement(): JetElement {
+                        return when (this) {
+                            is JetBlockExpression -> (getParent() as? JetDeclarationWithBody) ?: this
+                            is JetClassBody -> getParent() as JetClassOrObject
+                            else -> this
+                        }
+                    }
+
+                    override fun getElementText(element: JetElement): String? {
+                        val representativeElement = element.getRepresentativeElement()
+                        return when (representativeElement) {
+                            is JetFile, is JetDeclarationWithBody, is JetClassOrObject -> representativeElement.renderDeclaration()
+                            else -> representativeElement.renderText()
+                        }
+                    }
+
+                    override fun getContainerText(element: JetElement?, name: String?): String? = null
+
+                    override fun getIconFlags(): Int = 0
+
+                    override fun getIcon(element: PsiElement?): Icon? =
+                            super.getIcon((element as? JetElement)?.getRepresentativeElement())
                 },
+                "Select target code block",
                 {
-                    when (it) {
-                        is JetFile -> "File: ${it.getName()}"
-                        is JetBlockExpression -> {
-                            (it.getParent() as? JetDeclarationWithBody)?.getText() ?: "...${it.getStatements().first?.getText()}"
-                        }
-                        is JetClassBody -> {
-                            (it.getParent() as? JetClassOrObject)?.getText()
-                        }
-                        else -> it?.getText()
-                    }
-                },
-                "Select target code block"
-        )
+                    onSelectionComplete(parent, elements, it)
+                    true
+                }
+        ).showInBestPositionFor(editor)
     }
 
     fun selectMultipleExpressions() {

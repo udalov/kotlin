@@ -27,27 +27,35 @@ import kotlin.Function3;
 import kotlin.Unit;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.jet.lang.cfg.pseudocodeTraverser.Edges;
-import org.jetbrains.jet.lang.cfg.pseudocodeTraverser.PseudocodeTraverserPackage;
 import org.jetbrains.jet.lang.cfg.PseudocodeVariablesData.VariableInitState;
 import org.jetbrains.jet.lang.cfg.PseudocodeVariablesData.VariableUseState;
-import org.jetbrains.jet.lang.cfg.pseudocode.*;
+import org.jetbrains.jet.lang.cfg.pseudocode.Pseudocode;
+import org.jetbrains.jet.lang.cfg.pseudocode.PseudocodeUtil;
+import org.jetbrains.jet.lang.cfg.pseudocode.instructions.Instruction;
+import org.jetbrains.jet.lang.cfg.pseudocode.instructions.InstructionVisitor;
+import org.jetbrains.jet.lang.cfg.pseudocode.instructions.JetElementInstruction;
+import org.jetbrains.jet.lang.cfg.pseudocode.instructions.eval.*;
+import org.jetbrains.jet.lang.cfg.pseudocode.instructions.jumps.*;
+import org.jetbrains.jet.lang.cfg.pseudocode.instructions.special.LocalFunctionDeclarationInstruction;
+import org.jetbrains.jet.lang.cfg.pseudocode.instructions.special.MarkInstruction;
+import org.jetbrains.jet.lang.cfg.pseudocode.instructions.special.SubroutineExitInstruction;
+import org.jetbrains.jet.lang.cfg.pseudocode.instructions.special.VariableDeclarationInstruction;
+import org.jetbrains.jet.lang.cfg.pseudocodeTraverser.Edges;
+import org.jetbrains.jet.lang.cfg.pseudocodeTraverser.PseudocodeTraverserPackage;
 import org.jetbrains.jet.lang.cfg.pseudocodeTraverser.TraversalOrder;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.diagnostics.Diagnostic;
 import org.jetbrains.jet.lang.diagnostics.DiagnosticFactory;
 import org.jetbrains.jet.lang.diagnostics.Errors;
 import org.jetbrains.jet.lang.psi.*;
-import org.jetbrains.jet.lang.resolve.BindingContext;
-import org.jetbrains.jet.lang.resolve.BindingContextUtils;
-import org.jetbrains.jet.lang.resolve.BindingTrace;
-import org.jetbrains.jet.lang.resolve.DescriptorUtils;
+import org.jetbrains.jet.lang.resolve.*;
 import org.jetbrains.jet.lang.resolve.calls.TailRecursionKind;
 import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCall;
 import org.jetbrains.jet.lang.resolve.scopes.receivers.ExpressionReceiver;
 import org.jetbrains.jet.lang.resolve.scopes.receivers.ReceiverValue;
 import org.jetbrains.jet.lang.resolve.scopes.receivers.ThisReceiver;
 import org.jetbrains.jet.lang.types.JetType;
+import org.jetbrains.jet.lang.types.expressions.ExpressionTypingUtils;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 import org.jetbrains.jet.lexer.JetTokens;
 import org.jetbrains.jet.plugin.MainFunctionDetector;
@@ -57,7 +65,9 @@ import java.util.*;
 import static org.jetbrains.jet.lang.cfg.PseudocodeVariablesData.VariableUseState.*;
 import static org.jetbrains.jet.lang.cfg.pseudocodeTraverser.TraversalOrder.FORWARD;
 import static org.jetbrains.jet.lang.diagnostics.Errors.*;
-import static org.jetbrains.jet.lang.resolve.BindingContext.*;
+import static org.jetbrains.jet.lang.resolve.BindingContext.CAPTURED_IN_CLOSURE;
+import static org.jetbrains.jet.lang.resolve.BindingContext.TAIL_RECURSION_CALL;
+import static org.jetbrains.jet.lang.resolve.bindingContextUtil.BindingContextUtilPackage.getResolvedCall;
 import static org.jetbrains.jet.lang.resolve.calls.TailRecursionKind.*;
 import static org.jetbrains.jet.lang.types.TypeUtils.NO_EXPECTED_TYPE;
 import static org.jetbrains.jet.lang.types.TypeUtils.noExpectedType;
@@ -114,8 +124,12 @@ public class JetFlowInformationProvider {
     }
 
     public void checkFunction(@Nullable JetType expectedReturnType) {
+        UnreachableCode unreachableCode = collectUnreachableCode();
+        reportUnreachableCode(unreachableCode);
 
-        checkDefiniteReturn(expectedReturnType != null ? expectedReturnType : NO_EXPECTED_TYPE);
+        if (subroutine instanceof JetFunctionLiteral) return;
+
+        checkDefiniteReturn(expectedReturnType != null ? expectedReturnType : NO_EXPECTED_TYPE, unreachableCode);
 
         markTailCalls();
     }
@@ -185,7 +199,7 @@ public class JetFlowInformationProvider {
             JetElement element = localDeclarationInstruction.getElement();
             if (element instanceof JetDeclarationWithBody) {
                 JetDeclarationWithBody localDeclaration = (JetDeclarationWithBody) element;
-                if (localDeclaration instanceof JetFunctionLiteral) continue;
+
                 CallableDescriptor functionDescriptor =
                         (CallableDescriptor) trace.getBindingContext().get(BindingContext.DECLARATION_TO_DESCRIPTOR, localDeclaration);
                 JetType expectedType = functionDescriptor != null ? functionDescriptor.getReturnType() : null;
@@ -198,7 +212,7 @@ public class JetFlowInformationProvider {
         }
     }
 
-    public void checkDefiniteReturn(final @NotNull JetType expectedReturnType) {
+    public void checkDefiniteReturn(final @NotNull JetType expectedReturnType, @NotNull final UnreachableCode unreachableCode) {
         assert subroutine instanceof JetDeclarationWithBody;
         JetDeclarationWithBody function = (JetDeclarationWithBody) subroutine;
 
@@ -208,11 +222,6 @@ public class JetFlowInformationProvider {
         collectReturnExpressions(returnedExpressions);
 
         final boolean blockBody = function.hasBlockBody();
-
-        final Set<JetElement> rootUnreachableElements = collectUnreachableCode();
-        for (JetElement element : rootUnreachableElements) {
-            trace.report(UNREACHABLE_CODE.on(element));
-        }
 
         final boolean[] noReturnError = new boolean[] { false };
         for (JetElement returnedExpression : returnedExpressions) {
@@ -225,10 +234,12 @@ public class JetFlowInformationProvider {
                 }
 
                 @Override
-                public void visitExpression(@NotNull JetExpression expression) {
+                public void visitJetElement(@NotNull JetElement element) {
+                    if (!(element instanceof JetExpression || element instanceof JetWhenCondition)) return;
+
                     if (blockBody && !noExpectedType(expectedReturnType)
                             && !KotlinBuiltIns.getInstance().isUnit(expectedReturnType)
-                            && !rootUnreachableElements.contains(expression)) {
+                            && !unreachableCode.getElements().contains(element)) {
                         noReturnError[0] = true;
                     }
                 }
@@ -239,14 +250,25 @@ public class JetFlowInformationProvider {
         }
     }
 
-    private Set<JetElement> collectUnreachableCode() {
-        Collection<JetElement> unreachableElements = Lists.newArrayList();
-        for (Instruction deadInstruction : pseudocode.getDeadInstructions()) {
-            if (!(deadInstruction instanceof JetElementInstruction) || deadInstruction instanceof LoadUnitValueInstruction) continue;
+    private void reportUnreachableCode(@NotNull UnreachableCode unreachableCode) {
+        for (JetElement element : unreachableCode.getElements()) {
+            trace.report(UNREACHABLE_CODE.on(element, unreachableCode.getUnreachableTextRanges(element)));
+        }
+    }
 
-            JetElement element = ((JetElementInstruction) deadInstruction).getElement();
+    @NotNull
+    private UnreachableCode collectUnreachableCode() {
+        Set<JetElement> reachableElements = Sets.newHashSet();
+        Set<JetElement> unreachableElements = Sets.newHashSet();
+        for (Instruction instruction : pseudocode.getInstructionsIncludingDeadCode()) {
+            if (!(instruction instanceof JetElementInstruction)
+                    || instruction instanceof LoadUnitValueInstruction
+                    || instruction instanceof MergeInstruction
+                    || (instruction instanceof MagicInstruction && ((MagicInstruction) instruction).getSynthetic())) continue;
 
-            if (deadInstruction instanceof JumpInstruction) {
+            JetElement element = ((JetElementInstruction) instruction).getElement();
+
+            if (instruction instanceof JumpInstruction) {
                 boolean isJumpElement = element instanceof JetBreakExpression
                                         || element instanceof JetContinueExpression
                                         || element instanceof JetReturnExpression
@@ -254,10 +276,14 @@ public class JetFlowInformationProvider {
                 if (!isJumpElement) continue;
             }
 
-            unreachableElements.add(element);
+            if (instruction.getDead()) {
+                unreachableElements.add(element);
+            }
+            else {
+                reachableElements.add(element);
+            }
         }
-        // This is needed in order to highlight only '1 < 2' and not '1', '<' and '2' as well
-        return JetPsiUtil.findRootExpressions(unreachableElements);
+        return new UnreachableCodeImpl(reachableElements, unreachableElements);
     }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -274,7 +300,7 @@ public class JetFlowInformationProvider {
         final Set<VariableDescriptor> declaredVariables = pseudocodeVariablesData.getDeclaredVariables(pseudocode, true);
         final LexicalScopeVariableInfo lexicalScopeVariableInfo = pseudocodeVariablesData.getLexicalScopeVariableInfo();
 
-        final Map<Instruction, DiagnosticFactory> reportedDiagnosticMap = Maps.newHashMap();
+        final Map<Instruction, DiagnosticFactory<?>> reportedDiagnosticMap = Maps.newHashMap();
 
         PseudocodeTraverserPackage.traverse(
                 pseudocode, FORWARD, initializers,
@@ -440,7 +466,7 @@ public class JetFlowInformationProvider {
         if (variableDescriptor instanceof PropertyDescriptor && !ctxt.enterInitState.isInitialized && ctxt.exitInitState.isInitialized) {
             if (!variableDescriptor.isVar()) return false;
             if (!trace.get(BindingContext.BACKING_FIELD_REQUIRED, (PropertyDescriptor) variableDescriptor)) return false;
-            PsiElement property = BindingContextUtils.descriptorToDeclaration(trace.getBindingContext(), variableDescriptor);
+            PsiElement property = DescriptorToSourceUtils.descriptorToDeclaration(variableDescriptor);
             assert property instanceof JetProperty;
             if (((PropertyDescriptor) variableDescriptor).getModality() == Modality.FINAL && ((JetProperty) property).getSetter() == null) {
                 return false;
@@ -476,7 +502,7 @@ public class JetFlowInformationProvider {
             report(Errors.NOT_PROPERTY_BACKING_FIELD.on(element), cxtx);
             return true;
         }
-        PsiElement property = BindingContextUtils.descriptorToDeclaration(trace.getBindingContext(), variableDescriptor);
+        PsiElement property = DescriptorToSourceUtils.descriptorToDeclaration(variableDescriptor);
         boolean insideSelfAccessors = PsiTreeUtil.isAncestor(property, element, false);
         if (!trace.get(BindingContext.BACKING_FIELD_REQUIRED, (PropertyDescriptor) variableDescriptor) &&
                 // not to generate error in accessors of abstract properties, there is one: declared accessor of abstract property
@@ -548,7 +574,7 @@ public class JetFlowInformationProvider {
         final PseudocodeVariablesData pseudocodeVariablesData = getPseudocodeVariablesData();
         Map<Instruction, Edges<Map<VariableDescriptor, VariableUseState>>> variableStatusData =
                 pseudocodeVariablesData.getVariableUseStatusData();
-        final Map<Instruction, DiagnosticFactory> reportedDiagnosticMap = Maps.newHashMap();
+        final Map<Instruction, DiagnosticFactory<?>> reportedDiagnosticMap = Maps.newHashMap();
         InstructionDataAnalyzeStrategy<Map<VariableDescriptor, VariableUseState>> variableStatusAnalyzeStrategy =
                 new InstructionDataAnalyzeStrategy<Map<VariableDescriptor, VariableUseState>>() {
                     @Override
@@ -565,7 +591,7 @@ public class JetFlowInformationProvider {
                         VariableDescriptor variableDescriptor = PseudocodeUtil.extractVariableDescriptorIfAny(
                                 instruction, false, trace.getBindingContext());
                         if (variableDescriptor == null || !declaredVariables.contains(variableDescriptor)
-                                || !DescriptorUtils.isLocal(variableDescriptor.getContainingDeclaration(), variableDescriptor)) {
+                                || !ExpressionTypingUtils.isLocal(variableDescriptor.getContainingDeclaration(), variableDescriptor)) {
                             return;
                         }
                         PseudocodeVariablesData.VariableUseState variableUseState = in.get(variableDescriptor);
@@ -638,21 +664,23 @@ public class JetFlowInformationProvider {
 //  "Unused literals" in block
 
     public void markUnusedLiteralsInBlock() {
-        final Map<Instruction, DiagnosticFactory> reportedDiagnosticMap = Maps.newHashMap();
+        final Map<Instruction, DiagnosticFactory<?>> reportedDiagnosticMap = Maps.newHashMap();
         PseudocodeTraverserPackage.traverse(
                 pseudocode, FORWARD, new FunctionVoid1<Instruction>() {
                     @Override
                     public void execute(@NotNull Instruction instruction) {
-                        if (!(instruction instanceof ReadValueInstruction)) return;
-                        VariableContext ctxt = new VariableContext(instruction, reportedDiagnosticMap);
-                        JetElement element =
-                                ((ReadValueInstruction) instruction).getElement();
+                        if (!(instruction instanceof ReadValueInstruction || instruction instanceof MagicInstruction)) return;
+
+                        JetElement element = ((JetElementInstruction) instruction).getElement();
                         if (!(element instanceof JetFunctionLiteralExpression
                               || element instanceof JetConstantExpression
                               || element instanceof JetStringTemplateExpression
-                              || element instanceof JetSimpleNameExpression)) {
-                            return;
-                        }
+                              || element instanceof JetSimpleNameExpression)) return;
+
+                        if (!(element instanceof JetStringTemplateExpression || instruction instanceof ReadValueInstruction)) return;
+
+                        VariableContext ctxt = new VariableContext(instruction, reportedDiagnosticMap);
+
                         PsiElement parent = element.getParent();
                         if (parent instanceof JetBlockExpression) {
                             if (!JetPsiUtil.isImplicitlyUsed(element)) {
@@ -696,7 +724,7 @@ public class JetFlowInformationProvider {
                         if (!(instruction instanceof CallInstruction)) return;
                         CallInstruction callInstruction = (CallInstruction) instruction;
 
-                        ResolvedCall<?> resolvedCall = trace.get(RESOLVED_CALL, callInstruction.getElement());
+                        ResolvedCall<?> resolvedCall = getResolvedCall(callInstruction.getElement(), trace.getBindingContext());
                         if (resolvedCall == null) return;
 
                         // is this a recursive call?
@@ -828,13 +856,13 @@ public class JetFlowInformationProvider {
             trace.report(diagnostic);
             return;
         }
-        Map<Instruction, DiagnosticFactory> previouslyReported = ctxt.reportedDiagnosticMap;
+        Map<Instruction, DiagnosticFactory<?>> previouslyReported = ctxt.reportedDiagnosticMap;
         previouslyReported.put(instruction, diagnostic.getFactory());
 
         boolean alreadyReported = false;
         boolean sameErrorForAllCopies = true;
         for (Instruction copy : instruction.getCopies()) {
-            DiagnosticFactory previouslyReportedErrorFactory = previouslyReported.get(copy);
+            DiagnosticFactory<?> previouslyReportedErrorFactory = previouslyReported.get(copy);
             if (previouslyReportedErrorFactory != null) {
                 alreadyReported = true;
             }
@@ -857,7 +885,7 @@ public class JetFlowInformationProvider {
         }
     }
 
-    private static boolean mustBeReportedOnAllCopies(@NotNull DiagnosticFactory diagnosticFactory) {
+    private static boolean mustBeReportedOnAllCopies(@NotNull DiagnosticFactory<?> diagnosticFactory) {
         return diagnosticFactory == UNUSED_VARIABLE
                || diagnosticFactory == UNUSED_PARAMETER
                || diagnosticFactory == UNUSED_CHANGED_VALUE;
@@ -865,13 +893,13 @@ public class JetFlowInformationProvider {
 
 
     private class VariableContext {
-        final Map<Instruction, DiagnosticFactory> reportedDiagnosticMap;
+        final Map<Instruction, DiagnosticFactory<?>> reportedDiagnosticMap;
         final Instruction instruction;
         final VariableDescriptor variableDescriptor;
 
         private VariableContext(
                 @NotNull Instruction instruction,
-                @NotNull Map<Instruction, DiagnosticFactory> map
+                @NotNull Map<Instruction, DiagnosticFactory<?>> map
         ) {
             this.instruction = instruction;
             reportedDiagnosticMap = map;
@@ -885,7 +913,7 @@ public class JetFlowInformationProvider {
 
         private VariableInitContext(
                 @NotNull Instruction instruction,
-                @NotNull Map<Instruction, DiagnosticFactory> map,
+                @NotNull Map<Instruction, DiagnosticFactory<?>> map,
                 @NotNull Map<VariableDescriptor, VariableInitState> in,
                 @NotNull Map<VariableDescriptor, VariableInitState> out,
                 @NotNull LexicalScopeVariableInfo lexicalScopeVariableInfo
@@ -914,7 +942,7 @@ public class JetFlowInformationProvider {
 
         private VariableUseContext(
                 @NotNull Instruction instruction,
-                @NotNull Map<Instruction, DiagnosticFactory> map,
+                @NotNull Map<Instruction, DiagnosticFactory<?>> map,
                 @NotNull Map<VariableDescriptor, VariableUseState> in,
                 @NotNull Map<VariableDescriptor, VariableUseState> out
         ) {

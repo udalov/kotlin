@@ -25,7 +25,6 @@ import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.psi.Call;
 import org.jetbrains.jet.lang.psi.JetExpression;
-import org.jetbrains.jet.lang.psi.JetReferenceExpression;
 import org.jetbrains.jet.lang.psi.JetSuperExpression;
 import org.jetbrains.jet.lang.resolve.DescriptorUtils;
 import org.jetbrains.jet.lang.resolve.calls.autocasts.AutoCastUtils;
@@ -39,8 +38,11 @@ import org.jetbrains.jet.lang.types.ErrorUtils;
 import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.lang.types.PackageType;
 import org.jetbrains.jet.lang.types.checker.JetTypeChecker;
+import org.jetbrains.jet.lang.types.expressions.ExpressionTypingUtils;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
 
 import static org.jetbrains.jet.lang.resolve.calls.CallResolverUtil.isOrOverridesSynthesized;
 import static org.jetbrains.jet.lang.resolve.calls.tasks.ExplicitReceiverKind.*;
@@ -55,7 +57,7 @@ public class TaskPrioritizer {
             @NotNull Collection<ResolutionCandidate<D>> nonlocal
     ) {
         for (ResolutionCandidate<D> resolvedCall : allDescriptors) {
-            if (DescriptorUtils.isLocal(containerOfTheCurrentLocality, resolvedCall.getDescriptor())) {
+            if (ExpressionTypingUtils.isLocal(containerOfTheCurrentLocality, resolvedCall.getDescriptor())) {
                 local.add(resolvedCall);
             }
             else {
@@ -326,7 +328,7 @@ public class TaskPrioritizer {
         if (expectedThisObject == null) return true;
         List<ReceiverParameterDescriptor> receivers = scope.getImplicitReceiversHierarchy();
         for (ReceiverParameterDescriptor receiver : receivers) {
-            if (JetTypeChecker.INSTANCE.isSubtypeOf(receiver.getType(), expectedThisObject.getType())) {
+            if (JetTypeChecker.DEFAULT.isSubtypeOf(receiver.getType(), expectedThisObject.getType())) {
                 // TODO : Autocasts & nullability
                 candidate.setThisObject(expectedThisObject.getValue());
                 return true;

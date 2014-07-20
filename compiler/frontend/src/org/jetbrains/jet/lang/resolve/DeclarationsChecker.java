@@ -203,8 +203,7 @@ public class DeclarationsChecker {
                 if (conflictingTypes.size() > 1) {
                     DeclarationDescriptor containingDeclaration = typeParameterDescriptor.getContainingDeclaration();
                     assert containingDeclaration instanceof ClassDescriptor : containingDeclaration;
-                    JetClassOrObject psiElement = (JetClassOrObject) BindingContextUtils
-                            .classDescriptorToDeclaration(trace.getBindingContext(), classDescriptor);
+                    JetClassOrObject psiElement = (JetClassOrObject) DescriptorToSourceUtils.classDescriptorToDeclaration(classDescriptor);
                     JetDelegationSpecifierList delegationSpecifierList = psiElement.getDelegationSpecifierList();
                     assert delegationSpecifierList != null;
                     //                        trace.getErrorHandler().genericError(delegationSpecifierList.getNode(), "Type parameter " + typeParameterDescriptor.getName() + " of " + containingDeclaration.getName() + " has inconsistent values: " + conflictingTypes);
@@ -220,13 +219,13 @@ public class DeclarationsChecker {
         REMOVE_IF_SUBTYPE_IN_THE_SET {
             @Override
             public boolean removeNeeded(JetType subject, JetType other) {
-                return JetTypeChecker.INSTANCE.isSubtypeOf(other, subject);
+                return JetTypeChecker.DEFAULT.isSubtypeOf(other, subject);
             }
         },
         REMOVE_IF_SUPERTYPE_IN_THE_SET {
             @Override
             public boolean removeNeeded(JetType subject, JetType other) {
-                return JetTypeChecker.INSTANCE.isSubtypeOf(subject, other);
+                return JetTypeChecker.DEFAULT.isSubtypeOf(subject, other);
             }
         };
 
@@ -322,7 +321,7 @@ public class DeclarationsChecker {
     private void checkOpenMembers(ClassDescriptorWithResolutionScopes classDescriptor) {
         for (CallableMemberDescriptor memberDescriptor : classDescriptor.getDeclaredCallableMembers()) {
             if (memberDescriptor.getKind() != CallableMemberDescriptor.Kind.DECLARATION) continue;
-            JetNamedDeclaration member = (JetNamedDeclaration) BindingContextUtils.descriptorToDeclaration(trace.getBindingContext(), memberDescriptor);
+            JetNamedDeclaration member = (JetNamedDeclaration) DescriptorToSourceUtils.descriptorToDeclaration(memberDescriptor);
             if (member != null && classDescriptor.getModality() == Modality.FINAL && member.hasModifier(JetTokens.OPEN_KEYWORD)) {
                 trace.report(NON_FINAL_MEMBER_IN_FINAL_CLASS.on(member));
             }
@@ -402,10 +401,7 @@ public class DeclarationsChecker {
         }
     }
 
-    private void checkPropertyInitializer(
-            @NotNull JetProperty property,
-            @NotNull PropertyDescriptor propertyDescriptor
-    ) {
+    private void checkPropertyInitializer(@NotNull JetProperty property, @NotNull PropertyDescriptor propertyDescriptor) {
         JetPropertyAccessor getter = property.getGetter();
         JetPropertyAccessor setter = property.getSetter();
         boolean hasAccessorImplementation = (getter != null && getter.hasBody()) ||
@@ -421,14 +417,17 @@ public class DeclarationsChecker {
         boolean inTrait = containingDeclaration instanceof ClassDescriptor && ((ClassDescriptor)containingDeclaration).getKind() == ClassKind.TRAIT;
         JetExpression initializer = property.getInitializer();
         JetPropertyDelegate delegate = property.getDelegate();
-        boolean backingFieldRequired = trace.getBindingContext().get(BindingContext.BACKING_FIELD_REQUIRED, propertyDescriptor);
+        boolean backingFieldRequired =
+                Boolean.TRUE.equals(trace.getBindingContext().get(BindingContext.BACKING_FIELD_REQUIRED, propertyDescriptor));
 
         if (inTrait && backingFieldRequired && hasAccessorImplementation) {
             trace.report(BACKING_FIELD_IN_TRAIT.on(property));
         }
+
         if (initializer == null && delegate == null) {
             boolean error = false;
-            if (backingFieldRequired && !inTrait && !trace.getBindingContext().get(BindingContext.IS_INITIALIZED, propertyDescriptor)) {
+            if (backingFieldRequired && !inTrait &&
+                Boolean.FALSE.equals(trace.getBindingContext().get(BindingContext.IS_INITIALIZED, propertyDescriptor))) {
                 if (!(containingDeclaration instanceof ClassDescriptor) || hasAccessorImplementation) {
                     error = true;
                     trace.report(MUST_BE_INITIALIZED.on(property));
@@ -446,6 +445,7 @@ public class DeclarationsChecker {
             }
             return;
         }
+
         if (inTrait) {
             if (delegate != null) {
                 trace.report(DELEGATED_PROPERTY_IN_TRAIT.on(delegate));
@@ -454,8 +454,13 @@ public class DeclarationsChecker {
                 trace.report(PROPERTY_INITIALIZER_IN_TRAIT.on(initializer));
             }
         }
-        else if (!backingFieldRequired && delegate == null) {
-            trace.report(PROPERTY_INITIALIZER_NO_BACKING_FIELD.on(initializer));
+        else if (delegate == null) {
+            if (!backingFieldRequired) {
+                trace.report(PROPERTY_INITIALIZER_NO_BACKING_FIELD.on(initializer));
+            }
+            else if (property.getReceiverTypeRef() != null) {
+                trace.report(EXTENSION_PROPERTY_WITH_BACKING_FIELD.on(initializer));
+            }
         }
     }
 
