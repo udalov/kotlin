@@ -18,8 +18,8 @@ package org.jetbrains.jet.lang.resolve.lazy;
 
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.io.FileUtil;
-import junit.framework.Assert;
 import org.jetbrains.annotations.NonNls;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.ConfigurationKind;
 import org.jetbrains.jet.JetLiteFixture;
 import org.jetbrains.jet.JetTestUtils;
@@ -29,23 +29,16 @@ import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.resolve.ExpectedResolveData;
 import org.jetbrains.jet.resolve.JetExpectedResolveDataUtil;
+import org.junit.Assert;
 
 import java.io.File;
 import java.util.List;
 import java.util.Map;
 
 public abstract class AbstractLazyResolveTest extends JetLiteFixture {
-    private ExpectedResolveData expectedResolveData;
-
     @Override
     protected JetCoreEnvironment createEnvironment() {
         return createEnvironmentWithMockJdk(ConfigurationKind.JDK_AND_ANNOTATIONS);
-    }
-
-    @Override
-    protected void setUp() throws Exception {
-        super.setUp();
-        expectedResolveData = getExpectedResolveData();
     }
 
     protected ExpectedResolveData getExpectedResolveData() {
@@ -53,8 +46,8 @@ public abstract class AbstractLazyResolveTest extends JetLiteFixture {
 
         return new ExpectedResolveData(
                 JetExpectedResolveDataUtil.prepareDefaultNameToDescriptors(project),
-                JetExpectedResolveDataUtil.prepareDefaultNameToDeclaration(project),
-                getEnvironment()) {
+                JetExpectedResolveDataUtil.prepareDefaultNameToDeclaration(project)
+        ) {
             @Override
             protected JetFile createJetFile(String fileName, String text) {
                 return createCheckAndReturnPsiFile(fileName, null, text);
@@ -65,9 +58,12 @@ public abstract class AbstractLazyResolveTest extends JetLiteFixture {
     protected void doTest(@NonNls String testFile) throws Exception {
         String text = FileUtil.loadFile(new File(testFile), true);
 
+        final ExpectedResolveData expectedResolveData = getExpectedResolveData();
+
         List<JetFile> files = JetTestUtils.createTestFiles("file.kt", text, new JetTestUtils.TestFileFactoryNoModules<JetFile>() {
+            @NotNull
             @Override
-            public JetFile create(String fileName, String text, Map<String, String> directives) {
+            public JetFile create(@NotNull String fileName, @NotNull String text, @NotNull Map<String, String> directives) {
                 return expectedResolveData.createFileFromMarkedUpText(fileName, text);
             }
         });

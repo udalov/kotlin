@@ -1,7 +1,0 @@
-package test
-
-public open class PropertySimpleType : java.lang.Object {
-    public constructor PropertySimpleType()
-    public final var fieldOne: kotlin.String
-    public final var fieldTwo: kotlin.String?
-}

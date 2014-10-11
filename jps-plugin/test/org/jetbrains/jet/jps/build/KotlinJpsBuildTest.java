@@ -23,6 +23,8 @@ import com.intellij.util.containers.ContainerUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.codegen.AsmUtil;
+import org.jetbrains.jet.compiler.CompilerSettings;
+import org.jetbrains.jet.jps.JpsKotlinCompilerSettings;
 import org.jetbrains.jet.lang.resolve.kotlin.PackagePartClassUtils;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jps.builders.BuildResult;

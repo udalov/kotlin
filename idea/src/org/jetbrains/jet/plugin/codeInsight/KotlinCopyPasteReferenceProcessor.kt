@@ -61,12 +61,15 @@ import org.jetbrains.jet.lang.diagnostics.DiagnosticUtils
 import org.jetbrains.jet.plugin.imports.*
 import org.jetbrains.jet.lang.psi.psiUtil.getReceiverExpression
 import org.jetbrains.jet.utils.*
+import org.jetbrains.jet.renderer.DescriptorRenderer
+import org.jetbrains.jet.lang.resolve.descriptorUtil.isExtension
+import com.intellij.openapi.progress.ProcessCanceledException
 
 //NOTE: this class is based on CopyPasteReferenceProcessor and JavaCopyPasteReferenceProcessor
 public class KotlinCopyPasteReferenceProcessor() : CopyPastePostProcessor<ReferenceTransferableData>() {
 
     override fun extractTransferableData(content: Transferable): List<ReferenceTransferableData> {
-        if (CodeInsightSettings.getInstance()!!.ADD_IMPORTS_ON_PASTE != CodeInsightSettings.NO) {
+        if (CodeInsightSettings.getInstance().ADD_IMPORTS_ON_PASTE != CodeInsightSettings.NO) {
             try {
                 val flavor = ReferenceData.getDataFlavor()
                 if (flavor != null) {
@@ -92,7 +95,7 @@ public class KotlinCopyPasteReferenceProcessor() : CopyPastePostProcessor<Refere
             startOffsets: IntArray,
             endOffsets: IntArray
     ): List<ReferenceTransferableData> {
-        if (file !is JetFile) {
+        if (file !is JetFile || DumbService.getInstance(file.getProject()).isDumb()) {
             return listOf()
         }
 
@@ -103,6 +106,12 @@ public class KotlinCopyPasteReferenceProcessor() : CopyPastePostProcessor<Refere
                     collectReferenceDataFromElement(element, file, startOffset, startOffsets, endOffsets)
                 }
             }
+        }
+        catch (e: ProcessCanceledException) {
+            // supposedly session can only be canceled from another thread
+            // do not log ProcessCanceledException as it is rethrown by IdeaLogger and code won't be copied
+            LOG.error("ProcessCanceledException while analyzing references in ${file.getName()}. References can't be processed.")
+            return listOf()
         }
         catch (e: Throwable) {
             LOG.error("Exception in processing references for copy paste in file ${file.getName()}}", e)
@@ -182,7 +191,7 @@ public class KotlinCopyPasteReferenceProcessor() : CopyPastePostProcessor<Refere
             indented: Ref<Boolean>,
             values: List<ReferenceTransferableData>
     ) {
-        if (DumbService.getInstance(project)!!.isDumb()) {
+        if (DumbService.getInstance(project).isDumb()) {
             return
         }
         val document = editor.getDocument()
@@ -287,7 +296,7 @@ public class KotlinCopyPasteReferenceProcessor() : CopyPastePostProcessor<Refere
     }
 
     private fun showRestoreReferencesDialog(project: Project, referencesToRestore: List<ReferenceToRestoreData>): Collection<ReferenceToRestoreData> {
-        val shouldShowDialog = CodeInsightSettings.getInstance()!!.ADD_IMPORTS_ON_PASTE == CodeInsightSettings.ASK
+        val shouldShowDialog = CodeInsightSettings.getInstance().ADD_IMPORTS_ON_PASTE == CodeInsightSettings.ASK
         if (!shouldShowDialog || referencesToRestore.isEmpty()) {
             return referencesToRestore
         }
@@ -322,9 +331,8 @@ public class KotlinCopyPasteReferenceProcessor() : CopyPastePostProcessor<Refere
 
         fun lengthenReference(expression: JetElement, fqName: FqName) {
             assert(canLengthenReferenceExpression(expression, fqName))
-            val project = expression.getProject()
             val parent = expression.getParent()
-            val prefixToInsert = fqName.parent().asString()
+            val prefixToInsert = DescriptorRenderer.SOURCE_CODE.renderFqName(fqName.parent())
             val psiFactory = JetPsiFactory(expression)
             if (parent is JetCallExpression) {
                 val text = "$prefixToInsert.${parent.getText()}"
@@ -337,7 +345,7 @@ public class KotlinCopyPasteReferenceProcessor() : CopyPastePostProcessor<Refere
                 typeReference!!.replace(psiFactory.createType("$prefixToInsert.${typeReference.getText()}"))
             }
             else {
-                expression.replace(createQualifiedExpression(psiFactory, fqName.asString()))
+                expression.replace(createQualifiedExpression(psiFactory, DescriptorRenderer.SOURCE_CODE.renderFqName(fqName)))
             }
         }
 

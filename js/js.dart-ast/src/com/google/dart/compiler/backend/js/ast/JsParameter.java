@@ -5,23 +5,27 @@
 package com.google.dart.compiler.backend.js.ast;
 
 import com.google.dart.compiler.common.Symbol;
+import org.jetbrains.annotations.NotNull;
 
 /**
  * A JavaScript parameter.
  */
 public final class JsParameter extends SourceInfoAwareJsNode implements HasName {
+    @NotNull
     private final JsName name;
 
-    public JsParameter(JsName name) {
+    public JsParameter(@NotNull JsName name) {
         this.name = name;
     }
 
     @Override
+    @NotNull
     public JsName getName() {
         return name;
     }
 
     @Override
+    @NotNull
     public Symbol getSymbol() {
         return name;
     }
@@ -29,5 +33,17 @@ public final class JsParameter extends SourceInfoAwareJsNode implements HasName 
     @Override
     public void accept(JsVisitor v) {
         v.visitParameter(this);
+    }
+
+    @Override
+    public void traverse(JsVisitorWithContext v, JsContext ctx) {
+        v.visit(this, ctx);
+        v.endVisit(this, ctx);
+    }
+
+    @NotNull
+    @Override
+    public JsParameter deepCopy() {
+        return new JsParameter(name).withMetadataFrom(this);
     }
 }

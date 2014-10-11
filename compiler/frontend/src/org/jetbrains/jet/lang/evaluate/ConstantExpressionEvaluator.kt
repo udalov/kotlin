@@ -33,7 +33,7 @@ import org.jetbrains.jet.JetNodeTypes
 import java.math.BigInteger
 import org.jetbrains.jet.lang.diagnostics.Errors
 import com.intellij.psi.util.PsiTreeUtil
-import org.jetbrains.jet.lang.resolve.bindingContextUtil.getResolvedCall
+import org.jetbrains.jet.lang.resolve.calls.callUtil.getResolvedCall
 
 public class ConstantExpressionEvaluator private (val trace: BindingTrace) : JetVisitor<CompileTimeConstant<*>, JetType>() {
 
@@ -47,7 +47,7 @@ public class ConstantExpressionEvaluator private (val trace: BindingTrace) : Jet
             if (descriptor.isVar()) {
                 return false
             }
-            if (DescriptorUtils.isClassObject(descriptor.getContainingDeclaration()) || DescriptorUtils.isTopLevelDeclaration(descriptor)) {
+            if (DescriptorUtils.isClassObject(descriptor.getContainingDeclaration()) || DescriptorUtils.isStaticDeclaration(descriptor)) {
                 val returnType = descriptor.getType()
                 return KotlinBuiltIns.getInstance().isPrimitiveType(returnType) || KotlinBuiltIns.getInstance().getStringType() == returnType
             }
@@ -567,8 +567,8 @@ fun isIntegerType(value: Any?) = value is Byte || value is Short || value is Int
 
 private fun getReceiverExpressionType(resolvedCall: ResolvedCall<*>): JetType? {
     return when (resolvedCall.getExplicitReceiverKind()) {
-        ExplicitReceiverKind.THIS_OBJECT -> resolvedCall.getThisObject().getType()
-        ExplicitReceiverKind.RECEIVER_ARGUMENT -> resolvedCall.getReceiverArgument().getType()
+        ExplicitReceiverKind.DISPATCH_RECEIVER -> resolvedCall.getDispatchReceiver().getType()
+        ExplicitReceiverKind.EXTENSION_RECEIVER -> resolvedCall.getExtensionReceiver().getType()
         ExplicitReceiverKind.NO_EXPLICIT_RECEIVER -> null
         ExplicitReceiverKind.BOTH_RECEIVERS -> null
         else -> null

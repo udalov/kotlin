@@ -24,13 +24,13 @@ import com.intellij.psi.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.ImportPath;
-import org.jetbrains.jet.lang.resolve.java.AnalyzerFacadeForJVM;
-import org.jetbrains.jet.lang.resolve.java.JavaDescriptorResolver;
+import org.jetbrains.jet.lang.resolve.java.TopDownAnalyzerFacadeForJVM;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.NamePackage;
 import org.jetbrains.jet.plugin.project.ProjectStructureUtil;
 import org.jetbrains.jet.plugin.references.JetReference;
-import org.jetbrains.k2js.analyze.AnalyzerFacadeForJS;
+import org.jetbrains.jet.renderer.DescriptorRenderer;
+import org.jetbrains.k2js.analyze.TopDownAnalyzerFacadeForJS;
 
 import java.util.List;
 
@@ -85,8 +85,9 @@ public class ImportInsertHelper {
 
                 if (!same) {
                     Document document = PsiDocumentManager.getInstance(file.getProject()).getDocument(file);
+                    assert document != null;
                     TextRange refRange = reference.getElement().getTextRange();
-                    document.replaceString(refRange.getStartOffset(), refRange.getEndOffset(), importFqn.asString());
+                    document.replaceString(refRange.getStartOffset(), refRange.getEndOffset(), DescriptorRenderer.SOURCE_CODE.renderFqName(importFqn));
                 }
                 return;
             }
@@ -166,8 +167,8 @@ public class ImportInsertHelper {
 
     public static boolean isImportedWithDefault(@NotNull ImportPath importPath, @NotNull JetFile contextFile) {
         List<ImportPath> defaultImports = ProjectStructureUtil.isJsKotlinModule(contextFile)
-                                   ? AnalyzerFacadeForJS.DEFAULT_IMPORTS
-                                   : AnalyzerFacadeForJVM.DEFAULT_IMPORTS;
+                                   ? TopDownAnalyzerFacadeForJS.DEFAULT_IMPORTS
+                                   : TopDownAnalyzerFacadeForJVM.DEFAULT_IMPORTS;
         return NamePackage.isImported(importPath, defaultImports);
     }
 
@@ -180,11 +181,6 @@ public class ImportInsertHelper {
     }
 
     public static boolean needImport(@NotNull ImportPath importPath, @NotNull JetFile file, List<JetImportDirective> importDirectives) {
-        if (importPath.fqnPart().firstSegmentIs(JavaDescriptorResolver.JAVA_ROOT)) {
-            FqName withoutJavaRoot = NamePackage.withoutFirstSegment(importPath.fqnPart());
-            importPath = new ImportPath(withoutJavaRoot, importPath.isAllUnder(), importPath.getAlias());
-        }
-
         if (isImportedByDefault(importPath, file)) {
             return false;
         }

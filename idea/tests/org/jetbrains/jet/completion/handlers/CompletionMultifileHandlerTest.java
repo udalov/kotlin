@@ -22,7 +22,11 @@ import org.jetbrains.jet.plugin.PluginTestCaseBase;
 import java.io.File;
 
 public class CompletionMultifileHandlerTest extends KotlinCompletionTestCase {
-    public void testExtensionFunctions() throws Exception {
+    public void testExtensionFunctionImport() throws Exception {
+        doTest();
+    }
+
+    public void testExtensionPropertyImport() throws Exception {
         doTest();
     }
 
@@ -42,7 +46,19 @@ public class CompletionMultifileHandlerTest extends KotlinCompletionTestCase {
         doTest();
     }
 
+    public void testTopLevelPropertyImport() throws Exception {
+        doTest();
+    }
+
     public void testNoParenthesisInImports() throws Exception {
+        doTest();
+    }
+
+    public void testKeywordExtensionFunctionName() throws Exception {
+        doTest();
+    }
+
+    public void testInfixExtensionCallImport() throws Exception {
         doTest();
     }
 

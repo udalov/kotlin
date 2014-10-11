@@ -25,9 +25,9 @@ import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.PossiblyBareType;
 import org.jetbrains.jet.lang.resolve.TypeResolutionContext;
-import org.jetbrains.jet.lang.resolve.calls.autocasts.DataFlowInfo;
-import org.jetbrains.jet.lang.resolve.calls.autocasts.DataFlowValue;
-import org.jetbrains.jet.lang.resolve.calls.autocasts.DataFlowValueFactory;
+import org.jetbrains.jet.lang.resolve.calls.smartcasts.DataFlowInfo;
+import org.jetbrains.jet.lang.resolve.calls.smartcasts.DataFlowValue;
+import org.jetbrains.jet.lang.resolve.calls.smartcasts.DataFlowValueFactory;
 import org.jetbrains.jet.lang.resolve.calls.util.CallMaker;
 import org.jetbrains.jet.lang.resolve.scopes.WritableScope;
 import org.jetbrains.jet.lang.types.*;
@@ -55,10 +55,10 @@ public class PatternMatchingTypingVisitor extends ExpressionTypingVisitor {
         JetTypeInfo typeInfo = facade.safeGetTypeInfo(leftHandSide, context.replaceScope(context.scope));
         JetType knownType = typeInfo.getType();
         DataFlowInfo dataFlowInfo = typeInfo.getDataFlowInfo();
-        if (expression.getTypeRef() != null) {
+        if (expression.getTypeReference() != null) {
             DataFlowValue dataFlowValue = DataFlowValueFactory.createDataFlowValue(leftHandSide, knownType,
                                                                                    context.trace.getBindingContext());
-            DataFlowInfo conditionInfo = checkTypeForIs(context, knownType, expression.getTypeRef(), dataFlowValue).thenInfo;
+            DataFlowInfo conditionInfo = checkTypeForIs(context, knownType, expression.getTypeReference(), dataFlowValue).thenInfo;
             DataFlowInfo newDataFlowInfo = conditionInfo.and(dataFlowInfo);
             context.trace.record(BindingContext.DATAFLOW_INFO_AFTER_CONDITION, expression, newDataFlowInfo);
         }
@@ -71,10 +71,6 @@ public class PatternMatchingTypingVisitor extends ExpressionTypingVisitor {
     }
 
     public JetTypeInfo visitWhenExpression(JetWhenExpression expression, ExpressionTypingContext contextWithExpectedType, boolean isStatement) {
-        if (isStatement) {
-            contextWithExpectedType.trace.record(BindingContext.STATEMENT, expression);
-        }
-
         DataFlowUtils.recordExpectedType(contextWithExpectedType.trace, expression, contextWithExpectedType.expectedType);
 
         ExpressionTypingContext context = contextWithExpectedType.replaceExpectedType(NO_EXPECTED_TYPE).replaceContextDependency(INDEPENDENT);
@@ -195,8 +191,8 @@ public class PatternMatchingTypingVisitor extends ExpressionTypingVisitor {
                 if (subjectExpression == null) {
                     context.trace.report(EXPECTED_CONDITION.on(condition));
                 }
-                if (condition.getTypeRef() != null) {
-                    DataFlowInfos result = checkTypeForIs(context, subjectType, condition.getTypeRef(), subjectDataFlowValue);
+                if (condition.getTypeReference() != null) {
+                    DataFlowInfos result = checkTypeForIs(context, subjectType, condition.getTypeReference(), subjectDataFlowValue);
                     if (condition.isNegated()) {
                         newDataFlowInfo.set(new DataFlowInfos(result.elseInfo, result.thenInfo));
                     }
@@ -314,7 +310,7 @@ public class PatternMatchingTypingVisitor extends ExpressionTypingVisitor {
             @NotNull JetType subjectType,
             @NotNull JetElement reportErrorOn
     ) {
-        // TODO : Take auto casts into account?
+        // TODO : Take smart casts into account?
         if (type == null) {
             return;
         }

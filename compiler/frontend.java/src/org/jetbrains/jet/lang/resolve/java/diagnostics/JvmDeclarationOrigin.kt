@@ -25,10 +25,11 @@ import org.jetbrains.jet.lang.psi.JetClassOrObject
 import org.jetbrains.jet.lang.psi.JetDeclaration
 import org.jetbrains.jet.lang.descriptors.FunctionDescriptor
 import org.jetbrains.jet.lang.resolve.java.diagnostics.JvmDeclarationOriginKind.*
+import org.jetbrains.jet.lang.descriptors.CallableMemberDescriptor
 
 public enum class MemberKind { FIELD; METHOD }
 
-public data class RawSignature(val name: String, val desc: String, val kind: MemberKind)
+public data class RawSignature(public val name: String, public val desc: String, public val kind: MemberKind)
 
 public enum class JvmDeclarationOriginKind {
     OTHER
@@ -36,12 +37,13 @@ public enum class JvmDeclarationOriginKind {
     PACKAGE_PART
     TRAIT_IMPL
     DELEGATION_TO_TRAIT_IMPL
+    SYNTHETIC // this means that there's no proper descriptor for this jvm declaration
 }
 
 public class JvmDeclarationOrigin(
-        val originKind: JvmDeclarationOriginKind,
-        val element: PsiElement?,
-        val descriptor: DeclarationDescriptor?
+        public val originKind: JvmDeclarationOriginKind,
+        public val element: PsiElement?,
+        public val descriptor: DeclarationDescriptor?
 ) {
     class object {
         public val NO_ORIGIN: JvmDeclarationOrigin = JvmDeclarationOrigin(OTHER, null, null)
@@ -62,4 +64,6 @@ public fun PackagePart(file: JetFile, descriptor: PackageFragmentDescriptor): Jv
 
 public fun TraitImpl(element: JetClassOrObject, descriptor: ClassDescriptor): JvmDeclarationOrigin = JvmDeclarationOrigin(TRAIT_IMPL, element, descriptor)
 public fun DelegationToTraitImpl(element: PsiElement?, descriptor: FunctionDescriptor): JvmDeclarationOrigin = JvmDeclarationOrigin(DELEGATION_TO_TRAIT_IMPL, element, descriptor)
+
+public fun Synthetic(element: PsiElement?, descriptor: CallableMemberDescriptor): JvmDeclarationOrigin = JvmDeclarationOrigin(SYNTHETIC, element, descriptor)
 

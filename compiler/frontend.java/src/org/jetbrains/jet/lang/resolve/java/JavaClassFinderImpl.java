@@ -17,7 +17,6 @@
 package org.jetbrains.jet.lang.resolve.java;
 
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.util.Comparing;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiClass;
 import com.intellij.psi.PsiPackage;
@@ -29,15 +28,17 @@ import org.jetbrains.jet.lang.resolve.java.structure.JavaClass;
 import org.jetbrains.jet.lang.resolve.java.structure.JavaPackage;
 import org.jetbrains.jet.lang.resolve.java.structure.impl.JavaClassImpl;
 import org.jetbrains.jet.lang.resolve.java.structure.impl.JavaPackageImpl;
+import org.jetbrains.jet.lang.resolve.name.ClassId;
 import org.jetbrains.jet.lang.resolve.name.FqName;
+import org.jetbrains.jet.lang.resolve.name.FqNameUnsafe;
 import org.jetbrains.jet.plugin.JetFileType;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 
 public class JavaClassFinderImpl implements JavaClassFinder {
-    @NotNull
     private Project project;
+    private GlobalSearchScope baseScope;
 
     private GlobalSearchScope javaSearchScope;
     private JavaPsiFacadeKotlinHacks javaFacade;
@@ -47,29 +48,24 @@ public class JavaClassFinderImpl implements JavaClassFinder {
         this.project = project;
     }
 
+    @Inject
+    public void setScope(@NotNull GlobalSearchScope scope) {
+        this.baseScope = scope;
+    }
+
     @PostConstruct
     public void initialize() {
-        javaSearchScope = new DelegatingGlobalSearchScope(GlobalSearchScope.allScope(project)) {
+        javaSearchScope = new DelegatingGlobalSearchScope(baseScope) {
             @Override
-            public boolean contains(VirtualFile file) {
+            public boolean contains(@NotNull VirtualFile file) {
                 return myBaseScope.contains(file) && file.getFileType() != JetFileType.INSTANCE;
             }
 
+            //NOTE: expected by class finder to be not null
+            @NotNull
             @Override
-            public int compare(VirtualFile file1, VirtualFile file2) {
-                // TODO: this is a hackish workaround for the following problem:
-                // since we are working with the allScope(), if the same class FqName
-                // to be on the class path twice, because it is included into different libraries
-                // (e.g. junit-4.0.jar is used as a separate library and as a part of idea_full)
-                // the two libraries are attached to different modules, the parent compare()
-                // can't tell which one comes first, so they can come in random order
-                // To fix this, we sort additionally by the full path, to make the ordering deterministic
-                // TODO: Delete this hack when proper scopes are used
-                int compare = super.compare(file1, file2);
-                if (compare == 0) {
-                    return Comparing.compare(file1.getPath(), file2.getPath());
-                }
-                return compare;
+            public Project getProject() {
+                return project;
             }
         };
         javaFacade = new JavaPsiFacadeKotlinHacks(project);
@@ -77,13 +73,15 @@ public class JavaClassFinderImpl implements JavaClassFinder {
 
     @Nullable
     @Override
-    public JavaClass findClass(@NotNull FqName fqName) {
+    public JavaClass findClass(@NotNull ClassId classId) {
+        FqNameUnsafe fqName = classId.asSingleFqName();
+
         PsiClass psiClass = javaFacade.findClass(fqName.asString(), javaSearchScope);
         if (psiClass == null) return null;
 
         JavaClassImpl javaClass = new JavaClassImpl(psiClass);
 
-        if (!fqName.equals(javaClass.getFqName())) {
+        if (!fqName.equalsTo(javaClass.getFqName())) {
             throw new IllegalStateException("Requested " + fqName + ", got " + javaClass.getFqName());
         }
 

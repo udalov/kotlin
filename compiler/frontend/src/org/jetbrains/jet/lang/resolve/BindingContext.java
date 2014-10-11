@@ -27,13 +27,14 @@ import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.descriptors.annotations.AnnotationDescriptor;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.calls.TailRecursionKind;
-import org.jetbrains.jet.lang.resolve.calls.autocasts.DataFlowInfo;
 import org.jetbrains.jet.lang.resolve.calls.inference.ConstraintSystemCompleter;
 import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCall;
+import org.jetbrains.jet.lang.resolve.calls.smartcasts.DataFlowInfo;
 import org.jetbrains.jet.lang.resolve.constants.CompileTimeConstant;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.FqNameUnsafe;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
+import org.jetbrains.jet.lang.resolve.scopes.receivers.Qualifier;
 import org.jetbrains.jet.lang.types.DeferredType;
 import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.lang.types.expressions.CaptureKind;
@@ -84,6 +85,11 @@ public interface BindingContext {
     WritableSlice<JetExpression, DataFlowInfo> EXPRESSION_DATA_FLOW_INFO = new BasicWritableSlice<JetExpression, DataFlowInfo>(DO_NOTHING);
     WritableSlice<JetExpression, DataFlowInfo> DATAFLOW_INFO_AFTER_CONDITION = Slices.createSimpleSlice();
 
+    /**
+     * A qualifier corresponds to a receiver expression (if any). For 'A.B' qualifier is recorded for 'A'.
+     */
+    WritableSlice<JetExpression, Qualifier> QUALIFIER = new BasicWritableSlice<JetExpression, Qualifier>(DO_NOTHING);
+
     WritableSlice<JetReferenceExpression, DeclarationDescriptor> REFERENCE_TARGET =
             new BasicWritableSlice<JetReferenceExpression, DeclarationDescriptor>(DO_NOTHING);
 
@@ -107,12 +113,14 @@ public interface BindingContext {
     WritableSlice<PropertyAccessorDescriptor, ResolvedCall<FunctionDescriptor>> DELEGATED_PROPERTY_RESOLVED_CALL = Slices.createSimpleSlice();
     WritableSlice<PropertyAccessorDescriptor, Call> DELEGATED_PROPERTY_CALL = Slices.createSimpleSlice();
 
+    WritableSlice<PropertyDescriptor, ResolvedCall<FunctionDescriptor>> DELEGATED_PROPERTY_PD_RESOLVED_CALL = Slices.createSimpleSlice();
+
     WritableSlice<JetMultiDeclarationEntry, ResolvedCall<FunctionDescriptor>> COMPONENT_RESOLVED_CALL = Slices.createSimpleSlice();
 
     WritableSlice<JetExpression, ResolvedCall<FunctionDescriptor>> INDEXED_LVALUE_GET = Slices.createSimpleSlice();
     WritableSlice<JetExpression, ResolvedCall<FunctionDescriptor>> INDEXED_LVALUE_SET = Slices.createSimpleSlice();
 
-    WritableSlice<JetExpression, JetType> AUTOCAST = Slices.createSimpleSlice();
+    WritableSlice<JetExpression, JetType> SMARTCAST = Slices.createSimpleSlice();
 
     WritableSlice<JetWhenExpression, Boolean> EXHAUSTIVE_WHEN = Slices.createSimpleSlice();
 
@@ -124,11 +132,6 @@ public interface BindingContext {
 
     WritableSlice<ScriptDescriptor, JetScope> SCRIPT_SCOPE = Slices.createSimpleSlice();
 
-    /**
-     * Collected during analyze, used in IDE in auto-cast completion
-     */
-    WritableSlice<JetExpression, DataFlowInfo> NON_DEFAULT_EXPRESSION_DATA_FLOW = Slices.createSimpleSlice();
-
     WritableSlice<JetExpression, Boolean> VARIABLE_REASSIGNMENT = Slices.createSimpleSetSlice();
     WritableSlice<ValueParameterDescriptor, Boolean> AUTO_CREATED_IT = Slices.createSimpleSetSlice();
 
@@ -136,7 +139,8 @@ public interface BindingContext {
      * Has type of current expression has been already resolved
      */
     WritableSlice<JetExpression, Boolean> PROCESSED = Slices.createSimpleSetSlice();
-    WritableSlice<JetElement, Boolean> STATEMENT = Slices.createRemovableSetSlice();
+    WritableSlice<JetElement, Boolean> USED_AS_EXPRESSION = Slices.createRemovableSetSlice();
+    WritableSlice<JetElement, Boolean> UNREACHABLE_CODE = Slices.createRemovableSetSlice();
 
     WritableSlice<VariableDescriptor, CaptureKind> CAPTURED_IN_CLOSURE = new BasicWritableSlice<VariableDescriptor, CaptureKind>(DO_NOTHING);
 
@@ -165,18 +169,12 @@ public interface BindingContext {
             if (propertyDescriptor.getModality() == Modality.ABSTRACT) return false;
             PropertyGetterDescriptor getter = propertyDescriptor.getGetter();
             PropertySetterDescriptor setter = propertyDescriptor.getSetter();
-            if (getter == null) {
-                return true;
-            }
-            else if (propertyDescriptor.isVar() && setter == null) {
-                return true;
-            }
-            else if (setter != null && !setter.hasBody() && setter.getModality() != Modality.ABSTRACT) {
-                return true;
-            }
-            else if (!getter.hasBody() && getter.getModality() != Modality.ABSTRACT) {
-                return true;
-            }
+
+            if (getter == null) return true;
+            if (propertyDescriptor.isVar() && setter == null) return true;
+            if (setter != null && !setter.hasBody() && setter.getModality() != Modality.ABSTRACT) return true;
+            if (!getter.hasBody() && getter.getModality() != Modality.ABSTRACT) return true;
+
             return backingFieldRequired;
         }
     };

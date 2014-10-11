@@ -20,11 +20,13 @@ import com.google.dart.compiler.backend.js.ast.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.FunctionDescriptor;
+import org.jetbrains.jet.lang.descriptors.ModuleDescriptor;
 import org.jetbrains.jet.lang.psi.JetDeclarationWithBody;
 import org.jetbrains.jet.lang.psi.JetExpression;
 import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.psi.JetNamedFunction;
 import org.jetbrains.jet.lang.resolve.BindingContext;
+import org.jetbrains.jet.lang.resolve.bindingContextUtil.BindingContextUtilPackage;
 import org.jetbrains.jet.plugin.MainFunctionDetector;
 import org.jetbrains.k2js.config.Config;
 import org.jetbrains.k2js.facade.MainCallParameters;
@@ -32,27 +34,31 @@ import org.jetbrains.k2js.facade.exceptions.MainFunctionNotFoundException;
 import org.jetbrains.k2js.facade.exceptions.TranslationException;
 import org.jetbrains.k2js.facade.exceptions.TranslationInternalException;
 import org.jetbrains.k2js.facade.exceptions.UnsupportedFeatureException;
+import org.jetbrains.k2js.inline.JsInliner;
 import org.jetbrains.k2js.translate.callTranslator.CallTranslator;
 import org.jetbrains.k2js.translate.context.Namer;
 import org.jetbrains.k2js.translate.context.StaticContext;
+import org.jetbrains.k2js.translate.context.TemporaryVariable;
 import org.jetbrains.k2js.translate.context.TranslationContext;
 import org.jetbrains.k2js.translate.declaration.PackageDeclarationTranslator;
 import org.jetbrains.k2js.translate.expression.ExpressionVisitor;
 import org.jetbrains.k2js.translate.expression.FunctionTranslator;
 import org.jetbrains.k2js.translate.expression.PatternTranslator;
+import org.jetbrains.k2js.translate.test.JSRhinoUnitTester;
 import org.jetbrains.k2js.translate.test.JSTestGenerator;
 import org.jetbrains.k2js.translate.test.JSTester;
+import org.jetbrains.k2js.translate.test.QUnitTester;
 import org.jetbrains.k2js.translate.utils.JsAstUtils;
-import org.jetbrains.k2js.translate.utils.dangerous.DangerousData;
-import org.jetbrains.k2js.translate.utils.dangerous.DangerousTranslator;
+import org.jetbrains.k2js.translate.utils.mutator.AssignToExpressionMutator;
 
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
 import static org.jetbrains.k2js.translate.utils.BindingUtils.getFunctionDescriptor;
-import static org.jetbrains.k2js.translate.utils.JsAstUtils.*;
-import static org.jetbrains.k2js.translate.utils.dangerous.DangerousData.collect;
+import static org.jetbrains.k2js.translate.utils.JsAstUtils.convertToStatement;
+import static org.jetbrains.k2js.translate.utils.JsAstUtils.toStringLiteralList;
+import static org.jetbrains.k2js.translate.utils.mutator.LastExpressionMutator.mutateLastExpression;
 
 /**
  * This class provides a interface which all translators use to interact with each other.
@@ -76,15 +82,26 @@ public final class Translation {
 
     @NotNull
     public static JsNode translateExpression(@NotNull JetExpression expression, @NotNull TranslationContext context) {
+        return translateExpression(expression, context, context.dynamicContext().jsBlock());
+    }
+
+    @NotNull
+    public static JsNode translateExpression(@NotNull JetExpression expression, @NotNull TranslationContext context, @NotNull JsBlock block) {
         JsExpression aliasForExpression = context.aliasingContext().getAliasForExpression(expression);
         if (aliasForExpression != null) {
             return aliasForExpression;
         }
-        DangerousData data = collect(expression, context);
-        if (data.shouldBeTranslated()) {
-            return DangerousTranslator.translate(data, context);
+
+        TranslationContext innerContext = context.innerBlock();
+        JsNode result = doTranslateExpression(expression, innerContext);
+        context.moveVarsFrom(innerContext);
+        block.getStatements().addAll(innerContext.dynamicContext().jsBlock().getStatements());
+
+        if (BindingContextUtilPackage.isUnreachableCode(expression, context.bindingContext())) {
+            return context.getEmptyExpression();
         }
-        return doTranslateExpression(expression, context);
+
+        return result;
     }
 
     //NOTE: use with care
@@ -94,24 +111,65 @@ public final class Translation {
     }
 
     @NotNull
-    public static JsExpression translateAsExpression(@NotNull JetExpression expression,
-            @NotNull TranslationContext context) {
-        return convertToExpression(translateExpression(expression, context));
+    public static JsExpression translateAsExpression(@NotNull JetExpression expression, @NotNull TranslationContext context) {
+        return translateAsExpression(expression, context, context.dynamicContext().jsBlock());
     }
 
     @NotNull
-    public static JsStatement translateAsStatement(@NotNull JetExpression expression,
-            @NotNull TranslationContext context) {
-        return convertToStatement(translateExpression(expression, context));
+    public static JsExpression translateAsExpression(
+            @NotNull JetExpression expression,
+            @NotNull TranslationContext context,
+            @NotNull JsBlock block
+    ) {
+        JsNode jsNode = translateExpression(expression, context, block);
+        if (jsNode instanceof  JsExpression) {
+            return (JsExpression) jsNode;
+        }
+
+        assert jsNode instanceof JsStatement : "Unexpected node of type: " + jsNode.getClass().toString();
+        if (BindingContextUtilPackage.isUsedAsExpression(expression, context.bindingContext())) {
+            TemporaryVariable result = context.declareTemporary(null);
+            AssignToExpressionMutator saveResultToTemporaryMutator = new AssignToExpressionMutator(result.reference());
+            block.getStatements().add(mutateLastExpression(jsNode, saveResultToTemporaryMutator));
+            return result.reference();
+        }
+
+        block.getStatements().add(convertToStatement(jsNode));
+        return context.getEmptyExpression();
+    }
+
+    @NotNull
+    public static JsStatement translateAsStatement(@NotNull JetExpression expression, @NotNull TranslationContext context) {
+        return translateAsStatement(expression, context, context.dynamicContext().jsBlock());
+    }
+
+    @NotNull
+    public static JsStatement translateAsStatement(
+            @NotNull JetExpression expression,
+            @NotNull TranslationContext context,
+            @NotNull JsBlock block) {
+        return convertToStatement(translateExpression(expression, context, block));
+    }
+
+    @NotNull
+    public static JsStatement translateAsStatementAndMergeInBlockIfNeeded(
+            @NotNull JetExpression expression,
+            @NotNull TranslationContext context
+    ) {
+        JsBlock block = new JsBlock();
+        JsNode node = translateExpression(expression, context, block);
+        return JsAstUtils.mergeStatementInBlockIfNeeded(convertToStatement(node), block);
     }
 
     @NotNull
     public static JsProgram generateAst(@NotNull BindingContext bindingContext,
             @NotNull Collection<JetFile> files, @NotNull MainCallParameters mainCallParameters,
+            @NotNull ModuleDescriptor moduleDescriptor,
             @NotNull Config config)
             throws TranslationException {
         try {
-            return doGenerateAst(bindingContext, files, mainCallParameters, config);
+            JsProgram program = doGenerateAst(bindingContext, files, mainCallParameters, moduleDescriptor, config);
+            return config.isInlineEnabled() ? JsInliner.process(program) : program;
         }
         catch (UnsupportedOperationException e) {
             throw new UnsupportedFeatureException("Unsupported feature used.", e);
@@ -124,8 +182,9 @@ public final class Translation {
     @NotNull
     private static JsProgram doGenerateAst(@NotNull BindingContext bindingContext, @NotNull Collection<JetFile> files,
             @NotNull MainCallParameters mainCallParameters,
+            @NotNull ModuleDescriptor moduleDescriptor,
             @NotNull Config config) throws MainFunctionNotFoundException {
-        StaticContext staticContext = StaticContext.generateStaticContext(bindingContext, config.getTarget());
+        StaticContext staticContext = StaticContext.generateStaticContext(bindingContext, config, moduleDescriptor);
         JsProgram program = staticContext.getProgram();
         JsBlock block = program.getGlobalBlock();
 
@@ -158,12 +217,10 @@ public final class Translation {
 
     private static void mayBeGenerateTests(@NotNull Collection<JetFile> files, @NotNull Config config,
             @NotNull JsBlock rootBlock, @NotNull TranslationContext context) {
-        JSTester tester = config.getTester();
-        if (tester != null) {
-            tester.initialize(context, rootBlock);
-            JSTestGenerator.generateTestCalls(context, files, tester);
-            tester.deinitialize();
-        }
+        JSTester tester = config.isTestConfig() ? new JSRhinoUnitTester() : new QUnitTester();
+        tester.initialize(context, rootBlock);
+        JSTestGenerator.generateTestCalls(context, files, tester);
+        tester.deinitialize();
     }
 
     //TODO: determine whether should throw exception
@@ -177,6 +234,6 @@ public final class Translation {
         }
         FunctionDescriptor functionDescriptor = getFunctionDescriptor(context.bindingContext(), mainFunction);
         JsArrayLiteral argument = new JsArrayLiteral(toStringLiteralList(arguments, context.program()));
-        return CallTranslator.instance$.buildCall(context, functionDescriptor, Collections.singletonList(argument), null).makeStmt();
+        return CallTranslator.INSTANCE$.buildCall(context, functionDescriptor, Collections.singletonList(argument), null).makeStmt();
     }
 }

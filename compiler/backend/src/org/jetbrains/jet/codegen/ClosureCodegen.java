@@ -28,6 +28,7 @@ import org.jetbrains.jet.codegen.signature.BothSignatureWriter;
 import org.jetbrains.jet.codegen.state.GenerationState;
 import org.jetbrains.jet.codegen.state.JetTypeMapper;
 import org.jetbrains.jet.lang.descriptors.*;
+import org.jetbrains.jet.lang.descriptors.impl.SimpleFunctionDescriptorImpl;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.DescriptorUtils;
 import org.jetbrains.jet.lang.resolve.java.JvmAbi;
@@ -45,10 +46,10 @@ import java.util.Collections;
 import java.util.List;
 
 import static org.jetbrains.jet.codegen.AsmUtil.*;
-import static org.jetbrains.jet.lang.resolve.java.diagnostics.DiagnosticsPackage.OtherOrigin;
 import static org.jetbrains.jet.codegen.JvmCodegenUtil.isConst;
 import static org.jetbrains.jet.codegen.binding.CodegenBinding.*;
 import static org.jetbrains.jet.lang.resolve.java.JvmAnnotationNames.KotlinSyntheticClass;
+import static org.jetbrains.jet.lang.resolve.java.diagnostics.DiagnosticsPackage.OtherOrigin;
 import static org.jetbrains.org.objectweb.asm.Opcodes.*;
 
 public class ClosureCodegen extends ParentCodegenAware {
@@ -164,6 +165,21 @@ public class ClosureCodegen extends ParentCodegenAware {
         FunctionCodegen fc = new FunctionCodegen(context, cv, state, getParentCodegen());
         fc.generateMethod(OtherOrigin(fun, funDescriptor), jvmMethodSignature, funDescriptor, strategy);
 
+        //TODO: rewrite cause ugly hack
+        if (samType != null) {
+            SimpleFunctionDescriptorImpl descriptorForBridges = SimpleFunctionDescriptorImpl
+                    .create(funDescriptor.getContainingDeclaration(), funDescriptor.getAnnotations(), erasedInterfaceFunction.getName(),
+                            CallableMemberDescriptor.Kind.DECLARATION, funDescriptor.getSource());
+
+            descriptorForBridges
+                    .initialize(null, erasedInterfaceFunction.getDispatchReceiverParameter(), erasedInterfaceFunction.getTypeParameters(),
+                                erasedInterfaceFunction.getValueParameters(), erasedInterfaceFunction.getReturnType(), Modality.OPEN,
+                                erasedInterfaceFunction.getVisibility());
+
+            descriptorForBridges.addOverriddenDescriptor(erasedInterfaceFunction);
+            fc.generateBridges(descriptorForBridges);
+        }
+
         this.constructor = generateConstructor(cv, superClassAsmType);
 
         if (isConst(closure)) {
@@ -194,7 +210,7 @@ public class ClosureCodegen extends ParentCodegenAware {
             v.dup();
 
             codegen.pushClosureOnStack(closure, false, codegen.defaultCallGenerator);
-            v.invokespecial(asmType.getInternalName(), "<init>", constructor.getDescriptor());
+            v.invokespecial(asmType.getInternalName(), "<init>", constructor.getDescriptor(), false);
         }
         return StackValue.onStack(asmType);
     }
@@ -210,7 +226,7 @@ public class ClosureCodegen extends ParentCodegenAware {
             mv.visitCode();
             iv.anew(asmType);
             iv.dup();
-            iv.invokespecial(asmType.getInternalName(), "<init>", "()V");
+            iv.invokespecial(asmType.getInternalName(), "<init>", "()V", false);
             iv.putstatic(asmType.getInternalName(), JvmAbi.INSTANCE_FIELD, asmType.getDescriptor());
             mv.visitInsn(RETURN);
             FunctionCodegen.endVisit(mv, "<clinit>", fun);
@@ -230,7 +246,7 @@ public class ClosureCodegen extends ParentCodegenAware {
         InstructionAdapter iv = new InstructionAdapter(mv);
         iv.load(0, asmType);
 
-        ReceiverParameterDescriptor receiver = funDescriptor.getReceiverParameter();
+        ReceiverParameterDescriptor receiver = funDescriptor.getExtensionReceiverParameter();
         int count = 1;
         if (receiver != null) {
             StackValue.local(count, bridge.getArgumentTypes()[count - 1]).put(typeMapper.mapType(receiver.getType()), iv);
@@ -243,7 +259,7 @@ public class ClosureCodegen extends ParentCodegenAware {
             count++;
         }
 
-        iv.invokevirtual(asmType.getInternalName(), delegate.getName(), delegate.getDescriptor());
+        iv.invokevirtual(asmType.getInternalName(), delegate.getName(), delegate.getDescriptor(), false);
         StackValue.onStack(delegate.getReturnType()).put(bridge.getReturnType(), iv);
 
         iv.areturn(bridge.getReturnType());
@@ -270,7 +286,7 @@ public class ClosureCodegen extends ParentCodegenAware {
             }
 
             iv.load(0, superClassAsmType);
-            iv.invokespecial(superClassAsmType.getInternalName(), "<init>", "()V");
+            iv.invokespecial(superClassAsmType.getInternalName(), "<init>", "()V", false);
 
             iv.visitInsn(RETURN);
 
@@ -328,7 +344,7 @@ public class ClosureCodegen extends ParentCodegenAware {
     @NotNull
     public static FunctionDescriptor getErasedInvokeFunction(@NotNull FunctionDescriptor funDescriptor) {
         int arity = funDescriptor.getValueParameters().size();
-        ClassDescriptor funClass = funDescriptor.getReceiverParameter() == null
+        ClassDescriptor funClass = funDescriptor.getExtensionReceiverParameter() == null
                                    ? KotlinBuiltIns.getInstance().getFunction(arity)
                                    : KotlinBuiltIns.getInstance().getExtensionFunction(arity);
         return funClass.getDefaultType().getMemberScope().getFunctions(Name.identifier("invoke")).iterator().next();

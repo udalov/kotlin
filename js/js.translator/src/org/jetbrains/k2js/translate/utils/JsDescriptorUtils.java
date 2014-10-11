@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.Set;
 
 import static org.jetbrains.jet.lang.resolve.DescriptorUtils.*;
+import static org.jetbrains.k2js.translate.utils.AnnotationsUtils.isNativeObject;
 
 public final class JsDescriptorUtils {
     // TODO: maybe we should use external annotations or something else.
@@ -82,7 +83,9 @@ public final class JsDescriptorUtils {
             @Override
             public boolean value(JetType type) {
                 ClassDescriptor classDescriptor = getClassDescriptorForType(type);
-                return !FAKE_CLASSES.contains(getFqNameSafe(classDescriptor).asString());
+
+                return !FAKE_CLASSES.contains(getFqNameSafe(classDescriptor).asString()) &&
+                       !(classDescriptor.getKind() == ClassKind.TRAIT && isNativeObject(classDescriptor));
             }
         });
     }
@@ -94,8 +97,8 @@ public final class JsDescriptorUtils {
         return containing;
     }
 
-    public static boolean isExtension(@NotNull CallableDescriptor functionDescriptor) {
-        return (functionDescriptor.getReceiverParameter() != null);
+    public static boolean isExtension(@NotNull CallableDescriptor descriptor) {
+        return (descriptor.getExtensionReceiverParameter() != null);
     }
 
     public static boolean isOverride(@NotNull CallableMemberDescriptor descriptor) {
@@ -124,7 +127,7 @@ public final class JsDescriptorUtils {
             return ((ClassDescriptor) declarationDescriptor).getThisAsReceiverParameter();
         }
         else if (declarationDescriptor instanceof CallableMemberDescriptor) {
-            ReceiverParameterDescriptor receiverDescriptor = ((CallableMemberDescriptor) declarationDescriptor).getReceiverParameter();
+            ReceiverParameterDescriptor receiverDescriptor = ((CallableMemberDescriptor) declarationDescriptor).getExtensionReceiverParameter();
             assert receiverDescriptor != null;
             return receiverDescriptor;
         }

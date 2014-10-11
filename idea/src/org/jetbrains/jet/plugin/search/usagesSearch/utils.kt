@@ -17,35 +17,20 @@
 package org.jetbrains.jet.plugin.search.usagesSearch
 
 import com.intellij.psi.PsiConstructorCall
-import com.intellij.psi.PsiElement
-import org.jetbrains.jet.lang.descriptors.ConstructorDescriptor
-import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor
+import org.jetbrains.jet.lang.descriptors.*
 import org.jetbrains.jet.lang.psi.*
 import org.jetbrains.jet.lang.psi.psiUtil.*
 import org.jetbrains.jet.lang.resolve.BindingContext
-import org.jetbrains.jet.lang.resolve.BindingContextUtils
 import org.jetbrains.jet.plugin.project.AnalyzerFacadeWithCache
 import com.intellij.psi.PsiReference
-import org.jetbrains.jet.lang.descriptors.FunctionDescriptor
-import org.jetbrains.jet.lang.descriptors.ClassDescriptor
 import org.jetbrains.jet.lang.resolve.DescriptorUtils
-import org.jetbrains.jet.lang.descriptors.CallableDescriptor
 import org.jetbrains.jet.plugin.findUsages.JetUsageTypeProvider
 import com.intellij.usages.impl.rules.UsageType
 import org.jetbrains.jet.codegen.PropertyCodegen
-import org.jetbrains.jet.lang.descriptors.PropertyDescriptor
-import org.jetbrains.jet.lang.resolve.java.jetAsJava.KotlinLightMethod
-import org.jetbrains.jet.asJava.unwrapped
+import org.jetbrains.jet.asJava.KotlinLightMethod
 import org.jetbrains.jet.lang.resolve.OverrideResolver
 import org.jetbrains.jet.lang.resolve.DescriptorToSourceUtils
-
-// Navigation element of the resolved reference
-// For property accessor return enclosing property
-val PsiReference.unwrappedTarget: PsiElement?
-    get() {
-        val target = resolve()?.unwrapped
-        return if (target is JetPropertyAccessor) target.getParentByType(javaClass<JetProperty>()) else target
-    }
+import org.jetbrains.jet.plugin.references.*
 
 val JetDeclaration.descriptor: DeclarationDescriptor?
     get() = AnalyzerFacadeWithCache.getContextForElement(this).get(BindingContext.DECLARATION_TO_DESCRIPTOR, this)
@@ -53,21 +38,19 @@ val JetDeclaration.descriptor: DeclarationDescriptor?
 val JetParameter.propertyDescriptor: PropertyDescriptor?
     get() = AnalyzerFacadeWithCache.getContextForElement(this).get(BindingContext.PRIMARY_CONSTRUCTOR_PARAMETER, this)
 
-fun PsiReference.isTargetUsage(target: PsiElement): Boolean {
-    return target.unwrapped == unwrappedTarget
-}
-
 fun PsiReference.checkUsageVsOriginalDescriptor(
         target: JetDeclaration,
         declarationToDescriptor: (JetDeclaration) -> DeclarationDescriptor? = {it.descriptor},
         checker: (usageDescriptor: DeclarationDescriptor, targetDescriptor: DeclarationDescriptor) -> Boolean
 ): Boolean {
-    val refTarget = unwrappedTarget
-    if (refTarget !is JetDeclaration) return false
-
-    val usageDescriptor = declarationToDescriptor(refTarget)
-    val targetDescriptor = declarationToDescriptor(target)
-    return usageDescriptor != null && targetDescriptor != null && checker(usageDescriptor, targetDescriptor)
+    return unwrappedTargets.any {
+        if (it is JetDeclaration) {
+            val usageDescriptor = declarationToDescriptor(it)
+            val targetDescriptor = declarationToDescriptor(target)
+            usageDescriptor != null && targetDescriptor != null && checker(usageDescriptor, targetDescriptor)
+        }
+        else false
+    }
 }
 
 fun PsiReference.isImportUsage(): Boolean =
@@ -119,7 +102,7 @@ fun PsiReference.isExtensionOfDeclarationClassUsage(declaration: JetNamedDeclara
                 usageDescriptor !is FunctionDescriptor -> false
                 else -> {
                     val receiverDescriptor =
-                            usageDescriptor.getReceiverParameter()?.getType()?.getConstructor()?.getDeclarationDescriptor()
+                            usageDescriptor.getExtensionReceiverParameter()?.getType()?.getConstructor()?.getDeclarationDescriptor()
                     val containingDescriptor = targetDescriptor.getContainingDeclaration()
 
                     containingDescriptor == receiverDescriptor

@@ -17,33 +17,34 @@
 package org.jetbrains.k2js.translate.utils;
 
 import com.google.dart.compiler.backend.js.ast.*;
-import com.intellij.openapi.util.Pair;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.util.Function;
-import com.intellij.util.containers.ContainerUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.descriptors.impl.AnonymousFunctionDescriptor;
 import org.jetbrains.jet.lang.psi.*;
-import org.jetbrains.jet.lang.resolve.OverrideResolver;
-import org.jetbrains.jet.lang.resolve.scopes.JetScope;
 import org.jetbrains.jet.lang.types.JetType;
+import org.jetbrains.jet.lang.types.TypeProjection;
+import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 import org.jetbrains.k2js.translate.context.TemporaryConstVariable;
 import org.jetbrains.k2js.translate.context.TranslationContext;
 import org.jetbrains.k2js.translate.general.Translation;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 import static com.google.dart.compiler.backend.js.ast.JsBinaryOperator.*;
 import static org.jetbrains.jet.lang.resolve.DescriptorUtils.getFqName;
+import static org.jetbrains.jet.lang.resolve.DescriptorUtils.isAnonymousObject;
 import static org.jetbrains.k2js.translate.context.Namer.getKotlinBackingFieldName;
 import static org.jetbrains.k2js.translate.utils.BindingUtils.getCallableDescriptorForOperationExpression;
 import static org.jetbrains.k2js.translate.utils.JsAstUtils.assignment;
 import static org.jetbrains.k2js.translate.utils.JsAstUtils.createDataDescriptor;
+import static org.jetbrains.k2js.translate.utils.ManglingUtils.getMangledName;
 
 public final class TranslationUtils {
-    public static final Comparator<FunctionDescriptor> OVERLOADED_FUNCTION_COMPARATOR = new OverloadedFunctionComparator();
 
     private TranslationUtils() {
     }
@@ -63,7 +64,7 @@ public final class TranslationUtils {
 
     @NotNull
     public static JsFunction simpleReturnFunction(@NotNull JsScope functionScope, @NotNull JsExpression returnExpression) {
-        return new JsFunction(functionScope, new JsBlock(new JsReturn(returnExpression)));
+        return new JsFunction(functionScope, new JsBlock(new JsReturn(returnExpression)), "<simpleReturnFunction>");
     }
 
     @NotNull
@@ -136,160 +137,38 @@ public final class TranslationUtils {
     }
 
     @NotNull
-    public static String getMangledName(@NotNull PropertyDescriptor descriptor, @NotNull String suggestedName) {
-        return getStableMangledName(suggestedName, getFqName(descriptor).asString());
-    }
-
-    @NotNull
-    public static String getSuggestedName(@NotNull DeclarationDescriptor descriptor) {
-        String suggestedName = descriptor.getName().asString();
-
-        if (descriptor instanceof FunctionDescriptor) {
-            suggestedName = getMangledName((FunctionDescriptor) descriptor);
-        }
-
-        return suggestedName;
-    }
-
-    @NotNull
-    private static String getMangledName(@NotNull FunctionDescriptor descriptor) {
-        if (needsStableMangling(descriptor)) {
-            return getStableMangledName(descriptor);
-        }
-
-        return getSimpleMangledName(descriptor);
-    }
-
-    //TODO extend logic for nested/inner declarations
-    private static boolean needsStableMangling(FunctionDescriptor descriptor) {
-        // Use stable mangling for overrides because we use stable mangling when any function inside a overridable declaration
-        // for avoid clashing names when inheritance.
-        if (JsDescriptorUtils.isOverride(descriptor)) {
-            return true;
-        }
-
-        DeclarationDescriptor containingDeclaration = descriptor.getContainingDeclaration();
-
-        if (containingDeclaration instanceof PackageFragmentDescriptor) {
-            return descriptor.getVisibility().isPublicAPI();
-        }
-        else if (containingDeclaration instanceof ClassDescriptor) {
-            ClassDescriptor classDescriptor = (ClassDescriptor) containingDeclaration;
-
-            // Use stable mangling when it inside a overridable declaration for avoid clashing names when inheritance.
-            if (classDescriptor.getModality().isOverridable()) {
-                return true;
-            }
-
-            // Don't use stable mangling when it inside a non-public API declaration.
-            if (!classDescriptor.getVisibility().isPublicAPI()) {
-                return false;
-            }
-
-            // Ignore the `protected` visibility because it can be use outside a containing declaration
-            // only when the containing declaration is overridable.
-            if (descriptor.getVisibility() == Visibilities.PUBLIC) {
-                return true;
-            }
-
-            return false;
-        }
-
-        assert containingDeclaration instanceof CallableMemberDescriptor :
-                "containingDeclaration for descriptor have unsupported type for mangling, " +
-                "descriptor: " + descriptor + ", containingDeclaration: " + containingDeclaration;
-
-        return false;
-    }
-
-    @NotNull
-    private static String getStableMangledName(@NotNull String suggestedName, String forCalculateId) {
-        int absHashCode = Math.abs(forCalculateId.hashCode());
-        String suffix = absHashCode == 0 ? "" : ("_" + Integer.toString(absHashCode, Character.MAX_RADIX) + "$");
-        return suggestedName + suffix;
-    }
-
-    @NotNull
-    private static String getStableMangledName(@NotNull FunctionDescriptor descriptor) {
-        return getStableMangledName(descriptor.getName().asString(), getArgumentTypesAsString(descriptor));
-    }
-
-    @NotNull
-    private static String getSimpleMangledName(@NotNull final FunctionDescriptor descriptor) {
-        DeclarationDescriptor declaration = descriptor.getContainingDeclaration();
-
-        JetScope jetScope = null;
-        if (declaration instanceof PackageFragmentDescriptor) {
-            jetScope = ((PackageFragmentDescriptor) declaration).getMemberScope();
-        }
-        else if (declaration instanceof ClassDescriptor) {
-            jetScope = ((ClassDescriptor) declaration).getDefaultType().getMemberScope();
-        }
-
-        int counter = 0;
-
-        if (jetScope != null) {
-            Collection<DeclarationDescriptor> declarations = jetScope.getAllDescriptors();
-            List<FunctionDescriptor> overloadedFunctions = ContainerUtil.mapNotNull(declarations, new Function<DeclarationDescriptor, FunctionDescriptor>() {
-                @Override
-                public FunctionDescriptor fun(DeclarationDescriptor declarationDescriptor) {
-                    if (!(declarationDescriptor instanceof FunctionDescriptor)) return null;
-
-                    FunctionDescriptor functionDescriptor = (FunctionDescriptor) declarationDescriptor;
-
-                    String name = AnnotationsUtils.getNameForAnnotatedObjectWithOverrides(functionDescriptor);
-
-                    // when name == null it's mean that it's not native.
-                    if (name == null) {
-                        // skip functions without arguments, because we don't use mangling for them
-                        if (needsStableMangling(functionDescriptor) && !functionDescriptor.getValueParameters().isEmpty()) return null;
-
-                        name = declarationDescriptor.getName().asString();
-                    }
-
-                    return descriptor.getName().asString().equals(name) ? functionDescriptor : null;
-                }
-            });
-
-            if (overloadedFunctions.size() > 1) {
-                Collections.sort(overloadedFunctions, OVERLOADED_FUNCTION_COMPARATOR);
-                counter = ContainerUtil.indexOfIdentity(overloadedFunctions, descriptor);
-                assert counter >= 0;
-            }
-        }
-
-        String name = descriptor.getName().asString();
-        return counter == 0 ? name : name + '_' + counter;
-    }
-
-    private static String getArgumentTypesAsString(FunctionDescriptor descriptor) {
-        StringBuilder argTypes = new StringBuilder();
-
-        ReceiverParameterDescriptor receiverParameter = descriptor.getReceiverParameter();
-        if (receiverParameter != null) {
-            argTypes.append(getJetTypeFqName(receiverParameter.getType())).append(".");
-        }
-
-        argTypes.append(StringUtil.join(descriptor.getValueParameters(), new Function<ValueParameterDescriptor, String>() {
-            @Override
-            public String fun(ValueParameterDescriptor descriptor) {
-                return getJetTypeFqName(descriptor.getType());
-            }
-        }, ","));
-
-        return argTypes.toString();
-    }
-
-    @NotNull
-    public static String getJetTypeFqName(@NotNull JetType jetType) {
+    public static String getJetTypeFqName(@NotNull JetType jetType, final boolean printTypeArguments) {
         ClassifierDescriptor declaration = jetType.getConstructor().getDeclarationDescriptor();
         assert declaration != null;
 
         if (declaration instanceof TypeParameterDescriptor) {
-            return getJetTypeFqName(((TypeParameterDescriptor) declaration).getUpperBoundsAsType());
+            return StringUtil.join(((TypeParameterDescriptor) declaration).getUpperBounds(), new Function<JetType, String>() {
+                @Override
+                public String fun(JetType type) {
+                    return getJetTypeFqName(type, printTypeArguments);
+                }
+            }, "&");
         }
 
-        return getFqName(declaration).asString();
+        List<TypeProjection> typeArguments = jetType.getArguments();
+
+        String typeArgumentsAsString;
+
+        if (printTypeArguments && !typeArguments.isEmpty()) {
+            String joinedTypeArguments = StringUtil.join(typeArguments, new Function<TypeProjection, String>() {
+                @Override
+                public String fun(TypeProjection typeProjection) {
+                    return getJetTypeFqName(typeProjection.getType(), false);
+                }
+            }, ", ");
+
+            typeArgumentsAsString = "<" + joinedTypeArguments + ">";
+        }
+        else {
+            typeArgumentsAsString = "";
+        }
+
+        return getFqName(declaration).asString() + typeArgumentsAsString;
     }
 
     @NotNull
@@ -337,17 +216,34 @@ public final class TranslationUtils {
     @NotNull
     public static JsExpression translateLeftExpression(@NotNull TranslationContext context,
             @NotNull JetBinaryExpression expression) {
+        return translateLeftExpression(context, expression, context.dynamicContext().jsBlock());
+    }
+
+    @NotNull
+    public static JsExpression translateLeftExpression(
+            @NotNull TranslationContext context,
+            @NotNull JetBinaryExpression expression,
+            @NotNull JsBlock block
+    ) {
         JetExpression left = expression.getLeft();
         assert left != null : "Binary expression should have a left expression: " + expression.getText();
-        return Translation.translateAsExpression(left, context);
+        return Translation.translateAsExpression(left, context, block);
     }
 
     @NotNull
     public static JsExpression translateRightExpression(@NotNull TranslationContext context,
             @NotNull JetBinaryExpression expression) {
+        return translateRightExpression(context, expression, context.dynamicContext().jsBlock());
+    }
+
+    @NotNull
+    public static JsExpression translateRightExpression(
+            @NotNull TranslationContext context,
+            @NotNull JetBinaryExpression expression,
+            @NotNull JsBlock block) {
         JetExpression rightExpression = expression.getRight();
         assert rightExpression != null : "Binary expression should have a right expression";
-        return Translation.translateAsExpression(rightExpression, context);
+        return Translation.translateAsExpression(rightExpression, context, block);
     }
 
     public static boolean hasCorrespondingFunctionIntrinsic(@NotNull TranslationContext context,
@@ -355,6 +251,11 @@ public final class TranslationUtils {
         CallableDescriptor operationDescriptor = getCallableDescriptorForOperationExpression(context.bindingContext(), expression);
 
         if (operationDescriptor == null || !(operationDescriptor instanceof FunctionDescriptor)) return true;
+
+        JetType returnType = operationDescriptor.getReturnType();
+        if (returnType != null &&
+            KotlinBuiltIns.getInstance().getCharType().equals(returnType) || (KotlinBuiltIns.getInstance().getLongType().equals(returnType))) return false;
+
         if (context.intrinsics().getFunctionIntrinsics().getIntrinsic((FunctionDescriptor) operationDescriptor).exists()) return true;
 
         return false;
@@ -373,22 +274,9 @@ public final class TranslationUtils {
     }
 
     public static boolean isCacheNeeded(@NotNull JsExpression expression) {
-        return !(expression instanceof JsLiteral) &&
+        return !(expression instanceof JsLiteral.JsValueLiteral) &&
+               !JsAstUtils.isEmptyExpression(expression) &&
                (!(expression instanceof JsNameRef) || ((JsNameRef) expression).getQualifier() != null);
-    }
-
-    @NotNull
-    public static Pair<JsVars.JsVar, JsExpression> createTemporaryIfNeed(
-            @NotNull JsExpression expression,
-            @NotNull TranslationContext context
-    ) {
-        // don't create temp variable for simple expression
-        if (isCacheNeeded(expression)) {
-            return context.dynamicContext().createTemporary(expression);
-        }
-        else {
-            return Pair.create(null, expression);
-        }
     }
 
     @NotNull
@@ -410,9 +298,11 @@ public final class TranslationUtils {
     public static String getSuggestedNameForInnerDeclaration(TranslationContext context, DeclarationDescriptor descriptor) {
         String suggestedName = "";
         DeclarationDescriptor containingDeclaration = descriptor.getContainingDeclaration();
+        //noinspection ConstantConditions
         if (containingDeclaration != null &&
             !(containingDeclaration instanceof ClassOrPackageFragmentDescriptor) &&
-            !(containingDeclaration instanceof AnonymousFunctionDescriptor)) {
+            !(containingDeclaration instanceof AnonymousFunctionDescriptor) &&
+            !(containingDeclaration instanceof ConstructorDescriptor && isAnonymousObject(containingDeclaration.getContainingDeclaration()))) {
             suggestedName = context.getNameForDescriptor(containingDeclaration).getIdent();
         }
 
@@ -427,49 +317,5 @@ public final class TranslationUtils {
             suggestedName += context.getNameForDescriptor(descriptor).getIdent();
         }
         return suggestedName;
-    }
-
-    private static class OverloadedFunctionComparator implements Comparator<FunctionDescriptor> {
-        @Override
-        public int compare(@NotNull FunctionDescriptor a, @NotNull FunctionDescriptor b) {
-            // native functions first
-            if (isNativeOrOverrideNative(a)) {
-                if (!isNativeOrOverrideNative(b)) return -1;
-            }
-            else if (isNativeOrOverrideNative(b)) {
-                return 1;
-            }
-
-            // be visibility
-            // Actually "internal" > "private", but we want to have less number for "internal", so compare b with a instead of a with b.
-            Integer result = Visibilities.compare(b.getVisibility(), a.getVisibility());
-            if (result != null && result != 0) return result;
-
-            // by arity
-            int aArity = arity(a);
-            int bArity = arity(b);
-            if (aArity != bArity) return aArity - bArity;
-
-            // by stringify argument types
-            String aArguments = getArgumentTypesAsString(a);
-            String bArguments = getArgumentTypesAsString(b);
-            assert aArguments != bArguments;
-
-            return aArguments.compareTo(bArguments);
-        }
-
-        private static int arity(FunctionDescriptor descriptor) {
-            return descriptor.getValueParameters().size() + (descriptor.getReceiverParameter() == null ? 0 : 1);
-        }
-
-        private static boolean isNativeOrOverrideNative(FunctionDescriptor descriptor) {
-            if (AnnotationsUtils.isNativeObject(descriptor)) return true;
-
-            Set<FunctionDescriptor> declarations = OverrideResolver.getAllOverriddenDeclarations(descriptor);
-            for (FunctionDescriptor memberDescriptor : declarations) {
-                if (AnnotationsUtils.isNativeObject(memberDescriptor)) return true;
-            }
-            return false;
-        }
     }
 }

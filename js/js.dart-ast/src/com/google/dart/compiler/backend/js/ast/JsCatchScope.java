@@ -13,13 +13,14 @@ import org.jetbrains.annotations.NotNull;
 public class JsCatchScope extends JsScope {
     private final JsName name;
 
-    public JsCatchScope(JsScope parent, String ident) {
-        super(parent, "Catch scope");
+    public JsCatchScope(JsScope parent, @NotNull String ident) {
+        super(parent, "Catch scope", null);
         name = new JsName(this, ident);
     }
 
     @Override
-    public JsName declareName(String identifier) {
+    @NotNull
+    public JsName declareName(@NotNull String identifier) {
         // Declare into parent scope!
         return getParent().declareName(identifier);
     }
@@ -29,8 +30,13 @@ public class JsCatchScope extends JsScope {
         return findOwnName(name) != null;
     }
 
+    @NotNull
+    public JsCatchScope copy() {
+        return new JsCatchScope(getParent(), name.getIdent());
+    }
+
     @Override
-    protected JsName findOwnName(String ident) {
+    protected JsName findOwnName(@NotNull String ident) {
         return name.getIdent().equals(ident) ? name : null;
     }
 }

@@ -29,7 +29,6 @@ import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 
 import javax.inject.Inject;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
@@ -203,7 +202,7 @@ public class TypeResolver {
 
                 @Override
                 public void visitFunctionType(@NotNull JetFunctionType type) {
-                    JetTypeReference receiverTypeRef = type.getReceiverTypeRef();
+                    JetTypeReference receiverTypeRef = type.getReceiverTypeReference();
                     JetType receiverType = receiverTypeRef == null ? null : resolveType(c.noBareTypes(), receiverTypeRef);
 
                     List<JetType> parameterTypes = new ArrayList<JetType>();
@@ -211,7 +210,7 @@ public class TypeResolver {
                         parameterTypes.add(resolveType(c.noBareTypes(), parameter.getTypeReference()));
                     }
 
-                    JetTypeReference returnTypeRef = type.getReturnTypeRef();
+                    JetTypeReference returnTypeRef = type.getReturnTypeReference();
                     JetType returnType;
                     if (returnTypeRef != null) {
                         returnType = resolveType(c.noBareTypes(), returnTypeRef);
@@ -313,8 +312,7 @@ public class TypeResolver {
 
     @Nullable
     public ClassifierDescriptor resolveClass(JetScope scope, JetUserType userType, BindingTrace trace) {
-        Collection<? extends DeclarationDescriptor> descriptors = qualifiedExpressionResolver.lookupDescriptorsForUserType(userType, scope, trace);
-        for (DeclarationDescriptor descriptor : descriptors) {
+        for (DeclarationDescriptor descriptor : qualifiedExpressionResolver.lookupDescriptorsForUserType(userType, scope, trace)) {
             if (descriptor instanceof ClassifierDescriptor) {
                 ImportsResolver.reportPlatformClassMappedToKotlin(moduleDescriptor, trace, userType, descriptor);
                 return (ClassifierDescriptor) descriptor;

@@ -53,15 +53,18 @@ public class FunctionDescriptorUtil {
     private FunctionDescriptorUtil() {
     }
 
-    public static Map<TypeConstructor, TypeProjection> createSubstitutionContext(@NotNull FunctionDescriptor functionDescriptor, List<JetType> typeArguments) {
+    public static Map<TypeConstructor, TypeProjection> createSubstitutionContext(
+            @NotNull FunctionDescriptor functionDescriptor,
+            @NotNull List<JetType> typeArguments
+    ) {
         if (functionDescriptor.getTypeParameters().isEmpty()) return Collections.emptyMap();
 
         Map<TypeConstructor, TypeProjection> result = new HashMap<TypeConstructor, TypeProjection>();
 
-        int typeArgumentsSize = typeArguments.size();
         List<TypeParameterDescriptor> typeParameters = functionDescriptor.getTypeParameters();
-        assert typeArgumentsSize == typeParameters.size();
-        for (int i = 0; i < typeArgumentsSize; i++) {
+        assert typeArguments.size() >= typeParameters.size() :
+                "Insufficient number of type arguments.\nType arguments: " + typeArguments + "\nType parameters: " + typeParameters;
+        for (int i = 0; i < typeParameters.size(); i++) {
             TypeParameterDescriptor typeParameterDescriptor = typeParameters.get(i);
             JetType typeArgument = typeArguments.get(i);
             result.put(typeParameterDescriptor.getTypeConstructor(), new TypeProjectionImpl(typeArgument));
@@ -72,7 +75,7 @@ public class FunctionDescriptorUtil {
     @NotNull
     public static JetScope getFunctionInnerScope(@NotNull JetScope outerScope, @NotNull FunctionDescriptor descriptor, @NotNull BindingTrace trace) {
         WritableScope parameterScope = new WritableScopeImpl(outerScope, descriptor, new TraceBasedRedeclarationHandler(trace), "Function inner scope");
-        ReceiverParameterDescriptor receiver = descriptor.getReceiverParameter();
+        ReceiverParameterDescriptor receiver = descriptor.getExtensionReceiverParameter();
         if (receiver != null) {
             parameterScope.setImplicitReceiver(receiver);
         }
@@ -90,14 +93,14 @@ public class FunctionDescriptorUtil {
     public static void initializeFromFunctionType(
             @NotNull FunctionDescriptorImpl functionDescriptor,
             @NotNull JetType functionType,
-            @Nullable ReceiverParameterDescriptor expectedThisObject,
+            @Nullable ReceiverParameterDescriptor dispatchReceiverParameter,
             @NotNull Modality modality,
             @NotNull Visibility visibility
     ) {
 
         assert KotlinBuiltIns.getInstance().isFunctionOrExtensionFunctionType(functionType);
         functionDescriptor.initialize(KotlinBuiltIns.getInstance().getReceiverType(functionType),
-                                      expectedThisObject,
+                                      dispatchReceiverParameter,
                                       Collections.<TypeParameterDescriptorImpl>emptyList(),
                                       KotlinBuiltIns.getInstance().getValueParameters(functionDescriptor, functionType),
                                       KotlinBuiltIns.getInstance().getReturnTypeFromFunctionType(functionType),
@@ -146,10 +149,10 @@ public class FunctionDescriptorUtil {
             );
             idx++;
         }
-        ReceiverParameterDescriptor receiver = function.getReceiverParameter();
+        ReceiverParameterDescriptor receiver = function.getExtensionReceiverParameter();
         descriptor.initialize(
                 receiver == null ? null : receiver.getType(),
-                function.getExpectedThisObject(),
+                function.getDispatchReceiverParameter(),
                 function.getTypeParameters(),
                 parameters,
                 function.getReturnType(),

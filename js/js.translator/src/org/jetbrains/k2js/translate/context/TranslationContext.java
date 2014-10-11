@@ -20,10 +20,15 @@ import com.google.dart.compiler.backend.js.ast.*;
 import com.intellij.psi.PsiElement;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.jet.lang.descriptors.*;
+import org.jetbrains.jet.lang.descriptors.CallableDescriptor;
+import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor;
+import org.jetbrains.jet.lang.descriptors.MemberDescriptor;
+import org.jetbrains.jet.lang.descriptors.ReceiverParameterDescriptor;
 import org.jetbrains.jet.lang.psi.JetExpression;
+import org.jetbrains.jet.lang.reflect.ReflectionTypes;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.name.FqName;
+import org.jetbrains.k2js.config.Config;
 import org.jetbrains.k2js.translate.intrinsic.Intrinsics;
 import org.jetbrains.k2js.translate.utils.TranslationUtils;
 
@@ -80,6 +85,7 @@ public class TranslationContext {
         return usageTracker;
     }
 
+    @NotNull
     public DynamicContext dynamicContext() {
         return dynamicContext;
     }
@@ -109,6 +115,11 @@ public class TranslationContext {
     @NotNull
     public TranslationContext innerBlock(@NotNull JsBlock block) {
         return new TranslationContext(this, staticContext, dynamicContext.innerBlock(block), aliasingContext, usageTracker, null);
+    }
+
+    @NotNull
+    public TranslationContext innerBlock() {
+        return innerBlock(new JsBlock());
     }
 
     @NotNull
@@ -230,8 +241,18 @@ public class TranslationContext {
     }
 
     @NotNull
+    public ReflectionTypes getReflectionTypes() {
+        return staticContext.getReflectionTypes();
+    }
+
+    @NotNull
     public JsProgram program() {
         return staticContext.getProgram();
+    }
+
+    @NotNull
+    public Config getConfig() {
+        return staticContext.getConfig();
     }
 
     @NotNull
@@ -253,6 +274,37 @@ public class TranslationContext {
         dynamicContext.jsBlock().getStatements().add(statement);
     }
 
+    public void addStatementsToCurrentBlockFrom(@NotNull TranslationContext context) {
+        addStatementsToCurrentBlockFrom(context.dynamicContext().jsBlock());
+    }
+
+    public void addStatementsToCurrentBlockFrom(@NotNull JsBlock block) {
+        dynamicContext.jsBlock().getStatements().addAll(block.getStatements());
+    }
+
+    public boolean currentBlockIsEmpty() {
+        return dynamicContext.jsBlock().isEmpty();
+    }
+
+    public void moveVarsFrom(@NotNull TranslationContext context) {
+        dynamicContext.moveVarsFrom(context.dynamicContext());
+    }
+
+    @NotNull
+    public JsBlock getCurrentBlock() {
+        return dynamicContext.jsBlock();
+    }
+
+    @NotNull
+    public JsEmpty getEmptyStatement() {
+        return program().getEmptyStatement();
+    }
+
+    @NotNull
+    public JsExpression getEmptyExpression() {
+        return program().getEmptyExpression();
+    }
+
     @Nullable
     public JsExpression getAliasForDescriptor(@NotNull DeclarationDescriptor descriptor) {
         JsNameRef nameRef = captureIfNeedAndGetCapturedName(descriptor);
@@ -264,7 +316,7 @@ public class TranslationContext {
     }
 
     @NotNull
-    public JsExpression getThisObject(@NotNull ReceiverParameterDescriptor descriptor) {
+    public JsExpression getDispatchReceiver(@NotNull ReceiverParameterDescriptor descriptor) {
         JsExpression alias = getAliasForDescriptor(descriptor);
         return alias == null ? JsLiteral.THIS : alias;
     }

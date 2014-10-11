@@ -34,7 +34,7 @@ import org.jetbrains.org.objectweb.asm.commons.InstructionAdapter;
 import java.util.List;
 
 import static org.jetbrains.jet.lang.resolve.BindingContext.TAIL_RECURSION_CALL;
-import static org.jetbrains.jet.lang.resolve.bindingContextUtil.BindingContextUtilPackage.getResolvedCall;
+import static org.jetbrains.jet.lang.resolve.calls.callUtil.CallUtilPackage.getResolvedCall;
 
 public class TailRecursionCodegen {
 
@@ -75,7 +75,7 @@ public class TailRecursionCodegen {
         }
         assignParameterValues(fd, callable, arguments);
         if (callable.getReceiverClass() != null) {
-            if (resolvedCall.getReceiverArgument() != fd.getReceiverParameter().getValue()) {
+            if (resolvedCall.getExtensionReceiver() != fd.getExtensionReceiverParameter().getValue()) {
                 StackValue expression = context.getReceiverExpression(codegen.typeMapper);
                 expression.store(callable.getReceiverClass(), v);
             }

@@ -1,6 +1,0 @@
-package test
-
-public open class AnnotatedMethod : java.lang.Object {
-    public constructor AnnotatedMethod()
-    kotlin.deprecated(value = "Deprecated in Java": kotlin.String) public open fun f(): kotlin.Unit
-}

@@ -18,16 +18,9 @@ package org.jetbrains.jet.plugin.completion.smart
 
 import com.intellij.codeInsight.lookup.LookupElement
 import org.jetbrains.jet.lang.types.TypeUtils
-import org.jetbrains.jet.lang.descriptors.ClassDescriptor
+import org.jetbrains.jet.lang.descriptors.*
 import org.jetbrains.jet.lang.resolve.scopes.JetScope
-import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor
-import org.jetbrains.jet.lang.descriptors.DeclarationDescriptorWithVisibility
-import org.jetbrains.jet.lang.descriptors.Visibilities
-import org.jetbrains.jet.lang.descriptors.CallableDescriptor
-import org.jetbrains.jet.lang.descriptors.ClassKind
-import org.jetbrains.jet.lang.resolve.java.descriptor.JavaClassDescriptor
 import org.jetbrains.jet.lang.resolve.DescriptorUtils
-import org.jetbrains.jet.lang.descriptors.FunctionDescriptor
 import com.intellij.codeInsight.lookup.LookupElementDecorator
 import com.intellij.codeInsight.lookup.LookupElementPresentation
 import org.jetbrains.jet.renderer.DescriptorRenderer
@@ -37,6 +30,8 @@ import org.jetbrains.jet.lang.resolve.BindingContext
 import org.jetbrains.jet.lang.psi.JetExpression
 import org.jetbrains.jet.plugin.completion.ExpectedInfo
 import org.jetbrains.jet.plugin.util.makeNotNullable
+import org.jetbrains.jet.plugin.completion.qualifiedNameForSourceCode
+import org.jetbrains.jet.lang.resolve.descriptorUtil.isExtension
 
 // adds java static members, enum members and members from class object
 class StaticMembers(val bindingContext: BindingContext, val resolveSession: ResolveSessionForBodies) {
@@ -82,6 +77,11 @@ class StaticMembers(val bindingContext: BindingContext, val resolveSession: Reso
             else if (DescriptorUtils.isEnumEntry(descriptor) && !enumEntriesToSkip.contains(descriptor)) {
                 classifier = { ExpectedInfoClassification.MATCHES } /* we do not need to check type of enum entry because it's taken from proper enum */
             }
+            else if (descriptor is ClassDescriptor && DescriptorUtils.isObject(descriptor)) {
+                classifier = { expectedInfo ->
+                    if (descriptor.getDefaultType().isSubtypeOf(expectedInfo.`type`)) ExpectedInfoClassification.MATCHES else ExpectedInfoClassification.NOT_MATCHES
+                }
+            }
             else {
                 return
             }
@@ -89,28 +89,27 @@ class StaticMembers(val bindingContext: BindingContext, val resolveSession: Reso
             collection.addLookupElements(expectedInfos, classifier, { createLookupElement(descriptor, classDescriptor) })
         }
 
-        if (classDescriptor is JavaClassDescriptor) {
-            val pseudoPackage = classDescriptor.getCorrespondingPackageFragment()
-            if (pseudoPackage != null) {
-                pseudoPackage.getMemberScope().getAllDescriptors().forEach(::processMember)
-            }
-        }
+        classDescriptor.getStaticScope().getAllDescriptors().forEach(::processMember)
 
         val classObject = classDescriptor.getClassObjectDescriptor()
         if (classObject != null) {
-            classObject.getDefaultType().getMemberScope().getAllDescriptors().forEach(::processMember)
+            classObject.getDefaultType().getMemberScope().getAllDescriptors()
+                    .filter { !it.isExtension }
+                    .forEach(::processMember)
         }
 
-        if (classDescriptor.getKind() == ClassKind.ENUM_CLASS) {
-            classDescriptor.getDefaultType().getMemberScope().getAllDescriptors().forEach(::processMember)
+        var members = classDescriptor.getDefaultType().getMemberScope().getAllDescriptors()
+        if (classDescriptor.getKind() != ClassKind.ENUM_CLASS) {
+            members = members.filter { DescriptorUtils.isObject(it) }
         }
+        members.forEach(::processMember)
     }
 
     private fun createLookupElement(memberDescriptor: DeclarationDescriptor, classDescriptor: ClassDescriptor): LookupElement {
         val lookupElement = createLookupElement(memberDescriptor, resolveSession)
         val qualifierPresentation = classDescriptor.getName().asString()
         val lookupString = qualifierPresentation + "." + lookupElement.getLookupString()
-        val qualifierText = DescriptorUtils.getFqName(classDescriptor).asString() //TODO: escape keywords
+        val qualifierText = qualifiedNameForSourceCode(classDescriptor)
 
         return object: LookupElementDecorator<LookupElement>(lookupElement) {
             override fun getLookupString() = lookupString
@@ -134,7 +133,7 @@ class StaticMembers(val bindingContext: BindingContext, val resolveSession: Reso
             }
 
             override fun handleInsert(context: InsertionContext) {
-                var text = qualifierText + "." + memberDescriptor.getName().asString() //TODO: escape
+                var text = qualifierText + "." + DescriptorRenderer.SOURCE_CODE.renderName(memberDescriptor.getName())
 
                 context.getDocument().replaceString(context.getStartOffset(), context.getTailOffset(), text)
                 context.setTailOffset(context.getStartOffset() + text.length)

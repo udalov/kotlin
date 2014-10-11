@@ -19,10 +19,7 @@ package org.jetbrains.jet.codegen.intrinsics;
 import com.google.common.collect.ImmutableList;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.jet.codegen.JvmCodegenUtil;
 import org.jetbrains.jet.lang.descriptors.CallableMemberDescriptor;
-import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor;
-import org.jetbrains.jet.lang.descriptors.SimpleFunctionDescriptor;
 import org.jetbrains.jet.lang.resolve.CompileTimeConstantUtils;
 import org.jetbrains.jet.lang.resolve.DescriptorUtils;
 import org.jetbrains.jet.lang.resolve.java.JvmPrimitiveType;
@@ -35,8 +32,6 @@ import org.jetbrains.jet.lang.types.lang.PrimitiveType;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.jetbrains.jet.lang.resolve.DescriptorUtils.isClassObject;
-import static org.jetbrains.jet.lang.resolve.DescriptorUtils.isEnumClass;
 import static org.jetbrains.jet.lang.types.lang.KotlinBuiltIns.BUILT_INS_PACKAGE_FQ_NAME;
 import static org.jetbrains.org.objectweb.asm.Opcodes.*;
 
@@ -58,9 +53,8 @@ public class IntrinsicMethods {
     private static final ArraySet ARRAY_SET = new ArraySet();
     private static final ArrayGet ARRAY_GET = new ArrayGet();
     private static final StringPlus STRING_PLUS = new StringPlus();
-    private static final EnumValues ENUM_VALUES = new EnumValues();
-    private static final EnumValueOf ENUM_VALUE_OF = new EnumValueOf();
     private static final ToString TO_STRING = new ToString();
+    private static final Clone CLONE = new Clone();
 
     private static final FqNameUnsafe KOTLIN_ANY_FQ_NAME = DescriptorUtils.getFqName(KotlinBuiltIns.getInstance().getAny());
     private static final FqNameUnsafe KOTLIN_STRING_FQ_NAME = DescriptorUtils.getFqName(KotlinBuiltIns.getInstance().getString());
@@ -121,6 +115,8 @@ public class IntrinsicMethods {
         declareIntrinsicFunction("CharSequence", "get", 1, new StringGetChar());
         declareIntrinsicFunction("String", "get", 1, new StringGetChar());
 
+        declareIntrinsicFunction("Cloneable", "clone", 0, CLONE);
+
         intrinsicsMap.registerIntrinsic(BUILT_INS_PACKAGE_FQ_NAME, KOTLIN_ANY_FQ_NAME, "toString", 0, TO_STRING);
         intrinsicsMap.registerIntrinsic(BUILT_INS_PACKAGE_FQ_NAME, KOTLIN_ANY_FQ_NAME, "equals", 1, EQUALS);
         intrinsicsMap.registerIntrinsic(BUILT_INS_PACKAGE_FQ_NAME, KOTLIN_ANY_FQ_NAME, "identityEquals", 1, IDENTITY_EQUALS);
@@ -148,6 +144,7 @@ public class IntrinsicMethods {
         declareIntrinsicProperty("Array", "indices", ARRAY_INDICES);
         declareIntrinsicFunction("Array", "set", 2, ARRAY_SET);
         declareIntrinsicFunction("Array", "get", 1, ARRAY_GET);
+        declareIntrinsicFunction("Array", "clone", 0, CLONE);
         declareIterator("Array");
     }
 
@@ -157,6 +154,7 @@ public class IntrinsicMethods {
         declareIntrinsicProperty(arrayTypeName, "indices", ARRAY_INDICES);
         declareIntrinsicFunction(arrayTypeName, "set", 2, ARRAY_SET);
         declareIntrinsicFunction(arrayTypeName, "get", 1, ARRAY_GET);
+        declareIntrinsicFunction(arrayTypeName, "clone", 0, CLONE);
         declareIterator(arrayTypeName);
     }
 
@@ -192,25 +190,11 @@ public class IntrinsicMethods {
             return intrinsicMethod;
         }
 
-        if (descriptor instanceof SimpleFunctionDescriptor) {
-            SimpleFunctionDescriptor functionDescriptor = (SimpleFunctionDescriptor) descriptor;
-
-            DeclarationDescriptor container = descriptor.getContainingDeclaration();
-            //noinspection ConstantConditions
-            if (isClassObject(container) && isEnumClass(container.getContainingDeclaration())) {
-                if (JvmCodegenUtil.isEnumValuesMethod(functionDescriptor)) {
-                    return ENUM_VALUES;
-                }
-
-                if (JvmCodegenUtil.isEnumValueOfMethod(functionDescriptor)) {
-                    return ENUM_VALUE_OF;
-                }
-            }
+        String value = CompileTimeConstantUtils.getIntrinsicAnnotationArgument(descriptor);
+        if (value != null) {
+            return namedMethods.get(value);
         }
 
-        String value = CompileTimeConstantUtils.getIntrinsicAnnotationArgument(descriptor);
-        if (value == null) return null;
-
-        return namedMethods.get(value);
+        return null;
     }
 }

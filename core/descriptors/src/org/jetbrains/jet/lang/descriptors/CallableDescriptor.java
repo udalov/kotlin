@@ -27,11 +27,12 @@ import java.util.Set;
 
 public interface CallableDescriptor extends DeclarationDescriptorWithVisibility, DeclarationDescriptorNonRoot {
     @Nullable
-    ReceiverParameterDescriptor getReceiverParameter();
+    ReceiverParameterDescriptor getExtensionReceiverParameter();
 
     @Nullable
-    ReceiverParameterDescriptor getExpectedThisObject();
+    ReceiverParameterDescriptor getDispatchReceiverParameter();
 
+    @KotlinSignature("fun getTypeParameters(): List<TypeParameterDescriptor>")
     @NotNull
     List<TypeParameterDescriptor> getTypeParameters();
 
@@ -48,6 +49,7 @@ public interface CallableDescriptor extends DeclarationDescriptorWithVisibility,
     @Override
     CallableDescriptor substitute(@NotNull TypeSubstitutor substitutor);
 
+    @KotlinSignature("fun getValueParameters(): List<ValueParameterDescriptor>")
     @NotNull
     List<ValueParameterDescriptor> getValueParameters();
 

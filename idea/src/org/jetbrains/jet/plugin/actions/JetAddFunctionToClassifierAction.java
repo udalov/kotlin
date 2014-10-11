@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2013 JetBrains s.r.o.
+ * Copyright 2010-2014 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -40,9 +40,9 @@ import org.jetbrains.jet.lang.psi.JetPsiFactory;
 import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 import org.jetbrains.jet.plugin.JetBundle;
-import org.jetbrains.jet.plugin.codeInsight.CodeInsightUtils;
 import org.jetbrains.jet.plugin.codeInsight.DescriptorToDeclarationUtil;
 import org.jetbrains.jet.plugin.codeInsight.ShortenReferences;
+import org.jetbrains.jet.renderer.DescriptorRenderer;
 
 import javax.swing.*;
 import java.util.ArrayList;
@@ -74,13 +74,11 @@ public class JetAddFunctionToClassifierAction implements QuestionAction {
             @NotNull final ClassDescriptor typeDescriptor,
             @NotNull final FunctionDescriptor functionDescriptor
     ) {
-        final String signatureString = CodeInsightUtils.createFunctionSignatureStringFromDescriptor(
-                functionDescriptor,
-                /* shortTypeNames = */ false);
+        final String signatureString = DescriptorRenderer.SOURCE_CODE.render(functionDescriptor);
 
         PsiDocumentManager.getInstance(project).commitAllDocuments();
 
-        final JetClass classifierDeclaration = (JetClass) DescriptorToDeclarationUtil.getDeclaration(project, typeDescriptor);
+        final JetClass classifierDeclaration = (JetClass) DescriptorToDeclarationUtil.INSTANCE$.getDeclaration(project, typeDescriptor);
         CommandProcessor.getInstance().executeCommand(project, new Runnable() {
             @Override
             public void run() {
@@ -107,7 +105,7 @@ public class JetAddFunctionToClassifierAction implements QuestionAction {
                         PsiElement anchor = body.getRBrace();
                         JetNamedFunction insertedFunctionElement = (JetNamedFunction) body.addBefore(functionElement, anchor);
 
-                        ShortenReferences.instance$.process(insertedFunctionElement);
+                        ShortenReferences.INSTANCE$.process(insertedFunctionElement);
                     }
                 });
             }
@@ -160,9 +158,7 @@ public class JetAddFunctionToClassifierAction implements QuestionAction {
             public String getTextFor(FunctionDescriptor functionDescriptor) {
                 ClassDescriptor type = (ClassDescriptor) functionDescriptor.getContainingDeclaration();
                 return JetBundle.message("add.function.to.type.action.single",
-                                         CodeInsightUtils.createFunctionSignatureStringFromDescriptor(
-                                                 functionDescriptor,
-                                                 /* shortTypeNames = */ true),
+                                         DescriptorRenderer.SOURCE_CODE_SHORT_NAMES_IN_TYPES.render(functionDescriptor),
                                          type.getName().toString());
             }
         };

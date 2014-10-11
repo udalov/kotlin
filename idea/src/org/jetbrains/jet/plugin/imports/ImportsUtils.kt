@@ -27,21 +27,22 @@ import org.jetbrains.jet.lang.psi.JetSimpleNameExpression
 import org.jetbrains.jet.lang.psi.psiUtil.getReceiverExpression
 import com.intellij.psi.PsiElement
 import org.jetbrains.jet.lang.types.JetType
+import org.jetbrains.jet.lang.resolve.descriptorUtil.getImportableDescriptor
+import org.jetbrains.jet.lang.resolve.descriptorUtil.isExtension
 
 public val DeclarationDescriptor.importableFqName: FqName?
     get() {
-        if (this is ConstructorDescriptor) return getContainingDeclaration().importableFqName
-        val mayBeUnsafe = DescriptorUtils.getFqName(this)
-        return if (mayBeUnsafe.isSafe()) {
-            mayBeUnsafe.toSafe()
-        }
-        else {
-            null
-        }
+        val mayBeUnsafe = DescriptorUtils.getFqName(getImportableDescriptor())
+        return if (mayBeUnsafe.isSafe()) mayBeUnsafe.toSafe() else null
     }
 
+public val DeclarationDescriptor.importableFqNameSafe: FqName
+    get() = DescriptorUtils.getFqNameSafe(getImportableDescriptor())
+
 public fun DeclarationDescriptor.canBeReferencedViaImport(): Boolean {
-    if (this is PackageViewDescriptor || DescriptorUtils.isTopLevelDeclaration(this)) {
+    if (this is PackageViewDescriptor ||
+        DescriptorUtils.isTopLevelDeclaration(this) ||
+        (this is CallableDescriptor && DescriptorUtils.isStaticDeclaration(this))) {
         return true
     }
     val parent = getContainingDeclaration()!!
@@ -64,7 +65,3 @@ public fun isInReceiverScope(referenceElement: PsiElement, referencedDescriptor:
     val isExpressionWithReceiver = referenceElement is JetSimpleNameExpression && referenceElement.getReceiverExpression() != null
     return isExpressionWithReceiver && !referencedDescriptor.isExtension
 }
-
-//TODO: move this utility to more appropriate place
-public val DeclarationDescriptor.isExtension: Boolean
-    get() = this is CallableDescriptor && getReceiverParameter() != null

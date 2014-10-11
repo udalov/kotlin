@@ -22,6 +22,7 @@ import com.intellij.psi.tree.IElementType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.JetNodeTypes;
+import org.jetbrains.jet.lang.psi.typeRefHelpers.TypeRefHelpersPackage;
 import org.jetbrains.jet.lexer.JetTokens;
 
 import java.util.Collections;
@@ -55,12 +56,12 @@ abstract public class JetFunctionNotStubbed extends JetTypeParameterListOwnerNot
 
     @Override
     public boolean hasDeclaredReturnType() {
-        return getReturnTypeRef() != null;
+        return getTypeReference() != null;
     }
 
     @Override
     @Nullable
-    public JetTypeReference getReceiverTypeRef() {
+    public JetTypeReference getReceiverTypeReference() {
         PsiElement child = getFirstChild();
         while (child != null) {
             IElementType tt = child.getNode().getElementType();
@@ -76,27 +77,14 @@ abstract public class JetFunctionNotStubbed extends JetTypeParameterListOwnerNot
 
     @Override
     @Nullable
-    public JetTypeReference getReturnTypeRef() {
-        boolean colonPassed = false;
-        PsiElement child = getFirstChild();
-        while (child != null) {
-            IElementType tt = child.getNode().getElementType();
-            if (tt == JetTokens.COLON) {
-                colonPassed = true;
-            }
-            if (colonPassed && child instanceof JetTypeReference) {
-                return (JetTypeReference) child;
-            }
-            child = child.getNextSibling();
-        }
-
-        return null;
+    public JetTypeReference getTypeReference() {
+        return TypeRefHelpersPackage.getTypeReference(this);
     }
 
-    @NotNull
+    @Nullable
     @Override
-    public JetElement asElement() {
-        return this;
+    public JetTypeReference setTypeReference(@Nullable JetTypeReference typeRef) {
+        return TypeRefHelpersPackage.setTypeReference(this, getValueParameterList(), typeRef);
     }
 
     @Override

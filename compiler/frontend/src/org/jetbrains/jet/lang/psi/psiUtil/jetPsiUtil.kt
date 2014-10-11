@@ -96,6 +96,9 @@ public fun JetClass.isAbstract(): Boolean = isTrait() || hasModifier(JetTokens.A
 [suppress("UNCHECKED_CAST")]
 public fun <T: PsiElement> PsiElement.replaced(newElement: T): T = replace(newElement) as T
 
+[suppress("UNCHECKED_CAST")]
+public fun <T: PsiElement> T.copied(): T = copy() as T
+
 public fun JetElement.blockExpressionsOrSingle(): Stream<JetElement> =
         if (this is JetBlockExpression) getStatements().stream() else listOf(this).stream()
 
@@ -190,7 +193,7 @@ public fun PsiElement.isExtensionDeclaration(): Boolean {
         else -> null
     }
 
-    return callable?.getReceiverTypeRef() != null
+    return callable?.getReceiverTypeReference() != null
 }
 
 public fun PsiElement.isObjectLiteral(): Boolean = this is JetObjectDeclaration && isObjectLiteral()
@@ -200,7 +203,7 @@ public fun PsiElement.deleteElementAndCleanParent() {
 
     JetPsiUtil.deleteElementWithDelimiters(this)
     [suppress("UNCHECKED_CAST")]
-    JetPsiUtil.deleteChildlessElement(parent, this.getClass() as Class<PsiElement>)
+    JetPsiUtil.deleteChildlessElement(parent, this.javaClass as Class<PsiElement>)
 }
 
 public fun PsiElement.parameterIndex(): Int {
@@ -224,6 +227,13 @@ public fun JetSimpleNameExpression.getQualifiedElement(): JetElement {
         is JetUserType -> if (parent.getReferenceExpression().isAncestor(baseExpression)) parent else baseExpression
         else -> baseExpression
     }
+}
+
+public fun JetSimpleNameExpression.getTopmostParentQualifiedExpressionForSelector(): JetQualifiedExpression? {
+    return stream<JetExpression>(this) {
+        val parentQualified = it.getParent() as? JetQualifiedExpression
+        if (parentQualified?.getSelectorExpression() == it) parentQualified else null
+    }.last() as? JetQualifiedExpression
 }
 
 /**
@@ -315,15 +325,29 @@ public fun JetSimpleNameExpression.isImportDirectiveExpression(): Boolean {
     }
 }
 
-public fun JetElement.getCalleeExpressionIfAny(): JetExpression? {
-    val element = if (this is JetExpression) JetPsiUtil.safeDeparenthesize(this, false) else this
-    return when (element) {
-        is JetSimpleNameExpression -> element
-        is JetCallElement -> element.getCalleeExpression()
-        is JetQualifiedExpression -> element.getSelectorExpression()?.getCalleeExpressionIfAny()
-        is JetOperationExpression -> element.getOperationReference()
-        else -> null
+public fun JetElement.getTextWithLocation(): String = "'${this.getText()}' at ${DiagnosticUtils.atLocation(this)}"
+
+public fun JetExpression.isFunctionLiteralOutsideParentheses(): Boolean {
+    val parent = getParent()
+    return when (parent) {
+        is JetFunctionLiteralArgument -> true
+        is JetLabeledExpression -> parent.isFunctionLiteralOutsideParentheses()
+        else -> false
     }
 }
 
-public fun JetElement.getTextWithLocation(): String = "'${this.getText()}' at ${DiagnosticUtils.atLocation(this)}"
+public fun PsiElement.siblings(forward: Boolean = true, withItself: Boolean = true): Stream<PsiElement> {
+    val stepFun = if (forward) { (e: PsiElement) -> e.getNextSibling() } else { (e: PsiElement) -> e.getPrevSibling() }
+    val stream = stream(this, stepFun)
+    return if (withItself) stream else stream.drop(1)
+}
+
+public fun PsiElement.parents(withItself: Boolean = true): Stream<PsiElement> {
+    val stream = stream(this) { if (it is PsiFile) null else it.getParent() }
+    return if (withItself) stream else stream.drop(1)
+}
+
+public fun JetExpression.getAssignmentByLHS(): JetBinaryExpression? {
+    val parent = getParent() as? JetBinaryExpression ?: return null
+    return if (JetPsiUtil.isAssignment(parent) && parent.getLeft() == this) parent else null
+}

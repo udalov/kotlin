@@ -26,9 +26,9 @@ import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.diagnostics.Errors;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.*;
-import org.jetbrains.jet.lang.resolve.calls.autocasts.DataFlowInfo;
 import org.jetbrains.jet.lang.resolve.calls.model.MutableDataFlowInfoForArguments;
 import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCall;
+import org.jetbrains.jet.lang.resolve.calls.smartcasts.DataFlowInfo;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
 import org.jetbrains.jet.lang.resolve.scopes.WritableScope;
 import org.jetbrains.jet.lang.resolve.scopes.WritableScopeImpl;
@@ -265,7 +265,6 @@ public class ControlStructureTypingVisitor extends ExpressionTypingVisitor {
             else {
                 facade.getTypeInfo(body, context.replaceScope(context.scope));
             }
-            context.trace.report(UNUSED_FUNCTION_LITERAL.on(function));
         }
         else if (body != null) {
             WritableScope writableScope = newWritableScopeImpl(context, "do..while body scope");
@@ -518,7 +517,7 @@ public class ControlStructureTypingVisitor extends ExpressionTypingVisitor {
     private static JetType getFunctionExpectedReturnType(@NotNull FunctionDescriptor descriptor, @NotNull JetElement function) {
         JetType expectedType;
         if (function instanceof JetFunction) {
-            if (((JetFunction) function).getReturnTypeRef() != null || ((JetFunction) function).hasBlockBody()) {
+            if (((JetFunction) function).getTypeReference() != null || ((JetFunction) function).hasBlockBody()) {
                 expectedType = descriptor.getReturnType();
             }
             else {

@@ -1,9 +1,0 @@
-package test
-
-public open class InnerClass : java.lang.Object {
-    public constructor InnerClass()
-    
-    public open inner class Inner : java.lang.Object {
-        public constructor Inner()
-    }
-}

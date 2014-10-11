@@ -23,6 +23,7 @@ import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.io.FileUtil;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiFile;
+import com.intellij.util.Consumer;
 import com.intellij.util.Function;
 import com.intellij.util.containers.ContainerUtil;
 import kotlin.Function0;
@@ -31,6 +32,7 @@ import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.OutputFileCollection;
 import org.jetbrains.jet.analyzer.AnalyzeExhaust;
 import org.jetbrains.jet.cli.common.CLICompiler;
+import org.jetbrains.jet.cli.common.CLIConfigurationKeys;
 import org.jetbrains.jet.cli.common.ExitCode;
 import org.jetbrains.jet.cli.common.arguments.K2JSCompilerArguments;
 import org.jetbrains.jet.cli.common.arguments.K2JsArgumentConstants;
@@ -39,13 +41,14 @@ import org.jetbrains.jet.cli.common.messages.CompilerMessageLocation;
 import org.jetbrains.jet.cli.common.messages.CompilerMessageSeverity;
 import org.jetbrains.jet.cli.common.messages.MessageCollector;
 import org.jetbrains.jet.cli.common.output.outputUtils.OutputUtilsPackage;
+import org.jetbrains.jet.cli.jvm.compiler.CompileEnvironmentUtil;
 import org.jetbrains.jet.cli.jvm.compiler.JetCoreEnvironment;
 import org.jetbrains.jet.config.CommonConfigurationKeys;
 import org.jetbrains.jet.config.CompilerConfiguration;
+import org.jetbrains.jet.config.Services;
 import org.jetbrains.jet.lang.psi.JetFile;
-import org.jetbrains.k2js.analyze.AnalyzerFacadeForJS;
+import org.jetbrains.k2js.analyze.TopDownAnalyzerFacadeForJS;
 import org.jetbrains.k2js.config.*;
-import org.jetbrains.k2js.facade.K2JSTranslator;
 import org.jetbrains.k2js.facade.MainCallParameters;
 
 import java.io.File;
@@ -55,6 +58,7 @@ import java.util.List;
 import static org.jetbrains.jet.cli.common.ExitCode.COMPILATION_ERROR;
 import static org.jetbrains.jet.cli.common.ExitCode.OK;
 import static org.jetbrains.jet.cli.common.messages.CompilerMessageLocation.NO_LOCATION;
+import static org.jetbrains.k2js.facade.K2JSTranslator.translateWithMainCallParameters;
 
 public class K2JSCompiler extends CLICompiler<K2JSCompilerArguments> {
 
@@ -73,16 +77,19 @@ public class K2JSCompiler extends CLICompiler<K2JSCompilerArguments> {
     @Override
     protected ExitCode doExecute(
             @NotNull K2JSCompilerArguments arguments,
+            @NotNull Services services,
             @NotNull MessageCollector messageCollector,
             @NotNull Disposable rootDisposable
     ) {
-        if (arguments.sourceFiles == null) {
-            messageCollector.report(CompilerMessageSeverity.ERROR, "Specify sources location via -sourceFiles", NO_LOCATION);
+        if (arguments.freeArgs.isEmpty()) {
+            messageCollector.report(CompilerMessageSeverity.ERROR, "Specify at least one source file or directory", NO_LOCATION);
             return ExitCode.INTERNAL_ERROR;
         }
 
         CompilerConfiguration configuration = new CompilerConfiguration();
-        configuration.addAll(CommonConfigurationKeys.SOURCE_ROOTS_KEY, Arrays.asList(arguments.sourceFiles));
+        configuration.put(CLIConfigurationKeys.MESSAGE_COLLECTOR_KEY, messageCollector);
+
+        CompileEnvironmentUtil.addSourceFilesCheckingForDuplicates(configuration, arguments.freeArgs);
         JetCoreEnvironment environmentForJS = JetCoreEnvironment.createForProduction(rootDisposable, configuration);
 
         Project project = environmentForJS.getProject();
@@ -164,7 +171,8 @@ public class K2JSCompiler extends CLICompiler<K2JSCompilerArguments> {
             @Nullable File outputPostfix
     ) {
         try {
-            return K2JSTranslator.translateWithMainCallParameters(mainCall, sourceFiles, outputFile, outputPrefix, outputPostfix, config);
+            //noinspection unchecked
+            return translateWithMainCallParameters(mainCall, sourceFiles, outputFile, outputPrefix, outputPostfix, config, Consumer.EMPTY_CONSUMER);
         }
         catch (Exception e) {
             throw new RuntimeException(e);
@@ -177,7 +185,7 @@ public class K2JSCompiler extends CLICompiler<K2JSCompilerArguments> {
         analyzerWithCompilerReport.analyzeAndReport(sources, new Function0<AnalyzeExhaust>() {
             @Override
             public AnalyzeExhaust invoke() {
-                return AnalyzerFacadeForJS.analyzeFiles(sources, Predicates.<PsiFile>alwaysTrue(), config);
+                return TopDownAnalyzerFacadeForJS.analyzeFiles(sources, Predicates.<PsiFile>alwaysTrue(), config);
             }
         });
         return analyzerWithCompilerReport.hasErrors();
@@ -190,12 +198,14 @@ public class K2JSCompiler extends CLICompiler<K2JSCompilerArguments> {
         }
         EcmaVersion ecmaVersion = EcmaVersion.defaultVersion();
         String moduleId = FileUtil.getNameWithoutExtension(new File(arguments.outputFile));
+        boolean inlineEnabled = !arguments.noInline;
+
         if (arguments.libraryFiles != null) {
-            return new LibrarySourcesConfig(project, moduleId, Arrays.asList(arguments.libraryFiles), ecmaVersion, arguments.sourcemap);
+            return new LibrarySourcesConfig(project, moduleId, Arrays.asList(arguments.libraryFiles), ecmaVersion, arguments.sourceMap, inlineEnabled);
         }
         else {
             // lets discover the JS library definitions on the classpath
-            return new ClassPathLibraryDefintionsConfig(project, moduleId, ecmaVersion, arguments.sourcemap);
+            return new ClassPathLibraryDefintionsConfig(project, moduleId, ecmaVersion, arguments.sourceMap, inlineEnabled);
         }
     }
 

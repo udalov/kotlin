@@ -25,20 +25,10 @@ import com.intellij.debugger.SourcePosition
 import com.intellij.debugger.engine.evaluation.EvaluationContextImpl
 import java.util.ArrayList
 import com.intellij.openapi.components.ServiceManager
-import org.jetbrains.org.objectweb.asm.Type
 import com.intellij.util.containers.MultiMap
 import org.jetbrains.jet.lang.types.JetType
-import org.jetbrains.jet.lang.resolve.java.mapping.JavaToKotlinClassMap
-import com.intellij.psi.search.GlobalSearchScope
-import com.intellij.openapi.application.ApplicationManager
-import org.jetbrains.jet.lang.psi.JetFile
-import com.intellij.psi.JavaPsiFacade
 import org.jetbrains.jet.lang.resolve.DescriptorUtils
 import org.jetbrains.jet.lang.descriptors.ClassDescriptor
-import org.jetbrains.jet.plugin.caches.resolve.JavaResolveExtension
-import org.jetbrains.jet.lang.resolve.java.structure.impl.JavaClassImpl
-import org.jetbrains.jet.lang.resolve.java.JvmClassName
-import org.jetbrains.jet.codegen.AsmUtil
 import org.apache.log4j.Logger
 
 class KotlinEvaluateExpressionCache(val project: Project) {
@@ -87,23 +77,9 @@ class KotlinEvaluateExpressionCache(val project: Project) {
             val value = context.findLocalVariable(name, asmType = null, checkType = false, failIfNotFound = false)
             if (value == null) return@all false
 
-            val thisDescriptor = value.asmType.getClassDescriptor()
+            val thisDescriptor = value.asmType.getClassDescriptor(project)
             val superClassDescriptor = jetType.getConstructor().getDeclarationDescriptor() as? ClassDescriptor
             return@all thisDescriptor != null && superClassDescriptor != null && DescriptorUtils.isSubclass(thisDescriptor, superClassDescriptor)
-        }
-    }
-
-    private fun Type.getClassDescriptor(): ClassDescriptor? {
-        if (AsmUtil.isPrimitive(this)) return null
-
-        val jvmName = JvmClassName.byInternalName(getInternalName()).getFqNameForClassNameWithoutDollars()
-
-        val platformClasses = JavaToKotlinClassMap.getInstance().mapPlatformClass(jvmName)
-        if (platformClasses.notEmpty) return platformClasses.first()
-
-        return ApplicationManager.getApplication()?.runReadAction<ClassDescriptor> {
-            val classes = JavaPsiFacade.getInstance(project).findClasses(jvmName.asString(), GlobalSearchScope.allScope(project))
-            if (classes.isEmpty()) null else JavaResolveExtension[project].resolveClass(JavaClassImpl(classes.first()))
         }
     }
 

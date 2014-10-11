@@ -8,11 +8,11 @@ fun bar(f: Foo, i: Int) {
     }
 }
 
-fun <T, R> with(receiver: T, f: T.() -> R) : R = throw Exception()
-
 
 Resolved call:
 
-Explicit receiver kind = THIS_OBJECT
-This object = f
-Receiver argument = Int
+Resulting descriptor: fun Int.invoke(): Unit defined in Foo
+
+Explicit receiver kind = DISPATCH_RECEIVER
+Dispatch receiver = f {Foo}
+Extension receiver = IntExt{fun Int.<anonymous>(): Unit defined in bar}

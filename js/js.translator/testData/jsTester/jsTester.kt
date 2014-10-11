@@ -1,9 +1,10 @@
 package kotlin.test
 
 import kotlin.test.*
-import js.*
 
-public var asserter: Asserter = JsTestsAsserter()
+fun init() {
+    asserter = JsTestsAsserter()
+}
 
 public class JsTestsAsserter() : Asserter {
     public override fun assertTrue(message: String, actual: Boolean) {
@@ -24,4 +25,4 @@ public class JsTestsAsserter() : Asserter {
 }
 
 native("JsTests.assert")
-public fun assert(value: Boolean, message: String): Unit = js.noImpl
+public fun assert(value: Boolean, message: String): Unit = noImpl

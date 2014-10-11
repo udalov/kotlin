@@ -47,7 +47,7 @@ public class MakeTypeExplicitInLambdaIntention : JetSelfTargetingIntention<JetFu
         if (func == null || ErrorUtils.containsErrorType(func)) return false
 
         if (hasImplicitReturnType(element) && func.getReturnType() != null) return true
-        if (hasImplicitReceiverType(element) && func.getReceiverParameter()?.getType() != null) return true
+        if (hasImplicitReceiverType(element) && func.getExtensionReceiverParameter()?.getType() != null) return true
 
         val params = element.getValueParameters()
         return params.any { it.getTypeReference() == null }
@@ -88,19 +88,18 @@ public class MakeTypeExplicitInLambdaIntention : JetSelfTargetingIntention<JetFu
             val paramList = functionLiteral.getValueParameterList()
             val returnTypeColon = psiFactory.createColon()
             val returnTypeExpr = psiFactory.createType(DescriptorRenderer.SOURCE_CODE.renderType(expectedReturnType))
-            ShortenReferences.process(returnTypeExpr)
             functionLiteral.addAfter(returnTypeExpr, paramList)
             functionLiteral.addAfter(returnTypeColon, paramList)
+            ShortenReferences.process(functionLiteral.getTypeReference()!!)
         }
 
         // Step 3: make the receiver type explicit
-        val expectedReceiverType = func.getReceiverParameter()?.getType()
+        val expectedReceiverType = func.getExtensionReceiverParameter()?.getType()
         if (hasImplicitReceiverType(element) && expectedReceiverType != null) {
             val receiverTypeString = DescriptorRenderer.SOURCE_CODE.renderType(expectedReceiverType)
-            val paramListString = functionLiteral.getValueParameterList()?.getText()
-            val paramListWithReceiver = psiFactory.createExpression(receiverTypeString + "." + paramListString)
-            ShortenReferences.process(paramListWithReceiver)
-            functionLiteral.getValueParameterList()?.replace(paramListWithReceiver)
+            val dot = functionLiteral.addBefore(psiFactory.createDot(), functionLiteral.getValueParameterList())
+            functionLiteral.addBefore(psiFactory.createType(receiverTypeString), dot)
+            ShortenReferences.process(functionLiteral.getReceiverTypeReference()!!)
         }
     }
 
@@ -109,6 +108,6 @@ public class MakeTypeExplicitInLambdaIntention : JetSelfTargetingIntention<JetFu
     }
 
     private fun hasImplicitReceiverType(element: JetFunctionLiteralExpression): Boolean {
-        return element.getFunctionLiteral().getReceiverTypeRef() == null
+        return element.getFunctionLiteral().getReceiverTypeReference() == null
     }
 }

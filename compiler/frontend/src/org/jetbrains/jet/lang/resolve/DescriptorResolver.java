@@ -31,9 +31,10 @@ import org.jetbrains.jet.lang.diagnostics.DiagnosticFactory1;
 import org.jetbrains.jet.lang.evaluate.ConstantExpressionEvaluator;
 import org.jetbrains.jet.lang.evaluate.EvaluatePackage;
 import org.jetbrains.jet.lang.psi.*;
-import org.jetbrains.jet.lang.resolve.calls.autocasts.DataFlowInfo;
+import org.jetbrains.jet.lang.resolve.calls.smartcasts.DataFlowInfo;
 import org.jetbrains.jet.lang.resolve.constants.CompileTimeConstant;
 import org.jetbrains.jet.lang.resolve.constants.IntegerValueTypeConstant;
+import org.jetbrains.jet.lang.resolve.dataClassUtils.DataClassUtilsPackage;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
@@ -63,7 +64,6 @@ import static org.jetbrains.jet.lexer.JetTokens.VARARG_KEYWORD;
 
 public class DescriptorResolver {
     public static final Name COPY_METHOD_NAME = Name.identifier("copy");
-    public static final String COMPONENT_FUNCTION_NAME_PREFIX = "component";
     private static final Set<JetModifierKeywordToken> MODIFIERS_ILLEGAL_ON_PARAMETERS;
     static {
         MODIFIERS_ILLEGAL_ON_PARAMETERS = Sets.newHashSet();
@@ -317,7 +317,7 @@ public class DescriptorResolver {
         resolveGenericBounds(function, functionDescriptor, innerScope, typeParameterDescriptors, trace);
 
         JetType receiverType = null;
-        JetTypeReference receiverTypeRef = function.getReceiverTypeRef();
+        JetTypeReference receiverTypeRef = function.getReceiverTypeReference();
         if (receiverTypeRef != null) {
             JetScope scopeForReceiver =
                     function.hasTypeParameterListBeforeFunctionName()
@@ -331,7 +331,7 @@ public class DescriptorResolver {
 
         innerScope.changeLockLevel(WritableScope.LockLevel.READING);
 
-        JetTypeReference returnTypeRef = function.getReturnTypeRef();
+        JetTypeReference returnTypeRef = function.getTypeReference();
         JetType returnType;
         if (returnTypeRef != null) {
             returnType = typeResolver.resolveType(innerScope, returnTypeRef, trace, true);
@@ -362,7 +362,7 @@ public class DescriptorResolver {
         Visibility visibility = resolveVisibilityFromModifiers(function, getDefaultVisibility(function, containingDescriptor));
         functionDescriptor.initialize(
                 receiverType,
-                getExpectedThisObjectIfNeeded(containingDescriptor),
+                getDispatchReceiverParameterIfNeeded(containingDescriptor),
                 typeParameterDescriptors,
                 valueParameterDescriptors,
                 returnType,
@@ -382,15 +382,15 @@ public class DescriptorResolver {
             @NotNull ClassDescriptor classDescriptor,
             @NotNull BindingTrace trace
     ) {
-        String functionName = COMPONENT_FUNCTION_NAME_PREFIX + parameterIndex;
+        Name functionName = DataClassUtilsPackage.createComponentName(parameterIndex);
         JetType returnType = property.getType();
 
         SimpleFunctionDescriptorImpl functionDescriptor = SimpleFunctionDescriptorImpl.create(
                 classDescriptor,
                 Annotations.EMPTY,
-                Name.identifier(functionName),
+                functionName,
                 CallableMemberDescriptor.Kind.SYNTHESIZED,
-                SourceElement.NO_SOURCE
+                parameter.getSource()
         );
 
         functionDescriptor.initialize(
@@ -421,7 +421,7 @@ public class DescriptorResolver {
                 Annotations.EMPTY,
                 COPY_METHOD_NAME,
                 CallableMemberDescriptor.Kind.SYNTHESIZED,
-                SourceElement.NO_SOURCE
+                classDescriptor.getSource()
         );
 
         List<ValueParameterDescriptor> parameterDescriptors = Lists.newArrayList();
@@ -952,14 +952,14 @@ public class DescriptorResolver {
                 scopeWithTypeParameters = writableScope;
             }
 
-            JetTypeReference receiverTypeRef = property.getReceiverTypeRef();
+            JetTypeReference receiverTypeRef = property.getReceiverTypeReference();
             if (receiverTypeRef != null) {
                 receiverType = typeResolver.resolveType(scopeWithTypeParameters, receiverTypeRef, trace, true);
             }
         }
 
         ReceiverParameterDescriptor receiverDescriptor =
-                DescriptorFactory.createReceiverParameterForCallable(propertyDescriptor, receiverType);
+                DescriptorFactory.createExtensionReceiverParameterForCallable(propertyDescriptor, receiverType);
 
         ReceiverParameterDescriptor implicitInitializerReceiver = property.hasDelegate() ? NO_RECEIVER_PARAMETER : receiverDescriptor;
 
@@ -968,7 +968,7 @@ public class DescriptorResolver {
 
         JetType type = getVariableType(propertyDescriptor, propertyScope, property, dataFlowInfo, true, trace);
 
-        propertyDescriptor.setType(type, typeParameterDescriptors, getExpectedThisObjectIfNeeded(containingDeclaration),
+        propertyDescriptor.setType(type, typeParameterDescriptors, getDispatchReceiverParameterIfNeeded(containingDeclaration),
                                    receiverDescriptor);
 
         PropertyGetterDescriptorImpl getter = resolvePropertyGetterDescriptor(scopeWithTypeParameters, property, propertyDescriptor, trace);
@@ -1005,7 +1005,7 @@ public class DescriptorResolver {
             boolean notLocal,
             @NotNull final BindingTrace trace
     ) {
-        JetTypeReference propertyTypeRef = variable.getTypeRef();
+        JetTypeReference propertyTypeRef = variable.getTypeReference();
 
         boolean hasDelegate = variable instanceof JetProperty && ((JetProperty) variable).hasDelegateExpression();
         if (propertyTypeRef == null) {
@@ -1078,7 +1078,7 @@ public class DescriptorResolver {
                 public CompileTimeConstant<?> invoke() {
                     JetExpression initializer = variable.getInitializer();
                     JetType initializerType = expressionTypingServices.safeGetType(scope, initializer, variableType, dataFlowInfo, trace);
-                    CompileTimeConstant<?> constant = ConstantExpressionEvaluator.object$.evaluate(initializer, trace, initializerType);
+                    CompileTimeConstant<?> constant = ConstantExpressionEvaluator.OBJECT$.evaluate(initializer, trace, initializerType);
                     if (constant instanceof IntegerValueTypeConstant) {
                         return EvaluatePackage.createCompileTimeConstantWithType((IntegerValueTypeConstant) constant, initializerType);
                     }
@@ -1125,7 +1125,7 @@ public class DescriptorResolver {
         }
 
         boolean definedInClass = DescriptorUtils.getParentOfType(descriptor, ClassDescriptor.class) != null;
-        boolean isLocal = descriptor.getContainingDeclaration() instanceof CallableDescriptor;
+        boolean isLocal = DescriptorUtils.isLocal(descriptor);
         Visibility visibility = descriptor.getVisibility();
         boolean transformNeeded = !isLocal && !visibility.isPublicAPI()
                                   && !(definedInClass && Visibilities.PRIVATE.equals(visibility));
@@ -1277,12 +1277,9 @@ public class DescriptorResolver {
         parameterScope.changeLockLevel(WritableScope.LockLevel.BOTH);
         ConstructorDescriptorImpl constructor = constructorDescriptor.initialize(
                 typeParameters,
-                resolveValueParameters(
-                        constructorDescriptor,
-                        parameterScope,
-                        valueParameters, trace),
-                resolveVisibilityFromModifiers(modifierList, getDefaultConstructorVisibility(classDescriptor)),
-                isConstructorOfStaticNestedClass(constructorDescriptor));
+                resolveValueParameters(constructorDescriptor, parameterScope, valueParameters, trace),
+                resolveVisibilityFromModifiers(modifierList, getDefaultConstructorVisibility(classDescriptor))
+        );
         if (isAnnotationClass(classDescriptor)) {
             CompileTimeConstantUtils.checkConstructorParametersType(valueParameters, trace);
         }
@@ -1335,7 +1332,7 @@ public class DescriptorResolver {
                 toSourceElement(parameter)
         );
         propertyDescriptor.setType(type, Collections.<TypeParameterDescriptor>emptyList(),
-                                   getExpectedThisObjectIfNeeded(classDescriptor), NO_RECEIVER_PARAMETER);
+                                   getDispatchReceiverParameterIfNeeded(classDescriptor), NO_RECEIVER_PARAMETER);
 
         PropertyGetterDescriptorImpl getter = DescriptorFactory.createDefaultGetter(propertyDescriptor);
         PropertySetterDescriptor setter =

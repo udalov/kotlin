@@ -29,6 +29,7 @@ import org.jetbrains.jet.lang.descriptors.FunctionDescriptor;
 import org.jetbrains.jet.lang.descriptors.Visibilities;
 import org.jetbrains.jet.lang.psi.JetElement;
 import org.jetbrains.jet.lang.resolve.BindingContext;
+import org.jetbrains.jet.lang.resolve.dataClassUtils.DataClassUtilsPackage;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 import org.jetbrains.jet.plugin.KotlinCodeInsightTestCase;
 import org.jetbrains.jet.plugin.PluginTestCaseBase;
@@ -87,7 +88,7 @@ public class JetChangeSignatureTest extends KotlinCodeInsightTestCase {
             getChangeInfo();
         }
         catch (CommonRefactoringUtil.RefactoringErrorHintException e) {
-            assertEquals(JetRefactoringBundle.message("cannot.refactor.synthesized.function", "component1"), e.getMessage());
+            assertEquals(JetRefactoringBundle.message("cannot.refactor.synthesized.function", DataClassUtilsPackage.createComponentName(1).asString()), e.getMessage());
             return;
         }
         fail();
@@ -121,6 +122,19 @@ public class JetChangeSignatureTest extends KotlinCodeInsightTestCase {
         doTest(changeInfo);
     }
 
+    public void testGenericConstructor() throws Exception {
+        JetChangeInfo changeInfo = getChangeInfo();
+        changeInfo.setNewVisibility(Visibilities.PUBLIC);
+        changeInfo.getNewParameters()[0].setValOrVar(JetValVar.Var);
+        changeInfo.getNewParameters()[1].setValOrVar(JetValVar.None);
+        changeInfo.getNewParameters()[2].setValOrVar(JetValVar.Val);
+        changeInfo.getNewParameters()[0].setName("_x1");
+        changeInfo.getNewParameters()[1].setName("_x2");
+        changeInfo.getNewParameters()[2].setName("_x3");
+        changeInfo.getNewParameters()[1].setTypeText("Double?");
+        doTest(changeInfo);
+    }
+
     public void testConstructorSwapArguments() throws Exception {
         JetChangeInfo changeInfo = getChangeInfo();
         changeInfo.getNewParameters()[0].setName("_x1");
@@ -138,6 +152,16 @@ public class JetChangeSignatureTest extends KotlinCodeInsightTestCase {
         changeInfo.getNewParameters()[1].setName("_x2");
         changeInfo.getNewParameters()[2].setName("_x3");
         changeInfo.getNewParameters()[1].setTypeText("Float?");
+        doTest(changeInfo);
+    }
+
+    public void testGenericFunctions() throws Exception {
+        JetChangeInfo changeInfo = getChangeInfo();
+        changeInfo.setNewVisibility(Visibilities.PUBLIC);
+        changeInfo.getNewParameters()[0].setName("_x1");
+        changeInfo.getNewParameters()[1].setName("_x2");
+        changeInfo.getNewParameters()[2].setName("_x3");
+        changeInfo.getNewParameters()[1].setTypeText("Double?");
         doTest(changeInfo);
     }
 
@@ -259,20 +283,25 @@ public class JetChangeSignatureTest extends KotlinCodeInsightTestCase {
 
     private JetChangeInfo getChangeInfo() throws Exception {
         configureByFile(getTestName(false) + "Before.kt");
+
         Editor editor = getEditor();
         PsiFile file = getFile();
+        Project project = getProject();
+
         JetElement element = (JetElement) new JetChangeSignatureHandler().findTargetMember(file, editor);
         assertNotNull("Target element is null", element);
-        Project project = getProject();
-        BindingContext bindingContext =
-                AnalyzerFacadeWithCache.getContextForElement(element);
+
+        BindingContext bindingContext = AnalyzerFacadeWithCache.getContextForElement(element);
         PsiElement context = file.findElementAt(editor.getCaretModel().getOffset());
         assertNotNull(context);
+
         FunctionDescriptor functionDescriptor = JetChangeSignatureHandler.findDescriptor(element, project, editor, bindingContext);
         assertNotNull(functionDescriptor);
-        JetChangeSignatureDialog dialog = getChangeSignatureDialog(project, functionDescriptor,
-                                                                   JetChangeSignatureHandler.getConfiguration(), bindingContext, context);
+
+        JetChangeSignatureDialog dialog = getChangeSignatureDialog(
+                project, functionDescriptor, JetChangeSignatureHandler.getConfiguration(), bindingContext, context);
         assertNotNull(dialog);
+
         dialog.canRun();
         Disposer.register(getTestRootDisposable(), dialog.getDisposable());
         return dialog.evaluateChangeInfo();

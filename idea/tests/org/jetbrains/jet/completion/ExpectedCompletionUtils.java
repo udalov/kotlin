@@ -26,11 +26,12 @@ import com.intellij.codeInsight.lookup.LookupElement;
 import com.intellij.codeInsight.lookup.LookupElementPresentation;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.util.ArrayUtil;
-import junit.framework.Assert;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.InTextDirectivesUtils;
 import org.jetbrains.jet.plugin.project.TargetPlatform;
+import org.jetbrains.jet.plugin.stubs.AstAccessControl;
+import org.junit.Assert;
 
 import java.util.*;
 
@@ -126,7 +127,8 @@ public class ExpectedCompletionUtils {
             NUMBER_JS_LINE_PREFIX,
             NUMBER_JAVA_LINE_PREFIX,
             INVOCATION_COUNT_PREFIX,
-            WITH_ORDER_PREFIX);
+            WITH_ORDER_PREFIX,
+            AstAccessControl.INSTANCE$.getALLOW_AST_ACCESS_DIRECTIVE());
 
     @NotNull
     public static CompletionProposal[] itemsShouldExist(String fileText, @Nullable TargetPlatform platform) {
@@ -160,16 +162,6 @@ public class ExpectedCompletionUtils {
         }
     }
 
-    @NotNull
-    public static CompletionProposal[] itemsShouldExist(String fileText) {
-        return itemsShouldExist(fileText, null);
-    }
-
-    @NotNull
-    public static CompletionProposal[] itemsShouldAbsent(String fileText) {
-        return itemsShouldAbsent(fileText, null);
-    }
-
     public static CompletionProposal[] processProposalAssertions(String fileText, String... prefixes) {
         Collection<CompletionProposal> proposals = new ArrayList<CompletionProposal>();
         for (String proposalStr : InTextDirectivesUtils.findLinesWithPrefixesRemoved(fileText, prefixes)) {
@@ -189,11 +181,6 @@ public class ExpectedCompletionUtils {
         }
 
         return ArrayUtil.toObjectArray(proposals, CompletionProposal.class);
-    }
-
-    @Nullable
-    public static Integer getExpectedNumber(String fileText) {
-        return getExpectedNumber(fileText, null);
     }
 
     @Nullable

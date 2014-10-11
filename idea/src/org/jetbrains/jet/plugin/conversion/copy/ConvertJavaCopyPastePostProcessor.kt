@@ -32,7 +32,8 @@ import org.jetbrains.jet.plugin.editor.JetEditorOptions
 import java.awt.datatransfer.Transferable
 import com.intellij.openapi.util.TextRange
 import com.intellij.psi.codeStyle.CodeStyleManager
-import com.intellij.codeInsight.editorActions.ReferenceTransferableData
+import org.jetbrains.jet.plugin.j2k.J2kPostProcessor;
+import com.intellij.lang.java.JavaLanguage
 
 public class ConvertJavaCopyPastePostProcessor() : CopyPastePostProcessor<TextBlockTransferableData>() {
 
@@ -51,8 +52,7 @@ public class ConvertJavaCopyPastePostProcessor() : CopyPastePostProcessor<TextBl
     public override fun collectTransferableData(file: PsiFile, editor: Editor, startOffsets: IntArray, endOffsets: IntArray): List<TextBlockTransferableData> {
         if (file !is PsiJavaFile) return listOf()
 
-        val lightFile = PsiFileFactory.getInstance(file.getProject())!!.createFileFromText(file.getText()!!, file)
-        return listOf(CopiedCode(lightFile as? PsiJavaFile, startOffsets, endOffsets))
+        return listOf(CopiedCode(file.getName(), file.getText()!!, startOffsets, endOffsets))
     }
 
     public override fun processTransferableData(project: Project, editor: Editor, bounds: RangeMarker, caretOffset: Int, indented: Ref<Boolean>, values: List<TextBlockTransferableData>) {
@@ -62,7 +62,8 @@ public class ConvertJavaCopyPastePostProcessor() : CopyPastePostProcessor<TextBl
         
         if (value !is CopiedCode) return
 
-        val sourceFile = value.getFile() ?: return
+        val sourceFile = PsiFileFactory.getInstance(project).
+                createFileFromText(value.fileName, JavaLanguage.INSTANCE, value.fileText) as? PsiJavaFile ?: return
 
         val targetFile = PsiDocumentManager.getInstance(project).getPsiFile(editor.getDocument())
         if (targetFile !is JetFile) return
@@ -70,7 +71,7 @@ public class ConvertJavaCopyPastePostProcessor() : CopyPastePostProcessor<TextBl
         val jetEditorOptions = JetEditorOptions.getInstance()!!
         val needConvert = jetEditorOptions.isEnableJavaToKotlinConversion() && (jetEditorOptions.isDonTShowConversionDialog() || okFromDialog(project))
         if (needConvert) {
-            val text = convertCopiedCodeToKotlin(value, sourceFile)
+            val text = convertCopiedCodeToKotlin(value, sourceFile, targetFile)
             if (text.isNotEmpty()) {
                 ApplicationManager.getApplication()!!.runWriteAction {
                     val startOffset = bounds.getStartOffset()
@@ -84,16 +85,20 @@ public class ConvertJavaCopyPastePostProcessor() : CopyPastePostProcessor<TextBl
         }
     }
 
-    private fun convertCopiedCodeToKotlin(code: CopiedCode, file: PsiJavaFile): String {
-        val converter = Converter.create(file.getProject(), ConverterSettings.defaultSettings, FilesConversionScope(listOf(file)))
-        val startOffsets = code.getStartOffsets()
-        val endOffsets = code.getEndOffsets()
+    private fun convertCopiedCodeToKotlin(code: CopiedCode, fileCopiedFrom: PsiJavaFile, fileCopiedTo: JetFile): String {
+        val converter = Converter.create(fileCopiedFrom.getProject(),
+                                         ConverterSettings.defaultSettings,
+                                         FilesConversionScope(listOf(fileCopiedFrom)),
+                                         ReferenceSearcherImpl,
+                                         J2kPostProcessor(fileCopiedTo))
+        val startOffsets = code.startOffsets
+        val endOffsets = code.endOffsets
         assert(startOffsets.size == endOffsets.size) { "Must have the same size" }
         val result = StringBuilder()
         for (i in startOffsets.indices) {
             val startOffset = startOffsets[i]
             val endOffset = endOffsets[i]
-            result.append(convertRangeToKotlin(file, TextRange(startOffset, endOffset), converter))
+            result.append(convertRangeToKotlin(fileCopiedFrom, TextRange(startOffset, endOffset), converter))
         }
         return StringUtil.convertLineSeparators(result.toString())
     }
@@ -169,6 +174,6 @@ public class ConvertJavaCopyPastePostProcessor() : CopyPastePostProcessor<TextBl
     }
 
     class object {
-        private val LOG = Logger.getInstance("#org.jetbrains.jet.plugin.conversion.copy.ConvertJavaCopyPastePostProcessor")!!
+        private val LOG = Logger.getInstance("#org.jetbrains.jet.plugin.conversion.copy.ConvertJavaCopyPastePostProcessor")
     }
 }

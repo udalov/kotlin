@@ -18,6 +18,7 @@ package org.jetbrains.jet.cli.jvm;
 
 import org.jetbrains.jet.config.CompilerConfigurationKey;
 import org.jetbrains.jet.lang.resolve.AnalyzerScriptParameter;
+import org.jetbrains.jet.lang.resolve.kotlin.incremental.cache.IncrementalCacheProvider;
 
 import java.io.File;
 import java.util.List;
@@ -31,19 +32,17 @@ public class JVMConfigurationKeys {
 
     public static final CompilerConfigurationKey<List<AnalyzerScriptParameter>> SCRIPT_PARAMETERS = CompilerConfigurationKey.create("script");
 
-    public static final CompilerConfigurationKey<Boolean> GENERATE_NOT_NULL_ASSERTIONS =
-            CompilerConfigurationKey.create("generate not-null assertions");
-    public static final CompilerConfigurationKey<Boolean> GENERATE_NOT_NULL_PARAMETER_ASSERTIONS =
-            CompilerConfigurationKey.create("generate not-null parameter assertions");
+    public static final CompilerConfigurationKey<Boolean> DISABLE_CALL_ASSERTIONS =
+            CompilerConfigurationKey.create("disable not-null call assertions");
+    public static final CompilerConfigurationKey<Boolean> DISABLE_PARAM_ASSERTIONS =
+            CompilerConfigurationKey.create("disable not-null parameter assertions");
+    public static final CompilerConfigurationKey<Boolean> DISABLE_INLINE =
+            CompilerConfigurationKey.create("disable inline");
+    public static final CompilerConfigurationKey<Boolean> DISABLE_OPTIMIZATION =
+            CompilerConfigurationKey.create("disable optimization");
 
-    public static final CompilerConfigurationKey<Boolean> ENABLE_INLINE =
-            CompilerConfigurationKey.create("enable inline");
-
-    public static final CompilerConfigurationKey<Boolean> ENABLE_OPTIMIZATION =
-            CompilerConfigurationKey.create("enable optimization");
-
-    public static final CompilerConfigurationKey<File> INCREMENTAL_CACHE_BASE_DIR =
-            CompilerConfigurationKey.create("incremental cache base dir");
+    public static final CompilerConfigurationKey<IncrementalCacheProvider> INCREMENTAL_CACHE_PROVIDER =
+            CompilerConfigurationKey.create("incremental cache provider");
 
     public static final CompilerConfigurationKey<List<String>> MODULE_IDS =
             CompilerConfigurationKey.create("module id strings");

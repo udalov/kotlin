@@ -18,12 +18,11 @@ package org.jetbrains.jet.plugin.ktSignature;
 
 import com.intellij.codeInsight.ExternalAnnotationsManager;
 import com.intellij.codeInsight.daemon.DaemonCodeAnalyzer;
-import com.intellij.lang.ASTNode;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.psi.*;
 import com.intellij.psi.impl.compiled.ClsElementImpl;
-import com.intellij.psi.impl.source.SourceTreeToPsiMap;
+import com.intellij.psi.util.PsiUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.resolve.java.resolver.PsiBasedExternalAnnotationResolver;
@@ -35,19 +34,32 @@ class KotlinSignatureUtil {
     private KotlinSignatureUtil() {
     }
 
-    @NotNull
-    static PsiModifierListOwner getAnnotationOwner(@NotNull PsiElement element) {
-        PsiModifierListOwner annotationOwner = element.getOriginalElement() instanceof PsiModifierListOwner
-                                    ? (PsiModifierListOwner) element.getOriginalElement()
-                                    : (PsiModifierListOwner) element;
+    /* For element from library sources or decompiled library sources return corresponding cls element */
+    @Nullable
+    static PsiMember getAnalyzableAnnotationOwner(@NotNull PsiElement element) {
+        if (!(element instanceof PsiField || element instanceof PsiMethod) || element instanceof PsiEnumConstant) {
+            return null;
+        }
+
+        PsiMember member = (PsiMember) element;
+        if (member.hasModifierProperty(PsiModifier.PRIVATE)) {
+            return null;
+        }
+
+        PsiClass containingClass = member.getContainingClass();
+        if (containingClass != null && PsiUtil.isLocalOrAnonymousClass(containingClass)) {
+            return null;
+        }
+
+        PsiMember annotationOwner = element.getOriginalElement() instanceof PsiMember
+                                    ? (PsiMember) element.getOriginalElement()
+                                    : (PsiMember) element;
+
         if (!annotationOwner.isPhysical()) {
             // this is fake PsiFile which is mirror for ClsFile without sources
-            ASTNode node = SourceTreeToPsiMap.psiElementToTree(element);
-            if (node != null) {
-                PsiCompiledElement compiledElement = node.getUserData(ClsElementImpl.COMPILED_ELEMENT);
-                if (compiledElement instanceof PsiModifierListOwner) {
-                    return (PsiModifierListOwner) compiledElement;
-                }
+            PsiCompiledElement compiledElement = element.getUserData(ClsElementImpl.COMPILED_ELEMENT);
+            if (compiledElement instanceof PsiMember) {
+                return (PsiMember) compiledElement;
             }
         }
         return annotationOwner;
@@ -79,9 +91,12 @@ class KotlinSignatureUtil {
     @Nullable
     static PsiAnnotation findKotlinSignatureAnnotation(@NotNull PsiElement element) {
         if (!(element instanceof PsiModifierListOwner)) return null;
-        PsiModifierListOwner annotationOwner = getAnnotationOwner(element);
-        PsiModifierList list = annotationOwner.getModifierList();
+        PsiModifierListOwner annotationOwner = getAnalyzableAnnotationOwner(element);
+        if (annotationOwner == null) {
+            return null;
+        }
 
+        PsiModifierList list = annotationOwner.getModifierList();
         PsiAnnotation annotation = list == null ? null : list.findAnnotation(KOTLIN_SIGNATURE.asString());
         if (annotation == null) {
             annotation = PsiBasedExternalAnnotationResolver.findExternalAnnotation(annotationOwner, KOTLIN_SIGNATURE);
@@ -103,9 +118,12 @@ class KotlinSignatureUtil {
     }
 
     static boolean isAnnotationEditable(@NotNull PsiElement element) {
-        PsiModifierListOwner annotationOwner = getAnnotationOwner(element);
+        PsiModifierListOwner annotationOwner = getAnalyzableAnnotationOwner(element);
+        if (annotationOwner == null) {
+            return false;
+        }
         PsiAnnotation annotation = findKotlinSignatureAnnotation(element);
-        assert annotation != null;
+        assert annotation != null : "Annotation not found for " + element.getText();
         if (annotation.getContainingFile() == annotationOwner.getContainingFile()) {
             return annotation.isWritable();
         } else {

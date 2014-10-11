@@ -22,23 +22,22 @@ import com.intellij.openapi.actionSystem.CommonDataKeys;
 import com.intellij.openapi.command.CommandProcessor;
 import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiJavaFile;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.j2k.Converter;
 import org.jetbrains.jet.j2k.ConverterSettings;
 import org.jetbrains.jet.j2k.FilesConversionScope;
+import org.jetbrains.jet.j2k.ReferenceSearcherImpl;
+import org.jetbrains.jet.plugin.j2k.J2kPostProcessor;
 
 import java.util.List;
 
-import static com.intellij.openapi.ui.Messages.NO;
-import static com.intellij.openapi.ui.Messages.YES;
 import static org.jetbrains.jet.plugin.actions.JavaToKotlinActionUtil.*;
 
 public class JavaToKotlinAction extends AnAction {
     @Override
-    public void actionPerformed(AnActionEvent e) {
+    public void actionPerformed(@NotNull AnActionEvent e) {
         VirtualFile[] virtualFiles = e.getData(CommonDataKeys.VIRTUAL_FILE_ARRAY);
         assert virtualFiles != null;
         final Project project = CommonDataKeys.PROJECT.getData(e.getDataContext());
@@ -47,24 +46,20 @@ public class JavaToKotlinAction extends AnAction {
         if (selectedJavaFiles.isEmpty()) {
             return;
         }
-        final DialogResult userResponse = showDialog(project);
-        if (userResponse == DialogResult.CANCEL) {
-            return;
-        }
 
-        final Converter converter = Converter.object$.create(project, ConverterSettings.defaultSettings, new FilesConversionScope(selectedJavaFiles));
+        final Converter converter = Converter.OBJECT$.create(project,
+                                                             ConverterSettings.defaultSettings,
+                                                             new FilesConversionScope(selectedJavaFiles),
+                                                             ReferenceSearcherImpl.INSTANCE$,
+                                                             //TODO: (module refactoring) resulting files should be analyzed in context of respective java files
+                                                             new J2kPostProcessor(selectedJavaFiles.iterator().next()));
         CommandProcessor.getInstance().executeCommand(
                 project,
                 new Runnable() {
                     @Override
                     public void run() {
                         List<VirtualFile> newFiles = convertFiles(converter, selectedJavaFiles);
-                        if (userResponse == DialogResult.DELETE_FILES) {
-                            deleteFiles(selectedJavaFiles);
-                        }
-                        else if (userResponse == DialogResult.BACKUP_FILES) {
-                            renameFiles(selectedJavaFiles);
-                        }
+                        deleteFiles(selectedJavaFiles);
                         reformatFiles(newFiles, project);
                         for (VirtualFile vf : newFiles) {
                             FileEditorManager.getInstance(project).openFile(vf, true);
@@ -76,30 +71,8 @@ public class JavaToKotlinAction extends AnAction {
         );
     }
 
-    private static enum DialogResult {
-        BACKUP_FILES,
-        DELETE_FILES,
-        CANCEL
-    }
-
-    @NotNull
-    private static DialogResult showDialog(@NotNull Project project) {
-        int result = Messages.showYesNoCancelDialog(project,
-                                                    "Would you like to backup Java files?",
-                                                    "Convert Java to Kotlin",
-                                                    Messages.getQuestionIcon());
-        switch (result) {
-            case YES:
-                return DialogResult.BACKUP_FILES;
-            case NO:
-                return DialogResult.DELETE_FILES;
-            default:
-                return DialogResult.CANCEL;
-        }
-    }
-
     @Override
-    public void update(AnActionEvent e) {
+    public void update(@NotNull AnActionEvent e) {
         boolean enabled = e.getData(CommonDataKeys.VIRTUAL_FILE_ARRAY) != null;
         e.getPresentation().setVisible(enabled);
         e.getPresentation().setEnabled(enabled);

@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2013 JetBrains s.r.o.
+ * Copyright 2010-2014 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package org.jetbrains.jet.plugin.configuration;
 
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.module.Module;
+import com.intellij.openapi.module.ModuleManager;
 import com.intellij.openapi.module.impl.scopes.LibraryScope;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.roots.OrderRootType;
@@ -28,10 +29,11 @@ import org.jetbrains.jet.plugin.framework.JavaRuntimeLibraryDescription;
 import org.jetbrains.jet.plugin.framework.JavaRuntimePresentationProvider;
 import org.jetbrains.jet.plugin.framework.ui.CreateJavaLibraryDialogWithModules;
 import org.jetbrains.jet.plugin.project.ProjectStructureUtil;
-import org.jetbrains.jet.plugin.versions.KotlinRuntimeLibraryUtil;
+import org.jetbrains.jet.plugin.versions.KotlinRuntimeLibraryCoreUtil;
 import org.jetbrains.jet.utils.PathUtil;
 
 import java.io.File;
+import java.util.Arrays;
 import java.util.List;
 
 import static org.jetbrains.jet.plugin.configuration.ConfigureKotlinInProjectUtils.showInfoNotification;
@@ -85,21 +87,28 @@ public class KotlinJavaModuleConfigurator extends KotlinWithLibraryConfigurator 
         String defaultPath = getDefaultPathToJarFile(project);
         boolean showPathPanelForJava = needToChooseJarPath(project);
 
-        List<Module> nonConfiguredModules = ConfigureKotlinInProjectUtils.getNonConfiguredModules(project, this);
+        List<Module> nonConfiguredModules = !ApplicationManager.getApplication().isUnitTestMode() ?
+                ConfigureKotlinInProjectUtils.getNonConfiguredModules(project, this):
+                Arrays.asList(ModuleManager.getInstance(project).getModules());
+
+        List<Module> modulesToConfigure = nonConfiguredModules;
+        String copyLibIntoPath = null;
 
         if (nonConfiguredModules.size() > 1 || showPathPanelForJava) {
-            CreateJavaLibraryDialogWithModules dialog =
-                    new CreateJavaLibraryDialogWithModules(project, nonConfiguredModules, defaultPath, showPathPanelForJava);
-            dialog.show();
-            if (!dialog.isOK()) return;
-            for (Module module : dialog.getModulesToConfigure()) {
-                configureModuleWithLibrary(module, defaultPath, dialog.getCopyIntoPath());
+            CreateJavaLibraryDialogWithModules dialog = new CreateJavaLibraryDialogWithModules(
+                    project, nonConfiguredModules, defaultPath, showPathPanelForJava);
+
+            if (!ApplicationManager.getApplication().isUnitTestMode()) {
+                dialog.show();
+                if (!dialog.isOK()) return;
             }
+
+            modulesToConfigure = dialog.getModulesToConfigure();
+            copyLibIntoPath = dialog.getCopyIntoPath();
         }
-        else {
-            for (Module module : nonConfiguredModules) {
-                configureModuleWithLibrary(module, defaultPath, null);
-            }
+
+        for (Module module : modulesToConfigure) {
+            configureModuleWithLibrary(module, defaultPath, copyLibIntoPath);
         }
     }
 
@@ -166,7 +175,7 @@ public class KotlinJavaModuleConfigurator extends KotlinWithLibraryConfigurator 
         }
 
         LibraryScope scope = new LibraryScope(project, library);
-        return KotlinRuntimeLibraryUtil.getKotlinRuntimeMarkerClass(scope) != null;
+        return KotlinRuntimeLibraryCoreUtil.getKotlinRuntimeMarkerClass(scope) != null;
     }
 
     KotlinJavaModuleConfigurator() {

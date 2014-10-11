@@ -39,14 +39,13 @@ import org.jetbrains.jet.lang.descriptors.PackageViewDescriptor;
 import org.jetbrains.jet.lang.descriptors.impl.ModuleDescriptorImpl;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.*;
-import org.jetbrains.jet.lang.resolve.java.AnalyzerFacadeForJVM;
+import org.jetbrains.jet.lang.resolve.java.TopDownAnalyzerFacadeForJVM;
 import org.jetbrains.jet.lang.resolve.java.JvmAbi;
 import org.jetbrains.jet.lang.resolve.name.FqName;
+import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 import org.jetbrains.jet.util.slicedmap.WritableSlice;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 /**
  * This class solves the problem of interdependency between analyzing Kotlin code and generating JetLightClasses
@@ -81,10 +80,26 @@ public class CliLightClassGenerationSupport extends LightClassGenerationSupport 
     }
 
     @NotNull
-    public ModuleDescriptorImpl getModule() {
+    public ModuleDescriptorImpl newModule() {
+        assert this.module == null : "module already configured: " + module;
+        module = TopDownAnalyzerFacadeForJVM.createJavaModule("<shared-module-for-cli-light-classes>");
+        module.addDependencyOnModule(module);
+        module.addDependencyOnModule(KotlinBuiltIns.getInstance().getBuiltInsModule());
+        module.seal();
+        return module;
+    }
+
+    @NotNull
+    private ModuleDescriptorImpl getModule() {
         if (module == null) {
-            module = AnalyzerFacadeForJVM.createJavaModule("<module>");
+           return newModule();
         }
+        return module;
+    }
+
+    @TestOnly
+    @Nullable
+    public ModuleDescriptorImpl getLightClassModule() {
         return module;
     }
 
@@ -179,6 +194,14 @@ public class CliLightClassGenerationSupport extends LightClassGenerationSupport 
             }
         }
         return result;
+    }
+
+    @NotNull
+    @Override
+    public List<KotlinLightPackageClassInfo> findPackageClassesInfos(
+            @NotNull FqName fqName, @NotNull GlobalSearchScope wholeScope
+    ) {
+        return Collections.singletonList(new KotlinLightPackageClassInfo(findFilesForPackage(fqName, wholeScope), wholeScope));
     }
 
     @Override

@@ -23,7 +23,8 @@ import org.jetbrains.jet.lang.psi.JetPsiFactory
 import org.jetbrains.jet.lang.types.ErrorUtils
 import org.jetbrains.jet.renderer.DescriptorRenderer
 import org.jetbrains.jet.plugin.codeInsight.ShortenReferences
-import org.jetbrains.jet.lang.resolve.bindingContextUtil.getResolvedCall
+import org.jetbrains.jet.lang.resolve.calls.callUtil.getResolvedCall
+import org.jetbrains.jet.lang.psi.JetTypeArgumentList
 
 public class InsertExplicitTypeArguments : JetSelfTargetingIntention<JetCallExpression>(
         "insert.explicit.type.arguments", javaClass()) {
@@ -48,27 +49,32 @@ public class InsertExplicitTypeArguments : JetSelfTargetingIntention<JetCallExpr
     }
 
     override fun applyTo(element: JetCallExpression, editor: Editor) {
-        val context = AnalyzerFacadeWithCache.getContextForElement(element)
-        val resolvedCall = element.getResolvedCall(context)
-        if (resolvedCall == null) return
+        val argumentList = createTypeArguments(element)
+        if (argumentList == null) return
 
-        val args = resolvedCall.getTypeArguments()
-        val types = resolvedCall.getCandidateDescriptor().getTypeParameters()
+        val callee = element.getCalleeExpression()
+        if (callee == null) return
 
-        val psiFactory = JetPsiFactory(element)
-        val typeArgs = types.map {
-            assert(args[it] != null, "there is a null in the type arguments to transform")
-            val typeToCompute = DescriptorRenderer.FQ_NAMES_IN_TYPES.renderType(args[it]!!);
-            val computedTypeRef = psiFactory.createType(typeToCompute)
-            ShortenReferences.process(computedTypeRef)
-            computedTypeRef.getText()
-        }.makeString(", ", "<", ">")
+        element.addAfter(argumentList, callee)
+        ShortenReferences.process(element.getTypeArgumentList()!!)
+    }
 
-        val name = element.getCalleeExpression()?.getText()
-        if (name == null) return
+    class object {
+        fun createTypeArguments(element: JetCallExpression): JetTypeArgumentList? {
+            val context = AnalyzerFacadeWithCache.getContextForElement(element)
+            val resolvedCall = element.getResolvedCall(context)
+            if (resolvedCall == null) return null
 
-        val valueAndFunctionArguments = element.getText()?.substring(name.size) ?: throw AssertionError("InsertExplicitTypeArguments intention shouldn't be applicable for empty call expression")
-        val expr = psiFactory.createExpression("$name$typeArgs${valueAndFunctionArguments}")
-        element.replace(expr)
+            val args = resolvedCall.getTypeArguments()
+            val types = resolvedCall.getCandidateDescriptor().getTypeParameters()
+
+            val psiFactory = JetPsiFactory(element)
+            val typeArgs = types.map {
+                assert(args[it] != null, "there is a null in the type arguments to transform")
+                DescriptorRenderer.FQ_NAMES_IN_TYPES.renderType(args[it]!!)
+            }.joinToString(", ", "<", ">")
+
+            return psiFactory.createTypeArguments(typeArgs)
+        }
     }
 }

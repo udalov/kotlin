@@ -24,20 +24,16 @@ import org.jetbrains.jet.lang.resolve.DescriptorUtils;
 import org.jetbrains.jet.plugin.project.ResolveSessionForBodies;
 import org.jetbrains.jet.plugin.quickfix.ImportInsertHelper;
 import org.jetbrains.jet.renderer.DescriptorRenderer;
-
 import java.util.HashSet;
 import com.intellij.psi.util.PsiTreeUtil
 import java.util.ArrayList
 import org.jetbrains.jet.lang.psi.psiUtil.getParentByType
-import org.jetbrains.jet.lang.resolve.java.descriptor.JavaPropertyDescriptor
-import org.jetbrains.jet.lang.resolve.java.lazy.descriptors.LazyPackageFragmentForJavaClass
-import org.jetbrains.jet.lang.resolve.java.descriptor.JavaMethodDescriptor
 import com.intellij.openapi.util.TextRange
 import com.intellij.psi.PsiDocumentManager
 import org.jetbrains.jet.plugin.caches.resolve.getLazyResolveSession
 import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCall
 import org.jetbrains.jet.renderer.DescriptorRenderer.FQ_NAMES_IN_TYPES
-import org.jetbrains.jet.lang.resolve.bindingContextUtil.getResolvedCall
+import org.jetbrains.jet.lang.resolve.calls.callUtil.getResolvedCall
 
 public object ShortenReferences {
     public fun process(element: JetElement) {
@@ -105,7 +101,7 @@ public object ShortenReferences {
             ImportInsertHelper.optimizeImportsIfNeeded(file)
 
             // first resolve all qualified references - optimization
-            val referenceToContext = JetFileReferencesResolver.resolve(file, fileElements, visitShortNames = false)
+            val referenceToContext = JetFileReferencesResolver.resolve(file, fileElements, resolveShortNames = false)
 
             val shortenTypesVisitor = ShortenTypesVisitor(file, elementFilter, referenceToContext)
             processElements(fileElements, shortenTypesVisitor)
@@ -245,19 +241,9 @@ public object ShortenReferences {
                 refExpression: JetReferenceExpression,
                 bindingContext: BindingContext
         ): PsiElement {
-            val receiverExpression = qualifiedExpression.getReceiverExpression()
             val target = bindingContext[BindingContext.REFERENCE_TARGET, refExpression]
-            if (target != null) {
-                if ((target is JavaPropertyDescriptor || target is JavaMethodDescriptor) && receiverExpression is JetDotQualifiedExpression) {
-                    val containingDescriptor = target.getContainingDeclaration()
-                    if (containingDescriptor is LazyPackageFragmentForJavaClass) {
-                        return shortenIfPossibleByDescriptor(receiverExpression, containingDescriptor.getCorrespondingClass(), bindingContext)
-                    }
-                }
-
-                return shortenIfPossibleByDescriptor(qualifiedExpression, target, bindingContext)
-            }
-            return qualifiedExpression
+            if (target == null) return qualifiedExpression
+            return shortenIfPossibleByDescriptor(qualifiedExpression, target, bindingContext)
         }
 
         private fun instantiatedClass(calleeExpression: JetReferenceExpression): ClassDescriptor? {
@@ -344,7 +330,7 @@ public object ShortenReferences {
     private fun DeclarationDescriptor.asString() = DescriptorRenderer.FQ_NAMES_IN_TYPES.render(this)
 
     private fun ResolvedCall<*>.asString(): String {
-        return "${getReceiverArgument()}, ${getThisObject()} -> ${getResultingDescriptor()?.let {FQ_NAMES_IN_TYPES.render(it)}}"
+        return "${getExtensionReceiver()}, ${getDispatchReceiver()} -> ${getResultingDescriptor()?.let {FQ_NAMES_IN_TYPES.render(it)}}"
     }
 
     //TODO: do we need this "IfNeeded" check?

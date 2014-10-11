@@ -16,7 +16,6 @@
 
 package org.jetbrains.jet.plugin.stubs;
 
-import com.google.common.base.Predicate;
 import com.intellij.openapi.module.Module;
 import com.intellij.openapi.roots.ContentEntry;
 import com.intellij.openapi.roots.ModifiableRootModel;
@@ -30,7 +29,6 @@ import org.jetbrains.jet.lang.descriptors.ModuleDescriptor;
 import org.jetbrains.jet.lang.descriptors.PackageViewDescriptor;
 import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.resolve.name.FqName;
-import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 import org.jetbrains.jet.plugin.JetWithJdkAndRuntimeLightProjectDescriptor;
 import org.jetbrains.jet.plugin.KotlinCodeInsightTestCase;
 import org.jetbrains.jet.plugin.caches.resolve.KotlinCacheService;
@@ -44,26 +42,22 @@ import static com.intellij.openapi.roots.ModuleRootModificationUtil.updateModel;
 import static org.jetbrains.jet.test.util.DescriptorValidator.ValidationVisitor.FORBID_ERROR_TYPES;
 
 public abstract class AbstractLazyResolveByStubTest extends KotlinCodeInsightTestCase {
-    protected void doTestCheckingPrimaryConstructorsAndAccessors(String testFileName) throws Exception {
+    protected void doTest(String testFileName) throws Exception {
         doTest(testFileName, true, true);
     }
 
-    protected void doTestNotCheckingPrimaryConstructors(String testFileName) throws Exception {
-        doTest(testFileName, false, false);
-    }
-
-    public void doTest(@NotNull final String path, final boolean checkPrimaryConstructors, final boolean checkPropertyAccessors)
+    private void doTest(@NotNull final String path, final boolean checkPrimaryConstructors, final boolean checkPropertyAccessors)
             throws Exception {
         configureByFile(path);
         configureModule(getModule(), JetWithJdkAndRuntimeLightProjectDescriptor.INSTANCE);
         boolean shouldFail = getTestName(false).equals("ClassWithConstVal");
-        AstAccessControl.instance$.testWithControlledAccessToAst(
+        AstAccessControl.INSTANCE$.testWithControlledAccessToAst(
                 shouldFail, getProject(), getTestRootDisposable(),
                 new Function0<Unit>() {
                     @Override
                     public Unit invoke() {
                         performTest(path, checkPrimaryConstructors, checkPropertyAccessors);
-                        return Unit.VALUE;
+                        return Unit.INSTANCE$;
                     }
                 }
         );
@@ -71,7 +65,7 @@ public abstract class AbstractLazyResolveByStubTest extends KotlinCodeInsightTes
 
     private void performTest(@NotNull String path, boolean checkPrimaryConstructors, boolean checkPropertyAccessors) {
         ResolveSessionForBodies resolveSession =
-                KotlinCacheService.object$.getInstance(getFile().getProject()).getLazyResolveSession((JetFile) getFile());
+                KotlinCacheService.OBJECT$.getInstance(getFile().getProject()).getLazyResolveSession((JetFile) getFile());
         ModuleDescriptor module = resolveSession.getModuleDescriptor();
         PackageViewDescriptor packageViewDescriptor = module.getPackage(new FqName("test"));
         Assert.assertNotNull(packageViewDescriptor);
@@ -80,14 +74,8 @@ public abstract class AbstractLazyResolveByStubTest extends KotlinCodeInsightTes
 
         RecursiveDescriptorComparator.validateAndCompareDescriptorWithFile(
                 packageViewDescriptor,
-                RecursiveDescriptorComparator.DONT_INCLUDE_METHODS_OF_OBJECT.filterRecursion(
-                        new Predicate<FqName>() {
-                            @Override
-                            public boolean apply(FqName fqName) {
-                                return !KotlinBuiltIns.BUILT_INS_PACKAGE_FQ_NAME.equals(fqName);
-                            }
-                        }
-                )
+                RecursiveDescriptorComparator.DONT_INCLUDE_METHODS_OF_OBJECT
+                        .filterRecursion(RecursiveDescriptorComparator.SKIP_BUILT_INS_PACKAGES)
                         .checkPrimaryConstructors(checkPrimaryConstructors)
                         .checkPropertyAccessors(checkPropertyAccessors)
                         .withValidationStrategy(FORBID_ERROR_TYPES),

@@ -29,16 +29,15 @@ import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.JetNodeTypes;
 import org.jetbrains.jet.lang.psi.stubs.PsiJetPropertyStub;
 import org.jetbrains.jet.lang.psi.stubs.elements.JetStubElementTypes;
+import org.jetbrains.jet.lang.psi.typeRefHelpers.TypeRefHelpersPackage;
 import org.jetbrains.jet.lexer.JetTokens;
 
 import java.util.List;
 
-import static org.jetbrains.jet.JetNodeTypes.PROPERTY_ACCESSOR;
 import static org.jetbrains.jet.JetNodeTypes.PROPERTY_DELEGATE;
 import static org.jetbrains.jet.lexer.JetTokens.*;
 
-public class JetProperty extends JetTypeParameterListOwnerStub<PsiJetPropertyStub> implements JetVariableDeclaration,
-                                                                                              JetCallableDeclaration {
+public class JetProperty extends JetTypeParameterListOwnerStub<PsiJetPropertyStub> implements JetVariableDeclaration {
 
     private static final Logger LOG = Logger.getInstance(JetProperty.class);
 
@@ -87,7 +86,7 @@ public class JetProperty extends JetTypeParameterListOwnerStub<PsiJetPropertyStu
 
     @Override
     @Nullable
-    public JetTypeReference getReceiverTypeRef() {
+    public JetTypeReference getReceiverTypeReference() {
         PsiJetPropertyStub stub = getStub();
         if (stub != null) {
             if (!stub.hasReceiverTypeRef()) {
@@ -116,15 +115,9 @@ public class JetProperty extends JetTypeParameterListOwnerStub<PsiJetPropertyStu
         return null;
     }
 
-    @Nullable
-    @Override
-    public JetTypeReference getReturnTypeRef() {
-        return getTypeRef();
-    }
-
     @Override
     @Nullable
-    public JetTypeReference getTypeRef() {
+    public JetTypeReference getTypeReference() {
         PsiJetPropertyStub stub = getStub();
         if (stub != null) {
             if (!stub.hasReturnTypeRef()) {
@@ -140,25 +133,13 @@ public class JetProperty extends JetTypeParameterListOwnerStub<PsiJetPropertyStu
                 return typeReferences.get(returnTypeRefPositionInPsi);
             }
         }
-        return getTypeRefByTree();
+        return TypeRefHelpersPackage.getTypeReference(this);
     }
 
+    @Override
     @Nullable
-    private JetTypeReference getTypeRefByTree() {
-        ASTNode node = getNode().getFirstChildNode();
-        boolean passedColon = false;
-        while (node != null) {
-            IElementType tt = node.getElementType();
-            if (tt == JetTokens.COLON) {
-                passedColon = true;
-            }
-            else if (tt == JetNodeTypes.TYPE_REFERENCE && passedColon) {
-                return (JetTypeReference) node.getPsi();
-            }
-            node = node.getTreeNext();
-        }
-
-        return null;
+    public JetTypeReference setTypeReference(@Nullable JetTypeReference typeRef) {
+        return TypeRefHelpersPackage.setTypeReference(this, getNameIdentifier(), typeRef);
     }
 
     @NotNull
@@ -231,6 +212,34 @@ public class JetProperty extends JetTypeParameterListOwnerStub<PsiJetPropertyStu
 
     public boolean hasDelegateExpressionOrInitializer() {
         return hasDelegateExpression() || hasInitializer();
+    }
+
+    @Nullable
+    public JetExpression setInitializer(@Nullable JetExpression initializer) {
+        JetExpression oldInitializer = getInitializer();
+
+        if (oldInitializer != null) {
+            if (initializer != null) {
+                return (JetExpression) oldInitializer.replace(initializer);
+            }
+            else {
+                deleteChildRange(findChildByType(EQ), oldInitializer);
+                return null;
+            }
+        }
+        else {
+            if (initializer != null) {
+                PsiElement addAfter = getTypeReference();
+                if (addAfter == null) {
+                    addAfter = getNameIdentifier();
+                }
+                PsiElement eq = addAfter(new JetPsiFactory(getProject()).createEQ(), addAfter);
+                return (JetExpression) addAfter(initializer, eq);
+            }
+            else {
+                return null;
+            }
+        }
     }
 
     @Nullable

@@ -23,22 +23,17 @@ import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.descriptors.impl.TypeParameterDescriptorImpl;
 import org.jetbrains.jet.lang.resolve.OverridingUtil;
-import org.jetbrains.jet.lang.resolve.java.sam.SingleAbstractMethodUtils;
 import org.jetbrains.jet.lang.resolve.java.structure.*;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.Name;
-import org.jetbrains.jet.lang.resolve.scopes.JetScope;
 import org.jetbrains.jet.lang.types.TypeConstructor;
 import org.jetbrains.jet.lang.types.TypeProjection;
 import org.jetbrains.jet.lang.types.TypeProjectionImpl;
 import org.jetbrains.jet.lang.types.TypeSubstitutor;
-import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 
 import java.util.*;
 
 public final class DescriptorResolverUtils {
-    public static final FqName OBJECT_FQ_NAME = new FqName("java.lang.Object");
-
     private DescriptorResolverUtils() {
     }
 
@@ -62,7 +57,7 @@ public final class DescriptorResolverUtils {
                             @Override
                             public Unit invoke(@NotNull CallableMemberDescriptor descriptor) {
                                 errorReporter.reportCannotInferVisibility(descriptor);
-                                return Unit.VALUE;
+                                return Unit.INSTANCE$;
                             }
                         });
                         result.add((D) fakeOverride);
@@ -90,23 +85,6 @@ public final class DescriptorResolverUtils {
         }
 
         return null;
-    }
-
-    /**
-     * @return true if {@code method} is a static method of enum class, which is to be put into its class object (and not into the
-     *         corresponding package). This applies to values() and valueOf(String) methods
-     */
-    public static boolean shouldBeInEnumClassObject(@NotNull JavaMethod method) {
-        if (!method.getContainingClass().isEnum()) return false;
-
-        String name = method.getName().asString();
-        if (name.equals("values")) {
-            return method.getValueParameters().isEmpty();
-        }
-        else if (name.equals("valueOf")) {
-            return isMethodWithOneParameterWithFqName(method, "java.lang.String");
-        }
-        return false;
     }
 
     public static boolean isObjectMethodInInterface(@NotNull JavaMember member) {
@@ -263,48 +241,5 @@ public final class DescriptorResolverUtils {
                                         new TypeProjectionImpl(originalToAltTypeParameter.getValue().getDefaultType()));
         }
         return TypeSubstitutor.create(typeSubstitutionContext);
-    }
-
-    public static boolean hasStaticMembers(@NotNull JavaClass javaClass) {
-        for (JavaMethod method : javaClass.getMethods()) {
-            if (method.isStatic() && !shouldBeInEnumClassObject(method)) {
-                return true;
-            }
-        }
-
-        for (JavaField field : javaClass.getFields()) {
-            if (field.isStatic() && !field.isEnumEntry()) {
-                return true;
-            }
-        }
-
-        for (JavaClass nestedClass : javaClass.getInnerClasses()) {
-            if (SingleAbstractMethodUtils.isSamInterface(nestedClass)) {
-                return true;
-            }
-            if (nestedClass.isStatic() && hasStaticMembers(nestedClass)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    @Nullable
-    public static ClassDescriptor getKotlinBuiltinClassDescriptor(@NotNull FqName qualifiedName) {
-        if (!qualifiedName.firstSegmentIs(KotlinBuiltIns.BUILT_INS_PACKAGE_NAME)) return null;
-
-        List<Name> segments = qualifiedName.pathSegments();
-        if (segments.size() < 2) return null;
-
-        JetScope scope = KotlinBuiltIns.getInstance().getBuiltInsPackageScope();
-        for (int i = 1, size = segments.size(); i < size; i++) {
-            ClassifierDescriptor classifier = scope.getClassifier(segments.get(i));
-            if (classifier == null) return null;
-            assert classifier instanceof ClassDescriptor : "Unexpected classifier in built-ins: " + classifier;
-            scope = ((ClassDescriptor) classifier).getUnsubstitutedInnerClassesScope();
-        }
-
-        return (ClassDescriptor) scope.getContainingDeclaration();
     }
 }

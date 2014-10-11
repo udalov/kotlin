@@ -22,11 +22,10 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.psi.*;
-import org.jetbrains.jet.lang.resolve.bindingContextUtil.BindingContextUtilPackage;
+import org.jetbrains.jet.lang.resolve.calls.callUtil.CallUtilPackage;
 import org.jetbrains.jet.lang.resolve.calls.model.ArgumentMapping;
 import org.jetbrains.jet.lang.resolve.calls.model.ArgumentMatch;
 import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCall;
-import org.jetbrains.jet.lang.resolve.calls.util.CallMaker;
 import org.jetbrains.jet.lang.types.lang.InlineUtil;
 
 public class InlineDescriptorUtils {
@@ -47,23 +46,7 @@ public class InlineDescriptorUtils {
         while (containingFunction instanceof JetFunctionLiteral && fromFunction != containingFunctionDescriptor) {
             //JetFunctionLiteralExpression
             containingFunction = containingFunction.getParent();
-            boolean allowsNonLocalReturns = false;
-            JetExpression call = JetPsiUtil.getParentCallIfPresent((JetFunctionLiteralExpression) containingFunction);
-            if (call != null) {
-                ResolvedCall<?> resolvedCall = BindingContextUtilPackage.getResolvedCall(call, bindingContext);
-                CallableDescriptor resultingDescriptor = resolvedCall == null ? null : resolvedCall.getResultingDescriptor();
-                if (resultingDescriptor instanceof SimpleFunctionDescriptor &&
-                    ((SimpleFunctionDescriptor) resultingDescriptor).getInlineStrategy().isInline()) {
-                    ValueArgument argument = getContainingArgument(containingFunction, call);
-                    if (argument != null) {
-                        ArgumentMapping mapping = resolvedCall.getArgumentMapping(argument);
-                        if (mapping instanceof ArgumentMatch) {
-                            allowsNonLocalReturns = allowsNonLocalReturns(((ArgumentMatch) mapping).getValueParameter());
-                        }
-                    }
-                }
-            }
-            if (!allowsNonLocalReturns) {
+            if (!isInlineLambda((JetFunctionLiteralExpression) containingFunction, bindingContext, true)) {
                 return false;
             }
 
@@ -77,20 +60,30 @@ public class InlineDescriptorUtils {
         return fromFunction == containingFunctionDescriptor;
     }
 
-    @Nullable
-    public static ValueArgument getContainingArgument(PsiElement expression, @NotNull JetExpression stopAtCall) {
-        if (expression instanceof JetValueArgument) {
-            return (JetValueArgument) expression;
-        }
-
-        while (expression != null && expression.getParent() != stopAtCall) {
-            PsiElement parent = expression.getParent();
-            if (parent instanceof JetValueArgument) {
-                return (JetValueArgument) parent;
+    public static boolean isInlineLambda(
+            @NotNull JetFunctionLiteralExpression lambdaExpression,
+            @NotNull BindingContext bindingContext,
+            boolean checkNonLocalReturn
+    ) {
+        JetExpression call = JetPsiUtil.getParentCallIfPresent(lambdaExpression);
+        if (call != null) {
+            ResolvedCall<?> resolvedCall = CallUtilPackage.getResolvedCall(call, bindingContext);
+            CallableDescriptor resultingDescriptor = resolvedCall == null ? null : resolvedCall.getResultingDescriptor();
+            if (resultingDescriptor instanceof SimpleFunctionDescriptor &&
+                ((SimpleFunctionDescriptor) resultingDescriptor).getInlineStrategy().isInline()) {
+                ValueArgument argument = CallUtilPackage.getValueArgumentForExpression(resolvedCall.getCall(), lambdaExpression);
+                if (argument != null) {
+                    ArgumentMapping mapping = resolvedCall.getArgumentMapping(argument);
+                    if (mapping instanceof ArgumentMatch) {
+                        ValueParameterDescriptor parameter = ((ArgumentMatch) mapping).getValueParameter();
+                        if (!InlineUtil.hasNoinlineAnnotation(parameter)) {
+                            return !checkNonLocalReturn || allowsNonLocalReturns(parameter);
+                        }
+                    }
+                }
             }
-            expression = parent;
         }
-        return expression != null ? CallMaker.makeValueArgument((JetExpression) expression) : null;
+        return false;
     }
 
     @Nullable

@@ -38,14 +38,10 @@ import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
 import org.jetbrains.jet.lang.resolve.scopes.WritableScope;
 import org.jetbrains.jet.lang.types.expressions.ExpressionTypingContext;
-import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 import org.jetbrains.jet.storage.LockBasedStorageManager;
 
 import javax.inject.Inject;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.LinkedHashSet;
-import java.util.Set;
+import java.util.*;
 
 public class TopDownAnalyzer {
 
@@ -65,6 +61,8 @@ public class TopDownAnalyzer {
     private MutablePackageFragmentProvider packageFragmentProvider;
     @NotNull
     private BodyResolver bodyResolver;
+    @NotNull
+    private AdditionalCheckerProvider additionalCheckerProvider;
     @NotNull
     private Project project;
 
@@ -121,6 +119,11 @@ public class TopDownAnalyzer {
         this.lazyTopDownAnalyzer = lazyTopDownAnalyzer;
     }
 
+    @Inject
+    public void setAdditionalCheckerProvider(@NotNull AdditionalCheckerProvider additionalCheckerProvider) {
+        this.additionalCheckerProvider = additionalCheckerProvider;
+    }
+
     public void doProcess(
             @NotNull TopDownAnalysisContext c,
             @NotNull JetScope outerScope,
@@ -136,7 +139,8 @@ public class TopDownAnalyzer {
                     new GlobalContextImpl((LockBasedStorageManager) c.getStorageManager(), c.getExceptionTracker()), // TODO
                     (ModuleDescriptorImpl) moduleDescriptor, // TODO
                     new FileBasedDeclarationProviderFactory(c.getStorageManager(), getFiles(declarations)),
-                    trace
+                    trace,
+                    additionalCheckerProvider
             ).getResolveSession();
 
             lazyTopDownAnalyzer.analyzeDeclarations(
@@ -197,7 +201,8 @@ public class TopDownAnalyzer {
             @Nullable final WritableScope scope,
             @NotNull ExpressionTypingContext context,
             @NotNull final DeclarationDescriptor containingDeclaration,
-            @NotNull JetClassOrObject object
+            @NotNull JetClassOrObject object,
+            @NotNull AdditionalCheckerProvider additionalCheckerProvider
     ) {
         TopDownAnalysisParameters topDownAnalysisParameters =
                 TopDownAnalysisParameters.createForLocalDeclarations(
@@ -207,7 +212,11 @@ public class TopDownAnalyzer {
                 );
 
         InjectorForTopDownAnalyzerBasic injector = new InjectorForTopDownAnalyzerBasic(
-                object.getProject(), topDownAnalysisParameters, context.trace, DescriptorUtils.getContainingModule(containingDeclaration)
+                object.getProject(),
+                topDownAnalysisParameters,
+                context.trace,
+                DescriptorUtils.getContainingModule(containingDeclaration),
+                additionalCheckerProvider
         );
 
         TopDownAnalysisContext c = new TopDownAnalysisContext(topDownAnalysisParameters);
@@ -242,7 +251,7 @@ public class TopDownAnalyzer {
                    }
 
                    @Override
-                   public ClassObjectStatus setClassObjectDescriptor(@NotNull ClassDescriptor classObjectDescriptor) {
+                   public ClassObjectStatus setClassObjectDescriptor(@NotNull MutableClassDescriptor classObjectDescriptor) {
                        return ClassObjectStatus.NOT_ALLOWED;
                    }
                },
@@ -253,16 +262,24 @@ public class TopDownAnalyzer {
     @NotNull
     public TopDownAnalysisContext analyzeFiles(
             @NotNull TopDownAnalysisParameters topDownAnalysisParameters,
-            @NotNull Collection<JetFile> files
+            @NotNull Collection<JetFile> files,
+            @NotNull PackageFragmentProvider... additionalProviders
     ) {
-        ((ModuleDescriptorImpl) moduleDescriptor).addFragmentProvider(DependencyKind.SOURCES, packageFragmentProvider);
+        return analyzeFiles(topDownAnalysisParameters, files, Arrays.asList(additionalProviders));
+    }
 
-        // "depend on" builtins module
-        ((ModuleDescriptorImpl) moduleDescriptor).addFragmentProvider(DependencyKind.BUILT_INS, KotlinBuiltIns.getInstance().getBuiltInsModule().getPackageFragmentProvider());
+    @NotNull
+    public TopDownAnalysisContext analyzeFiles(
+            @NotNull TopDownAnalysisParameters topDownAnalysisParameters,
+            @NotNull Collection<JetFile> files,
+            @NotNull List<PackageFragmentProvider> additionalProviders
+    ) {
+        CompositePackageFragmentProvider provider =
+                new CompositePackageFragmentProvider(KotlinPackage.plus(Arrays.asList(packageFragmentProvider), additionalProviders));
+        ((ModuleDescriptorImpl) moduleDescriptor).initialize(provider);
 
         // dummy builder is used because "root" is module descriptor,
         // packages added to module explicitly in
-
         TopDownAnalysisContext c = new TopDownAnalysisContext(topDownAnalysisParameters);
         doProcess(c, JetModuleUtil.getSubpackagesOfRootScope(moduleDescriptor), new PackageLikeBuilderDummy(), files);
         return c;

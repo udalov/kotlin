@@ -38,7 +38,7 @@ import java.util.*;
 public class JetControlFlowInstructionsGenerator extends JetControlFlowBuilderAdapter {
     private JetControlFlowBuilder builder = null;
 
-    private final Stack<BreakableBlockInfo> loopInfo = new Stack<BreakableBlockInfo>();
+    private final Stack<LoopInfo> loopInfo = new Stack<LoopInfo>();
     private final Stack<LexicalScope> lexicalScopes = new Stack<LexicalScope>();
     private final Map<JetElement, BreakableBlockInfo> elementToBlockInfo = new HashMap<JetElement, BreakableBlockInfo>();
     private int labelCount = 0;
@@ -106,7 +106,7 @@ public class JetControlFlowInstructionsGenerator extends JetControlFlowBuilderAd
         private final PseudoValueFactory valueFactory = new PseudoValueFactoryImpl() {
             @NotNull
             @Override
-            public PseudoValue newValue(@Nullable JetElement element, @NotNull InstructionWithValue instruction) {
+            public PseudoValue newValue(@Nullable JetElement element, @Nullable InstructionWithValue instruction) {
                 PseudoValue value = super.newValue(element, instruction);
                 if (element != null) {
                     bindValue(value, element);
@@ -117,8 +117,8 @@ public class JetControlFlowInstructionsGenerator extends JetControlFlowBuilderAd
 
         private JetControlFlowInstructionsGeneratorWorker(@NotNull JetElement scopingElement, @NotNull JetElement returnSubroutine) {
             this.pseudocode = new PseudocodeImpl(scopingElement);
-            this.error = pseudocode.createLabel("error");
-            this.sink = pseudocode.createLabel("sink");
+            this.error = pseudocode.createLabel("error", null);
+            this.sink = pseudocode.createLabel("sink", null);
             this.returnSubroutine = returnSubroutine;
         }
 
@@ -133,53 +133,60 @@ public class JetControlFlowInstructionsGenerator extends JetControlFlowBuilderAd
         @NotNull
         @Override
         public final Label createUnboundLabel() {
-            return pseudocode.createLabel("L" + labelCount++);
+            return pseudocode.createLabel("L" + labelCount++, null);
         }
 
         @NotNull
         @Override
         public Label createUnboundLabel(@NotNull String name) {
-            return pseudocode.createLabel("L" + labelCount++ + " [" + name + "]");
+            return pseudocode.createLabel("L" + labelCount++, name);
         }
 
+        @NotNull
         @Override
-        public final LoopInfo enterLoop(@NotNull JetExpression expression, @Nullable Label loopExitPoint, Label conditionEntryPoint) {
-            Label loopEntryLabel = createUnboundLabel("loop entry point");
-            bindLabel(loopEntryLabel);
-            LoopInfo blockInfo = new LoopInfo(
+        public final LoopInfo enterLoop(@NotNull JetLoopExpression expression) {
+            LoopInfo info = new LoopInfo(
                     expression,
-                    loopEntryLabel,
-                    loopExitPoint != null ? loopExitPoint : createUnboundLabel("loop exit point"),
+                    createUnboundLabel("loop entry point"),
+                    createUnboundLabel("loop exit point"),
                     createUnboundLabel("body entry point"),
-                    conditionEntryPoint != null ? conditionEntryPoint : createUnboundLabel("condition entry point"));
-            loopInfo.push(blockInfo);
-            elementToBlockInfo.put(expression, blockInfo);
-            allBlocks.push(blockInfo);
-            pseudocode.recordLoopInfo(expression, blockInfo);
-            return blockInfo;
+                    createUnboundLabel("body exit point"),
+                    createUnboundLabel("condition entry point"));
+            bindLabel(info.getEntryPoint());
+            elementToBlockInfo.put(expression, info);
+            return info;
         }
 
         @Override
-        public final void exitLoop(@NotNull JetExpression expression) {
-            BreakableBlockInfo info = loopInfo.pop();
+        public void enterLoopBody(@NotNull JetLoopExpression expression) {
+            LoopInfo info = (LoopInfo) elementToBlockInfo.get(expression);
+            bindLabel(info.getBodyEntryPoint());
+            loopInfo.push(info);
+            allBlocks.push(info);
+        }
+
+        @Override
+        public final void exitLoopBody(@NotNull JetLoopExpression expression) {
+            LoopInfo info = loopInfo.pop();
             elementToBlockInfo.remove(expression);
             allBlocks.pop();
-            bindLabel(info.getExitPoint());
+            bindLabel(info.getBodyExitPoint());
         }
 
         @Override
-        public JetElement getCurrentLoop() {
+        public JetLoopExpression getCurrentLoop() {
             return loopInfo.empty() ? null : loopInfo.peek().getElement();
         }
 
         @Override
         public void enterSubroutine(@NotNull JetElement subroutine) {
-            Label entryPoint = createUnboundLabel();
-            BreakableBlockInfo blockInfo = new BreakableBlockInfo(subroutine, entryPoint, createUnboundLabel());
-//            subroutineInfo.push(blockInfo);
+            BreakableBlockInfo blockInfo = new BreakableBlockInfo(
+                    subroutine,
+                    /* entry point */ createUnboundLabel(),
+                    /* exit point  */ createUnboundLabel());
             elementToBlockInfo.put(subroutine, blockInfo);
             allBlocks.push(blockInfo);
-            bindLabel(entryPoint);
+            bindLabel(blockInfo.getEntryPoint());
             add(new SubroutineEnterInstruction(subroutine, getCurrentScope()));
         }
 
@@ -198,6 +205,14 @@ public class JetControlFlowInstructionsGenerator extends JetControlFlowBuilderAd
         @Override
         public Label getEntryPoint(@NotNull JetElement labelElement) {
             return elementToBlockInfo.get(labelElement).getEntryPoint();
+        }
+
+        @NotNull
+        @Override
+        public Label getConditionEntryPoint(@NotNull JetElement labelElement) {
+            BreakableBlockInfo blockInfo = elementToBlockInfo.get(labelElement);
+            assert blockInfo instanceof LoopInfo : "expected LoopInfo for " + labelElement.getText() ;
+            return ((LoopInfo)blockInfo).getConditionEntryPoint();
         }
 
         @NotNull
@@ -238,8 +253,7 @@ public class JetControlFlowInstructionsGenerator extends JetControlFlowBuilderAd
                 BlockInfo blockInfo = allBlocks.get(i);
                 if (blockInfo instanceof BreakableBlockInfo) {
                     BreakableBlockInfo breakableBlockInfo = (BreakableBlockInfo) blockInfo;
-                    if (jumpTarget == breakableBlockInfo.getExitPoint() || jumpTarget == breakableBlockInfo.getEntryPoint()
-                        || jumpTarget == error) {
+                    if (breakableBlockInfo.getReferablePoints().contains(jumpTarget) || jumpTarget == error) {
                         for (int j = finallyBlocks.size() - 1; j >= 0; j--) {
                             finallyBlocks.get(j).generateFinallyBlock();
                         }
@@ -281,6 +295,12 @@ public class JetControlFlowInstructionsGenerator extends JetControlFlowBuilderAd
         @Override
         public void bindValue(@NotNull PseudoValue value, @NotNull JetElement element) {
             pseudocode.bindElementToValue(element, value);
+        }
+
+        @NotNull
+        @Override
+        public PseudoValue newValue(@Nullable JetElement element) {
+            return valueFactory.newValue(element, null);
         }
 
         @Override
@@ -387,13 +407,8 @@ public class JetControlFlowInstructionsGenerator extends JetControlFlowBuilderAd
         }
 
         @Override
-        public void unsupported(JetElement element) {
-            add(new UnsupportedElementInstruction(element, getCurrentScope()));
-        }
-
-        @Override
         public void repeatPseudocode(@NotNull Label startLabel, @NotNull Label finishLabel) {
-            pseudocode.repeatPart(startLabel, finishLabel);
+            labelCount = pseudocode.repeatPart(startLabel, finishLabel, labelCount);
         }
 
         @NotNull
@@ -418,7 +433,7 @@ public class JetControlFlowInstructionsGenerator extends JetControlFlowBuilderAd
         @Override
         public InstructionWithValue loadStringTemplate(@NotNull JetStringTemplateExpression expression, @NotNull List<PseudoValue> inputValues) {
             if (inputValues.isEmpty()) return read(expression);
-            Map<PseudoValue, TypePredicate> predicate = PseudocodePackage.expectedTypeFor(AllTypes.instance$, inputValues);
+            Map<PseudoValue, TypePredicate> predicate = PseudocodePackage.expectedTypeFor(AllTypes.INSTANCE$, inputValues);
             return magic(expression, expression, inputValues, predicate, MagicKind.STRING_TEMPLATE);
         }
 
@@ -431,7 +446,7 @@ public class JetControlFlowInstructionsGenerator extends JetControlFlowBuilderAd
                 @NotNull Map<PseudoValue, TypePredicate> expectedTypes,
                 @NotNull MagicKind kind
         ) {
-            MagicInstruction instruction = MagicInstruction.object$.create(
+            MagicInstruction instruction = MagicInstruction.OBJECT$.create(
                     instructionElement, valueElement, getCurrentScope(), inputValues, expectedTypes, kind, valueFactory
             );
             add(instruction);
@@ -441,7 +456,7 @@ public class JetControlFlowInstructionsGenerator extends JetControlFlowBuilderAd
         @NotNull
         @Override
         public MergeInstruction merge(@NotNull JetExpression expression, @NotNull List<PseudoValue> inputValues) {
-            MergeInstruction instruction = MergeInstruction.object$.create(expression, getCurrentScope(), inputValues, valueFactory);
+            MergeInstruction instruction = MergeInstruction.OBJECT$.create(expression, getCurrentScope(), inputValues, valueFactory);
             add(instruction);
             return instruction;
         }
@@ -465,7 +480,7 @@ public class JetControlFlowInstructionsGenerator extends JetControlFlowBuilderAd
                 @NotNull Map<PseudoValue, ValueParameterDescriptor> arguments
         ) {
             JetType returnType = resolvedCall.getResultingDescriptor().getReturnType();
-            CallInstruction instruction = CallInstruction.object$.create(
+            CallInstruction instruction = CallInstruction.OBJECT$.create(
                     valueElement,
                     getCurrentScope(),
                     resolvedCall,
@@ -492,7 +507,7 @@ public class JetControlFlowInstructionsGenerator extends JetControlFlowBuilderAd
                     expectedTypes = PseudocodePackage.expectedTypeFor(onlyBoolean, inputValues);
                     break;
                 case NOT_NULL_ASSERTION:
-                    expectedTypes = PseudocodePackage.expectedTypeFor(AllTypes.instance$, inputValues);
+                    expectedTypes = PseudocodePackage.expectedTypeFor(AllTypes.INSTANCE$, inputValues);
                     break;
                 default:
                     throw new IllegalArgumentException("Invalid operation: " + operation);
@@ -526,8 +541,8 @@ public class JetControlFlowInstructionsGenerator extends JetControlFlowBuilderAd
                 @Nullable ResolvedCall<?> resolvedCall,
                 @NotNull Map<PseudoValue, ReceiverValue> receiverValues
         ) {
-            AccessTarget accessTarget = resolvedCall != null ? new AccessTarget.Call(resolvedCall) : AccessTarget.BlackBox.instance$;
-            ReadValueInstruction instruction = ReadValueInstruction.object$.create(
+            AccessTarget accessTarget = resolvedCall != null ? new AccessTarget.Call(resolvedCall) : AccessTarget.BlackBox.INSTANCE$;
+            ReadValueInstruction instruction = ReadValueInstruction.OBJECT$.create(
                     expression, getCurrentScope(), accessTarget, receiverValues, valueFactory
             );
             add(instruction);

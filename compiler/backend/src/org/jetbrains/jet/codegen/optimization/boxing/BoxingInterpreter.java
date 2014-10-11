@@ -211,22 +211,12 @@ public class BoxingInterpreter extends OptimizationBasicInterpreter {
             return v;
         }
 
-        if (v instanceof BoxedBasicValue && w == BasicValue.UNINITIALIZED_VALUE) {
-            return v;
-        }
-
-        if (w instanceof BoxedBasicValue && v == BasicValue.UNINITIALIZED_VALUE) {
-            return w;
-        }
-
         if (v instanceof BoxedBasicValue) {
             onMergeFail((BoxedBasicValue) v);
-            v = new BasicValue(v.getType());
         }
 
         if (w instanceof BoxedBasicValue) {
             onMergeFail((BoxedBasicValue) w);
-            w = new BasicValue(w.getType());
         }
 
         return super.merge(v, w);

@@ -112,7 +112,7 @@ public interface LocalLookup {
         RECEIVER {
             @Override
             public boolean isCase(DeclarationDescriptor d) {
-                return d instanceof CallableDescriptor;
+                return d instanceof ReceiverParameterDescriptor;
             }
 
             @Override
@@ -123,9 +123,11 @@ public interface LocalLookup {
                     MutableClosure closure,
                     Type classType
             ) {
-                if (closure.getEnclosingReceiverDescriptor() != d) return null;
+                if (closure.getEnclosingReceiverDescriptor() != d) {
+                    return null;
+                }
 
-                JetType receiverType = ((CallableDescriptor) d).getReceiverParameter().getType();
+                JetType receiverType = closure.getEnclosingReceiverDescriptor().getType();
                 Type type = state.getTypeMapper().mapType(receiverType);
                 StackValue innerValue = StackValue.field(type, classType, CAPTURED_RECEIVER_FIELD, false);
                 closure.setCaptureReceiver();
@@ -137,7 +139,7 @@ public interface LocalLookup {
             @Override
             public StackValue outerValue(@NotNull EnclosedValueDescriptor d, @NotNull ExpressionCodegen codegen) {
                 CallableDescriptor descriptor = (CallableDescriptor) d.getDescriptor();
-                return StackValue.local(descriptor.getExpectedThisObject() != null ? 1 : 0, d.getType());
+                return StackValue.local(descriptor.getDispatchReceiverParameter() != null ? 1 : 0, d.getType());
             }
         };
 

@@ -1,8 +1,0 @@
-package test
-
-public open class PropertyArrayTypes</*0*/ T> : java.lang.Object {
-    public constructor PropertyArrayTypes</*0*/ T>()
-    public final var array: kotlin.Array<kotlin.String>
-    public final var arrayOfArrays: kotlin.Array<kotlin.Array<kotlin.String>>
-    public final var genericArray: kotlin.Array<T>
-}

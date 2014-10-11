@@ -71,7 +71,7 @@ public fun JetElement.getDebugText(): String? {
         }
         return "package " + fqName.asString()
     }
-    return accept(DebugTextBuildingVisitor, Unit.VALUE)
+    return accept(DebugTextBuildingVisitor, Unit)
 }
 
 
@@ -85,7 +85,7 @@ private object DebugTextBuildingVisitor : JetVisitor<String, Unit>() {
 
     override fun visitJetElement(element: JetElement, data: Unit?): String? {
         if (element is JetElementImplStub<*>) {
-            LOG.error("getDebugText() is not defined for ${element.getClass()}")
+            LOG.error("getDebugText() is not defined for ${element.javaClass}")
         }
         return element.getText()
     }
@@ -167,9 +167,9 @@ private object DebugTextBuildingVisitor : JetVisitor<String, Unit>() {
 
     override fun visitFunctionType(functionType: JetFunctionType, data: Unit?): String? {
         return buildText {
-            appendInn(functionType.getReceiverTypeRef(), suffix = ".")
+            appendInn(functionType.getReceiverTypeReference(), suffix = ".")
             appendInn(functionType.getParameterList())
-            appendInn(functionType.getReturnTypeRef(), prefix = " -> ")
+            appendInn(functionType.getReturnTypeReference(), prefix = " -> ")
         }
     }
 
@@ -260,13 +260,13 @@ private object DebugTextBuildingVisitor : JetVisitor<String, Unit>() {
             if (function.hasTypeParameterListBeforeFunctionName()) {
                 appendInn(typeParameterList, suffix = " ")
             }
-            appendInn(function.getReceiverTypeRef(), suffix = ".")
+            appendInn(function.getReceiverTypeReference(), suffix = ".")
             appendInn(function.getNameAsName())
             if (!function.hasTypeParameterListBeforeFunctionName()) {
                 appendInn(typeParameterList)
             }
             appendInn(function.getValueParameterList())
-            appendInn(function.getReturnTypeRef(), prefix = ": ")
+            appendInn(function.getTypeReference(), prefix = ": ")
             appendInn(function.getTypeConstraintList(), prefix = " ")
         }
     }
@@ -302,7 +302,7 @@ private object DebugTextBuildingVisitor : JetVisitor<String, Unit>() {
             appendInn(property.getModifierList(), suffix = " ")
             append(if (property.isVar()) "var " else "val ")
             appendInn(property.getNameAsName())
-            appendInn(property.getTypeRef(), prefix = ": ")
+            appendInn(property.getTypeReference(), prefix = ": ")
         }
     }
 

@@ -25,9 +25,10 @@ import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.bindingContextUtil.BindingContextUtilPackage;
-import org.jetbrains.jet.lang.resolve.calls.autocasts.DataFlowInfo;
+import org.jetbrains.jet.lang.resolve.calls.callUtil.CallUtilPackage;
 import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCall;
 import org.jetbrains.jet.lang.resolve.calls.model.VariableAsFunctionResolvedCall;
+import org.jetbrains.jet.lang.resolve.calls.smartcasts.DataFlowInfo;
 import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.lang.types.JetTypeInfo;
 import org.jetbrains.jet.lang.types.TypeUtils;
@@ -145,10 +146,7 @@ public class BindingContextUtils {
     @Nullable
     public static JetTypeInfo getRecordedTypeInfo(@NotNull JetExpression expression, @NotNull BindingContext context) {
         if (!context.get(BindingContext.PROCESSED, expression)) return null;
-        DataFlowInfo dataFlowInfo = context.get(BindingContext.EXPRESSION_DATA_FLOW_INFO, expression);
-        if (dataFlowInfo == null) {
-            dataFlowInfo = DataFlowInfo.EMPTY;
-        }
+        DataFlowInfo dataFlowInfo = BindingContextUtilPackage.getDataFlowInfo(context, expression);
         JetType type = context.get(BindingContext.EXPRESSION_TYPE, expression);
         return JetTypeInfo.create(type, dataFlowInfo);
     }
@@ -158,7 +156,7 @@ public class BindingContextUtils {
             @NotNull BindingContext context
     ) {
         if (expression instanceof JetCallExpression) {
-            ResolvedCall<?> resolvedCall = BindingContextUtilPackage.getResolvedCall(expression, context);
+            ResolvedCall<?> resolvedCall = CallUtilPackage.getResolvedCall(expression, context);
             return resolvedCall instanceof VariableAsFunctionResolvedCall;
         }
         return expression instanceof JetReferenceExpression;

@@ -28,7 +28,7 @@ import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.AnnotationResolver;
 import org.jetbrains.jet.lang.resolve.BindingTrace;
 import org.jetbrains.jet.lang.resolve.ScriptNameUtil;
-import org.jetbrains.jet.lang.resolve.calls.autocasts.DataFlowInfo;
+import org.jetbrains.jet.lang.resolve.calls.smartcasts.DataFlowInfo;
 import org.jetbrains.jet.lang.resolve.lazy.ResolveSession;
 import org.jetbrains.jet.lang.resolve.lazy.data.JetClassLikeInfo;
 import org.jetbrains.jet.lang.resolve.lazy.data.JetScriptInfo;
@@ -181,9 +181,10 @@ public abstract class AbstractLazyMemberScope<D extends DeclarationDescriptor, D
                            trace,
                            // this relies on the assumption that a lazily resolved declaration is not a local one,
                            // thus doesn't have a surrounding data flow
-                           DataFlowInfo.EMPTY);
+                           DataFlowInfo.EMPTY
+                    );
             result.add(propertyDescriptor);
-            AnnotationResolver.resolveAnnotationsArguments(propertyDescriptor, trace);
+            AnnotationResolver.resolveAnnotationsArguments(propertyDescriptor.getAnnotations(), trace);
         }
 
         getNonDeclaredProperties(name, result);
@@ -261,15 +262,8 @@ public abstract class AbstractLazyMemberScope<D extends DeclarationDescriptor, D
     @NotNull
     @Override
     public List<ReceiverParameterDescriptor> getImplicitReceiversHierarchy() {
-        ReceiverParameterDescriptor receiver = getImplicitReceiver();
-        if (receiver != null) {
-            return Collections.singletonList(receiver);
-        }
         return Collections.emptyList();
     }
-
-    @Nullable
-    protected abstract ReceiverParameterDescriptor getImplicitReceiver();
 
     // Do not change this, override in concrete subclasses:
     // it is very easy to compromise laziness of this class, and fail all the debugging

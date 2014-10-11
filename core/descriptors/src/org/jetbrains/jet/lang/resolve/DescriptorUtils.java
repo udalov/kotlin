@@ -16,7 +16,7 @@
 
 package org.jetbrains.jet.lang.resolve;
 
-import com.google.common.base.Predicate;
+import kotlin.Function1;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.*;
@@ -41,11 +41,14 @@ import java.util.Set;
 import static org.jetbrains.jet.lang.descriptors.ReceiverParameterDescriptor.NO_RECEIVER_PARAMETER;
 
 public class DescriptorUtils {
+    public static final Name ENUM_VALUES = Name.identifier("values");
+    public static final Name ENUM_VALUE_OF = Name.identifier("valueOf");
+
     private DescriptorUtils() {
     }
 
     @Nullable
-    public static ReceiverParameterDescriptor getExpectedThisObjectIfNeeded(@NotNull DeclarationDescriptor containingDeclaration) {
+    public static ReceiverParameterDescriptor getDispatchReceiverParameterIfNeeded(@NotNull DeclarationDescriptor containingDeclaration) {
         if (containingDeclaration instanceof ClassDescriptor) {
             ClassDescriptor classDescriptor = (ClassDescriptor) containingDeclaration;
             return classDescriptor.getThisAsReceiverParameter();
@@ -102,19 +105,41 @@ public class DescriptorUtils {
 
     @NotNull
     private static FqNameUnsafe getFqNameUnsafe(@NotNull DeclarationDescriptor descriptor) {
-        DeclarationDescriptor containingDeclaration = descriptor.getContainingDeclaration();
-
-        if (containingDeclaration instanceof ClassDescriptor && ((ClassDescriptor) containingDeclaration).getKind() == ClassKind.CLASS_OBJECT) {
-            DeclarationDescriptor classOfClassObject = containingDeclaration.getContainingDeclaration();
-            assert classOfClassObject != null;
-            return getFqName(classOfClassObject).child(descriptor.getName());
-        }
-
+        DeclarationDescriptor containingDeclaration = getContainingDeclarationSkippingClassObjects(descriptor);
+        assert containingDeclaration != null : "Not package/module descriptor doesn't have containing declaration: " + descriptor;
         return getFqName(containingDeclaration).child(descriptor.getName());
+    }
+
+    @Nullable
+    private static DeclarationDescriptor getContainingDeclarationSkippingClassObjects(@NotNull DeclarationDescriptor descriptor) {
+        DeclarationDescriptor containingDeclaration = descriptor.getContainingDeclaration();
+        return isClassObject(containingDeclaration) ? containingDeclaration.getContainingDeclaration() : containingDeclaration;
+    }
+
+    @NotNull
+    public static FqName getFqNameFromTopLevelClass(@NotNull DeclarationDescriptor descriptor) {
+        DeclarationDescriptor containingDeclaration = getContainingDeclarationSkippingClassObjects(descriptor);
+        Name name = descriptor.getName();
+        if (!(containingDeclaration instanceof ClassDescriptor)) {
+            return FqName.topLevel(name);
+        }
+        return getFqNameFromTopLevelClass(containingDeclaration).child(name);
     }
 
     public static boolean isTopLevelDeclaration(@NotNull DeclarationDescriptor descriptor) {
         return descriptor.getContainingDeclaration() instanceof PackageFragmentDescriptor;
+    }
+
+    /**
+     * @return true iff this is a top-level declaration or a class member with no expected "this" object (e.g. static members in Java,
+     * values() and valueOf() methods of enum classes, etc.)
+     */
+    public static boolean isStaticDeclaration(@NotNull CallableDescriptor descriptor) {
+        if (descriptor instanceof ConstructorDescriptor) return false;
+
+        DeclarationDescriptor container = descriptor.getContainingDeclaration();
+        return container instanceof PackageFragmentDescriptor ||
+               (container instanceof ClassDescriptor && descriptor.getDispatchReceiverParameter() == null);
     }
 
     // WARNING! Don't use this method in JVM backend, use JvmCodegenUtil.isCallInsideSameModuleAsDeclared() instead.
@@ -153,6 +178,9 @@ public class DescriptorUtils {
 
     @NotNull
     public static ModuleDescriptor getContainingModule(@NotNull DeclarationDescriptor descriptor) {
+        if (descriptor instanceof PackageViewDescriptor) {
+            return ((PackageViewDescriptor) descriptor).getModule();
+        }
         ModuleDescriptor module = getParentOfType(descriptor, ModuleDescriptor.class, false);
         assert module != null : "Descriptor without a containing module: " + descriptor;
         return module;
@@ -199,7 +227,7 @@ public class DescriptorUtils {
         return descriptor instanceof AnonymousFunctionDescriptor;
     }
 
-    public static boolean isClassObject(@NotNull DeclarationDescriptor descriptor) {
+    public static boolean isClassObject(@Nullable DeclarationDescriptor descriptor) {
         return isKindOf(descriptor, ClassKind.CLASS_OBJECT);
     }
 
@@ -223,7 +251,7 @@ public class DescriptorUtils {
         return false;
     }
 
-    public static boolean isEnumClass(@NotNull DeclarationDescriptor descriptor) {
+    public static boolean isEnumClass(@Nullable DeclarationDescriptor descriptor) {
         return isKindOf(descriptor, ClassKind.ENUM_CLASS);
     }
 
@@ -237,6 +265,11 @@ public class DescriptorUtils {
 
     public static boolean isClass(@Nullable DeclarationDescriptor descriptor) {
         return isKindOf(descriptor, ClassKind.CLASS);
+    }
+
+    public static boolean containerKindIs(@NotNull DeclarationDescriptor descriptor, @NotNull ClassKind kind) {
+        DeclarationDescriptor parentDeclaration = descriptor.getContainingDeclaration();
+        return  parentDeclaration != null && isKindOf(parentDeclaration, kind);
     }
 
     public static boolean isKindOf(@Nullable DeclarationDescriptor descriptor, @NotNull ClassKind classKind) {
@@ -274,20 +307,17 @@ public class DescriptorUtils {
     }
 
     public static boolean isSyntheticClassObject(@NotNull DeclarationDescriptor descriptor) {
-        if (isClassObject(descriptor)) {
-            DeclarationDescriptor containing = descriptor.getContainingDeclaration();
-            if (containing != null) {
-                return isEnumClass(containing) || isObject(containing) || isEnumEntry(containing);
-            }
-        }
-        return false;
+        return isClassObject(descriptor) && isSingleton(descriptor.getContainingDeclaration());
     }
 
     @NotNull
     public static Visibility getDefaultConstructorVisibility(@NotNull ClassDescriptor classDescriptor) {
         ClassKind classKind = classDescriptor.getKind();
-        if (classKind == ClassKind.ENUM_CLASS || classKind.isSingleton() || isAnonymousObject(classDescriptor)) {
+        if (classKind == ClassKind.ENUM_CLASS || classKind.isSingleton()) {
             return Visibilities.PRIVATE;
+        }
+        if (isAnonymousObject(classDescriptor)) {
+            return Visibilities.INTERNAL;
         }
         assert classKind == ClassKind.CLASS || classKind == ClassKind.TRAIT || classKind == ClassKind.ANNOTATION_CLASS;
         return Visibilities.PUBLIC;
@@ -312,10 +342,6 @@ public class DescriptorUtils {
         return receiverParameterDescriptor == null ? null : receiverParameterDescriptor.getType();
     }
 
-    public static boolean isConstructorOfStaticNestedClass(@Nullable CallableDescriptor descriptor) {
-        return descriptor instanceof ConstructorDescriptor && isStaticNestedClass(descriptor.getContainingDeclaration());
-    }
-
     /**
      * @return true if descriptor is a class inside another class and does not have access to the outer class
      */
@@ -329,9 +355,9 @@ public class DescriptorUtils {
     @NotNull
     public static JetScope getStaticNestedClassesScope(@NotNull ClassDescriptor descriptor) {
         JetScope innerClassesScope = descriptor.getUnsubstitutedInnerClassesScope();
-        return new FilteringScope(innerClassesScope, new Predicate<DeclarationDescriptor>() {
+        return new FilteringScope(innerClassesScope, new Function1<DeclarationDescriptor, Boolean>() {
             @Override
-            public boolean apply(@Nullable DeclarationDescriptor descriptor) {
+            public Boolean invoke(DeclarationDescriptor descriptor) {
                 return descriptor instanceof ClassDescriptor && !((ClassDescriptor) descriptor).isInner();
             }
         });
@@ -374,5 +400,13 @@ public class DescriptorUtils {
                builtIns.getStringType().equals(type) ||
                builtIns.getNumber().getDefaultType().equals(type) ||
                builtIns.getAnyType().equals(type);
+    }
+
+    public static boolean classCanHaveAbstractMembers(@NotNull ClassDescriptor classDescriptor) {
+        return classDescriptor.getModality() == Modality.ABSTRACT || classDescriptor.getKind() == ClassKind.ENUM_CLASS;
+    }
+
+    public static boolean classCanHaveOpenMembers(@NotNull ClassDescriptor classDescriptor) {
+        return classDescriptor.getModality() != Modality.FINAL || classDescriptor.getKind() == ClassKind.ENUM_CLASS;
     }
 }

@@ -7,6 +7,7 @@
       <module fileurl="file://$PROJECT_DIR$/compiler/android-tests/android-tests.iml" filepath="$PROJECT_DIR$/compiler/android-tests/android-tests.iml" group="compiler" />
       <module fileurl="file://$PROJECT_DIR$/compiler/backend/backend.iml" filepath="$PROJECT_DIR$/compiler/backend/backend.iml" group="compiler/java" />
       <module fileurl="file://$PROJECT_DIR$/compiler/backend-common/backend-common.iml" filepath="$PROJECT_DIR$/compiler/backend-common/backend-common.iml" group="compiler" />
+      <module fileurl="file://$PROJECT_DIR$/jps-plugin/bare-plugin/bare-plugin.iml" filepath="$PROJECT_DIR$/jps-plugin/bare-plugin/bare-plugin.iml" group="ide/jps" />
       <module fileurl="file://$PROJECT_DIR$/build-tools/build-tools.iml" filepath="$PROJECT_DIR$/build-tools/build-tools.iml" />
       <module fileurl="file://$PROJECT_DIR$/core/builtins/builtins.iml" filepath="$PROJECT_DIR$/core/builtins/builtins.iml" group="core" />
       <module fileurl="file://$PROJECT_DIR$/compiler/builtins-serializer/builtins-serializer.iml" filepath="$PROJECT_DIR$/compiler/builtins-serializer/builtins-serializer.iml" group="compiler/cli" />
@@ -23,18 +24,22 @@
       <module fileurl="file://$PROJECT_DIR$/generators/generators.iml" filepath="$PROJECT_DIR$/generators/generators.iml" group="infrastructure" />
       <module fileurl="file://$PROJECT_DIR$/grammar/grammar.iml" filepath="$PROJECT_DIR$/grammar/grammar.iml" group="compiler" />
       <module fileurl="file://$PROJECT_DIR$/ide-compiler-runner/ide-compiler-runner.iml" filepath="$PROJECT_DIR$/ide-compiler-runner/ide-compiler-runner.iml" group="ide" />
+      <module fileurl="file://$PROJECT_DIR$/idea/ide-lazy-resolve/ide-lazy-resolve.iml" filepath="$PROJECT_DIR$/idea/ide-lazy-resolve/ide-lazy-resolve.iml" group="ide" />
       <module fileurl="file://$PROJECT_DIR$/idea/idea.iml" filepath="$PROJECT_DIR$/idea/idea.iml" group="ide" />
+      <module fileurl="file://$PROJECT_DIR$/idea/idea-analysis/idea-analysis.iml" filepath="$PROJECT_DIR$/idea/idea-analysis/idea-analysis.iml" group="ide" />
       <module fileurl="file://$PROJECT_DIR$/idea_runner/idea_runner.iml" filepath="$PROJECT_DIR$/idea_runner/idea_runner.iml" group="ide" />
       <module fileurl="file://$PROJECT_DIR$/injector-generator/injector-generator.iml" filepath="$PROJECT_DIR$/injector-generator/injector-generator.iml" group="infrastructure" />
       <module fileurl="file://$PROJECT_DIR$/compiler/preloader/instrumentation/instrumentation.iml" filepath="$PROJECT_DIR$/compiler/preloader/instrumentation/instrumentation.iml" group="compiler/cli" />
       <module fileurl="file://$PROJECT_DIR$/j2k/j2k.iml" filepath="$PROJECT_DIR$/j2k/j2k.iml" group="j2k" />
-      <module fileurl="file://$PROJECT_DIR$/j2k/tests/j2k-tests.iml" filepath="$PROJECT_DIR$/j2k/tests/j2k-tests.iml" group="j2k" />
       <module fileurl="file://$PROJECT_DIR$/compiler/jet.as.java.psi/jet.as.java.psi.iml" filepath="$PROJECT_DIR$/compiler/jet.as.java.psi/jet.as.java.psi.iml" group="compiler/java" />
       <module fileurl="file://$PROJECT_DIR$/jps-plugin/jps-plugin.iml" filepath="$PROJECT_DIR$/jps-plugin/jps-plugin.iml" group="ide/jps" />
       <module fileurl="file://$PROJECT_DIR$/js/js.dart-ast/js.dart-ast.iml" filepath="$PROJECT_DIR$/js/js.dart-ast/js.dart-ast.iml" group="compiler/js" />
+      <module fileurl="file://$PROJECT_DIR$/js/js.frontend/js.frontend.iml" filepath="$PROJECT_DIR$/js/js.frontend/js.frontend.iml" group="compiler/js" />
+      <module fileurl="file://$PROJECT_DIR$/js/js.inliner/js.inliner.iml" filepath="$PROJECT_DIR$/js/js.inliner/js.inliner.iml" group="compiler/js" />
       <module fileurl="file://$PROJECT_DIR$/js/js.tests/js.tests.iml" filepath="$PROJECT_DIR$/js/js.tests/js.tests.iml" group="compiler/js" />
       <module fileurl="file://$PROJECT_DIR$/js/js.translator/js.translator.iml" filepath="$PROJECT_DIR$/js/js.translator/js.translator.iml" group="compiler/js" />
       <module fileurl="file://$PROJECT_DIR$/jps-plugin/kannotator-jps-plugin-test/kannotator-jps-plugin-test.iml" filepath="$PROJECT_DIR$/jps-plugin/kannotator-jps-plugin-test/kannotator-jps-plugin-test.iml" group="ide/jps" />
+      <module fileurl="file://$PROJECT_DIR$/idea/kotlin-android-plugin/kotlin-android-plugin.iml" filepath="$PROJECT_DIR$/idea/kotlin-android-plugin/kotlin-android-plugin.iml" group="ide" />
       <module fileurl="file://$PROJECT_DIR$/objc/objc.as.java.codegen/objc.as.java.codegen.iml" filepath="$PROJECT_DIR$/objc/objc.as.java.codegen/objc.as.java.codegen.iml" group="compiler/objc" />
       <module fileurl="file://$PROJECT_DIR$/compiler/preloader/preloader.iml" filepath="$PROJECT_DIR$/compiler/preloader/preloader.iml" group="compiler/cli" />
       <module fileurl="file://$PROJECT_DIR$/core/reflection/reflection.iml" filepath="$PROJECT_DIR$/core/reflection/reflection.iml" group="core" />

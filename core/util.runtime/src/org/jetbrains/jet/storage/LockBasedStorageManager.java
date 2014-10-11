@@ -207,6 +207,9 @@ public class LockBasedStorageManager implements StorageManager {
         try {
             return computable.invoke();
         }
+        catch (Throwable throwable) {
+            throw exceptionHandlingStrategy.handleException(throwable);
+        }
         finally {
             lock.unlock();
         }
@@ -421,4 +424,11 @@ public class LockBasedStorageManager implements StorageManager {
         }
     }
 
+    @NotNull
+    public static LockBasedStorageManager createDelegatingWithSameLock(
+            @NotNull LockBasedStorageManager base,
+            @NotNull ExceptionHandlingStrategy newStrategy
+    ) {
+        return new LockBasedStorageManager(getPointOfConstruction(), newStrategy, base.lock);
+    }
 }

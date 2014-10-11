@@ -23,6 +23,7 @@ import org.jetbrains.jet.codegen.optimization.boxing.RedundantBoxingMethodTransf
 import org.jetbrains.jet.codegen.optimization.boxing.RedundantNullCheckMethodTransformer;
 import org.jetbrains.jet.codegen.optimization.transformer.MethodTransformer;
 import org.jetbrains.org.objectweb.asm.MethodVisitor;
+import org.jetbrains.org.objectweb.asm.Opcodes;
 import org.jetbrains.org.objectweb.asm.tree.LocalVariableNode;
 import org.jetbrains.org.objectweb.asm.tree.MethodNode;
 import org.jetbrains.org.objectweb.asm.util.Textifier;
@@ -32,9 +33,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class OptimizationMethodVisitor extends MethodVisitor {
-    private static final MethodTransformer MAIN_METHOD_TRANSFORMER = new RedundantNullCheckMethodTransformer(
-            new RedundantBoxingMethodTransformer(null)
-    );
+    private static final int MEMORY_LIMIT_BY_METHOD_MB = 50;
+    private static final MethodTransformer[] TRANSFORMERS = new MethodTransformer[]{
+            new RedundantNullCheckMethodTransformer(), new RedundantBoxingMethodTransformer(),
+            new RedundantGotoMethodTransformer(), new StoreStackBeforeInlineMethodTransformer()
+    };
 
     private final MethodNode methodNode;
     private final MethodVisitor delegate;
@@ -47,7 +50,7 @@ public class OptimizationMethodVisitor extends MethodVisitor {
             @Nullable String signature,
             @Nullable String[] exceptions
     ) {
-        super(OptimizationUtils.API);
+        super(Opcodes.ASM5);
         this.delegate = delegate;
         this.methodNode = new MethodNode(access, name, desc, signature, exceptions);
         this.methodNode.localVariables = new ArrayList<LocalVariableNode>(5);
@@ -63,11 +66,13 @@ public class OptimizationMethodVisitor extends MethodVisitor {
 
         super.visitEnd();
 
-        if (methodNode.instructions.size() > 0) {
-            MAIN_METHOD_TRANSFORMER.transform("fake", methodNode);
+        if (canBeAnalyzed(methodNode)) {
+            for (MethodTransformer transformer : TRANSFORMERS) {
+                transformer.transform("fake", methodNode);
+            }
         }
 
-        methodNode.accept(new EndIgnoringMethodVisitorDecorator(OptimizationUtils.API, delegate));
+        methodNode.accept(new EndIgnoringMethodVisitorDecorator(Opcodes.ASM5, delegate));
 
 
         // In case of empty instructions list MethodNode.accept doesn't call visitLocalVariables of delegate
@@ -109,5 +114,13 @@ public class OptimizationMethodVisitor extends MethodVisitor {
         }
 
         return traceMethodVisitor;
+    }
+
+    private static boolean canBeAnalyzed(@NotNull MethodNode node) {
+        int totalFramesSizeMb = node.instructions.size() *
+                              (node.maxLocals + node.maxStack) / (1024 * 1024);
+
+        return node.instructions.size() > 0 &&
+               totalFramesSizeMb < MEMORY_LIMIT_BY_METHOD_MB;
     }
 }

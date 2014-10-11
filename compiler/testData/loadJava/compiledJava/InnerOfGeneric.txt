@@ -1,9 +1,9 @@
 package test
 
-public open class InnerOfGeneric : java.lang.Object {
+public open class InnerOfGeneric {
     public constructor InnerOfGeneric()
     
-    public abstract inner class A</*0*/ K> : java.lang.Object {
+    public abstract inner class A</*0*/ K> {
         public constructor A</*0*/ K>()
         
         public abstract inner class Inner : test.InnerOfGeneric.S<K> {
@@ -21,11 +21,10 @@ public open class InnerOfGeneric : java.lang.Object {
         }
     }
     
-    public trait S</*0*/ E> : java.lang.Object {
+    public trait S</*0*/ E> {
         public abstract fun iterator(): kotlin.MutableIterator<E>?
     }
-}
-
-package test.InnerOfGeneric {
-    public /*synthesized*/ fun </*0*/ E> S(/*0*/ function: () -> kotlin.MutableIterator<E>?): test.InnerOfGeneric.S<E>
+    
+    // Static members
+    public final /*synthesized*/ fun </*0*/ E> S(/*0*/ function: () -> kotlin.MutableIterator<E>?): test.InnerOfGeneric.S<E>
 }

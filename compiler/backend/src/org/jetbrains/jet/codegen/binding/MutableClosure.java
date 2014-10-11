@@ -27,11 +27,13 @@ import org.jetbrains.org.objectweb.asm.Type;
 
 import java.util.*;
 
+import static org.jetbrains.jet.codegen.JvmCodegenUtil.getDirectMember;
+
 public final class MutableClosure implements CalculatedClosure {
     private final ResolvedCall<ConstructorDescriptor> superCall;
 
     private final ClassDescriptor enclosingClass;
-    private final CallableDescriptor enclosingReceiverDescriptor;
+    private final CallableDescriptor enclosingFunWithReceiverDescriptor;
 
     private boolean captureThis;
     private boolean captureReceiver;
@@ -40,13 +42,25 @@ public final class MutableClosure implements CalculatedClosure {
     private List<Pair<String, Type>> recordedFields;
 
     MutableClosure(
+            @NotNull ClassDescriptor classDescriptor,
             @Nullable ResolvedCall<ConstructorDescriptor> superCall,
-            @Nullable ClassDescriptor enclosingClass,
-            @Nullable CallableDescriptor enclosingReceiverDescriptor
+            @Nullable ClassDescriptor enclosingClass
     ) {
-        this.superCall = superCall;
         this.enclosingClass = enclosingClass;
-        this.enclosingReceiverDescriptor = enclosingReceiverDescriptor;
+        this.superCall = superCall;
+        this.enclosingFunWithReceiverDescriptor = enclosingExtensionMemberForClass(classDescriptor);
+    }
+
+    @Nullable
+    private static CallableDescriptor enclosingExtensionMemberForClass(@NotNull ClassDescriptor classDescriptor) {
+        DeclarationDescriptor classContainer = classDescriptor.getContainingDeclaration();
+        if (classContainer instanceof CallableMemberDescriptor) {
+            CallableMemberDescriptor member = getDirectMember((CallableMemberDescriptor) classContainer);
+            if (member.getExtensionReceiverParameter() != null) {
+                return member;
+            }
+        }
+        return null;
     }
 
     @Nullable
@@ -71,9 +85,8 @@ public final class MutableClosure implements CalculatedClosure {
     @Override
     public JetType getCaptureReceiverType() {
         if (captureReceiver) {
-            //noinspection ConstantConditions
-            ReceiverParameterDescriptor parameter = enclosingReceiverDescriptor.getReceiverParameter();
-            assert parameter != null : "Receiver parameter should exist in " + enclosingReceiverDescriptor;
+            ReceiverParameterDescriptor parameter = getEnclosingReceiverDescriptor();
+            assert parameter != null : "Receiver parameter should exist in " + enclosingFunWithReceiverDescriptor;
             return parameter.getType();
         }
 
@@ -81,8 +94,8 @@ public final class MutableClosure implements CalculatedClosure {
     }
 
     public void setCaptureReceiver() {
-        if (enclosingReceiverDescriptor == null) {
-            throw new IllegalStateException();
+        if (enclosingFunWithReceiverDescriptor == null) {
+            throw new IllegalStateException("Extension receiver parameter should exist");
         }
         this.captureReceiver = true;
     }
@@ -113,7 +126,8 @@ public final class MutableClosure implements CalculatedClosure {
         captureVariables.put(value.getDescriptor(), value);
     }
 
-    public CallableDescriptor getEnclosingReceiverDescriptor() {
-        return enclosingReceiverDescriptor;
+    @Nullable
+    public ReceiverParameterDescriptor getEnclosingReceiverDescriptor() {
+        return enclosingFunWithReceiverDescriptor != null ? enclosingFunWithReceiverDescriptor.getExtensionReceiverParameter() : null;
     }
 }

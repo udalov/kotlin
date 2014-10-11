@@ -16,6 +16,7 @@
 
 package org.jetbrains.jet.lang.resolve.kotlin;
 
+import com.intellij.ide.highlighter.JavaClassFileType;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.components.ServiceManager;
 import com.intellij.openapi.util.Ref;
@@ -36,8 +37,9 @@ public final class KotlinBinaryClassCache implements Disposable {
                     return new SLRUCache<VirtualFile, Ref<VirtualFileKotlinClass>>(2, 2) {
                         @NotNull
                         @Override
+                        @SuppressWarnings("deprecation")
                         public Ref<VirtualFileKotlinClass> createValue(VirtualFile virtualFile) {
-                            return Ref.create(VirtualFileKotlinClass.create(virtualFile));
+                            return Ref.create(VirtualFileKotlinClass.OBJECT$.create(virtualFile));
                         }
                     };
                 }
@@ -45,6 +47,8 @@ public final class KotlinBinaryClassCache implements Disposable {
 
     @Nullable
     public static KotlinJvmBinaryClass getKotlinBinaryClass(@NotNull VirtualFile file) {
+        if (file.getFileType() != JavaClassFileType.INSTANCE) return null;
+
         KotlinBinaryClassCache service = ServiceManager.getService(KotlinBinaryClassCache.class);
         return service.cache.get().get(file).get();
     }

@@ -17,6 +17,7 @@
 package org.jetbrains.jet.cli.jvm.compiler;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import com.intellij.openapi.Disposable;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Disposer;
@@ -37,8 +38,9 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.OutputFile;
 import org.jetbrains.jet.cli.common.CLIConfigurationKeys;
+import org.jetbrains.jet.cli.common.messages.CompilerMessageSeverity;
 import org.jetbrains.jet.cli.common.messages.MessageCollector;
-import org.jetbrains.jet.cli.common.messages.MessageRenderer;
+import org.jetbrains.jet.cli.common.messages.OutputMessageUtil;
 import org.jetbrains.jet.cli.common.modules.ModuleScriptData;
 import org.jetbrains.jet.cli.common.modules.ModuleXmlParser;
 import org.jetbrains.jet.cli.common.output.outputUtils.OutputUtilsPackage;
@@ -62,8 +64,8 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 import java.util.jar.*;
 
 import static org.jetbrains.jet.cli.common.messages.CompilerMessageLocation.NO_LOCATION;
@@ -134,7 +136,7 @@ public class CompileEnvironmentUtil {
         if (modules.isEmpty()) {
             throw new CompileEnvironmentException("No modules where defined by " + moduleScriptFile);
         }
-        return new ModuleScriptData(modules, null);
+        return new ModuleScriptData(modules);
     }
 
     private static List<Module> runDefineModules(KotlinPaths paths, ClassFileFactory factory) {
@@ -159,8 +161,8 @@ public class CompileEnvironmentUtil {
             method.setAccessible(true);
             method.invoke(null);
 
-            ArrayList<Module> answer = new ArrayList<Module>(AllModules.instance$.get());
-            AllModules.instance$.get().clear();
+            ArrayList<Module> answer = new ArrayList<Module>(AllModules.INSTANCE$.get());
+            AllModules.INSTANCE$.get().clear();
             return answer;
         }
         catch (Exception e) {
@@ -241,14 +243,12 @@ public class CompileEnvironmentUtil {
 
     // Used for debug output only
     private static String loadModuleScriptText(String moduleScriptFile) {
-        String moduleScriptText;
         try {
-            moduleScriptText = FileUtil.loadFile(new File(moduleScriptFile));
+            return FileUtil.loadFile(new File(moduleScriptFile));
         }
         catch (IOException e) {
-            moduleScriptText = "Can't load module script text:\n" + MessageRenderer.PLAIN.renderException(e);
+            return "Can't load module script text:\n" + OutputMessageUtil.renderException(e);
         }
-        return moduleScriptText;
     }
 
     static void writeOutputToDirOrJar(
@@ -275,6 +275,7 @@ public class CompileEnvironmentUtil {
     ) {
         final VirtualFileSystem localFileSystem = VirtualFileManager.getInstance().getFileSystem(StandardFileSystems.FILE_PROTOCOL);
 
+        final Set<VirtualFile> processedFiles = Sets.newHashSet();
         final List<JetFile> result = Lists.newArrayList();
 
         for (String sourceRootPath : sourceRoots) {
@@ -296,19 +297,39 @@ public class CompileEnvironmentUtil {
                 @Override
                 public Unit invoke(File file) {
                     if (file.isFile()) {
-                        VirtualFile fileByPath = localFileSystem.findFileByPath(file.getAbsolutePath());
-                        if (fileByPath != null) {
-                            PsiFile psiFile = PsiManager.getInstance(project).findFile(fileByPath);
+                        VirtualFile virtualFile = localFileSystem.findFileByPath(file.getAbsolutePath());
+                        if (virtualFile != null && !processedFiles.contains(virtualFile)) {
+                            processedFiles.add(virtualFile);
+                            PsiFile psiFile = PsiManager.getInstance(project).findFile(virtualFile);
                             if (psiFile instanceof JetFile) {
                                 result.add((JetFile) psiFile);
                             }
                         }
                     }
-                    return Unit.VALUE;
+                    return Unit.INSTANCE$;
                 }
             });
         }
 
         return result;
+    }
+
+    public static void addSourceFilesCheckingForDuplicates(@NotNull CompilerConfiguration configuration, @NotNull List<String> sourceRoots) {
+        MessageCollector messageCollector = configuration.get(CLIConfigurationKeys.MESSAGE_COLLECTOR_KEY);
+        assert messageCollector != null : "messageCollector should be set: " + configuration;
+
+        Set<String> uniqueSourceRoots = Sets.newLinkedHashSet();
+
+        for (String sourceRoot : sourceRoots) {
+            if (!uniqueSourceRoots.add(sourceRoot)) {
+                messageCollector.report(
+                        CompilerMessageSeverity.WARNING,
+                        "Duplicate source roots: " + sourceRoot,
+                        NO_LOCATION
+                );
+            }
+        }
+
+        configuration.put(CommonConfigurationKeys.SOURCE_ROOTS_KEY, new ArrayList<String>(uniqueSourceRoots));
     }
 }

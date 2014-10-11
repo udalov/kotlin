@@ -187,6 +187,11 @@ public class PackageCodegen {
                                                                          }
                                                                      }
                         );
+
+                        memberCodegen.functionCodegen.generateDefaultIfNeeded(
+                                context.intoFunction(function), signature, function, OwnerKind.PACKAGE,
+                                DefaultParameterValueLoader.DEFAULT, null);
+
                     }
                     else if (member instanceof DeserializedPropertyDescriptor) {
                         memberCodegen.propertyCodegen.generateInPackageFacade((DeserializedPropertyDescriptor) member);
@@ -361,7 +366,7 @@ public class PackageCodegen {
         SmartList<PackageFragmentDescriptor> fragments = new SmartList<PackageFragmentDescriptor>();
         for (JetFile file : files) {
             PackageFragmentDescriptor fragment = state.getBindingContext().get(BindingContext.FILE_TO_PACKAGE_FRAGMENT, file);
-            assert fragment != null : "package fragment is null for " + file;
+            assert fragment != null : "package fragment is null for " + file + "\n" + file.getText();
 
             assert expectedFqName.equals(fragment.getFqName()) :
                     "expected package fq name: " + expectedFqName + ", actual: " + fragment.getFqName();

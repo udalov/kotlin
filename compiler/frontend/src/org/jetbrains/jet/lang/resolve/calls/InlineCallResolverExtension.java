@@ -24,7 +24,7 @@ import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.diagnostics.Errors;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.DescriptorUtils;
-import org.jetbrains.jet.lang.resolve.bindingContextUtil.BindingContextUtilPackage;
+import org.jetbrains.jet.lang.resolve.calls.callUtil.CallUtilPackage;
 import org.jetbrains.jet.lang.resolve.calls.context.BasicCallResolutionContext;
 import org.jetbrains.jet.lang.resolve.calls.model.DefaultValueArgument;
 import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCall;
@@ -66,7 +66,7 @@ public class InlineCallResolverExtension implements CallResolverExtension {
         }
 
         //add extension receiver as inlinable
-        ReceiverParameterDescriptor receiverParameter = descriptor.getReceiverParameter();
+        ReceiverParameterDescriptor receiverParameter = descriptor.getExtensionReceiverParameter();
         if (receiverParameter != null) {
             if (isInlinableParameter(receiverParameter)) {
                 inlinableParameters.add(receiverParameter);
@@ -83,8 +83,8 @@ public class InlineCallResolverExtension implements CallResolverExtension {
 
         //checking that only invoke or inlinable extension called on function parameter
         CallableDescriptor targetDescriptor = resolvedCall.getResultingDescriptor();
-        checkCallWithReceiver(context, targetDescriptor, resolvedCall.getThisObject(), expression);
-        checkCallWithReceiver(context, targetDescriptor, resolvedCall.getReceiverArgument(), expression);
+        checkCallWithReceiver(context, targetDescriptor, resolvedCall.getDispatchReceiver(), expression);
+        checkCallWithReceiver(context, targetDescriptor, resolvedCall.getExtensionReceiver(), expression);
 
         if (inlinableParameters.contains(targetDescriptor)) {
             if (!isInsideCall(expression)) {
@@ -167,7 +167,7 @@ public class InlineCallResolverExtension implements CallResolverExtension {
             ExtensionReceiver extensionReceiver = (ExtensionReceiver) receiver;
             CallableDescriptor extension = extensionReceiver.getDeclarationDescriptor();
 
-            varDescriptor = extension.getReceiverParameter();
+            varDescriptor = extension.getExtensionReceiverParameter();
             assert varDescriptor != null : "Extension should have receiverParameterDescriptor: " + extension;
 
             receiverExpression = expression;
@@ -187,7 +187,7 @@ public class InlineCallResolverExtension implements CallResolverExtension {
     ) {
         if (!(expression instanceof JetSimpleNameExpression || expression instanceof JetThisExpression)) return null;
 
-        ResolvedCall<?> thisCall = BindingContextUtilPackage.getResolvedCall(expression, context.trace.getBindingContext());
+        ResolvedCall<?> thisCall = CallUtilPackage.getResolvedCall(expression, context.trace.getBindingContext());
         if (unwrapVariableAsFunction && thisCall instanceof VariableAsFunctionResolvedCall) {
             return ((VariableAsFunctionResolvedCall) thisCall).getVariableCall().getResultingDescriptor();
         }

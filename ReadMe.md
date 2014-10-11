@@ -2,7 +2,7 @@
 
 Welcome to [Kotlin](http://kotlinlang.org/)! Some handy links:
 
- * [Getting Started Guide](http://confluence.jetbrains.net/display/Kotlin/Getting+Started)
+ * [Getting Started Guide](http://kotlinlang.org/docs/tutorials/getting-started.html)
  * [Web Demo](http://kotlin-demo.jetbrains.com/)
  * [Kotlin Site](http://jetbrains.github.com/kotlin/)
  * [API](http://jetbrains.github.com/kotlin/versions/snapshot/apidocs/index.html)
@@ -10,7 +10,7 @@ Welcome to [Kotlin](http://kotlinlang.org/)! Some handy links:
  * [Forum](http://devnet.jetbrains.net/community/kotlin?view=discussions)
  * [Kotlin Blog](http://blog.jetbrains.com/kotlin/)
  * [follow Kotlin on twitter](http://twitter.com/#!/project_kotlin)
- * [TeamCity CI build](http://teamcity.jetbrains.com/project.html?projectId=project67&tab=projectOverview)
+ * [TeamCity CI build](https://teamcity.jetbrains.com/project.html?tab=projectOverview&projectId=Kotlin)
 
 ## Editing Kotlin
 
@@ -72,7 +72,7 @@ There are several options for getting Kotlin plugin. A stable version can be obt
     Preferences -> Plugins -> Browse Repositories -> Search with "Kotlin" string
 
 The most recent version of the plugin can be downloaded from the
-[IDEA Plugin and Tests CI build](http://teamcity.jetbrains.com/project.html?projectId=project67&tab=projectOverview). When downloading is
+[IDEA Plugin and Tests CI build](https://teamcity.jetbrains.com/project.html?projectId=project67&tab=projectOverview). When downloading is
 finished you can install it with "Install plugin from disk...":
 
     Preferences -> Plugins -> Install plugin from disk...
@@ -89,15 +89,15 @@ Open
 
 and add the following URL to your repositories:
 
-    http://teamcity.jetbrains.com/guestAuth/repository/download/bt345/bootstrap.tcbuildtag/updatePlugins.xml
+    https://teamcity.jetbrains.com/guestAuth/repository/download/bt345/bootstrap.tcbuildtag/updatePlugins.xml
 
 Then update the list of plugins in "Browse Repositories", you'll see two versions of Kotlin there, install the one with the higher version number.
 
 # Contributing
 
-We love contributions! There's [lots to do on kotlin](http://youtrack.jetbrains.com/issues/KT) and on the [standard library](http://youtrack.jetbrains.com/issues/KT?q=%23%7BStandard+Library%7D+-Resolved) so why not chat with us on the [forum](http://devnet.jetbrains.net/community/kotlin?view=discussions) about what you're interested in doing?
+We love contributions! There's [lots to do on kotlin](http://youtrack.jetbrains.com/issues/KT) and on the [standard library](https://youtrack.jetbrains.com/issues/KT?q=Subtask+of%3A+KT-2554+%23Unresolved) so why not chat with us on the [forum](http://devnet.jetbrains.net/community/kotlin?view=discussions) about what you're interested in doing?
 
-If you want to find some issues to start off with, try [this query](http://youtrack.jetbrains.com/issues/KT?q=-Resolved+%23Kontributor) which should find all issues that are not resolved assigned to Kontributor.
+If you want to find some issues to start off with, try [this query](https://youtrack.jetbrains.com/issues?q=tag%3A+%7BUp+For+Grabs%7D+%23Unresolved) which should find all issues that marked as "up-for-grabs".
 
 Currently only committers can assign issues to themselves so just add a comment if you're starting work on it.
 
@@ -110,7 +110,7 @@ Also the [JavaScript translation](https://github.com/JetBrains/kotlin/blob/maste
 
 ## If you want to work on the compiler
 
-The Kotlin compiler is currently all written in Java (we plan to port it to Kotlin later). So the easiest way to work on the compiler or IDEA plugin is
+The Kotlin compiler is written in Java and Kotlin (we gradually migrate more and more of it to pure Kotlin). So the easiest way to work on the compiler or IDEA plugin is
 
 * download a clean [IDEA 14 EAP build](http://confluence.jetbrains.com/display/IDEADEV/IDEA+14+EAP)
 * [install the Kotlin plugin](#pre-built-plugin)

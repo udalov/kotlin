@@ -25,7 +25,9 @@ import org.jetbrains.jet.codegen.state.GenerationState;
 import org.jetbrains.jet.codegen.state.JetTypeMapper;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.psi.JetExpression;
+import org.jetbrains.jet.lang.resolve.annotations.AnnotationsPackage;
 import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCall;
+import org.jetbrains.jet.lang.resolve.java.JvmAbi;
 import org.jetbrains.jet.lang.resolve.scopes.receivers.ReceiverValue;
 import org.jetbrains.jet.lexer.JetTokens;
 import org.jetbrains.org.objectweb.asm.Label;
@@ -161,57 +163,57 @@ public abstract class StackValue {
     private static void box(Type type, Type toType, InstructionAdapter v) {
         if (type == Type.BYTE_TYPE || toType.getInternalName().equals(NULLABLE_BYTE_TYPE_NAME) && type == Type.INT_TYPE) {
             v.cast(type, Type.BYTE_TYPE);
-            v.invokestatic(NULLABLE_BYTE_TYPE_NAME, "valueOf", "(B)L" + NULLABLE_BYTE_TYPE_NAME + ";");
+            v.invokestatic(NULLABLE_BYTE_TYPE_NAME, "valueOf", "(B)L" + NULLABLE_BYTE_TYPE_NAME + ";", false);
         }
         else if (type == Type.SHORT_TYPE || toType.getInternalName().equals(NULLABLE_SHORT_TYPE_NAME) && type == Type.INT_TYPE) {
             v.cast(type, Type.SHORT_TYPE);
-            v.invokestatic(NULLABLE_SHORT_TYPE_NAME, "valueOf", "(S)L" + NULLABLE_SHORT_TYPE_NAME + ";");
+            v.invokestatic(NULLABLE_SHORT_TYPE_NAME, "valueOf", "(S)L" + NULLABLE_SHORT_TYPE_NAME + ";", false);
         }
         else if (type == Type.LONG_TYPE || toType.getInternalName().equals(NULLABLE_LONG_TYPE_NAME) && type == Type.INT_TYPE) {
             v.cast(type, Type.LONG_TYPE);
-            v.invokestatic(NULLABLE_LONG_TYPE_NAME, "valueOf", "(J)L" + NULLABLE_LONG_TYPE_NAME +";");
+            v.invokestatic(NULLABLE_LONG_TYPE_NAME, "valueOf", "(J)L" + NULLABLE_LONG_TYPE_NAME + ";", false);
         }
         else if (type == Type.INT_TYPE) {
-            v.invokestatic("java/lang/Integer", "valueOf", "(I)Ljava/lang/Integer;");
+            v.invokestatic("java/lang/Integer", "valueOf", "(I)Ljava/lang/Integer;", false);
         }
         else if (type == Type.BOOLEAN_TYPE) {
-            v.invokestatic("java/lang/Boolean", "valueOf", "(Z)Ljava/lang/Boolean;");
+            v.invokestatic("java/lang/Boolean", "valueOf", "(Z)Ljava/lang/Boolean;", false);
         }
         else if (type == Type.CHAR_TYPE) {
-            v.invokestatic("java/lang/Character", "valueOf", "(C)Ljava/lang/Character;");
+            v.invokestatic("java/lang/Character", "valueOf", "(C)Ljava/lang/Character;", false);
         }
         else if (type == Type.FLOAT_TYPE) {
-            v.invokestatic("java/lang/Float", "valueOf", "(F)Ljava/lang/Float;");
+            v.invokestatic("java/lang/Float", "valueOf", "(F)Ljava/lang/Float;", false);
         }
         else if (type == Type.DOUBLE_TYPE) {
-            v.invokestatic("java/lang/Double", "valueOf", "(D)Ljava/lang/Double;");
+            v.invokestatic("java/lang/Double", "valueOf", "(D)Ljava/lang/Double;", false);
         }
     }
 
     private static void unbox(Type type, InstructionAdapter v) {
         if (type == Type.INT_TYPE) {
-            v.invokevirtual("java/lang/Number", "intValue", "()I");
+            v.invokevirtual("java/lang/Number", "intValue", "()I", false);
         }
         else if (type == Type.BOOLEAN_TYPE) {
-            v.invokevirtual("java/lang/Boolean", "booleanValue", "()Z");
+            v.invokevirtual("java/lang/Boolean", "booleanValue", "()Z", false);
         }
         else if (type == Type.CHAR_TYPE) {
-            v.invokevirtual("java/lang/Character", "charValue", "()C");
+            v.invokevirtual("java/lang/Character", "charValue", "()C", false);
         }
         else if (type == Type.SHORT_TYPE) {
-            v.invokevirtual("java/lang/Number", "shortValue", "()S");
+            v.invokevirtual("java/lang/Number", "shortValue", "()S", false);
         }
         else if (type == Type.LONG_TYPE) {
-            v.invokevirtual("java/lang/Number", "longValue", "()J");
+            v.invokevirtual("java/lang/Number", "longValue", "()J", false);
         }
         else if (type == Type.BYTE_TYPE) {
-            v.invokevirtual("java/lang/Number", "byteValue", "()B");
+            v.invokevirtual("java/lang/Number", "byteValue", "()B", false);
         }
         else if (type == Type.FLOAT_TYPE) {
-            v.invokevirtual("java/lang/Number", "floatValue", "()F");
+            v.invokevirtual("java/lang/Number", "floatValue", "()F", false);
         }
         else if (type == Type.DOUBLE_TYPE) {
-            v.invokevirtual("java/lang/Number", "doubleValue", "()D");
+            v.invokevirtual("java/lang/Number", "doubleValue", "()D", false);
         }
     }
 
@@ -283,7 +285,7 @@ public abstract class StackValue {
     }
 
     public static void putUnitInstance(InstructionAdapter v) {
-        v.visitFieldInsn(GETSTATIC, UNIT_TYPE.getInternalName(), "VALUE", UNIT_TYPE.getDescriptor());
+        v.visitFieldInsn(GETSTATIC, UNIT_TYPE.getInternalName(), JvmAbi.INSTANCE_FIELD, UNIT_TYPE.getDescriptor());
     }
 
     protected void putAsBoolean(InstructionAdapter v) {
@@ -331,7 +333,7 @@ public abstract class StackValue {
             ExpressionCodegen codegen,
             @Nullable CallableMethod callableMethod
     ) {
-        if (resolvedCall.getThisObject().exists() || resolvedCall.getReceiverArgument().exists() || isLocalFunCall(callableMethod)) {
+        if (resolvedCall.getDispatchReceiver().exists() || resolvedCall.getExtensionReceiver().exists() || isLocalFunCall(callableMethod)) {
             return new CallReceiver(resolvedCall, receiver, codegen, callableMethod, true);
         }
         return receiver;
@@ -354,6 +356,10 @@ public abstract class StackValue {
     public static Field singleton(ClassDescriptor classDescriptor, JetTypeMapper typeMapper) {
         FieldInfo info = FieldInfo.createForSingleton(classDescriptor, typeMapper);
         return field(info.getFieldType(), Type.getObjectType(info.getOwnerInternalName()), info.getFieldName(), true);
+    }
+
+    public static boolean couldSkipReceiverOnStaticCall(StackValue value) {
+        return value instanceof Local || value instanceof Constant;
     }
 
     private static class None extends StackValue {
@@ -411,10 +417,17 @@ public abstract class StackValue {
                 put(type, v);
             }
             else if (depth == 1) {
-                if (type.getSize() != 1) {
+                int size = this.type.getSize();
+                if (size == 1) {
+                    v.swap();
+                } else if (size == 2) {
+                    v.dupX2();
+                    v.pop();
+                } else {
                     throw new UnsupportedOperationException("don't know how to move type " + type + " to top of stack");
                 }
-                v.swap();
+
+                coerceTo(type, v);
             }
             else {
                 throw new UnsupportedOperationException("unsupported move-to-top depth " + depth);
@@ -690,7 +703,7 @@ public abstract class StackValue {
                 v.store(firstParamIndex, type);
             }
 
-            ReceiverValue receiverParameter = resolvedGetCall.getReceiverArgument();
+            ReceiverValue receiverParameter = resolvedGetCall.getExtensionReceiver();
             int receiverIndex = -1;
             if (receiverParameter.exists()) {
                 Type type = codegen.typeMapper.mapType(receiverParameter.getType());
@@ -698,9 +711,9 @@ public abstract class StackValue {
                 v.store(receiverIndex, type);
             }
 
-            ReceiverValue thisObject = resolvedGetCall.getThisObject();
+            ReceiverValue dispatchReceiver = resolvedGetCall.getDispatchReceiver();
             int thisIndex = -1;
-            if (thisObject.exists()) {
+            if (dispatchReceiver.exists()) {
                 thisIndex = frame.enterTemp(OBJECT_TYPE);
                 v.store(thisIndex, OBJECT_TYPE);
             }
@@ -721,14 +734,14 @@ public abstract class StackValue {
                 throw new UnsupportedOperationException();
             }
 
-            if (resolvedSetCall.getThisObject().exists()) {
-                if (resolvedSetCall.getReceiverArgument().exists()) {
-                    codegen.generateReceiverValue(resolvedSetCall.getThisObject(), OBJECT_TYPE);
+            if (resolvedSetCall.getDispatchReceiver().exists()) {
+                if (resolvedSetCall.getExtensionReceiver().exists()) {
+                    codegen.generateReceiverValue(resolvedSetCall.getDispatchReceiver(), OBJECT_TYPE);
                 }
                 v.load(realReceiverIndex, realReceiverType);
             }
             else {
-                if (resolvedSetCall.getReceiverArgument().exists()) {
+                if (resolvedSetCall.getExtensionReceiver().exists()) {
                     v.load(realReceiverIndex, realReceiverType);
                 }
                 else {
@@ -778,13 +791,13 @@ public abstract class StackValue {
                 }
             }
 
-            if (call.getThisObject().exists()) {
-                if (call.getReceiverArgument().exists()) {
+            if (call.getDispatchReceiver().exists()) {
+                if (call.getExtensionReceiver().exists()) {
                     return false;
                 }
             }
             else {
-                if (codegen.typeMapper.mapType(call.getResultingDescriptor().getReceiverParameter().getType())
+                if (codegen.typeMapper.mapType(call.getResultingDescriptor().getExtensionReceiverParameter().getType())
                             .getSize() != 1) {
                     return false;
                 }
@@ -851,9 +864,8 @@ public abstract class StackValue {
                 coerceTo(type, v);
             }
             else {
-                Method method = getter.getAsmMethod();
-                v.visitMethodInsn(getter.getInvokeOpcode(), getter.getOwner().getInternalName(), method.getName(), method.getDescriptor());
-                coerce(method.getReturnType(), type, v);
+                getter.invokeWithoutAssertions(v);
+                coerce(getter.getAsmMethod().getReturnType(), type, v);
             }
         }
 
@@ -865,8 +877,7 @@ public abstract class StackValue {
                 v.visitFieldInsn(isStatic ? PUTSTATIC : PUTFIELD, methodOwner.getInternalName(), fieldName, this.type.getDescriptor());
             }
             else {
-                Method method = setter.getAsmMethod();
-                v.visitMethodInsn(setter.getInvokeOpcode(), setter.getOwner().getInternalName(), method.getName(), method.getDescriptor());
+                setter.invokeWithoutAssertions(v);
             }
         }
 
@@ -933,7 +944,8 @@ public abstract class StackValue {
         }
     }
 
-    public static Type sharedTypeForType(Type type) {
+    @NotNull
+    public static Type sharedTypeForType(@NotNull Type type) {
         switch (type.getSort()) {
             case Type.OBJECT:
             case Type.ARRAY:
@@ -1106,14 +1118,14 @@ public abstract class StackValue {
         ) {
             CallableDescriptor descriptor = resolvedCall.getResultingDescriptor();
 
-            ReceiverParameterDescriptor expectedThisObject = descriptor.getExpectedThisObject();
-            ReceiverParameterDescriptor receiverParameter = descriptor.getReceiverParameter();
+            ReceiverParameterDescriptor dispatchReceiver = descriptor.getDispatchReceiverParameter();
+            ReceiverParameterDescriptor extensionReceiver = descriptor.getExtensionReceiverParameter();
 
-            if (receiverParameter != null) {
-                return callableMethod != null ? callableMethod.getReceiverClass() : typeMapper.mapType(receiverParameter.getType());
+            if (extensionReceiver != null) {
+                return callableMethod != null ? callableMethod.getReceiverClass() : typeMapper.mapType(extensionReceiver.getType());
             }
-            else if (expectedThisObject != null) {
-                return callableMethod != null ? callableMethod.getThisType() : typeMapper.mapType(expectedThisObject.getType());
+            else if (dispatchReceiver != null) {
+                return callableMethod != null ? callableMethod.getThisType() : typeMapper.mapType(dispatchReceiver.getType());
             }
             else if (isLocalFunCall(callableMethod)) {
                 return callableMethod.getGenerateCalleeType();
@@ -1126,27 +1138,28 @@ public abstract class StackValue {
         public void put(Type type, InstructionAdapter v) {
             CallableDescriptor descriptor = resolvedCall.getResultingDescriptor();
 
-            ReceiverValue thisObject = resolvedCall.getThisObject();
-            ReceiverValue receiverArgument = resolvedCall.getReceiverArgument();
-            int depth;
-            if (thisObject.exists()) {
-                if (receiverArgument.exists()) {
-                    //noinspection ConstantConditions
-                    Type resultType =
-                            callableMethod != null ?
-                            callableMethod.getOwner() :
-                            codegen.typeMapper.mapType(descriptor.getExpectedThisObject().getType());
+            ReceiverValue dispatchReceiver = resolvedCall.getDispatchReceiver();
+            ReceiverValue extensionReceiver = resolvedCall.getExtensionReceiver();
+            int depth = 0;
+            if (dispatchReceiver.exists()) {
+                if (!AnnotationsPackage.isPlatformStaticInObject(descriptor)) {
+                    if (extensionReceiver.exists()) {
+                        //noinspection ConstantConditions
+                        Type resultType =
+                                callableMethod != null ?
+                                callableMethod.getOwner() :
+                                codegen.typeMapper.mapType(descriptor.getDispatchReceiverParameter().getType());
 
-                    codegen.generateReceiverValue(thisObject, resultType);
+                        codegen.generateReceiverValue(dispatchReceiver, resultType);
+                    }
+                    else {
+                        genReceiver(v, dispatchReceiver, type, null, 0);
+                    }
+                    depth = 1;
                 }
-                else {
-                    genReceiver(v, thisObject, type, null, 0);
-                }
-
-                depth = 1;
             }
             else if (isLocalFunCall(callableMethod)) {
-                assert receiver == none() || receiverArgument.exists() :
+                assert receiver == none() || extensionReceiver.exists() :
                         "Receiver should be present only for local extension function: " + callableMethod;
                 StackValue value = codegen.findLocalOrCapturedValue(descriptor.getOriginal());
                 assert value != null : "Local fun should be found in locals or in captured params: " + resolvedCall;
@@ -1154,12 +1167,9 @@ public abstract class StackValue {
 
                 depth = 1;
             }
-            else {
-                depth = 0;
-            }
 
-            if (putReceiverArgumentOnStack && receiverArgument.exists()) {
-                genReceiver(v, receiverArgument, type, descriptor.getReceiverParameter(), depth);
+            if (putReceiverArgumentOnStack && extensionReceiver.exists()) {
+                genReceiver(v, extensionReceiver, type, descriptor.getExtensionReceiverParameter(), depth);
             }
         }
 

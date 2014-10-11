@@ -18,19 +18,18 @@ package org.jetbrains.kotlin.maven;
 
 import com.google.common.io.Files;
 import com.google.common.io.InputSupplier;
+import com.intellij.openapi.util.io.FileUtil;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
-import org.jetbrains.jet.cli.common.CLICompiler;
-import org.jetbrains.jet.cli.common.arguments.CommonCompilerArguments;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.cli.common.arguments.K2JSCompilerArguments;
 import org.jetbrains.jet.cli.js.K2JSCompiler;
-import com.intellij.openapi.util.io.FileUtil;
 import org.jetbrains.k2js.config.MetaInfServices;
 
-import java.io.*;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.Charset;
-import java.util.Arrays;
-import java.util.List;
 
 /**
  * Converts Kotlin to JavaScript code
@@ -39,10 +38,10 @@ import java.util.List;
  * @phase compile
  * @noinspection UnusedDeclaration
  */
-public class K2JSCompilerMojo extends KotlinCompileMojo {
+public class K2JSCompilerMojo extends KotlinCompileMojoBase<K2JSCompilerArguments> {
     public static final String KOTLIN_JS_MAPS = "kotlin-maps.js";
+    public static final String KOTLIN_JS_LONG = "kotlin-long.js";
     public static final String KOTLIN_JS_LIB = "kotlin-lib.js";
-    public static final String KOTLIN_JS_LIB_ECMA3 = "kotlin-lib-ecma3.js";
     public static final String KOTLIN_JS_LIB_ECMA5 = "kotlin-lib-ecma5.js";
 
     /**
@@ -81,15 +80,17 @@ public class K2JSCompilerMojo extends KotlinCompileMojo {
     @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
         super.execute();
-        if (appendLibraryJS != null && appendLibraryJS.booleanValue()) {
+
+        if (appendLibraryJS != null && appendLibraryJS) {
             try {
                 Charset charset = Charset.defaultCharset();
                 File file = new File(outputFile);
                 String text = Files.toString(file, charset);
                 StringBuilder builder = new StringBuilder();
-                appendFile(KOTLIN_JS_LIB_ECMA3, builder);
+                appendFile(KOTLIN_JS_LIB_ECMA5, builder);
                 appendFile(KOTLIN_JS_LIB, builder);
                 appendFile(KOTLIN_JS_MAPS, builder);
+                appendFile(KOTLIN_JS_LONG, builder);
                 builder.append("\n");
                 builder.append(text);
                 Files.write(builder.toString(), file, charset);
@@ -97,22 +98,22 @@ public class K2JSCompilerMojo extends KotlinCompileMojo {
                 throw new MojoExecutionException(e.getMessage(), e);
             }
         }
-        if (copyLibraryJS != null && copyLibraryJS.booleanValue()) {
-            getLog().info("Copying kotlin JS library to " + outputKotlinJSDir);
+        if (copyLibraryJS != null && copyLibraryJS) {
+            LOG.info("Copying kotlin JS library to " + outputKotlinJSDir);
 
             copyJsLibraryFile(KOTLIN_JS_MAPS);
+            copyJsLibraryFile(KOTLIN_JS_LONG);
             copyJsLibraryFile(KOTLIN_JS_LIB);
-            copyJsLibraryFile(KOTLIN_JS_LIB_ECMA3);
             copyJsLibraryFile(KOTLIN_JS_LIB_ECMA5);
         }
     }
 
-    protected void appendFile(String jsLib, StringBuilder builder) throws MojoExecutionException {
+    private void appendFile(String jsLib, StringBuilder builder) throws MojoExecutionException {
         // lets copy the kotlin library into the output directory
         try {
             final InputStream inputStream = MetaInfServices.loadClasspathResource(jsLib);
             if (inputStream == null) {
-                System.out.println("WARNING: Could not find " + jsLib + " on the classpath!");
+                LOG.warn("Could not find " + jsLib + " on the classpath!");
             } else {
                 InputSupplier<InputStream> inputSupplier = new InputSupplier<InputStream>() {
                     @Override
@@ -128,14 +129,16 @@ public class K2JSCompilerMojo extends KotlinCompileMojo {
         }
     }
 
-    protected void copyJsLibraryFile(String jsLib) throws MojoExecutionException {
-        // lets copy the kotlin library into the output directory
+    private void copyJsLibraryFile(String jsLib) throws MojoExecutionException {
         try {
-            outputKotlinJSDir.mkdirs();
             final InputStream inputStream = MetaInfServices.loadClasspathResource(jsLib);
             if (inputStream == null) {
-                System.out.println("WARNING: Could not find " + jsLib + " on the classpath!");
+                LOG.warn("Could not find " + jsLib + " on the classpath!");
             } else {
+                if (!outputKotlinJSDir.exists() && !outputKotlinJSDir.mkdirs()) {
+                    throw new MojoExecutionException("Could not create output directory '" + outputKotlinJSDir + "'.");
+                }
+
                 InputSupplier<InputStream> inputSupplier = new InputSupplier<InputStream>() {
                     @Override
                     public InputStream getInput() throws IOException {
@@ -150,30 +153,19 @@ public class K2JSCompilerMojo extends KotlinCompileMojo {
     }
 
     @Override
-    protected void configureCompilerArguments(CommonCompilerArguments arguments) throws MojoExecutionException {
-        super.configureCompilerArguments(arguments);
-
-        if (arguments instanceof K2JSCompilerArguments) {
-            K2JSCompilerArguments k2jsArgs = (K2JSCompilerArguments)arguments;
-            k2jsArgs.outputFile = outputFile;
-            if (getLog().isDebugEnabled()) {
-                k2jsArgs.verbose = true;
-            }
-            List<String> sources = getSources();
-            if (sources.size() > 0) {
-                k2jsArgs.sourceFiles = sources.toArray(new String[sources.size()]);
-            }
-            getLog().info("Compiling Kotlin src from " + Arrays.asList(k2jsArgs.sourceFiles) + " to JavaScript at: " + outputFile);
-        }
+    protected void configureSpecificCompilerArguments(@NotNull K2JSCompilerArguments arguments) throws MojoExecutionException {
+        arguments.outputFile = outputFile;
     }
 
+    @NotNull
     @Override
-    protected CommonCompilerArguments createCompilerArguments() {
+    protected K2JSCompilerArguments createCompilerArguments() {
         return new K2JSCompilerArguments();
     }
 
+    @NotNull
     @Override
-    protected CLICompiler createCompiler() {
+    protected K2JSCompiler createCompiler() {
         return new K2JSCompiler();
     }
 }

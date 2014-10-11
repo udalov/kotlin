@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2013 JetBrains s.r.o.
+ * Copyright 2010-2014 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,11 +17,10 @@
 package org.jetbrains.jet.compiler.runner;
 
 import com.intellij.util.Function;
-import kotlin.Function1;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.cli.common.messages.MessageCollector;
-import org.jetbrains.jet.preloading.ClassLoaderFactory;
+import org.jetbrains.jet.preloading.ClassCondition;
 import org.jetbrains.jet.preloading.ClassPreloadingUtils;
 import org.jetbrains.jet.utils.KotlinPaths;
 
@@ -60,14 +59,15 @@ public class CompilerRunnerUtil {
     @NotNull
     public static ClassLoader getOrCreatePreloader(
             @NotNull KotlinPaths paths,
-            @Nullable ClassLoaderFactory parentFactory,
+            @Nullable ClassLoader parentClassLoader,
+            @Nullable ClassCondition classToLoadByParent,
             @NotNull MessageCollector messageCollector
     ) {
         ClassLoader answer = ourClassLoaderRef.get();
         if (answer == null) {
             try {
                 int estimatedClassNumber = 4096;
-                answer = ClassPreloadingUtils.preloadClasses(kompilerClasspath(paths, messageCollector), estimatedClassNumber, parentFactory);
+                answer = ClassPreloadingUtils.preloadClasses(kompilerClasspath(paths, messageCollector), estimatedClassNumber, parentClassLoader, classToLoadByParent);
             }
             catch (IOException e) {
                 throw new RuntimeException(e);
@@ -80,13 +80,13 @@ public class CompilerRunnerUtil {
     public static ClassLoader getOrCreateClassLoader(KotlinPaths paths, MessageCollector messageCollector) {
         ClassLoader answer = ourClassLoaderRef.get();
         if (answer == null) {
-            answer = createClassloader(paths, messageCollector);
+            answer = createClassLoader(paths, messageCollector);
             ourClassLoaderRef = new SoftReference<ClassLoader>(answer);
         }
         return answer;
     }
 
-    private static URLClassLoader createClassloader(KotlinPaths paths, MessageCollector messageCollector) {
+    private static URLClassLoader createClassLoader(KotlinPaths paths, MessageCollector messageCollector) {
         List<File> jars = kompilerClasspath(paths, messageCollector);
         URL[] urls = new URL[jars.size()];
         for (int i = 0; i < urls.length; i++) {
@@ -120,13 +120,17 @@ public class CompilerRunnerUtil {
             MessageCollector messageCollector, PrintStream out, boolean usePreloader
     ) throws Exception {
         ClassLoader loader = usePreloader
-                             ? getOrCreatePreloader(environment.getKotlinPaths(), environment.getParentFactory(), messageCollector)
+                             ? getOrCreatePreloader(environment.getKotlinPaths(), environment.getParentClassLoader(),
+                                                    environment.getClassesToLoadByParent(), messageCollector)
                              : getOrCreateClassLoader(environment.getKotlinPaths(), messageCollector);
 
         Class<?> kompiler = Class.forName(compilerClassName, true, loader);
-        Method exec = kompiler.getMethod("exec", PrintStream.class,  String[].class);
+        Method exec = kompiler.getMethod(
+                "execAndOutputHtml",
+                PrintStream.class,
+                Class.forName("org.jetbrains.jet.config.Services", true, loader), String[].class);
 
-        return exec.invoke(kompiler.newInstance(), out, arguments);
+        return exec.invoke(kompiler.newInstance(), out, environment.getServices(), arguments);
     }
 
     public static void outputCompilerMessagesAndHandleExitCode(@NotNull MessageCollector messageCollector,

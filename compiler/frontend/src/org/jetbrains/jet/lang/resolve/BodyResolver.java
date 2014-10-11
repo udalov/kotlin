@@ -18,7 +18,6 @@ package org.jetbrains.jet.lang.resolve;
 
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import com.intellij.lang.ASTNode;
 import com.intellij.psi.PsiElement;
 import com.intellij.util.containers.Queue;
 import org.jetbrains.annotations.NotNull;
@@ -26,17 +25,13 @@ import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.calls.CallResolver;
-import org.jetbrains.jet.lang.resolve.calls.context.ContextDependency;
-import org.jetbrains.jet.lang.resolve.calls.context.SimpleResolutionContext;
 import org.jetbrains.jet.lang.resolve.calls.results.OverloadResolutionResults;
 import org.jetbrains.jet.lang.resolve.calls.util.CallMaker;
 import org.jetbrains.jet.lang.resolve.constants.CompileTimeConstant;
 import org.jetbrains.jet.lang.resolve.scopes.*;
 import org.jetbrains.jet.lang.resolve.scopes.receivers.ReceiverValue;
 import org.jetbrains.jet.lang.types.*;
-import org.jetbrains.jet.lang.types.expressions.DataFlowUtils;
 import org.jetbrains.jet.lang.types.expressions.ExpressionTypingServices;
-import org.jetbrains.jet.lexer.JetModifierKeywordToken;
 import org.jetbrains.jet.lexer.JetTokens;
 import org.jetbrains.jet.util.Box;
 import org.jetbrains.jet.util.ReenteringLazyValueComputationException;
@@ -194,16 +189,9 @@ public class BodyResolver {
                 }
                 JetExpression delegateExpression = specifier.getDelegateExpression();
                 if (delegateExpression != null) {
-                    JetScope scope = scopeForConstructor == null
-                                     ? scopeForMemberResolution
-                                     : scopeForConstructor;
-                    JetType type = typeInferrer.getType(scope, delegateExpression, NO_EXPECTED_TYPE, c.getOuterDataFlowInfo(), trace);
-                    if (type != null && supertype != null) {
-                        SimpleResolutionContext simpleResolutionContext = new SimpleResolutionContext(
-                                trace, scope, supertype, c.getOuterDataFlowInfo(), ContextDependency.INDEPENDENT,
-                                expressionTypingServices.createExtension(scope, false));
-                        DataFlowUtils.checkType(type, delegateExpression, simpleResolutionContext);
-                    }
+                    JetScope scope = scopeForConstructor == null ? scopeForMemberResolution : scopeForConstructor;
+                    JetType expectedType = supertype != null ? supertype : NO_EXPECTED_TYPE;
+                    typeInferrer.getType(scope, delegateExpression, expectedType, c.getOuterDataFlowInfo(), trace);
                 }
             }
 
@@ -560,6 +548,9 @@ public class BodyResolver {
             delegatedPropertyResolver.resolveDelegatedPropertySetMethod(propertyDescriptor, delegateExpression, delegateType,
                                                                         trace, accessorScope);
         }
+
+        delegatedPropertyResolver.resolveDelegatedPropertyPDMethod(propertyDescriptor, delegateExpression, delegateType,
+                                                                   trace, accessorScope);
     }
 
     public void resolvePropertyInitializer(
@@ -571,7 +562,7 @@ public class BodyResolver {
     ) {
         JetScope propertyDeclarationInnerScope = JetScopeUtils.getPropertyDeclarationInnerScopeForInitializer(
                 scope, propertyDescriptor.getTypeParameters(), NO_RECEIVER_PARAMETER, trace);
-        JetType expectedTypeForInitializer = property.getTypeRef() != null ? propertyDescriptor.getType() : NO_EXPECTED_TYPE;
+        JetType expectedTypeForInitializer = property.getTypeReference() != null ? propertyDescriptor.getType() : NO_EXPECTED_TYPE;
         CompileTimeConstant<?> compileTimeInitializer = propertyDescriptor.getCompileTimeInitializer();
         if (compileTimeInitializer == null) {
             expressionTypingServices.getType(propertyDeclarationInnerScope, initializer, expectedTypeForInitializer, c.getOuterDataFlowInfo(), trace);

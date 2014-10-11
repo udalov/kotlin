@@ -39,7 +39,6 @@ import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.lang.types.checker.JetTypeChecker;
 import org.jetbrains.jet.plugin.JetBundle;
 import org.jetbrains.jet.plugin.caches.resolve.ResolvePackage;
-import org.jetbrains.jet.plugin.intentions.SpecifyTypeExplicitlyAction;
 import org.jetbrains.jet.renderer.DescriptorRenderer;
 
 import java.util.LinkedList;
@@ -82,7 +81,7 @@ public class ChangeVariableTypeFix extends JetIntentionAction<JetVariableDeclara
 
     @Override
     public void invoke(@NotNull Project project, Editor editor, JetFile file) throws IncorrectOperationException {
-        SpecifyTypeExplicitlyAction.removeTypeAnnotation(element);
+        element.setTypeReference(null);
         PsiElement nameIdentifier = element.getNameIdentifier();
         assert nameIdentifier != null : "ChangeVariableTypeFix applied to variable without name";
         JetPsiFactory psiFactory = JetPsiFactory(file);
@@ -129,7 +128,7 @@ public class ChangeVariableTypeFix extends JetIntentionAction<JetVariableDeclara
         return new JetIntentionActionsFactory() {
             @NotNull
             @Override
-            public List<IntentionAction> createActions(Diagnostic diagnostic) {
+            public List<IntentionAction> createActions(@NotNull Diagnostic diagnostic) {
                 List<IntentionAction> actions = new LinkedList<IntentionAction>();
 
                 JetProperty property = QuickFixUtil.getParentElementOfType(diagnostic, JetProperty.class);

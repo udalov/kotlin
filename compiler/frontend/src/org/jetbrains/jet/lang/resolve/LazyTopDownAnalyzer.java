@@ -24,6 +24,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.psi.*;
+import org.jetbrains.jet.lang.resolve.calls.CallsPackage;
 import org.jetbrains.jet.lang.resolve.lazy.KotlinCodeAnalyzer;
 import org.jetbrains.jet.lang.resolve.lazy.LazyImportScope;
 import org.jetbrains.jet.lang.resolve.lazy.descriptors.LazyClassDescriptor;
@@ -38,19 +39,29 @@ import static org.jetbrains.jet.lang.diagnostics.Errors.MANY_CLASS_OBJECTS;
 import static org.jetbrains.jet.lang.diagnostics.Errors.UNSUPPORTED;
 
 public class LazyTopDownAnalyzer {
+    @SuppressWarnings("ConstantConditions")
+    @NotNull
+    private BindingTrace trace = null;
 
+    @SuppressWarnings("ConstantConditions")
     @NotNull
-    private BindingTrace trace;
+    private DeclarationResolver declarationResolver = null;
+
+    @SuppressWarnings("ConstantConditions")
     @NotNull
-    private DeclarationResolver declarationResolver;
+    private OverrideResolver overrideResolver = null;
+
+    @SuppressWarnings("ConstantConditions")
     @NotNull
-    private OverrideResolver overrideResolver;
+    private OverloadResolver overloadResolver = null;
+
+    @SuppressWarnings("ConstantConditions")
     @NotNull
-    private OverloadResolver overloadResolver;
+    private ModuleDescriptor moduleDescriptor = null;
+
+    @SuppressWarnings("ConstantConditions")
     @NotNull
-    private ModuleDescriptor moduleDescriptor;
-    @NotNull
-    private BodyResolver bodyResolver;
+    private BodyResolver bodyResolver = null;
 
     @Inject
     public void setTrace(@NotNull BindingTrace trace) {
@@ -246,9 +257,13 @@ public class LazyTopDownAnalyzer {
         declarationResolver.checkRedeclarationsInPackages(resolveSession, topLevelFqNames);
         declarationResolver.checkRedeclarationsInInnerClassNames(c);
 
+        CallsPackage.checkTraitRequirements(c.getDeclaredClasses(), trace);
+
         overrideResolver.check(c);
 
         resolveImportsInAllFiles(c, resolveSession);
+
+        declarationResolver.resolveAnnotationsOnFiles(c, resolveSession.getScopeProvider());
 
         overloadResolver.process(c);
 

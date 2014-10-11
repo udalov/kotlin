@@ -18,16 +18,11 @@ package org.jetbrains.jet.j2k.test
 
 import java.io.File
 import com.intellij.openapi.util.io.FileUtil
-import com.intellij.psi.PsiJavaFile
-import com.intellij.psi.PsiFile
 import org.jetbrains.jet.j2k.Converter
 import org.jetbrains.jet.j2k.JavaToKotlinTranslator
 import org.jetbrains.jet.j2k.ConverterSettings
 import java.util.regex.Pattern
 import com.intellij.testFramework.LightPlatformTestCase
-import com.intellij.testFramework.LightIdeaTestCase
-import com.intellij.openapi.projectRoots.Sdk
-import org.jetbrains.jet.plugin.PluginTestCaseBase
 import com.intellij.psi.codeStyle.CodeStyleManager
 import org.jetbrains.jet.JetTestUtils
 import com.intellij.openapi.project.Project
@@ -35,8 +30,15 @@ import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.application.ApplicationManager
 import org.jetbrains.jet.test.util.trimIndent
 import org.jetbrains.jet.j2k.FilesConversionScope
+import org.jetbrains.jet.plugin.j2k.J2kPostProcessor
+import com.intellij.testFramework.fixtures.LightCodeInsightFixtureTestCase
+import com.intellij.testFramework.LightProjectDescriptor
+import org.jetbrains.jet.plugin.JetWithJdkAndRuntimeLightProjectDescriptor
+import com.intellij.psi.PsiJavaFile
+import com.intellij.psi.PsiFile
+import org.jetbrains.jet.j2k.ReferenceSearcherImpl
 
-abstract class AbstractJavaToKotlinConverterTest() : LightIdeaTestCase() {
+public abstract class AbstractJavaToKotlinConverterTest() : LightCodeInsightFixtureTestCase() {
     val testHeaderPattern = Pattern.compile("//(element|expression|statement|method|class|file|comp)\n")
 
     override fun setUp() {
@@ -61,9 +63,13 @@ abstract class AbstractJavaToKotlinConverterTest() : LightIdeaTestCase() {
         val javaFile = File(javaPath)
         val fileContents = FileUtil.loadFile(javaFile, true)
         val matcher = testHeaderPattern.matcher(fileContents)
-        matcher.find()
-        val prefix = matcher.group().trim().substring(2)
-        val javaCode = matcher.replaceFirst("")
+
+        val (prefix, javaCode) = if (matcher.find()) {
+            Pair(matcher.group().trim().substring(2), matcher.replaceFirst(""))
+        }
+        else {
+            Pair("file", fileContents)
+        }
 
         fun parseBoolean(text: String): Boolean = when (text) {
             "true" -> true
@@ -119,15 +125,15 @@ abstract class AbstractJavaToKotlinConverterTest() : LightIdeaTestCase() {
     }
 
     private fun elementToKotlin(text: String, settings: ConverterSettings, project: Project): String {
-        val fileWithText = JavaToKotlinTranslator.createFile(project, text)
-        val converter = Converter.create(project, settings, FilesConversionScope(listOf(fileWithText)))
+        val fileWithText = createJavaFile(text)
+        val converter = Converter.create(project, settings, FilesConversionScope(listOf(fileWithText)), ReferenceSearcherImpl, J2kPostProcessor(fileWithText))
         val element = fileWithText.getFirstChild()!!
         return converter.elementToKotlin(element)
     }
 
     private fun fileToKotlin(text: String, settings: ConverterSettings, project: Project): String {
-        val file = JavaToKotlinTranslator.createFile(project, text)
-        val converter = Converter.create(project, settings, FilesConversionScope(listOf(file)))
+        val file = createJavaFile(text)
+        val converter = Converter.create(project, settings, FilesConversionScope(listOf(file)), ReferenceSearcherImpl, J2kPostProcessor(file))
         return converter.elementToKotlin(file)
     }
 
@@ -146,9 +152,8 @@ abstract class AbstractJavaToKotlinConverterTest() : LightIdeaTestCase() {
         return result.replaceFirst("val o:Any\\? = ", "").replaceFirst("val o:Any = ", "").replaceFirst("val o = ", "").trim()
     }
 
-    override fun getProjectJDK(): Sdk? {
-        return PluginTestCaseBase.jdkFromIdeaHome()
-    }
+    override fun getProjectDescriptor()
+            = JetWithJdkAndRuntimeLightProjectDescriptor.INSTANCE
 
     private fun String.removeFirstLine(): String {
         val lastNewLine = indexOf('\n')
@@ -158,5 +163,9 @@ abstract class AbstractJavaToKotlinConverterTest() : LightIdeaTestCase() {
     private fun String.removeLastLine(): String {
         val lastNewLine = lastIndexOf('\n')
         return if (lastNewLine == -1) "" else substring(0, lastNewLine)
+    }
+
+    private fun createJavaFile(text: String): PsiJavaFile {
+        return myFixture.configureByText("converterTestFile.java", text) as PsiJavaFile
     }
 }

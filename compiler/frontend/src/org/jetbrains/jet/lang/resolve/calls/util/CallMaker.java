@@ -134,7 +134,7 @@ public class CallMaker {
 
         @NotNull
         @Override
-        public ReceiverValue getThisObject() {
+        public ReceiverValue getDispatchReceiver() {
             return ReceiverValue.NO_RECEIVER;
         }
 
@@ -162,7 +162,7 @@ public class CallMaker {
 
         @NotNull
         @Override
-        public List<JetExpression> getFunctionLiteralArguments() {
+        public List<JetFunctionLiteralArgument> getFunctionLiteralArguments() {
             return Collections.emptyList();
         }
         @NotNull
@@ -277,7 +277,7 @@ public class CallMaker {
 
             @NotNull
             @Override
-            public ReceiverValue getThisObject() {
+            public ReceiverValue getDispatchReceiver() {
                 return ReceiverValue.NO_RECEIVER;
             }
 
@@ -301,7 +301,7 @@ public class CallMaker {
 
             @Override
             @NotNull
-            public List<JetExpression> getFunctionLiteralArguments() {
+            public List<JetFunctionLiteralArgument> getFunctionLiteralArguments() {
                 return callElement.getFunctionLiteralArguments();
             }
 

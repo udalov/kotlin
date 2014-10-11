@@ -16,9 +16,9 @@
 
 package org.jetbrains.k2js.test.semantics;
 
-import junit.framework.Assert;
 import org.jetbrains.k2js.facade.exceptions.TranslationInternalException;
 import org.jetbrains.k2js.test.SingleFileTranslationTest;
+import org.junit.Assert;
 
 public final class NumberTest extends SingleFileTranslationTest {
     public NumberTest() {
@@ -50,13 +50,63 @@ public final class NumberTest extends SingleFileTranslationTest {
         checkFooBoxIsOk();
     }
 
-    public void testHexademicalConstant() throws Exception {
+    // KT-5345 Type mismatch on Int / Float division
+    public void testIntDivFloat() throws Exception {
+        checkFooBoxIsOk();
+    }
+
+    public void testHexadecimalConstant() throws Exception {
         try {
             fooBoxTest();
-        } catch (TranslationInternalException e) {
+        }
+        catch (TranslationInternalException e) {
             Throwable cause = e.getCause();
             Assert.assertTrue(cause instanceof IllegalStateException);
             Assert.assertTrue(cause.getMessage().startsWith("Unsupported long constant "));
         }
+    }
+
+    public void testNumberCompareTo() throws Exception {
+        checkFooBoxIsOk();
+    }
+
+    public void testNumberIsCheck() throws Exception {
+        checkFooBoxIsOk();
+    }
+
+    public void testNumberIncDec() throws Exception {
+        checkFooBoxIsOk();
+    }
+
+    public void testConversionsWithoutTruncation() throws Exception {
+        checkFooBoxIsOk();
+    }
+
+    public void testConversionsWithTruncation() throws Exception {
+        checkFooBoxIsOk();
+    }
+
+    public void testLongEqualsIntrinsic() throws Exception {
+        checkFooBoxIsOk();
+    }
+
+    public void testLongArray() throws Exception {
+       checkFooBoxIsOk();
+    }
+
+    public void testLongCompareToIntrinsic() throws Exception {
+        checkFooBoxIsOk();
+    }
+
+    public void testLongBinaryOperations() throws Exception {
+        checkFooBoxIsOk();
+    }
+
+    public void testLongUnaryOperations() throws Exception {
+        checkFooBoxIsOk();
+    }
+
+    public void testLongBitOperations() throws Exception {
+        checkFooBoxIsOk();
     }
 }

@@ -17,12 +17,9 @@
 package org.jetbrains.jet.lang.resolve.calls.tasks;
 
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.jet.lang.descriptors.CallableDescriptor;
-import org.jetbrains.jet.lang.descriptors.DeclarationDescriptorWithVisibility;
-import org.jetbrains.jet.lang.descriptors.ReceiverParameterDescriptor;
-import org.jetbrains.jet.lang.descriptors.ValueParameterDescriptor;
+import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.psi.Call;
-import org.jetbrains.jet.lang.psi.JetExpression;
+import org.jetbrains.jet.lang.psi.JetFunctionLiteralArgument;
 import org.jetbrains.jet.lang.resolve.BindingTrace;
 import org.jetbrains.jet.lang.resolve.calls.inference.InferenceErrorData;
 import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCall;
@@ -84,13 +81,20 @@ public interface TracingStrategy {
         public void instantiationOfAbstractClass(@NotNull BindingTrace trace) {}
 
         @Override
+        public void nestedClassAccessViaInstanceReference(
+                @NotNull BindingTrace trace,
+                @NotNull ClassDescriptor classDescriptor,
+                @NotNull ExplicitReceiverKind explicitReceiverKind
+        ) {}
+
+        @Override
         public void unsafeCall(@NotNull BindingTrace trace, @NotNull JetType type, boolean isCallForImplicitInvoke) {}
 
         @Override
         public void unnecessarySafeCall(@NotNull BindingTrace trace, @NotNull JetType type) {}
 
         @Override
-        public void danglingFunctionLiteralArgumentSuspected(@NotNull BindingTrace trace, @NotNull List<JetExpression> functionLiteralArguments) {}
+        public void danglingFunctionLiteralArgumentSuspected(@NotNull BindingTrace trace, @NotNull List<JetFunctionLiteralArgument> functionLiteralArguments) {}
 
         @Override
         public void invisibleMember(@NotNull BindingTrace trace, @NotNull DeclarationDescriptorWithVisibility descriptor) {}
@@ -132,11 +136,17 @@ public interface TracingStrategy {
 
     void instantiationOfAbstractClass(@NotNull BindingTrace trace);
 
+    void nestedClassAccessViaInstanceReference(
+            @NotNull BindingTrace trace,
+            @NotNull ClassDescriptor classDescriptor,
+            @NotNull ExplicitReceiverKind explicitReceiverKind
+    );
+
     void unsafeCall(@NotNull BindingTrace trace, @NotNull JetType type, boolean isCallForImplicitInvoke);
 
     void unnecessarySafeCall(@NotNull BindingTrace trace, @NotNull JetType type);
 
-    void danglingFunctionLiteralArgumentSuspected(@NotNull BindingTrace trace, @NotNull List<JetExpression> functionLiteralArguments);
+    void danglingFunctionLiteralArgumentSuspected(@NotNull BindingTrace trace, @NotNull List<JetFunctionLiteralArgument> functionLiteralArguments);
 
     void invisibleMember(@NotNull BindingTrace trace, @NotNull DeclarationDescriptorWithVisibility descriptor);
 

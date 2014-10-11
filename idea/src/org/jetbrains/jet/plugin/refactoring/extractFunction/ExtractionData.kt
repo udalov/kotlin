@@ -49,12 +49,16 @@ import org.jetbrains.jet.lang.descriptors.ValueParameterDescriptor
 import org.jetbrains.jet.lang.psi.JetPsiFactory
 import org.jetbrains.jet.lang.psi.JetFunctionLiteral
 import org.jetbrains.jet.lang.psi.JetClassInitializer
-import org.jetbrains.jet.lang.resolve.bindingContextUtil.getResolvedCall
+import org.jetbrains.jet.lang.resolve.calls.callUtil.getResolvedCall
 import org.jetbrains.jet.lang.resolve.DescriptorToSourceUtils
+import org.jetbrains.jet.plugin.util.psi.patternMatching.JetPsiRange
 
-data class ExtractionOptions(val inferUnitTypeForUnusedValues: Boolean) {
+data class ExtractionOptions(
+        val inferUnitTypeForUnusedValues: Boolean,
+        val enableListBoxing: Boolean
+) {
     class object {
-        val DEFAULT = ExtractionOptions(true)
+        val DEFAULT = ExtractionOptions(true, false)
     }
 }
 
@@ -71,13 +75,14 @@ data class ResolvedReferenceInfo(
         val resolveResult: ResolveResult
 )
 
-class ExtractionData(
+data class ExtractionData(
         val originalFile: JetFile,
-        val originalElements: List<PsiElement>,
+        val originalRange: JetPsiRange,
         val targetSibling: PsiElement,
         val options: ExtractionOptions = ExtractionOptions.DEFAULT
 ) {
     val project: Project = originalFile.getProject()
+    val originalElements: List<PsiElement> = originalRange.elements
 
     val insertBefore: Boolean = targetSibling.getParentByType(javaClass<JetDeclaration>(), true)?.let {
         it is JetDeclarationWithBody || it is JetClassInitializer
@@ -103,7 +108,7 @@ class ExtractionData(
 
     val originalStartOffset = originalElements.first?.let { e -> e.getTextRange()!!.getStartOffset() }
 
-    private val itFakeDeclaration by Delegates.lazy { JetPsiFactory(originalFile).createParameter("it", "Any?") }
+    private val itFakeDeclaration by Delegates.lazy { JetPsiFactory(originalFile).createParameter("it: Any?") }
 
     val refOffsetToDeclaration by Delegates.lazy {
         fun isExtractableIt(descriptor: DeclarationDescriptor, context: BindingContext): Boolean {
@@ -151,7 +156,7 @@ class ExtractionData(
             val parent = ref.getParent()
             if (parent is JetQualifiedExpression && parent.getSelectorExpression() == ref) {
                 val receiverDescriptor =
-                        (originalResolveResult.resolvedCall?.getThisObject() as? ThisReceiver)?.getDeclarationDescriptor()
+                        (originalResolveResult.resolvedCall?.getDispatchReceiver() as? ThisReceiver)?.getDeclarationDescriptor()
                 if ((receiverDescriptor as? ClassDescriptor)?.getKind() != ClassKind.CLASS_OBJECT
                         && parent.getReceiverExpression() !is JetSuperExpression) continue
             }

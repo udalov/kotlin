@@ -1,9 +1,9 @@
 // SIBLING:
 fun foo(a: Int): Int {
-    val b: Int = 1
+    val b: Int = i()
     return if (a + b > 0) i() else if (a - b < 0) 2 else b
 }
 
-fun i(): Int {
+private fun i(): Int {
     return 1
 }

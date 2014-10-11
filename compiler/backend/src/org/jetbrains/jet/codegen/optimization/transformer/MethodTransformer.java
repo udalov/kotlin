@@ -16,17 +16,15 @@
 
 package org.jetbrains.jet.codegen.optimization.transformer;
 
+import kotlin.jvm.KotlinSignature;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.org.objectweb.asm.tree.MethodNode;
 import org.jetbrains.org.objectweb.asm.tree.analysis.*;
 
 public abstract class MethodTransformer {
-    private final MethodTransformer delegate;
 
-    protected MethodTransformer(MethodTransformer delegate) {
-        this.delegate = delegate;
-    }
-
+    @KotlinSignature("fun <V : Value?> runAnalyzer(analyzer: Analyzer<V>, internalClassName: String, node: MethodNode): Array<Frame<V>?>")
+    @NotNull
     protected static <V extends Value> Frame<V>[] runAnalyzer(
             @NotNull Analyzer<V> analyzer,
             @NotNull String internalClassName,
@@ -39,6 +37,9 @@ public abstract class MethodTransformer {
             throw new RuntimeException(e);
         }
     }
+
+    @KotlinSignature("fun <V : Value?> analyze(internalClassName: String, node: MethodNode, interpreter: Interpreter<V>): Array<Frame<V>?>")
+    @NotNull
     protected static <V extends Value> Frame<V>[] analyze(
             @NotNull String internalClassName,
             @NotNull MethodNode node,
@@ -47,9 +48,5 @@ public abstract class MethodTransformer {
         return runAnalyzer(new Analyzer<V>(interpreter), internalClassName, node);
     }
 
-    public void transform(@NotNull String internalClassName, @NotNull MethodNode methodNode) {
-        if (delegate != null) {
-            delegate.transform(internalClassName, methodNode);
-        }
-    }
+    abstract public void transform(@NotNull String internalClassName, @NotNull MethodNode methodNode);
 }

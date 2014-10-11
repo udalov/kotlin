@@ -16,12 +16,14 @@
 
 package org.jetbrains.jet.codegen.state;
 
+import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.psi.PsiElement;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.codegen.*;
 import org.jetbrains.jet.codegen.binding.CalculatedClosure;
 import org.jetbrains.jet.codegen.binding.CodegenBinding;
+import org.jetbrains.jet.codegen.binding.PsiCodegenPredictor;
 import org.jetbrains.jet.codegen.context.CodegenContext;
 import org.jetbrains.jet.codegen.signature.BothSignatureWriter;
 import org.jetbrains.jet.descriptors.serialization.descriptors.DeserializedCallableMemberDescriptor;
@@ -30,10 +32,8 @@ import org.jetbrains.jet.lang.descriptors.annotations.Annotated;
 import org.jetbrains.jet.lang.descriptors.annotations.AnnotationDescriptor;
 import org.jetbrains.jet.lang.descriptors.impl.AnonymousFunctionDescriptor;
 import org.jetbrains.jet.lang.psi.JetFile;
-import org.jetbrains.jet.lang.resolve.BindingContext;
-import org.jetbrains.jet.lang.resolve.DescriptorToSourceUtils;
-import org.jetbrains.jet.lang.resolve.DescriptorUtils;
-import org.jetbrains.jet.lang.resolve.OverrideResolver;
+import org.jetbrains.jet.lang.resolve.*;
+import org.jetbrains.jet.lang.resolve.annotations.AnnotationsPackage;
 import org.jetbrains.jet.lang.resolve.calls.model.DefaultValueArgument;
 import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCall;
 import org.jetbrains.jet.lang.resolve.calls.model.ResolvedValueArgument;
@@ -42,7 +42,6 @@ import org.jetbrains.jet.lang.resolve.constants.StringValue;
 import org.jetbrains.jet.lang.resolve.java.AsmTypeConstants;
 import org.jetbrains.jet.lang.resolve.java.JvmAbi;
 import org.jetbrains.jet.lang.resolve.java.PackageClassUtils;
-import org.jetbrains.jet.lang.resolve.java.descriptor.JavaClassStaticsPackageFragmentDescriptor;
 import org.jetbrains.jet.lang.resolve.java.jvmSignature.JvmMethodParameterKind;
 import org.jetbrains.jet.lang.resolve.java.jvmSignature.JvmMethodParameterSignature;
 import org.jetbrains.jet.lang.resolve.java.jvmSignature.JvmMethodSignature;
@@ -50,6 +49,7 @@ import org.jetbrains.jet.lang.resolve.java.mapping.KotlinToJavaTypesMap;
 import org.jetbrains.jet.lang.resolve.kotlin.PackagePartClassUtils;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.FqNameUnsafe;
+import org.jetbrains.jet.lang.resolve.name.SpecialNames;
 import org.jetbrains.jet.lang.types.*;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 import org.jetbrains.org.objectweb.asm.Type;
@@ -61,7 +61,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.jetbrains.jet.codegen.AsmUtil.boxType;
-import static org.jetbrains.jet.codegen.AsmUtil.isStatic;
+import static org.jetbrains.jet.codegen.AsmUtil.isStaticMethod;
 import static org.jetbrains.jet.codegen.JvmCodegenUtil.*;
 import static org.jetbrains.jet.codegen.binding.CodegenBinding.*;
 import static org.jetbrains.jet.lang.resolve.BindingContextUtils.isVarCapturedInClosure;
@@ -109,10 +109,7 @@ public class JetTypeMapper {
         }
 
         DeclarationDescriptor container = descriptor.getContainingDeclaration();
-        if (container instanceof JavaClassStaticsPackageFragmentDescriptor) {
-            return mapClass(((JavaClassStaticsPackageFragmentDescriptor) container).getCorrespondingClass());
-        }
-        else if (container instanceof PackageFragmentDescriptor) {
+        if (container instanceof PackageFragmentDescriptor) {
             return Type.getObjectType(internalNameForPackage(
                     (PackageFragmentDescriptor) container,
                     (CallableMemberDescriptor) descriptor,
@@ -282,7 +279,7 @@ public class JetTypeMapper {
         }
 
         if (descriptor instanceof ClassDescriptor) {
-            Type asmType = getAsmType(bindingContext, (ClassDescriptor) descriptor);
+            Type asmType = computeAsmType((ClassDescriptor) descriptor.getOriginal());
             writeGenericType(signatureVisitor, asmType, jetType, howThisTypeIsUsed, projectionsAllowed);
             return asmType;
         }
@@ -300,8 +297,47 @@ public class JetTypeMapper {
     }
 
     @NotNull
+    private Type computeAsmType(@NotNull ClassDescriptor klass) {
+        Type alreadyComputedType = bindingContext.get(ASM_TYPE, klass);
+        if (alreadyComputedType != null) {
+            return alreadyComputedType;
+        }
+
+        Type asmType = Type.getObjectType(computeAsmTypeImpl(klass));
+        assert PsiCodegenPredictor.checkPredictedNameFromPsi(klass, asmType);
+        return asmType;
+    }
+
+    @NotNull
+    private String computeAsmTypeImpl(@NotNull ClassDescriptor klass) {
+        DeclarationDescriptor container = klass.getContainingDeclaration();
+
+        String name = SpecialNames.safeIdentifier(klass.getName()).getIdentifier();
+        if (container instanceof PackageFragmentDescriptor) {
+            FqName fqName = ((PackageFragmentDescriptor) container).getFqName();
+            return fqName.isRoot() ? name : fqName.asString().replace('.', '/') + '/' + name;
+        }
+
+        if (container instanceof ScriptDescriptor) {
+            return asmTypeForScriptDescriptor(bindingContext, (ScriptDescriptor) container).getInternalName() + "$" + name;
+        }
+
+        assert container instanceof ClassDescriptor : "Unexpected container: " + container + " for " + klass;
+
+        String containerInternalName = computeAsmTypeImpl((ClassDescriptor) container);
+        switch (klass.getKind()) {
+            case ENUM_ENTRY:
+                return containerInternalName;
+            case CLASS_OBJECT:
+                return containerInternalName + JvmAbi.CLASS_OBJECT_SUFFIX;
+            default:
+                return containerInternalName + "$" + name;
+        }
+    }
+
+    @NotNull
     public Type mapTraitImpl(@NotNull ClassDescriptor descriptor) {
-        return Type.getObjectType(getAsmType(bindingContext, descriptor).getInternalName() + JvmAbi.TRAIT_IMPL_SUFFIX);
+        return Type.getObjectType(mapType(descriptor).getInternalName() + JvmAbi.TRAIT_IMPL_SUFFIX);
     }
 
     @NotNull
@@ -446,7 +482,9 @@ public class JetTypeMapper {
                 thisClass = mapClass(currentOwner);
             }
             else {
-                if (isAccessor(functionDescriptor)) {
+                if (isStaticDeclaration(functionDescriptor) ||
+                    isAccessor(functionDescriptor) ||
+                    AnnotationsPackage.isPlatformStaticInObject(functionDescriptor)) {
                     invokeOpcode = INVOKESTATIC;
                 }
                 else if (isInterface) {
@@ -486,7 +524,7 @@ public class JetTypeMapper {
         Type calleeType = isLocalNamedFun(functionDescriptor) ? owner : null;
 
         Type receiverParameterType;
-        ReceiverParameterDescriptor receiverParameter = functionDescriptor.getOriginal().getReceiverParameter();
+        ReceiverParameterDescriptor receiverParameter = functionDescriptor.getOriginal().getExtensionReceiverParameter();
         if (receiverParameter != null) {
             receiverParameterType = mapType(receiverParameter.getType());
         }
@@ -499,10 +537,7 @@ public class JetTypeMapper {
     }
 
     public static boolean isAccessor(@NotNull CallableMemberDescriptor descriptor) {
-        return descriptor instanceof AccessorForFunctionDescriptor ||
-               descriptor instanceof AccessorForPropertyDescriptor ||
-               descriptor instanceof AccessorForPropertyDescriptor.Getter ||
-               descriptor instanceof AccessorForPropertyDescriptor.Setter;
+        return descriptor instanceof AccessorForCallableDescriptor<?>;
     }
 
     @NotNull
@@ -589,7 +624,7 @@ public class JetTypeMapper {
             sw.writeParametersStart();
             writeThisIfNeeded(f, kind, sw);
 
-            ReceiverParameterDescriptor receiverParameter = f.getReceiverParameter();
+            ReceiverParameterDescriptor receiverParameter = f.getExtensionReceiverParameter();
             if (receiverParameter != null) {
                 writeParameter(sw, JvmMethodParameterKind.RECEIVER, receiverParameter.getType());
             }
@@ -614,12 +649,24 @@ public class JetTypeMapper {
     }
 
     @NotNull
+    public static String getDefaultDescriptor(@NotNull Method method, boolean isExtension) {
+        String descriptor = method.getDescriptor();
+        int argumentsCount = (Type.getArgumentsAndReturnSizes(descriptor) >> 2) - 1;
+        if (isExtension) {
+            argumentsCount--;
+        }
+        int maskArgumentsCount = (argumentsCount + Integer.SIZE - 1) / Integer.SIZE;
+        String maskArguments = StringUtil.repeat(Type.INT_TYPE.getDescriptor(), maskArgumentsCount);
+        return descriptor.replace(")", maskArguments + ")");
+    }
+
+    @NotNull
     public Method mapDefaultMethod(@NotNull FunctionDescriptor functionDescriptor, @NotNull OwnerKind kind, @NotNull CodegenContext<?> context) {
         Method jvmSignature = mapSignature(functionDescriptor, kind).getAsmMethod();
         Type ownerType = mapOwner(functionDescriptor, isCallInsideSameModuleAsDeclared(functionDescriptor, context, getOutDirectory()));
-        String descriptor = jvmSignature.getDescriptor().replace(")", "I)");
+        String descriptor = getDefaultDescriptor(jvmSignature, functionDescriptor.getExtensionReceiverParameter() != null);
         boolean isConstructor = "<init>".equals(jvmSignature.getName());
-        if (!isStatic(kind) && !isConstructor) {
+        if (!isStaticMethod(kind, functionDescriptor) && !isConstructor) {
             descriptor = descriptor.replace("(", "(" + ownerType.getDescriptor());
         }
 
@@ -666,7 +713,7 @@ public class JetTypeMapper {
         if (kind == OwnerKind.TRAIT_IMPL) {
             thisType = getTraitImplThisParameterClass((ClassDescriptor) descriptor.getContainingDeclaration());
         }
-        else if (isAccessor(descriptor) && descriptor.getExpectedThisObject() != null) {
+        else if (isAccessor(descriptor) && descriptor.getDispatchReceiverParameter() != null) {
             thisType = (ClassDescriptor) descriptor.getContainingDeclaration();
         }
         else return;
@@ -757,7 +804,7 @@ public class JetTypeMapper {
     private void writeAdditionalConstructorParameters(@NotNull ConstructorDescriptor descriptor, @NotNull BothSignatureWriter sw) {
         CalculatedClosure closure = bindingContext.get(CodegenBinding.CLOSURE, descriptor.getContainingDeclaration());
 
-        ClassDescriptor captureThis = getExpectedThisObjectForConstructorCall(descriptor, closure);
+        ClassDescriptor captureThis = getDispatchReceiverParameterForConstructorCall(descriptor, closure);
         if (captureThis != null) {
             writeParameter(sw, JvmMethodParameterKind.OUTER, captureThis.getDefaultType());
         }
@@ -785,6 +832,7 @@ public class JetTypeMapper {
                 type = sharedVarType;
             }
             else if (isLocalNamedFun(variableDescriptor)) {
+                //noinspection CastConflictsWithInstanceof
                 type = asmTypeForAnonymousClass(bindingContext, (FunctionDescriptor) variableDescriptor);
             }
             else {
@@ -878,18 +926,16 @@ public class JetTypeMapper {
     }
 
     public Type getSharedVarType(DeclarationDescriptor descriptor) {
-        if (descriptor instanceof PropertyDescriptor) {
-            return StackValue.sharedTypeForType(mapType(((PropertyDescriptor) descriptor).getReceiverParameter().getType()));
-        }
-        else if (descriptor instanceof SimpleFunctionDescriptor && descriptor.getContainingDeclaration() instanceof FunctionDescriptor) {
+        if (descriptor instanceof SimpleFunctionDescriptor && descriptor.getContainingDeclaration() instanceof FunctionDescriptor) {
             return asmTypeForAnonymousClass(bindingContext, (FunctionDescriptor) descriptor);
         }
-        else if (descriptor instanceof FunctionDescriptor) {
-            return StackValue.sharedTypeForType(mapType(((FunctionDescriptor) descriptor).getReceiverParameter().getType()));
+        else if (descriptor instanceof PropertyDescriptor || descriptor instanceof FunctionDescriptor) {
+            ReceiverParameterDescriptor receiverParameter = ((CallableDescriptor) descriptor).getExtensionReceiverParameter();
+            assert receiverParameter != null : "Callable should have a receiver parameter: " + descriptor;
+            return StackValue.sharedTypeForType(mapType(receiverParameter.getType()));
         }
         else if (descriptor instanceof VariableDescriptor && isVarCapturedInClosure(bindingContext, descriptor)) {
-            JetType outType = ((VariableDescriptor) descriptor).getType();
-            return StackValue.sharedTypeForType(mapType(outType));
+            return StackValue.sharedTypeForType(mapType(((VariableDescriptor) descriptor).getType()));
         }
         return null;
     }

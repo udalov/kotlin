@@ -27,11 +27,11 @@ import org.jetbrains.jet.lang.descriptors.VariableDescriptor;
 import org.jetbrains.jet.lang.diagnostics.Errors;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.*;
-import org.jetbrains.jet.lang.resolve.calls.autocasts.DataFlowInfo;
 import org.jetbrains.jet.lang.resolve.calls.context.TemporaryTraceAndCache;
 import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCall;
 import org.jetbrains.jet.lang.resolve.calls.results.OverloadResolutionResults;
 import org.jetbrains.jet.lang.resolve.calls.results.OverloadResolutionResultsUtil;
+import org.jetbrains.jet.lang.resolve.calls.smartcasts.DataFlowInfo;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
 import org.jetbrains.jet.lang.resolve.scopes.WritableScope;
@@ -89,14 +89,15 @@ public class ExpressionTypingVisitorForStatements extends ExpressionTypingVisito
     public JetTypeInfo visitObjectDeclaration(@NotNull JetObjectDeclaration declaration, ExpressionTypingContext context) {
         TopDownAnalyzer.processClassOrObject(
                 components.globalContext,
-                scope, context.replaceScope(scope).replaceContextDependency(INDEPENDENT), scope.getContainingDeclaration(), declaration);
+                scope, context.replaceScope(scope).replaceContextDependency(INDEPENDENT), scope.getContainingDeclaration(), declaration,
+                components.additionalCheckerProvider);
         return DataFlowUtils.checkStatementType(declaration, context, context.dataFlowInfo);
     }
 
     @Override
     public JetTypeInfo visitProperty(@NotNull JetProperty property, ExpressionTypingContext typingContext) {
         ExpressionTypingContext context = typingContext.replaceContextDependency(INDEPENDENT).replaceScope(scope);
-        JetTypeReference receiverTypeRef = property.getReceiverTypeRef();
+        JetTypeReference receiverTypeRef = property.getReceiverTypeReference();
         if (receiverTypeRef != null) {
             context.trace.report(LOCAL_EXTENSION_PROPERTY.on(receiverTypeRef));
         }
@@ -185,7 +186,8 @@ public class ExpressionTypingVisitorForStatements extends ExpressionTypingVisito
     public JetTypeInfo visitClass(@NotNull JetClass klass, ExpressionTypingContext context) {
         TopDownAnalyzer.processClassOrObject(
                 components.globalContext,
-                scope, context.replaceScope(scope).replaceContextDependency(INDEPENDENT), scope.getContainingDeclaration(), klass);
+                scope, context.replaceScope(scope).replaceContextDependency(INDEPENDENT), scope.getContainingDeclaration(), klass,
+                components.additionalCheckerProvider);
         return DataFlowUtils.checkStatementType(klass, context, context.dataFlowInfo);
     }
 
@@ -299,6 +301,7 @@ public class ExpressionTypingVisitorForStatements extends ExpressionTypingVisito
                 basic.resolveArrayAccessSetMethod((JetArrayAccessExpression) left, right, contextForResolve, context.trace);
             }
             dataFlowInfo = facade.getTypeInfo(right, context.replaceDataFlowInfo(dataFlowInfo)).getDataFlowInfo();
+            DataFlowUtils.checkType(binaryOperationType, expression, leftType, dataFlowInfo, context.trace);
             BasicExpressionTypingVisitor.checkLValue(context.trace, leftOperand);
         }
         temporary.commit();

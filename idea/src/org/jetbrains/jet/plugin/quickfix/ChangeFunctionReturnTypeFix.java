@@ -20,7 +20,6 @@ import com.intellij.codeInsight.intention.IntentionAction;
 import com.intellij.openapi.editor.Editor;
 import com.intellij.openapi.project.Project;
 import com.intellij.psi.PsiElement;
-import com.intellij.psi.PsiErrorElement;
 import com.intellij.psi.PsiFile;
 import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.util.IncorrectOperationException;
@@ -31,18 +30,18 @@ import org.jetbrains.jet.lang.descriptors.SimpleFunctionDescriptor;
 import org.jetbrains.jet.lang.diagnostics.Diagnostic;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.BindingContext;
-import org.jetbrains.jet.lang.resolve.DescriptorResolver;
 import org.jetbrains.jet.lang.resolve.DescriptorToSourceUtils;
-import org.jetbrains.jet.lang.resolve.bindingContextUtil.BindingContextUtilPackage;
+import org.jetbrains.jet.lang.resolve.calls.callUtil.CallUtilPackage;
 import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCall;
+import org.jetbrains.jet.lang.resolve.dataClassUtils.DataClassUtilsPackage;
 import org.jetbrains.jet.lang.resolve.name.FqName;
+import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.types.ErrorUtils;
 import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.lang.types.checker.JetTypeChecker;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 import org.jetbrains.jet.plugin.JetBundle;
 import org.jetbrains.jet.plugin.caches.resolve.ResolvePackage;
-import org.jetbrains.jet.plugin.intentions.SpecifyTypeExplicitlyAction;
 import org.jetbrains.jet.renderer.DescriptorRenderer;
 
 import java.util.LinkedList;
@@ -108,30 +107,19 @@ public class ChangeFunctionReturnTypeFix extends JetIntentionAction<JetFunction>
             changeFunctionLiteralReturnTypeFix.invoke(project, editor, file);
         }
         else {
-            SpecifyTypeExplicitlyAction.removeTypeAnnotation(element);
             if (!(KotlinBuiltIns.getInstance().isUnit(type) && element.hasBlockBody())) {
-                addReturnTypeAnnotation(element, renderedType);
+                element.setTypeReference(JetPsiFactory(project).createType(renderedType));
+            }
+            else {
+                element.setTypeReference(null);
             }
         }
     }
 
-    public static void addReturnTypeAnnotation(JetFunction function, String typeText) {
-        PsiElement elementToPrecedeType = function.getValueParameterList();
-        if (elementToPrecedeType == null) elementToPrecedeType = function.getNameIdentifier();
-        assert elementToPrecedeType != null : "Return type of function without name can't mismatch anything";
-        if (elementToPrecedeType.getNextSibling() instanceof PsiErrorElement) {
-            // if a function doesn't have a value parameter list, a syntax error is raised, and it should follow the function name
-            elementToPrecedeType = elementToPrecedeType.getNextSibling();
-        }
-        JetPsiFactory psiFactory = JetPsiFactory(function);
-        function.addAfter(psiFactory.createType(typeText), elementToPrecedeType);
-        function.addAfter(psiFactory.createColon(), elementToPrecedeType);
-    }
-
     @NotNull
     public static JetMultiDeclarationEntry getMultiDeclarationEntryThatTypeMismatchComponentFunction(Diagnostic diagnostic) {
-        String componentName = COMPONENT_FUNCTION_RETURN_TYPE_MISMATCH.cast(diagnostic).getA().asString();
-        int componentIndex = Integer.valueOf(componentName.substring(DescriptorResolver.COMPONENT_FUNCTION_NAME_PREFIX.length()));
+        Name componentName = COMPONENT_FUNCTION_RETURN_TYPE_MISMATCH.cast(diagnostic).getA();
+        int componentIndex = DataClassUtilsPackage.getComponentIndex(componentName);
         JetMultiDeclaration multiDeclaration = QuickFixUtil.getParentElementOfType(diagnostic, JetMultiDeclaration.class);
         assert multiDeclaration != null : "COMPONENT_FUNCTION_RETURN_TYPE_MISMATCH reported on expression that is not within any multi declaration";
         return multiDeclaration.getEntries().get(componentIndex - 1);
@@ -149,7 +137,7 @@ public class ChangeFunctionReturnTypeFix extends JetIntentionAction<JetFunction>
                 if (resolvedCall == null) return null;
                 JetFunction componentFunction = (JetFunction) DescriptorToSourceUtils
                         .descriptorToDeclaration(resolvedCall.getCandidateDescriptor());
-                JetType expectedType = context.get(BindingContext.TYPE, entry.getTypeRef());
+                JetType expectedType = context.get(BindingContext.TYPE, entry.getTypeReference());
                 if (componentFunction != null && expectedType != null) {
                     return new ChangeFunctionReturnTypeFix(componentFunction, expectedType);
                 }
@@ -188,7 +176,7 @@ public class ChangeFunctionReturnTypeFix extends JetIntentionAction<JetFunction>
                 JetBinaryExpression expression = QuickFixUtil.getParentElementOfType(diagnostic, JetBinaryExpression.class);
                 assert expression != null : "COMPARE_TO_TYPE_MISMATCH reported on element that is not within any expression";
                 BindingContext context = ResolvePackage.getBindingContext(expression.getContainingJetFile());
-                ResolvedCall<?> resolvedCall = BindingContextUtilPackage.getResolvedCall(expression, context);
+                ResolvedCall<?> resolvedCall = CallUtilPackage.getResolvedCall(expression, context);
                 if (resolvedCall == null) return null;
                 PsiElement compareTo = DescriptorToSourceUtils.descriptorToDeclaration(resolvedCall.getCandidateDescriptor());
                 if (!(compareTo instanceof JetFunction)) return null;
@@ -202,7 +190,7 @@ public class ChangeFunctionReturnTypeFix extends JetIntentionAction<JetFunction>
         return new JetIntentionActionsFactory() {
             @NotNull
             @Override
-            public List<IntentionAction> createActions(Diagnostic diagnostic) {
+            public List<IntentionAction> createActions(@NotNull Diagnostic diagnostic) {
                 List<IntentionAction> actions = new LinkedList<IntentionAction>();
 
                 JetFunction function = QuickFixUtil.getParentElementOfType(diagnostic, JetFunction.class);

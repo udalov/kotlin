@@ -105,7 +105,7 @@ public interface JetTokens {
     JetSingleValueToken EQEQEQ      = new JetSingleValueToken("EQEQEQ", "===");
     JetSingleValueToken ARROW       = new JetSingleValueToken("ARROW", "->");
     JetSingleValueToken DOUBLE_ARROW       = new JetSingleValueToken("DOUBLE_ARROW", "=>");
-    JetSingleValueToken EXCLEQEQEQ  = new JetSingleValueToken("EXCLEQEQEQ", "!===");
+    JetSingleValueToken EXCLEQEQEQ  = new JetSingleValueToken("EXCLEQEQEQ", "!==");
     JetSingleValueToken EQEQ        = new JetSingleValueToken("EQEQ", "==");
     JetSingleValueToken EXCLEQ      = new JetSingleValueToken("EXCLEQ", "!=");
     JetSingleValueToken EXCLEXCL    = new JetSingleValueToken("EXCLEXCL", "!!");
@@ -131,6 +131,7 @@ public interface JetTokens {
     JetSingleValueToken COMMA       = new JetSingleValueToken("COMMA", ",");
 
     JetToken EOL_OR_SEMICOLON   = new JetToken("EOL_OR_SEMICOLON");
+    JetKeywordToken FILE_KEYWORD    = JetKeywordToken.softKeyword("file");
     JetKeywordToken IMPORT_KEYWORD    = JetKeywordToken.softKeyword("import");
     JetKeywordToken WHERE_KEYWORD     = JetKeywordToken.softKeyword("where");
     JetKeywordToken BY_KEYWORD        = JetKeywordToken.softKeyword("by");
@@ -163,7 +164,7 @@ public interface JetTokens {
                                         NOT_IN, NOT_IS, CAPITALIZED_THIS_KEYWORD, AS_SAFE
     );
 
-    TokenSet SOFT_KEYWORDS = TokenSet.create(IMPORT_KEYWORD, WHERE_KEYWORD, BY_KEYWORD, GET_KEYWORD,
+    TokenSet SOFT_KEYWORDS = TokenSet.create(FILE_KEYWORD, IMPORT_KEYWORD, WHERE_KEYWORD, BY_KEYWORD, GET_KEYWORD,
                                              SET_KEYWORD, ABSTRACT_KEYWORD, ENUM_KEYWORD, OPEN_KEYWORD, INNER_KEYWORD, ANNOTATION_KEYWORD,
                                              OVERRIDE_KEYWORD, PRIVATE_KEYWORD, PUBLIC_KEYWORD, INTERNAL_KEYWORD, PROTECTED_KEYWORD,
                                              CATCH_KEYWORD, FINALLY_KEYWORD, OUT_KEYWORD, FINAL_KEYWORD, VARARG_KEYWORD, REIFIED_KEYWORD
@@ -191,7 +192,7 @@ public interface JetTokens {
      * Don't add KDocTokens to COMMENTS TokenSet, because it is used in JetParserDefinition.getCommentTokens(),
      * and therefor all COMMENTS tokens will be ignored by PsiBuilder.
      *
-     * @see org.jetbrains.jet.lang.psi.JetPsiUtil.isInComment()
+     * @see org.jetbrains.jet.lang.psi.JetPsiUtil#isInComment(com.intellij.psi.PsiElement)
      */
     TokenSet COMMENTS = TokenSet.create(EOL_COMMENT, BLOCK_COMMENT, DOC_COMMENT, SHEBANG_COMMENT);
     TokenSet WHITE_SPACE_OR_COMMENT_BIT_SET = TokenSet.orSet(COMMENTS, TokenSet.create(WHITE_SPACE));

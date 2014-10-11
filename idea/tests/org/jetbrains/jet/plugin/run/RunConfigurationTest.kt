@@ -43,13 +43,14 @@ import com.intellij.openapi.module.Module
 import java.io.File
 import com.intellij.openapi.roots.ModuleRootModificationUtil
 import org.jetbrains.jet.plugin.search.allScope
+import org.jetbrains.jet.plugin.util.application.runWriteAction
 
 class RunConfigurationTest: CodeInsightTestCase() {
-    override fun getProject() = myProject!!
+    fun getTestProject() = myProject!!
     override fun getModule() = myModule!!
 
     fun testMainInTest() {
-        val createResult = configureModule(moduleDirPath("module"), getProject().getBaseDir()!!)
+        val createResult = configureModule(moduleDirPath("module"), getTestProject().getBaseDir()!!)
 
         val runConfiguration = createConfigurationFromMain("some.main")
         val javaParameters = getJavaRunParameters(runConfiguration)
@@ -59,11 +60,9 @@ class RunConfigurationTest: CodeInsightTestCase() {
     }
 
     fun testDependencyModuleClasspath() {
-        val dependencyModuleSrcDir = configureModule(moduleDirPath("module"), getProject().getBaseDir()!!).src
+        val dependencyModuleSrcDir = configureModule(moduleDirPath("module"), getTestProject().getBaseDir()!!).src
 
-        val moduleWithDependencyDir = ApplicationManager.getApplication()!!.runWriteAction(Computable<VirtualFile> {
-            getProject().getBaseDir()!!.createChildDirectory(this, "moduleWithDependency")
-        })!!
+        val moduleWithDependencyDir = runWriteAction { getTestProject().getBaseDir()!!.createChildDirectory(this, "moduleWithDependency") }!!
 
         val moduleWithDependency = createModule("moduleWithDependency")
         ModuleRootModificationUtil.setModuleSdk(moduleWithDependency, getTestProjectJdk())
@@ -83,10 +82,10 @@ class RunConfigurationTest: CodeInsightTestCase() {
     }
 
     private fun createConfigurationFromMain(mainFqn: String): JetRunConfiguration {
-        val mainFunction = JetTopLevelFunctionsFqnNameIndex.getInstance()!!.get(mainFqn, getProject(), getProject().allScope())!!.first()
+        val mainFunction = JetTopLevelFunctionsFqnNameIndex.getInstance().get(mainFqn, getTestProject(), getTestProject().allScope()).first()
 
         val dataContext = MapDataContext()
-        dataContext.put(Location.DATA_KEY, PsiLocation(getProject(), mainFunction))
+        dataContext.put(Location.DATA_KEY, PsiLocation(getTestProject(), mainFunction))
 
         return ConfigurationContext.getFromContext(dataContext)!!.getConfiguration()!!.getConfiguration() as JetRunConfiguration
     }
@@ -101,7 +100,7 @@ class RunConfigurationTest: CodeInsightTestCase() {
             PsiTestUtil.addSourceRoot(getModule(), testDir, true)
         }
 
-        val (srcOutDir, testOutDir) = ApplicationManager.getApplication()!!.runWriteAction(Computable<Pair<VirtualFile, VirtualFile>> {
+        val (srcOutDir, testOutDir) = runWriteAction {
             val outDir = outputParentDir.createChildDirectory(this, "out")
             val srcOutDir = outDir.createChildDirectory(this, "production")
             val testOutDir = outDir.createChildDirectory(this, "test")
@@ -110,9 +109,9 @@ class RunConfigurationTest: CodeInsightTestCase() {
             PsiTestUtil.setCompilerOutputPath(configModule, testOutDir.getUrl(), true)
 
             Pair(srcOutDir, testOutDir)
-        })!!
+        }!!
 
-        PsiDocumentManager.getInstance(getProject()).commitAllDocuments()
+        PsiDocumentManager.getInstance(getTestProject()).commitAllDocuments()
 
         return CreateModuleResult(configModule, srcOutDir, testOutDir)
     }
@@ -135,7 +134,7 @@ class RunConfigurationTest: CodeInsightTestCase() {
     private class CreateModuleResult(val module: Module, val src: VirtualFile, val test: VirtualFile)
 
     private object MockExecutor : DefaultRunExecutor() {
-        override fun getId() = "mock"
+        override fun getId() = DefaultRunExecutor.EXECUTOR_ID
     }
 
     private object MockProfile : RunProfile {

@@ -21,13 +21,7 @@ import org.jetbrains.jet.lang.psi.JetExpression
 import org.jetbrains.jet.lang.descriptors.ReceiverParameterDescriptor
 import com.intellij.codeInsight.lookup.LookupElementBuilder
 import org.jetbrains.jet.renderer.DescriptorRenderer
-import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor
-import org.jetbrains.jet.lang.resolve.name.Name
-import org.jetbrains.jet.lang.resolve.BindingContextUtils
 import org.jetbrains.jet.lang.psi.JetFunctionLiteral
-import org.jetbrains.jet.lang.psi.JetFunctionLiteralExpression
-import org.jetbrains.jet.lang.psi.JetObjectDeclaration
-import org.jetbrains.jet.lang.psi.JetObjectLiteralExpression
 import org.jetbrains.jet.lang.psi.JetValueArgument
 import org.jetbrains.jet.lang.psi.JetValueArgumentList
 import org.jetbrains.jet.lang.psi.JetCallExpression
@@ -36,6 +30,7 @@ import org.jetbrains.jet.lang.resolve.BindingContext
 import org.jetbrains.jet.plugin.completion.ExpectedInfo
 import org.jetbrains.jet.plugin.util.makeNotNullable
 import org.jetbrains.jet.lang.resolve.DescriptorToSourceUtils
+import org.jetbrains.jet.lang.psi.JetFunctionLiteralExpression
 
 class ThisItems(val bindingContext: BindingContext) {
     public fun addToCollection(collection: MutableCollection<LookupElement>, context: JetExpression, expectedInfos: Collection<ExpectedInfo>) {
@@ -65,21 +60,19 @@ class ThisItems(val bindingContext: BindingContext) {
     }
 
     private fun thisQualifierName(receiver: ReceiverParameterDescriptor): String? {
-        val descriptor: DeclarationDescriptor = receiver.getContainingDeclaration()
-        val name: Name = descriptor.getName()
-        if (!name.isSpecial()) return name.asString()
-
-        val psiElement = DescriptorToSourceUtils.descriptorToDeclaration(descriptor)
-        val expression: JetExpression? = when (psiElement) {
-            is JetFunctionLiteral -> psiElement.getParent() as? JetFunctionLiteralExpression
-            is JetObjectDeclaration -> psiElement.getParent() as? JetObjectLiteralExpression
-            else -> null
+        val descriptor = receiver.getContainingDeclaration()
+        val name = descriptor.getName()
+        if (!name.isSpecial()) {
+            return name.asString()
         }
-        return ((((expression?.getParent() as? JetValueArgument)
-                       ?.getParent() as? JetValueArgumentList)
-                           ?.getParent() as? JetCallExpression)
-                               ?.getCalleeExpression() as? JetSimpleNameExpression)
-                                   ?.getReferencedName()
+
+        val functionLiteral = DescriptorToSourceUtils.descriptorToDeclaration(descriptor) as? JetFunctionLiteral
+        return (((((functionLiteral?.getParent() as? JetFunctionLiteralExpression)
+                    ?.getParent() as? JetValueArgument)
+                        ?.getParent() as? JetValueArgumentList)
+                            ?.getParent() as? JetCallExpression)
+                                ?.getCalleeExpression() as? JetSimpleNameExpression)
+                                    ?.getReferencedName()
     }
 
 }

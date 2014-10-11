@@ -85,6 +85,77 @@
         return "[" + a.join(", ") + "]";
     };
 
+    Kotlin.compareTo = function (a, b) {
+        var typeA = typeof a;
+        var typeB = typeof a;
+        if (Kotlin.isChar(a) && typeB == "number") {
+            return Kotlin.primitiveCompareTo(a.charCodeAt(0), b);
+        }
+        if (typeA == "number" && Kotlin.isChar(b)) {
+            return Kotlin.primitiveCompareTo(a, b.charCodeAt(0));
+        }
+        if (typeA == "number" || typeA == "string") {
+            return a < b ? -1 : a > b ? 1 : 0;
+        }
+        return a.compareTo_za3rmp$(b);
+    };
+
+    Kotlin.primitiveCompareTo = function (a, b) {
+        return a < b ? -1 : a > b ? 1 : 0;
+    };
+
+    Kotlin.isNumber = function (a) {
+        return typeof a == "number" || a instanceof Kotlin.Long;
+    };
+
+    Kotlin.isChar = function (value) {
+        return (typeof value) == "string" && value.length == 1;
+    };
+
+    Kotlin.charInc = function (value) {
+        return String.fromCharCode(value.charCodeAt(0)+1);
+    };
+
+    Kotlin.charDec = function (value) {
+        return String.fromCharCode(value.charCodeAt(0)-1);
+    };
+
+    Kotlin.toShort = function (a) {
+        return (a & 0xFFFF) << 16 >> 16;
+    };
+
+    Kotlin.toByte = function (a) {
+        return (a & 0xFF) << 24 >> 24;
+    };
+
+    Kotlin.toChar = function (a) {
+       return String.fromCharCode((((a | 0) % 65536) & 0xFFFF) << 16 >>> 16);
+    };
+
+    Kotlin.numberToLong = function (a) {
+        return a instanceof Kotlin.Long ? a : Kotlin.Long.fromNumber(a);
+    };
+
+    Kotlin.numberToInt = function (a) {
+        return a instanceof Kotlin.Long ? a.toInt() : (a | 0);
+    };
+
+    Kotlin.numberToShort = function (a) {
+        return Kotlin.toShort(Kotlin.numberToInt(a));
+    };
+
+    Kotlin.numberToByte = function (a) {
+        return Kotlin.toByte(Kotlin.numberToInt(a));
+    };
+
+    Kotlin.numberToDouble = function (a) {
+        return +a;
+    };
+
+    Kotlin.numberToChar = function (a) {
+        return Kotlin.toChar(Kotlin.numberToInt(a));
+    };
+
     Kotlin.intUpto = function (from, to) {
         return new Kotlin.NumberRange(from, to);
     };
@@ -93,16 +164,28 @@
         return new Kotlin.Progression(from, to, -1);
     };
 
-    Kotlin.RuntimeException = Kotlin.createClassNow();
-    Kotlin.NullPointerException = Kotlin.createClassNow();
-    Kotlin.NoSuchElementException = Kotlin.createClassNow();
-    Kotlin.IllegalArgumentException = Kotlin.createClassNow();
-    Kotlin.IllegalStateException = Kotlin.createClassNow();
-    Kotlin.UnsupportedOperationException = Kotlin.createClassNow();
-    Kotlin.IOException = Kotlin.createClassNow();
+    Kotlin.Exception = Error;
 
-    Kotlin.throwNPE = function () {
-        throw new Kotlin.NullPointerException();
+    function createClassNowWithMessage(base) {
+        return Kotlin.createClassNow(base,
+                   /** @constructs */
+                   function (message) {
+                       this.message = (message !== undefined) ? message : null;
+                   }
+               );
+    }
+
+    Kotlin.RuntimeException = createClassNowWithMessage(Kotlin.Exception);
+    Kotlin.NullPointerException = createClassNowWithMessage(Kotlin.RuntimeException);
+    Kotlin.NoSuchElementException = createClassNowWithMessage(Kotlin.RuntimeException);
+    Kotlin.IllegalArgumentException = createClassNowWithMessage(Kotlin.RuntimeException);
+    Kotlin.IllegalStateException = createClassNowWithMessage(Kotlin.RuntimeException);
+    Kotlin.UnsupportedOperationException = createClassNowWithMessage(Kotlin.RuntimeException);
+    Kotlin.IndexOutOfBoundsException = createClassNowWithMessage(Kotlin.RuntimeException);
+    Kotlin.IOException = createClassNowWithMessage(Kotlin.Exception);
+
+    Kotlin.throwNPE = function (message) {
+        throw new Kotlin.NullPointerException(message);
     };
 
     function throwAbstractFunctionInvocationError(funName) {
@@ -219,34 +302,8 @@
             toString: function () {
                 return this.name();
             }
-    });
-    (function () {
-        function valueOf(name) {
-            return this[name];
         }
-
-        function getValues() {
-            return this.values$;
-        }
-
-        Kotlin.createEnumEntries = function (enumEntryList) {
-            var i = 0;
-            var values = [];
-            for (var entryName in enumEntryList) {
-                if (enumEntryList.hasOwnProperty(entryName)) {
-                    var entryObject = enumEntryList[entryName];
-                    values[i] = entryObject;
-                    entryObject.ordinal$ = i;
-                    entryObject.name$ = entryName;
-                    i++;
-                }
-            }
-            enumEntryList.values$ = values;
-            enumEntryList.valueOf_61zpoe$ = valueOf;
-            enumEntryList.values = getValues;
-            return enumEntryList;
-        };
-    })();
+    );
 
     Kotlin.PropertyMetadata = Kotlin.createClassNow(null,
         function (name) {
@@ -255,7 +312,7 @@
     );
 
     Kotlin.AbstractCollection = Kotlin.createClassNow(Kotlin.Collection, null, {
-        addAll_xeylzf$: function (collection) {
+        addAll_4fm7v2$: function (collection) {
             var modified = false;
             var it = collection.iterator();
             while (it.hasNext()) {
@@ -265,7 +322,7 @@
             }
             return modified
         },
-        removeAll_xeylzf$: function (c) {
+        removeAll_4fm7v2$: function (c) {
             var modified = false;
             var it = this.iterator();
             while (it.hasNext()) {
@@ -276,7 +333,7 @@
             }
             return modified
         },
-        retainAll_xeylzf$: function (c) {
+        retainAll_4fm7v2$: function (c) {
             var modified = false;
             var it = this.iterator();
             while (it.hasNext()) {
@@ -287,7 +344,7 @@
             }
             return modified
         },
-        containsAll_xeylzf$: function (c) {
+        containsAll_4fm7v2$: function (c) {
             var it = c.iterator();
             while (it.hasNext()) {
                 if (!this.contains_za3rmp$(it.next())) return false;
@@ -383,7 +440,7 @@
             add_vux3hl$: function (index, element) {
                 this.array.splice(index, 0, element);
             },
-            addAll_xeylzf$: function (collection) {
+            addAll_4fm7v2$: function (collection) {
                 var it = collection.iterator();
                 for (var i = this.array.length, n = collection.size(); n-- > 0;) {
                     this.array[i++] = it.next();
@@ -423,7 +480,7 @@
             },
             checkRange: function (index) {
                 if (index < 0 || index >= this.array.length) {
-                    throw new RangeError();
+                    throw new Kotlin.IndexOutOfBoundsException();
                 }
             }
         });
@@ -532,6 +589,15 @@
             }
     });
 
+    function isSameNotNullRanges(other) {
+        var classObject = this.constructor;
+        if (this instanceof classObject && other instanceof classObject) {
+            return this.isEmpty() && other.isEmpty() ||
+                (this.start === other.start && this.end === other.end && this.increment === other.increment);
+        }
+        return false;
+    }
+
     Kotlin.NumberRange = Kotlin.createClassNow(null,
         function (start, end) {
             this.start = start;
@@ -547,11 +613,7 @@
             isEmpty: function () {
                 return this.start > this.end;
             },
-            equals_za3rmp$: function(other) {
-                if (other == null)
-                    return false;
-                return this.start === other.start && this.end === other.end && this.increment === other.increment;
-            }
+            equals_za3rmp$: isSameNotNullRanges
     });
 
     Kotlin.NumberProgression = Kotlin.createClassNow(null,
@@ -562,6 +624,102 @@
         }, {
         iterator: function () {
             return new Kotlin.RangeIterator(this.start, this.end, this.increment);
+        },
+        isEmpty: function() {
+            return this.increment > 0 ? this.start > this.end : this.start < this.end;
+        }
+    });
+
+    Kotlin.LongRangeIterator = Kotlin.createClassNow(Kotlin.Iterator,
+         function (start, end, increment) {
+             this.start = start;
+             this.end = end;
+             this.increment = increment;
+             this.i = start;
+         }, {
+             next: function () {
+                 var value = this.i;
+                 this.i = this.i.add(this.increment);
+                 return value;
+             },
+             hasNext: function () {
+                 if (this.increment.isNegative())
+                     return this.i.compare(this.end) >= 0;
+                 else
+                     return this.i.compare(this.end) <= 0;
+             }
+         });
+
+    Kotlin.LongRange = Kotlin.createClassNow(null,
+       function (start, end) {
+           this.start = start;
+           this.end = end;
+           this.increment = Kotlin.Long.ONE;
+       }, {
+           contains: function (number) {
+               return this.start.compare(number) <= 0 && number.compare(this.end) <= 0;
+           },
+           iterator: function () {
+               return new Kotlin.LongRangeIterator(this.start, this.end, this.increment);
+           },
+           isEmpty: function () {
+               return this.start.compare(this.end) > 0;
+           },
+           equals_za3rmp$: isSameNotNullRanges
+       });
+
+    Kotlin.LongProgression = Kotlin.createClassNow(null,
+         function (start, end, increment) {
+             this.start = start;
+             this.end = end;
+             this.increment = increment;
+         }, {
+             iterator: function () {
+                 return new Kotlin.LongRangeIterator(this.start, this.end, this.increment);
+             },
+             isEmpty: function() {
+                 return this.increment.isNegative() ? this.start.compare(this.end) < 0 : this.start.compare(this.end) > 0;
+             }
+         });
+
+    Kotlin.CharRangeIterator = Kotlin.createClassNow(Kotlin.RangeIterator,
+        function (start, end, increment) {
+            Kotlin.RangeIterator.call(this, start, end, increment);
+        }, {
+            next: function () {
+                var value = this.i;
+                this.i = this.i + this.increment;
+                return String.fromCharCode(value);
+            },
+    });
+
+    Kotlin.CharRange = Kotlin.createClassNow(null,
+        function (start, end) {
+            this.start = start.charCodeAt(0);
+            this.end = end.charCodeAt(0);
+            this.increment = 1;
+        }, {
+            contains: function (char) {
+                var code = char.charCodeAt(0)
+                return this.start <= code && code <= this.end;
+            },
+            iterator: function () {
+                return new Kotlin.CharRangeIterator(this.start, this.end, this.increment);
+            },
+            isEmpty: function () {
+                return this.start > this.end;
+            },
+            equals_za3rmp$: isSameNotNullRanges
+    });
+
+    Kotlin.CharNumberProgression = Kotlin.createClassNow(null,
+        function (start, end, increment) {
+            this.start = start.charCodeAt(0);
+            this.end = end.charCodeAt(0);
+            this.increment = increment;
+        }, {
+        iterator: function () {
+            return new Kotlin.CharRangeIterator(this.start, this.end, this.increment);
         },
         isEmpty: function() {
             return this.increment > 0 ? this.start > this.end : this.start < this.end;
@@ -702,6 +860,12 @@
     Kotlin.booleanArrayOfSize = function (size) {
         return Kotlin.arrayFromFun(size, function () {
             return false;
+        });
+    };
+
+    Kotlin.longArrayOfSize = function (size) {
+        return Kotlin.arrayFromFun(size, function () {
+            return Kotlin.Long.ZERO;
         });
     };
 

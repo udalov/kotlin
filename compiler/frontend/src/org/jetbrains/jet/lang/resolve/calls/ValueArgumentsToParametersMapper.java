@@ -25,13 +25,10 @@ import org.jetbrains.jet.lang.descriptors.CallableDescriptor;
 import org.jetbrains.jet.lang.descriptors.ReceiverParameterDescriptor;
 import org.jetbrains.jet.lang.descriptors.ValueParameterDescriptor;
 import org.jetbrains.jet.lang.diagnostics.Diagnostic;
-import org.jetbrains.jet.lang.psi.Call;
-import org.jetbrains.jet.lang.psi.JetExpression;
-import org.jetbrains.jet.lang.psi.JetSimpleNameExpression;
-import org.jetbrains.jet.lang.psi.ValueArgument;
+import org.jetbrains.jet.lang.psi.*;
+import org.jetbrains.jet.lang.resolve.calls.callUtil.CallUtilPackage;
 import org.jetbrains.jet.lang.resolve.calls.model.*;
 import org.jetbrains.jet.lang.resolve.calls.tasks.TracingStrategy;
-import org.jetbrains.jet.lang.resolve.calls.util.CallMaker;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.resolve.scopes.receivers.ReceiverValue;
 
@@ -192,9 +189,9 @@ import static org.jetbrains.jet.lang.resolve.calls.ValueArgumentsToParametersMap
 
         public void process() {
             ProcessorState state = positionedOnly;
-            List<? extends ValueArgument> arguments = call.getValueArguments();
-            for (int i = 0; i < arguments.size(); i++) {
-                ValueArgument valueArgument = arguments.get(i);
+            List<? extends ValueArgument> argumentsInParentheses = CallUtilPackage.getValueArgumentsInParentheses(call);
+            for (int i = 0; i < argumentsInParentheses.size(); i++) {
+                ValueArgument valueArgument = argumentsInParentheses.get(i);
                 if (valueArgument.isNamed()) {
                     state = state.processNamedArgument(valueArgument);
                 }
@@ -210,18 +207,16 @@ import static org.jetbrains.jet.lang.resolve.calls.ValueArgumentsToParametersMap
             processFunctionLiteralArguments();
             reportUnmappedParameters();
             checkReceiverArgument();
-
-            assert (candidateCall.getThisObject().exists() == (candidateCall.getResultingDescriptor().getExpectedThisObject() != null))
-                    : "Shouldn't happen because of TaskPrioritizer: " + candidateCall.getCandidateDescriptor();
         }
 
         private void processFunctionLiteralArguments() {
             D candidate = candidateCall.getCandidateDescriptor();
             List<ValueParameterDescriptor> valueParameters = candidate.getValueParameters();
 
-            List<JetExpression> functionLiteralArguments = call.getFunctionLiteralArguments();
+            List<JetFunctionLiteralArgument> functionLiteralArguments = call.getFunctionLiteralArguments();
             if (!functionLiteralArguments.isEmpty()) {
-                JetExpression possiblyLabeledFunctionLiteral = functionLiteralArguments.get(0);
+                JetFunctionLiteralArgument functionLiteralArgument = functionLiteralArguments.get(0);
+                JetExpression possiblyLabeledFunctionLiteral = functionLiteralArgument.getArgumentExpression();
 
                 if (valueParameters.isEmpty()) {
                     report(TOO_MANY_ARGUMENTS.on(possiblyLabeledFunctionLiteral, candidate));
@@ -239,13 +234,13 @@ import static org.jetbrains.jet.lang.resolve.calls.ValueArgumentsToParametersMap
                             setStatus(WEAK_ERROR);
                         }
                         else {
-                            putVararg(valueParameterDescriptor, CallMaker.makeValueArgument(possiblyLabeledFunctionLiteral));
+                            putVararg(valueParameterDescriptor, functionLiteralArgument);
                         }
                     }
                 }
 
                 for (int i = 1; i < functionLiteralArguments.size(); i++) {
-                    JetExpression argument = functionLiteralArguments.get(i);
+                    JetExpression argument = functionLiteralArguments.get(i).getArgumentExpression();
                     report(MANY_FUNCTION_LITERAL_ARGUMENTS.on(argument));
                     setStatus(WEAK_ERROR);
                 }
@@ -274,8 +269,8 @@ import static org.jetbrains.jet.lang.resolve.calls.ValueArgumentsToParametersMap
         private void checkReceiverArgument() {
             D candidate = candidateCall.getCandidateDescriptor();
 
-            ReceiverParameterDescriptor receiverParameter = candidate.getReceiverParameter();
-            ReceiverValue receiverArgument = candidateCall.getReceiverArgument();
+            ReceiverParameterDescriptor receiverParameter = candidate.getExtensionReceiverParameter();
+            ReceiverValue receiverArgument = candidateCall.getExtensionReceiver();
             if (receiverParameter != null &&!receiverArgument.exists()) {
                 tracing.missingReceiver(candidateCall.getTrace(), receiverParameter);
                 setStatus(ERROR);

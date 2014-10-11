@@ -32,6 +32,7 @@ import org.jetbrains.jet.lang.descriptors.impl.SimpleFunctionDescriptorImpl;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.BindingContextUtils;
+import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCall;
 import org.jetbrains.jet.lang.resolve.constants.CompileTimeConstant;
 import org.jetbrains.jet.lang.resolve.java.JvmAbi;
 import org.jetbrains.jet.lang.resolve.name.Name;
@@ -106,7 +107,7 @@ public abstract class MemberCodegen<T extends JetElement/* TODO: & JetDeclaratio
 
     protected abstract void generateKotlinAnnotation();
 
-    private void done() {
+    protected void done() {
         if (clInit != null) {
             clInit.v.visitInsn(RETURN);
             FunctionCodegen.endVisit(clInit.v, "static initializer", element);
@@ -247,8 +248,16 @@ public abstract class MemberCodegen<T extends JetElement/* TODO: & JetDeclaratio
             type = boxType(type);
         }
         codegen.gen(initializer, type);
-
         propValue.store(type, codegen.v);
+
+        ResolvedCall<FunctionDescriptor> pdResolvedCall =
+                bindingContext.get(BindingContext.DELEGATED_PROPERTY_PD_RESOLVED_CALL, propertyDescriptor);
+        if (pdResolvedCall != null) {
+            int index = PropertyCodegen.indexOfDelegatedProperty(property);
+            StackValue lastValue = PropertyCodegen.invokeDelegatedPropertyConventionMethod(propertyDescriptor, codegen,
+                                                                                           state.getTypeMapper(), pdResolvedCall, index, 0);
+            lastValue.put(Type.VOID_TYPE, codegen.v);
+        }
     }
 
     private boolean shouldInitializeProperty(@NotNull JetProperty property) {
@@ -366,7 +375,7 @@ public abstract class MemberCodegen<T extends JetElement/* TODO: & JetDeclaratio
             iv.anew(PROPERTY_METADATA_IMPL_TYPE);
             iv.dup();
             iv.visitLdcInsn(property.getName().asString());
-            iv.invokespecial(PROPERTY_METADATA_IMPL_TYPE.getInternalName(), "<init>", "(Ljava/lang/String;)V");
+            iv.invokespecial(PROPERTY_METADATA_IMPL_TYPE.getInternalName(), "<init>", "(Ljava/lang/String;)V", false);
             iv.astore(PROPERTY_METADATA_IMPL_TYPE);
         }
 
@@ -375,5 +384,10 @@ public abstract class MemberCodegen<T extends JetElement/* TODO: & JetDeclaratio
 
     public String getClassName() {
         return v.getThisName();
+    }
+
+    @NotNull
+    public FieldOwnerContext<?> getContext() {
+        return context;
     }
 }

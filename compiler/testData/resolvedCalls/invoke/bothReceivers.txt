@@ -9,6 +9,8 @@ fun bar(f: Foo) {
 
 Resolved call:
 
+Resulting descriptor: fun Int.invoke(): Unit defined in Foo
+
 Explicit receiver kind = BOTH_RECEIVERS
-This object = f
-Receiver argument = 1
+Dispatch receiver = f {Foo}
+Extension receiver = 1 {Int}

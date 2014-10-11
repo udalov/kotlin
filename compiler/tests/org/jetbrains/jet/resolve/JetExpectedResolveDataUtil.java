@@ -18,7 +18,6 @@ package org.jetbrains.jet.resolve;
 
 import com.intellij.openapi.project.Project;
 import com.intellij.psi.*;
-import junit.framework.Assert;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.JetTestUtils;
 import org.jetbrains.jet.di.InjectorForJavaDescriptorResolver;
@@ -26,11 +25,12 @@ import org.jetbrains.jet.di.InjectorForJavaDescriptorResolverUtil;
 import org.jetbrains.jet.di.InjectorForTests;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.resolve.BindingTraceContext;
-import org.jetbrains.jet.lang.resolve.calls.autocasts.DataFlowInfo;
 import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCall;
 import org.jetbrains.jet.lang.resolve.calls.results.OverloadResolutionResults;
+import org.jetbrains.jet.lang.resolve.calls.smartcasts.DataFlowInfo;
 import org.jetbrains.jet.lang.resolve.java.structure.JavaClass;
 import org.jetbrains.jet.lang.resolve.java.structure.impl.JavaClassImpl;
+import org.jetbrains.jet.lang.resolve.name.ClassId;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.resolve.scopes.receivers.ReceiverValue;
@@ -39,6 +39,7 @@ import org.jetbrains.jet.lang.types.TypeUtils;
 import org.jetbrains.jet.lang.types.expressions.ExpressionTypingContext;
 import org.jetbrains.jet.lang.types.expressions.ExpressionTypingServices;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
+import org.junit.Assert;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -115,8 +116,8 @@ public class JetExpectedResolveDataUtil {
 
     @NotNull
     private static PsiClass findClass(String qualifiedName, Project project) {
-        InjectorForJavaDescriptorResolver injector = InjectorForJavaDescriptorResolverUtil.create(project, new BindingTraceContext());
-        JavaClass javaClass = injector.getJavaClassFinder().findClass(new FqName(qualifiedName));
+        InjectorForJavaDescriptorResolver injector = InjectorForJavaDescriptorResolverUtil.create(project, new BindingTraceContext(), false);
+        JavaClass javaClass = injector.getJavaClassFinder().findClass(ClassId.topLevel(new FqName(qualifiedName)));
         Assert.assertNotNull("Class wasn't found: " + qualifiedName, javaClass);
         assertInstanceOf(javaClass, JavaClassImpl.class);
         return ((JavaClassImpl) javaClass).getPsi();

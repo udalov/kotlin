@@ -36,7 +36,6 @@ import java.util.jar.JarEntry;
 import java.util.jar.JarInputStream;
 
 public class CompileEnvironmentTest extends TestCase {
-
     public void testSmokeWithCompilerJar() throws IOException {
         File tempDir = FileUtil.createTempDirectory("compilerTest", "compilerTest");
 
@@ -44,13 +43,15 @@ public class CompileEnvironmentTest extends TestCase {
             File stdlib = ForTestCompileRuntime.runtimeJarForTests();
             File jdkAnnotations = JetTestUtils.getJdkAnnotationsJar();
             File resultJar = new File(tempDir, "result.jar");
-            ExitCode rv = new K2JVMCompiler().exec(System.out,
-                                                   "-module", JetTestCaseBuilder.getTestDataPathBase() + "/compiler/smoke/Smoke.ktm",
-                                                   "-jar", resultJar.getAbsolutePath(),
-                                                   "-noStdlib",
-                                                   "-classpath", stdlib.getAbsolutePath(),
-                                                   "-noJdkAnnotations",
-                                                   "-annotations", jdkAnnotations.getAbsolutePath());
+            ExitCode rv = new K2JVMCompiler().exec(
+                    System.out,
+                    "-module", JetTestCaseBuilder.getTestDataPathBase() + "/compiler/smoke/Smoke.ktm",
+                    "-d", resultJar.getAbsolutePath(),
+                    "-no-stdlib",
+                    "-classpath", stdlib.getAbsolutePath(),
+                    "-no-jdk-annotations",
+                    "-annotations", jdkAnnotations.getAbsolutePath()
+            );
             Assert.assertEquals("compilation completed with non-zero code", ExitCode.OK, rv);
             FileInputStream fileInputStream = new FileInputStream(resultJar);
             try {
@@ -79,17 +80,20 @@ public class CompileEnvironmentTest extends TestCase {
             File out = new File(tempDir, "out");
             File stdlib = ForTestCompileRuntime.runtimeJarForTests();
             File jdkAnnotations = JetTestUtils.getJdkAnnotationsJar();
-            ExitCode exitCode = new K2JVMCompiler()
-                    .exec(System.out, "-src", JetTestCaseBuilder.getTestDataPathBase() + "/compiler/smoke/Smoke.kt",
-                          "-output", out.getAbsolutePath(),
-                          "-noStdlib",
-                          "-classpath", stdlib.getAbsolutePath(),
-                          "-noJdkAnnotations",
-                          "-annotations", jdkAnnotations.getAbsolutePath());
+            ExitCode exitCode = new K2JVMCompiler().exec(
+                    System.out,
+                    JetTestCaseBuilder.getTestDataPathBase() + "/compiler/smoke/Smoke.kt",
+                    "-d", out.getAbsolutePath(),
+                    "-no-stdlib",
+                    "-classpath", stdlib.getAbsolutePath(),
+                    "-no-jdk-annotations",
+                    "-annotations", jdkAnnotations.getAbsolutePath()
+            );
             Assert.assertEquals(ExitCode.OK, exitCode);
             assertEquals(1, out.listFiles().length);
             assertEquals(2, out.listFiles()[0].listFiles().length);
-        } finally {
+        }
+        finally {
             FileUtil.delete(tempDir);
         }
     }

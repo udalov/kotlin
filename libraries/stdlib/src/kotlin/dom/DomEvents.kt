@@ -5,26 +5,20 @@ import org.w3c.dom.Node
 import org.w3c.dom.events.*
 
 /**
-* Turns an event handler function into an [EventListener]
-*/
-fun eventHandler(handler: (Event) -> Unit): EventListener {
+ * Turns an event handler function into an [EventListener]
+ */
+public fun eventHandler(handler: (Event) -> Unit): EventListener {
     return EventListenerHandler(handler)
 }
 
-private class EventListenerHandler(val handler: (Event) -> Unit): EventListener {
+private class EventListenerHandler(private val handler: (Event) -> Unit) : EventListener {
     public override fun handleEvent(e: Event) {
-        if (e != null) {
-            handler(e)
-        }
+        handler(e)
     }
-/*
-    TODO: needs KT-2507 fixed
-
-    public override fun toString(): String? = "EventListenerHandler($handler)"
-*/
+    public override fun toString(): String = "EventListenerHandler($handler)"
 }
 
-fun mouseEventHandler(handler: (MouseEvent) -> Unit): EventListener {
+public fun mouseEventHandler(handler: (MouseEvent) -> Unit): EventListener {
     return eventHandler { e ->
         if (e is MouseEvent) {
             handler(e)
@@ -51,16 +45,17 @@ public fun Node?.on(name: String, capture: Boolean, listener: EventListener): Cl
     }
 }
 
-private class CloseableEventListener(val target: EventTarget, val listener: EventListener, val name: String, val capture: Boolean): Closeable {
+private class CloseableEventListener(
+        private val target: EventTarget,
+        private val listener: EventListener,
+        private val name: String,
+        private val capture: Boolean
+                                    ) : Closeable {
     public override fun close() {
         target.removeEventListener(name, listener, capture)
     }
 
-/*
-    TODO: needs KT-2507 fixed
-
-    public override fun toString(): String? = "CloseableEventListener($target, $name)"
-*/
+    public override fun toString(): String = "CloseableEventListener($target, $name)"
 }
 
 public fun Node?.onClick(capture: Boolean = false, handler: (MouseEvent) -> Unit): Closeable? {

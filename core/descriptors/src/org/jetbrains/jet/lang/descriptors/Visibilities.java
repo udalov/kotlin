@@ -16,12 +16,13 @@
 
 package org.jetbrains.jet.lang.descriptors;
 
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
+import kotlin.KotlinPackage;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.resolve.DescriptorUtils;
+import org.jetbrains.jet.utils.UtilsPackage;
 
+import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 
@@ -74,8 +75,8 @@ public class Visibilities {
     public static final Visibility INTERNAL = new Visibility("internal", false) {
         @Override
         protected boolean isVisible(@NotNull DeclarationDescriptorWithVisibility what, @NotNull DeclarationDescriptor from) {
-            DeclarationDescriptor fromOrModule = from instanceof PackageViewDescriptor ? ((PackageViewDescriptor) from).getModule() : from;
-            return DescriptorUtils.areInSameModule(what, fromOrModule);
+            //NOTE: supposedly temporarily
+            return PUBLIC.isVisible(what, from);
         }
     };
 
@@ -108,13 +109,19 @@ public class Visibilities {
         }
     };
 
-    public static final Set<Visibility> INVISIBLE_FROM_OTHER_MODULES = Sets.newHashSet(PRIVATE, INTERNAL, LOCAL);
+    public static final Set<Visibility> INVISIBLE_FROM_OTHER_MODULES =
+            Collections.unmodifiableSet(KotlinPackage.setOf(PRIVATE, INTERNAL, LOCAL));
 
     private Visibilities() {
     }
 
     public static boolean isVisible(@NotNull DeclarationDescriptorWithVisibility what, @NotNull DeclarationDescriptor from) {
         return findInvisibleMember(what, from) == null;
+    }
+
+    @SuppressWarnings("UnusedDeclaration")
+    private static boolean isInFriendModule(@NotNull DeclarationDescriptor what, @NotNull DeclarationDescriptor from) {
+        return DescriptorUtils.getContainingModule(what).isFriend(DescriptorUtils.getContainingModule(from));
     }
 
     @Nullable
@@ -132,13 +139,15 @@ public class Visibilities {
         return null;
     }
 
-    private static final Map<Visibility, Integer> ORDERED_VISIBILITIES = Maps.newHashMap();
+    private static final Map<Visibility, Integer> ORDERED_VISIBILITIES;
 
     static {
-        ORDERED_VISIBILITIES.put(PRIVATE, 0);
-        ORDERED_VISIBILITIES.put(INTERNAL, 1);
-        ORDERED_VISIBILITIES.put(PROTECTED, 1);
-        ORDERED_VISIBILITIES.put(PUBLIC, 2);
+        Map<Visibility, Integer> visibilities = UtilsPackage.newHashMapWithExpectedSize(4);
+        visibilities.put(PRIVATE, 0);
+        visibilities.put(INTERNAL, 1);
+        visibilities.put(PROTECTED, 1);
+        visibilities.put(PUBLIC, 2);
+        ORDERED_VISIBILITIES = Collections.unmodifiableMap(visibilities);
     }
 
     /*package*/

@@ -1,5 +1,0 @@
-package test
-
-public final class Simple : java.lang.Object {
-    public constructor Simple()
-}

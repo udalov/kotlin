@@ -23,9 +23,13 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.psi.stubs.PsiJetParameterStub;
 import org.jetbrains.jet.lang.psi.stubs.elements.JetStubElementTypes;
+import org.jetbrains.jet.lang.psi.typeRefHelpers.TypeRefHelpersPackage;
 import org.jetbrains.jet.lexer.JetTokens;
 
-public class JetParameter extends JetNamedDeclarationStub<PsiJetParameterStub> {
+import java.util.Collections;
+import java.util.List;
+
+public class JetParameter extends JetNamedDeclarationStub<PsiJetParameterStub> implements JetCallableDeclaration {
 
     public JetParameter(@NotNull ASTNode node) {
         super(node);
@@ -40,9 +44,16 @@ public class JetParameter extends JetNamedDeclarationStub<PsiJetParameterStub> {
         return visitor.visitParameter(this, data);
     }
 
+    @Override
     @Nullable
     public JetTypeReference getTypeReference() {
         return getStubOrPsiChild(JetStubElementTypes.TYPE_REFERENCE);
+    }
+
+    @Override
+    @Nullable
+    public JetTypeReference setTypeReference(@Nullable JetTypeReference typeRef) {
+        return TypeRefHelpersPackage.setTypeReference(this, getNameIdentifier(), typeRef);
     }
 
     public boolean hasDefaultValue() {
@@ -113,5 +124,29 @@ public class JetParameter extends JetNamedDeclarationStub<PsiJetParameterStub> {
 
     public boolean isLoopParameter() {
         return getParent() instanceof JetForExpression;
+    }
+
+    @Nullable
+    @Override
+    public JetParameterList getValueParameterList() {
+        return null;
+    }
+
+    @Nullable
+    @Override
+    public JetTypeReference getReceiverTypeReference() {
+        return null;
+    }
+
+    @NotNull
+    @Override
+    public List<JetTypeConstraint> getTypeConstraints() {
+        return Collections.emptyList();
+    }
+
+    @NotNull
+    @Override
+    public List<JetTypeParameter> getTypeParameters() {
+        return Collections.emptyList();
     }
 }

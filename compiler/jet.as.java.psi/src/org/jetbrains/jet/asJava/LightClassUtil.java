@@ -33,12 +33,13 @@ import com.intellij.psi.stubs.StubElement;
 import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.util.PathUtil;
 import com.intellij.util.SmartList;
+import kotlin.Function1;
+import kotlin.KotlinPackage;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.java.JvmAbi;
 import org.jetbrains.jet.lang.resolve.java.PackageClassUtils;
-import org.jetbrains.jet.lang.resolve.java.jetAsJava.KotlinLightMethod;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 import org.jetbrains.jet.utils.KotlinVfsUtil;
@@ -53,6 +54,10 @@ public class LightClassUtil {
     private static final Logger LOG = Logger.getInstance(LightClassUtil.class);
 
     public static final File BUILT_INS_SRC_DIR = new File("core/builtins/native", KotlinBuiltIns.BUILT_INS_PACKAGE_NAME.asString());
+
+    private static final class BuiltinsDirUrlHolder {
+        private static final URL BUILT_INS_DIR_URL = computeBuiltInsDir();
+    }
 
     /**
      * Checks whether the given file is loaded from the location where Kotlin's built-in classes are defined.
@@ -85,6 +90,11 @@ public class LightClassUtil {
 
     @NotNull
     public static URL getBuiltInsDirUrl() {
+        return BuiltinsDirUrlHolder.BUILT_INS_DIR_URL;
+    }
+
+    @NotNull
+    private static URL computeBuiltInsDir() {
         String builtInFilePath = "/" + KotlinBuiltIns.BUILT_INS_PACKAGE_NAME + "/Library.kt";
 
         URL url = KotlinBuiltIns.class.getResource(builtInFilePath);
@@ -257,7 +267,15 @@ public class LightClassUtil {
         if (getterWrapper == null || setterWrapper == null) {
             // If some getter or setter isn't found yet try to get it from wrappers for general declaration
 
-            List<PsiMethod> wrappers = getPsiMethodWrappers(jetDeclaration, true);
+            List<PsiMethod> wrappers = KotlinPackage.filter(
+                    getPsiMethodWrappers(jetDeclaration, true),
+                    new Function1<PsiMethod, Boolean>() {
+                        @Override
+                        public Boolean invoke(PsiMethod method) {
+                            return JvmAbi.isAccessorName(method.getName());
+                        }
+                    }
+            );
             assert wrappers.size() <= 2 : "Maximum two wrappers are expected to be generated for declaration: " + jetDeclaration.getText();
 
             for (PsiMethod wrapper : wrappers) {

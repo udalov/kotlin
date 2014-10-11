@@ -5,13 +5,12 @@
 package com.google.dart.compiler.backend.js.ast;
 
 import com.google.dart.compiler.common.Symbol;
+import com.google.dart.compiler.util.AstUtil;
 import com.intellij.util.SmartList;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 
 /**
  * A JavaScript <code>var</code> statement.
@@ -91,10 +90,36 @@ public class JsVars extends SourceInfoAwareJsNode implements JsStatement, Iterab
                 visitor.accept(initExpression);
             }
         }
+
+        @Override
+        public void traverse(JsVisitorWithContext v, JsContext ctx) {
+            if (v.visit(this, ctx)) {
+                if (initExpression != null) {
+                    initExpression = v.accept(initExpression);
+                }
+            }
+            v.endVisit(this, ctx);
+        }
+
+        @NotNull
+        @Override
+        public JsVar deepCopy() {
+            if (initExpression == null) return new JsVar(name);
+
+            return new JsVar(name, initExpression.deepCopy()).withMetadataFrom(this);
+        }
     }
 
     public void add(JsVar var) {
         vars.add(var);
+    }
+
+    public void addAll(Collection<? extends JsVars.JsVar> vars) {
+        this.vars.addAll(vars);
+    }
+
+    public void addAll(JsVars otherVars) {
+        this.vars.addAll(otherVars.vars);
     }
 
     public void addIfHasInitializer(JsVar var) {
@@ -112,6 +137,10 @@ public class JsVars extends SourceInfoAwareJsNode implements JsStatement, Iterab
         return vars.iterator();
     }
 
+    public List<JsVar> getVars() {
+        return vars;
+    }
+
     @Override
     public void accept(JsVisitor v) {
         v.visitVars(this);
@@ -120,5 +149,19 @@ public class JsVars extends SourceInfoAwareJsNode implements JsStatement, Iterab
     @Override
     public void acceptChildren(JsVisitor visitor) {
         visitor.acceptWithInsertRemove(vars);
+    }
+
+    @Override
+    public void traverse(JsVisitorWithContext v, JsContext ctx) {
+        if (v.visit(this, ctx)) {
+            v.acceptList(vars);
+        }
+        v.endVisit(this, ctx);
+    }
+
+    @NotNull
+    @Override
+    public JsVars deepCopy() {
+        return new JsVars(AstUtil.deepCopy(vars), multiline).withMetadataFrom(this);
     }
 }

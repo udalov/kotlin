@@ -16,6 +16,8 @@
 
 package org.jetbrains.jet.plugin.debugger;
 
+import com.google.common.base.Predicate;
+import com.google.common.collect.Collections2;
 import com.intellij.debugger.NoDataException;
 import com.intellij.debugger.PositionManager;
 import com.intellij.debugger.SourcePosition;
@@ -23,6 +25,7 @@ import com.intellij.debugger.engine.DebugProcess;
 import com.intellij.debugger.requests.ClassPrepareRequestor;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.roots.libraries.LibraryUtil;
 import com.intellij.openapi.util.Ref;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
@@ -36,14 +39,14 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.TestOnly;
 import org.jetbrains.jet.analyzer.AnalyzeExhaust;
+import org.jetbrains.jet.codegen.AsmUtil;
 import org.jetbrains.jet.codegen.ClassBuilderFactories;
 import org.jetbrains.jet.codegen.state.GenerationState;
 import org.jetbrains.jet.codegen.state.JetTypeMapper;
-import org.jetbrains.jet.lang.descriptors.ClassDescriptor;
-import org.jetbrains.jet.lang.descriptors.ValueParameterDescriptor;
+import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.BindingContext;
-import org.jetbrains.jet.lang.resolve.bindingContextUtil.BindingContextUtilPackage;
+import org.jetbrains.jet.lang.resolve.calls.callUtil.CallUtilPackage;
 import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCall;
 import org.jetbrains.jet.lang.resolve.calls.model.ResolvedValueArgument;
 import org.jetbrains.jet.lang.resolve.extension.InlineAnalyzerExtension;
@@ -53,6 +56,8 @@ import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.types.lang.InlineStrategy;
 import org.jetbrains.jet.lang.types.lang.InlineUtil;
 import org.jetbrains.jet.plugin.caches.resolve.ResolvePackage;
+import org.jetbrains.jet.plugin.codeInsight.CodeInsightUtils;
+import org.jetbrains.jet.plugin.project.ResolveSessionForBodies;
 import org.jetbrains.jet.plugin.util.DebuggerUtils;
 import org.jetbrains.org.objectweb.asm.Type;
 
@@ -89,10 +94,46 @@ public class JetPositionManager implements PositionManager {
         }
 
         if (lineNumber >= 0) {
+            JetFunctionLiteral lambdaIfInside = getLambdaIfInside(location, (JetFile) psiFile, lineNumber);
+            if (lambdaIfInside != null) {
+                return SourcePosition.createFromElement(lambdaIfInside.getBodyExpression().getStatements().get(0));
+            }
             return SourcePosition.createFromLine(psiFile, lineNumber);
         }
 
         throw new NoDataException();
+    }
+
+    private JetFunctionLiteral getLambdaIfInside(@NotNull Location location, @NotNull JetFile file, int lineNumber) {
+        String currentLocationFqName = location.declaringType().name();
+        if (currentLocationFqName == null) return null;
+
+        Integer start = CodeInsightUtils.getStartLineOffset(file, lineNumber);
+        Integer end = CodeInsightUtils.getEndLineOffset(file, lineNumber);
+        if (start == null || end == null) return null;
+
+        PsiElement[] literals = CodeInsightUtils.findElementsOfClassInRange(file, start, end, JetFunctionLiteral.class);
+        if (literals == null || literals.length == 0) return null;
+
+        boolean isInLibrary = LibraryUtil.findLibraryEntry(file.getVirtualFile(), file.getProject()) != null;
+        JetTypeMapper typeMapper = !isInLibrary
+                                    ? prepareTypeMapper(file)
+                                    : createTypeMapperForLibraryFile(file.findElementAt(start), file);
+
+        String currentLocationClassName = JvmClassName.byFqNameWithoutInnerClasses(new FqName(currentLocationFqName)).getInternalName();
+        for (PsiElement literal : literals) {
+            JetFunctionLiteral functionLiteral = (JetFunctionLiteral) literal;
+            if (isInlinedLambda(functionLiteral, typeMapper.getBindingContext())) {
+                continue;
+            }
+
+            String internalClassName = getClassNameForElement(literal.getFirstChild(), typeMapper, file, isInLibrary);
+            if (internalClassName.equals(currentLocationClassName)) {
+                return functionLiteral;
+            }
+        }
+
+        return null;
     }
 
     @Nullable
@@ -111,7 +152,7 @@ public class JetPositionManager implements PositionManager {
         JvmClassName className = JvmClassName.byInternalName(referenceInternalName);
 
         Project project = myDebugProcess.getProject();
-        return DebuggerUtils.findSourceFileForClass(project, GlobalSearchScope.allScope(project), className, sourceName);
+        return DebuggerUtils.findSourceFileForClass(project, GlobalSearchScope.allScope(project), className, sourceName, location.lineNumber() - 1);
     }
 
     @NotNull
@@ -137,9 +178,9 @@ public class JetPositionManager implements PositionManager {
             @SuppressWarnings("unchecked")
             public void run() {
                 JetFile file = (JetFile) sourcePosition.getFile();
-                JetTypeMapper typeMapper = prepareTypeMapper(file);
-
-                result.set(getClassNameForElement(sourcePosition.getElementAt(), typeMapper, file));
+                boolean isInLibrary = LibraryUtil.findLibraryEntry(file.getVirtualFile(), file.getProject()) != null;
+                JetTypeMapper typeMapper = !isInLibrary ? prepareTypeMapper(file) : createTypeMapperForLibraryFile(sourcePosition.getElementAt(), file);
+                result.set(getClassNameForElement(sourcePosition.getElementAt(), typeMapper, file, isInLibrary));
             }
 
         });
@@ -148,34 +189,96 @@ public class JetPositionManager implements PositionManager {
     }
 
     @SuppressWarnings("unchecked")
-    private static String getClassNameForElement(@Nullable PsiElement notPositionedElement, @NotNull JetTypeMapper typeMapper, @NotNull JetFile file) {
-        PsiElement element = PsiTreeUtil.getParentOfType(notPositionedElement, JetClassOrObject.class, JetFunctionLiteral.class, JetNamedFunction.class);
+    public static String getClassNameForElement(
+            @Nullable PsiElement notPositionedElement,
+            @NotNull JetTypeMapper typeMapper,
+            @NotNull JetFile file,
+            boolean isInLibrary
+    ) {
+        PsiElement element = getElementToCalculateClassName(notPositionedElement);
 
         if (element instanceof JetClassOrObject) {
             return getJvmInternalNameForImpl(typeMapper, (JetClassOrObject) element);
         }
         else if (element instanceof JetFunctionLiteral) {
             if (isInlinedLambda((JetFunctionLiteral) element, typeMapper.getBindingContext())) {
-                return getClassNameForElement(element.getParent(), typeMapper, file);
+                return getClassNameForElement(element.getParent(), typeMapper, file, isInLibrary);
             } else {
                 Type asmType = asmTypeForAnonymousClass(typeMapper.getBindingContext(), ((JetFunctionLiteral) element));
                 return asmType.getInternalName();
             }
         }
+        else if (element instanceof JetClassInitializer) {
+            PsiElement parent = getElementToCalculateClassName(element.getParent());
+            // Class-object initializer
+            if (parent instanceof JetObjectDeclaration && ((JetObjectDeclaration) parent).isClassObject()) {
+                return getClassNameForElement(parent.getParent(), typeMapper, file, isInLibrary);
+            }
+            return getClassNameForElement(element, typeMapper, file, isInLibrary);
+        }
+        else if (element instanceof JetProperty && (!((JetProperty) element).isTopLevel() || !isInLibrary)) {
+            if (isInPropertyAccessor(notPositionedElement)) {
+                JetClassOrObject classOrObject = PsiTreeUtil.getParentOfType(element, JetClassOrObject.class);
+                if (classOrObject != null) {
+                    return getJvmInternalNameForImpl(typeMapper, classOrObject);
+                }
+            }
+
+            VariableDescriptor descriptor = (VariableDescriptor) typeMapper.getBindingContext().get(BindingContext.DECLARATION_TO_DESCRIPTOR, element);
+            if (!(descriptor instanceof PropertyDescriptor)) {
+                return getClassNameForElement(element.getParent(), typeMapper, file, isInLibrary);
+            }
+
+            return getJvmInternalNameForPropertyOwner(typeMapper, (PropertyDescriptor) descriptor);
+        }
         else if (element instanceof JetNamedFunction) {
-            PsiElement parent = PsiTreeUtil.getParentOfType(element, JetClassOrObject.class, JetFunctionLiteralExpression.class, JetNamedFunction.class);
+            PsiElement parent = getElementToCalculateClassName(element);
             if (parent instanceof JetClassOrObject) {
                 return getJvmInternalNameForImpl(typeMapper, (JetClassOrObject) parent);
             }
-            else if (parent instanceof JetFunctionLiteralExpression || parent instanceof JetNamedFunction) {
+            else if (parent != null) {
                 Type asmType = asmTypeForAnonymousClass(typeMapper.getBindingContext(), (JetElement) element);
                 return asmType.getInternalName();
             }
         }
 
+        if (isInLibrary) {
+            JetElement elementAtForLibraryFile = getElementToCreateTypeMapperForLibraryFile(notPositionedElement);
+            assert elementAtForLibraryFile != null : "Couldn't find element at breakpoint for library file " + file.getName()
+                   + (notPositionedElement == null ? "" : ", notPositionedElement = " + JetPsiUtil.getElementTextWithContext( (JetElement) notPositionedElement));
+            return DebuggerPackage.findPackagePartInternalNameForLibraryFile(elementAtForLibraryFile);
+        }
+
         return PackagePartClassUtils.getPackagePartInternalName(file);
     }
 
+    @Nullable
+    private static JetDeclaration getElementToCalculateClassName(@Nullable PsiElement notPositionedElement) {
+        //noinspection unchecked
+        return PsiTreeUtil.getParentOfType(notPositionedElement,
+                                           JetClassOrObject.class,
+                                           JetFunctionLiteral.class, JetNamedFunction.class,
+                                           JetProperty.class,
+                                           JetClassInitializer.class);
+    }
+
+    @NotNull
+    public static String getJvmInternalNameForPropertyOwner(@NotNull JetTypeMapper typeMapper, @NotNull PropertyDescriptor descriptor) {
+        return typeMapper.mapOwner(
+                AsmUtil.isPropertyWithBackingFieldInOuterClass(descriptor) ? descriptor.getContainingDeclaration() : descriptor,
+                true)
+                .getInternalName();
+    }
+
+    private static boolean isInPropertyAccessor(@Nullable PsiElement element) {
+        //noinspection unchecked
+        return element instanceof  JetPropertyAccessor || ((JetElement) PsiTreeUtil.getParentOfType(element, JetProperty.class, JetPropertyAccessor.class)) instanceof JetPropertyAccessor;
+    }
+
+    @Nullable
+    private static JetElement getElementToCreateTypeMapperForLibraryFile(@Nullable PsiElement element) {
+        return element instanceof JetElement ? (JetElement) element : PsiTreeUtil.getParentOfType(element, JetElement.class);
+    }
 
     @Nullable
     private static String getJvmInternalNameForImpl(JetTypeMapper typeMapper, JetClassOrObject jetClass) {
@@ -189,6 +292,19 @@ public class JetPositionManager implements PositionManager {
         }
 
         return typeMapper.mapClass(classDescriptor).getInternalName();
+    }
+
+    private static JetTypeMapper createTypeMapperForLibraryFile(@Nullable PsiElement notPositionedElement, @NotNull JetFile file) {
+        JetElement element = getElementToCreateTypeMapperForLibraryFile(notPositionedElement);
+        ResolveSessionForBodies resolveSession = ResolvePackage.getLazyResolveSession(element);
+
+        GenerationState state = new GenerationState(file.getProject(), ClassBuilderFactories.THROW_EXCEPTION,
+                                                    resolveSession.getModuleDescriptor(),
+                                                    resolveSession.resolveToElement(element),
+                                                    Collections.singletonList(file)
+        );
+        state.beforeCompile();
+        return state.getTypeMapper();
     }
 
     private JetTypeMapper prepareTypeMapper(final JetFile file) {
@@ -284,7 +400,7 @@ public class JetPositionManager implements PositionManager {
 
         if (!(parent instanceof JetElement)) return false;
 
-        ResolvedCall<?> call = BindingContextUtilPackage.getResolvedCall((JetElement) parent, context);
+        ResolvedCall<?> call = CallUtilPackage.getResolvedCall((JetElement) parent, context);
         if (call == null) return false;
 
         InlineStrategy inlineType = InlineUtil.getInlineType(call.getResultingDescriptor());

@@ -5,8 +5,8 @@ fun small(paramFirst: Int, paramSecond: Int) {
 
 fun test() = small(param<caret>First = 12)
 
-// EXIST: paramFirst
-// EXIST: paramSecond
-// ABSENT: paramTest
+// EXIST: "paramFirst ="
+// EXIST: "paramSecond ="
+// EXIST: paramTest
 
-// NUMBER: 2
+// NUMBER: 3

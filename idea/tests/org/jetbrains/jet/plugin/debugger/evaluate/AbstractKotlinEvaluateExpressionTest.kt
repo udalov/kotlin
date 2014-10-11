@@ -53,9 +53,15 @@ import com.intellij.debugger.ui.impl.watch.ThisDescriptorImpl
 import com.intellij.debugger.ui.tree.FieldDescriptor
 import com.intellij.debugger.ui.impl.watch.NodeDescriptorImpl
 import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.util.Computable
+import com.intellij.psi.search.FilenameIndex
+import com.intellij.psi.PsiManager
+import com.intellij.debugger.DebuggerManagerEx
+import com.intellij.psi.PsiDocumentManager
+import com.intellij.openapi.application.ModalityState
+import com.intellij.debugger.ui.tree.render.ClassRenderer
+import com.intellij.debugger.settings.NodeRendererSettings
 
-public abstract class AbstractKotlinEvaluateExpressionTest : KotlinDebuggerTestCase() {
+public abstract class AbstractKotlinEvaluateExpressionTest : KotlinDebuggerTestBase() {
     private val logger = Logger.getLogger(javaClass<KotlinEvaluateExpressionCache>())!!
 
     private val appender = object : AppenderSkeleton() {
@@ -67,9 +73,14 @@ public abstract class AbstractKotlinEvaluateExpressionTest : KotlinDebuggerTestC
     }
 
     private var oldLogLevel: Level? = null
+    private var oldShowFqTypeNames = false
 
     override fun setUp() {
-        super<KotlinDebuggerTestCase>.setUp()
+        super.setUp()
+
+        val classRenderer = NodeRendererSettings.getInstance()!!.getClassRenderer()!!
+        oldShowFqTypeNames = classRenderer.SHOW_FQ_TYPE_NAMES
+        classRenderer.SHOW_FQ_TYPE_NAMES = true
 
         oldLogLevel = logger.getLevel()
         logger.setLevel(Level.DEBUG)
@@ -80,12 +91,16 @@ public abstract class AbstractKotlinEvaluateExpressionTest : KotlinDebuggerTestC
         logger.setLevel(oldLogLevel)
         logger.removeAppender(appender)
 
-        super<KotlinDebuggerTestCase>.tearDown()
+        NodeRendererSettings.getInstance()!!.getClassRenderer()!!.SHOW_FQ_TYPE_NAMES = oldShowFqTypeNames
+
+        super.tearDown()
     }
 
     fun doSingleBreakpointTest(path: String) {
         val file = File(path)
         val fileText = FileUtil.loadFile(file, true)
+
+        createAdditionalBreakpoints(fileText)
 
         val shouldPrintFrame = InTextDirectivesUtils.isDirectiveDefined(fileText, "// PRINT_FRAME")
 
@@ -95,6 +110,13 @@ public abstract class AbstractKotlinEvaluateExpressionTest : KotlinDebuggerTestC
         val expectedBlockResults = blocks.map { InTextDirectivesUtils.findLinesWithPrefixesRemoved(it, "// RESULT: ").makeString("\n") }
 
         createDebugProcess(path)
+
+        val count = InTextDirectivesUtils.getPrefixedInt(fileText, "// STEP_INTO: ") ?: 0
+        if (count > 0) {
+            for (i in 1..count) {
+                onBreakpoint { stepInto() }
+            }
+        }
 
         onBreakpoint {
             val exceptions = linkedMapOf<String, Throwable>()
@@ -127,9 +149,14 @@ public abstract class AbstractKotlinEvaluateExpressionTest : KotlinDebuggerTestC
     }
 
     fun doMultipleBreakpointsTest(path: String) {
-        val expressions = loadTestDirectivesPairs(FileUtil.loadFile(File(path), true), "// EXPRESSION: ", "// RESULT: ")
+        val file = File(path)
+        val fileText = FileUtil.loadFile(file, true)
+
+        createAdditionalBreakpoints(fileText)
 
         createDebugProcess(path)
+
+        val expressions = loadTestDirectivesPairs(fileText, "// EXPRESSION: ", "// RESULT: ")
 
         val exceptions = linkedMapOf<String, Throwable>()
         for ((expression, expected) in expressions) {
@@ -148,6 +175,42 @@ public abstract class AbstractKotlinEvaluateExpressionTest : KotlinDebuggerTestC
         checkExceptions(exceptions)
 
         finish()
+    }
+
+    private fun createAdditionalBreakpoints(fileText: String) {
+        val breakpoints = InTextDirectivesUtils.findLinesWithPrefixesRemoved(fileText, "// ADDITIONAL_BREAKPOINT: ")
+        for (breakpoint in breakpoints) {
+            val position = breakpoint.split(".kt:")
+            assert(position.size == 2, "Couldn't parse position from test directive: directive = ${breakpoint}")
+            createBreakpoint(position[0], position[1])
+        }
+    }
+
+    private fun createBreakpoint(fileName: String, lineMarker: String) {
+        val project = getProject()!!
+        val sourceFiles = FilenameIndex.getAllFilesByExt(project, "kt").filter {
+            it.getName().contains(fileName) &&
+                    it.contentsToByteArray().toString("UTF-8").contains(lineMarker)
+        }
+
+        assert(sourceFiles.size() == 1, "One source file should be found: name = $fileName, sourceFiles = $sourceFiles")
+
+        val runnable = Runnable() {
+            val psiSourceFile = PsiManager.getInstance(project).findFile(sourceFiles.first())!!
+
+            val breakpointManager = DebuggerManagerEx.getInstanceEx(project)?.getBreakpointManager()!!
+            val document = PsiDocumentManager.getInstance(project).getDocument(psiSourceFile)!!
+
+            val index = psiSourceFile.getText()!!.indexOf(lineMarker)
+            val lineNumber = document.getLineNumber(index) + 1
+
+            val breakpoint = breakpointManager.addLineBreakpoint(document, lineNumber)
+            if (breakpoint != null) {
+                println("LineBreakpoint created at " + psiSourceFile.getName() + ":" + lineNumber, ProcessOutputTypes.SYSTEM);
+            }
+        }
+
+        DebuggerInvocationUtil.invokeAndWait(project, runnable, ModalityState.defaultModalityState())
     }
 
     private fun SuspendContextImpl.printFrame() {
@@ -174,7 +237,7 @@ public abstract class AbstractKotlinEvaluateExpressionTest : KotlinDebuggerTestC
             val descriptor: NodeDescriptorImpl = node.getDescriptor()!!
             if (descriptor is DefaultNodeDescriptor) return
 
-            val label = descriptor.getLabel()!!.replaceAll("-[\\w]*-[\\w|\\d]+", "-@packagePartHASH")
+            val label = descriptor.getLabel()!!.replaceAll("Package\\$[\\w]*\\$[0-9a-f]+", "Package\\$@packagePartHASH")
             if (label.endsWith(XDebuggerUIConstants.COLLECTING_DATA_MESSAGE)) return
 
             val curIndent = " ".repeat(indent)
@@ -226,19 +289,6 @@ public abstract class AbstractKotlinEvaluateExpressionTest : KotlinDebuggerTestC
     private fun findFilesWithBlocks(mainFile: File): List<File> {
         val mainFileName = mainFile.getName()
         return mainFile.getParentFile()?.listFiles()?.filter { it.name.startsWith(mainFileName) && it.name != mainFileName } ?: Collections.emptyList()
-    }
-
-    private fun onBreakpoint(doOnBreakpoint: SuspendContextImpl.() -> Unit) {
-        super.onBreakpoint {
-            super.printContext(it)
-            it.doOnBreakpoint()
-        }
-    }
-
-    private fun finish() {
-        onBreakpoint {
-            resume(this)
-        }
     }
 
     private fun SuspendContextImpl.evaluate(text: String, codeFragmentKind: CodeFragmentKind, expectedResult: String) {

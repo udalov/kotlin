@@ -52,6 +52,7 @@ public interface JetNodeTypes {
 
     IElementType CLASS_BODY                         = JetStubElementTypes.CLASS_BODY;
     IElementType IMPORT_LIST                        = JetStubElementTypes.IMPORT_LIST;
+    IElementType FILE_ANNOTATION_LIST               = JetStubElementTypes.FILE_ANNOTATION_LIST;
     IElementType IMPORT_DIRECTIVE                   = JetStubElementTypes.IMPORT_DIRECTIVE;
     IElementType MODIFIER_LIST                      = JetStubElementTypes.MODIFIER_LIST;
     IElementType PRIMARY_CONSTRUCTOR_MODIFIER_LIST  = JetStubElementTypes.PRIMARY_CONSTRUCTOR_MODIFIER_LIST;
@@ -61,6 +62,7 @@ public interface JetNodeTypes {
     IElementType TYPE_ARGUMENT_LIST                 = JetStubElementTypes.TYPE_ARGUMENT_LIST;
     JetNodeType VALUE_ARGUMENT_LIST                 = new JetNodeType("VALUE_ARGUMENT_LIST", JetValueArgumentList.class);
     JetNodeType VALUE_ARGUMENT                      = new JetNodeType("VALUE_ARGUMENT", JetValueArgument.class);
+    JetNodeType FUNCTION_LITERAL_ARGUMENT           = new JetNodeType("FUNCTION_LITERAL_ARGUMENT", JetFunctionLiteralArgument.class);
     JetNodeType VALUE_ARGUMENT_NAME                 = new JetNodeType("VALUE_ARGUMENT_NAME", JetValueArgumentName.class);
     IElementType TYPE_REFERENCE                     = JetStubElementTypes.TYPE_REFERENCE;
 

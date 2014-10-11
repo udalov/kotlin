@@ -224,6 +224,46 @@ var Kotlin = {};
 
     /**
      * @param {(function():Array.<*>)|null} basesFun
+     * @param {?=} constructor
+     * @param {function():Object} enumEntries
+     * @param {Object=} properties
+     * @param {Object=} staticProperties
+     * @returns {*}
+     */
+    Kotlin.createEnumClass = function (basesFun, constructor, enumEntries, properties, staticProperties) {
+        staticProperties = staticProperties || {};
+
+        // TODO use Object.assign
+        staticProperties.object_initializer$ = function () {
+            var enumEntryList = enumEntries();
+            var i = 0;
+            var values = [];
+            for (var entryName in enumEntryList) {
+                if (enumEntryList.hasOwnProperty(entryName)) {
+                    var entryObject = enumEntryList[entryName];
+                    values[i] = entryObject;
+                    entryObject.ordinal$ = i;
+                    entryObject.name$ = entryName;
+                    i++;
+                }
+            }
+            enumEntryList.values$ = values;
+            return enumEntryList;
+        };
+
+        staticProperties.values = function () {
+            return this.object.values$;
+        };
+
+        staticProperties.valueOf_61zpoe$ = function (name) {
+            return this.object[name];
+        };
+
+        return Kotlin.createClass(basesFun, constructor, properties, staticProperties)
+    };
+
+    /**
+     * @param {(function():Array.<*>)|null} basesFun
      * @param {Object=} properties
      * @param {Object=} staticProperties
      * @returns {*}
@@ -294,7 +334,60 @@ var Kotlin = {};
         }
     };
 
+    // TODO Store callable references for members in class
+    Kotlin.getCallableRefForMemberFunction = function (klass, memberName) {
+        return function () {
+            return this[memberName].apply(this, arguments);
+        };
+    };
 
+    // TODO Store callable references for extension functions in class
+    // extFun expected receiver as the first argument
+    Kotlin.getCallableRefForExtensionFunction = function (extFun) {
+        return function () {
+          var args = [this];
+          Array.prototype.push.apply(args, arguments);
+          return extFun.apply(null, args);
+        };
+    };
+
+    Kotlin.getCallableRefForConstructor = function (klass) {
+        return function () {
+            var obj = Object.create(klass.prototype);
+            klass.apply(obj, arguments);
+            return obj;
+        };
+    };
+
+    Kotlin.getCallableRefForTopLevelProperty = function(packageName, name, isVar) {
+      var obj = {};
+      obj.name = name;
+      obj.get = function() { return packageName[name]; };
+      if (isVar) {
+          obj.set_za3rmp$ = function(value) { packageName[name] = value; };
+      }
+      return obj;
+    };
+
+    Kotlin.getCallableRefForMemberProperty = function(name, isVar) {
+      var obj = {};
+      obj.name = name;
+      obj.get_za3rmp$ = function(receiver) { return receiver[name]; };
+      if (isVar) {
+          obj.set_wn2jw4$ = function(receiver, value) { receiver[name] = value; };
+      }
+      return obj;
+    };
+
+    Kotlin.getCallableRefForExtensionProperty = function(name, getFun, setFun) {
+      var obj = {};
+      obj.name = name;
+      obj.get_za3rmp$ = getFun;
+      if (setFun !== undefined) {
+          obj.set_wn2jw4$ = setFun;
+      }
+      return obj;
+    };
 ////////////////////////////////// packages & modules //////////////////////////////
 
     Kotlin.modules = {};

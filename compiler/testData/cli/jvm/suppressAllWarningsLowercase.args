@@ -1,6 +1,0 @@
--src
-$TESTDATA_DIR$/../warnings.kt
--suppress
-warnings
--output
-$TEMP_DIR$

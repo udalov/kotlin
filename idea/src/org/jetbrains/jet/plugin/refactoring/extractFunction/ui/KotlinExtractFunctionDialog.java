@@ -29,8 +29,6 @@ import kotlin.Function0;
 import kotlin.Function1;
 import kotlin.Unit;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.jet.lang.psi.JetClassBody;
-import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.plugin.refactoring.JetNameSuggester;
 import org.jetbrains.jet.plugin.refactoring.JetRefactoringBundle;
 import org.jetbrains.jet.plugin.refactoring.RefactoringPackage;
@@ -38,8 +36,11 @@ import org.jetbrains.jet.plugin.refactoring.extractFunction.*;
 import org.jetbrains.jet.renderer.DescriptorRenderer;
 
 import javax.swing.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.event.ItemEvent;
 import java.awt.event.ItemListener;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -50,18 +51,19 @@ public class KotlinExtractFunctionDialog extends DialogWrapper {
     private KotlinFunctionSignatureComponent signaturePreviewField;
     private EditorTextField functionNameField;
     private JLabel functionNameLabel;
+    private JCheckBox propertyCheckBox;
     private KotlinParameterTablePanel parameterTablePanel;
 
     private final Project project;
 
-    private final ExtractionDescriptorWithConflicts originalDescriptor;
-    private ExtractionDescriptor currentDescriptor;
+    private final ExtractableCodeDescriptorWithConflicts originalDescriptor;
+    private ExtractableCodeDescriptor currentDescriptor;
 
     private final Function1<KotlinExtractFunctionDialog, Unit> onAccept;
 
     public KotlinExtractFunctionDialog(
             @NotNull Project project,
-            @NotNull ExtractionDescriptorWithConflicts originalDescriptor,
+            @NotNull ExtractableCodeDescriptorWithConflicts originalDescriptor,
             @NotNull Function1<KotlinExtractFunctionDialog, Unit> onAccept) {
         super(project, true);
 
@@ -81,8 +83,7 @@ public class KotlinExtractFunctionDialog extends DialogWrapper {
     }
 
     private boolean isVisibilitySectionAvailable() {
-        PsiElement target = originalDescriptor.getDescriptor().getExtractionData().getTargetSibling().getParent();
-        return target instanceof JetClassBody || target instanceof JetFile;
+        return ExtractFunctionPackage.isVisibilityApplicable(originalDescriptor.getDescriptor().getExtractionData());
     }
 
     private String getFunctionName() {
@@ -109,7 +110,8 @@ public class KotlinExtractFunctionDialog extends DialogWrapper {
 
         setOKActionEnabled(checkNames());
         signaturePreviewField.setText(
-                ExtractFunctionPackage.getFunctionText(currentDescriptor, false, DescriptorRenderer.SOURCE_CODE_SHORT_NAMES_IN_TYPES)
+                ExtractFunctionPackage.getDeclarationText(currentDescriptor, getGeneratorOptions(), false,
+                                                          DescriptorRenderer.SOURCE_CODE_SHORT_NAMES_IN_TYPES)
         );
     }
 
@@ -132,7 +134,7 @@ public class KotlinExtractFunctionDialog extends DialogWrapper {
         boolean enableVisibility = isVisibilitySectionAvailable();
         visibilityBox.setEnabled(enableVisibility);
         if (enableVisibility) {
-            visibilityBox.setSelectedItem("private");
+            visibilityBox.setSelectedItem(originalDescriptor.getDescriptor().getVisibility());
         }
         visibilityBox.addItemListener(
                 new ItemListener() {
@@ -142,6 +144,18 @@ public class KotlinExtractFunctionDialog extends DialogWrapper {
                     }
                 }
         );
+
+        propertyCheckBox.setEnabled(ExtractFunctionPackage.canGenerateProperty(originalDescriptor.getDescriptor()));
+        if (propertyCheckBox.isEnabled()) {
+            propertyCheckBox.addActionListener(
+                    new ActionListener() {
+                        @Override
+                        public void actionPerformed(@NotNull ActionEvent e) {
+                            update();
+                        }
+                    }
+            );
+        }
 
         parameterTablePanel = new KotlinParameterTablePanel() {
             @Override
@@ -166,6 +180,7 @@ public class KotlinExtractFunctionDialog extends DialogWrapper {
         inputParametersPanel.add(parameterTablePanel);
     }
 
+    @SuppressWarnings("SuspiciousMethodCalls")
     @Override
     protected void doOKAction() {
         MultiMap<PsiElement, String> conflicts = ExtractFunctionPackage.validate(currentDescriptor).getConflicts();
@@ -194,14 +209,15 @@ public class KotlinExtractFunctionDialog extends DialogWrapper {
         return contentPane;
     }
 
+    @NotNull
     @Override
     protected JComponent createContentPane() {
         return contentPane;
     }
 
     @NotNull
-    private ExtractionDescriptor createDescriptor() {
-        ExtractionDescriptor descriptor = originalDescriptor.getDescriptor();
+    private ExtractableCodeDescriptor createDescriptor() {
+        ExtractableCodeDescriptor descriptor = originalDescriptor.getDescriptor();
 
         List<KotlinParameterTablePanel.ParameterInfo> parameterInfos = parameterTablePanel.getParameterInfos();
 
@@ -211,13 +227,15 @@ public class KotlinExtractFunctionDialog extends DialogWrapper {
         }
 
         ControlFlow controlFlow = descriptor.getControlFlow();
-        if (controlFlow instanceof ParameterUpdate) {
-            ParameterUpdate parameterUpdate = (ParameterUpdate) controlFlow;
-            controlFlow = new ParameterUpdate(
-                    oldToNewParameters.get(parameterUpdate.getParameter()),
-                    parameterUpdate.getDeclarationsToCopy()
-            );
+        List<OutputValue> outputValues = new ArrayList<OutputValue>(controlFlow.getOutputValues());
+        for (int i = 0; i < outputValues.size(); i++) {
+            OutputValue outputValue = outputValues.get(i);
+            if (outputValue instanceof OutputValue.ParameterUpdate) {
+                OutputValue.ParameterUpdate parameterUpdate = (OutputValue.ParameterUpdate) outputValue;
+                outputValues.set(i, new OutputValue.ParameterUpdate(oldToNewParameters.get(parameterUpdate.getParameter()), parameterUpdate.getOriginalExpressions()));
+            }
         }
+        controlFlow = new ControlFlow(outputValues, controlFlow.getBoxerFactory(), controlFlow.getDeclarationsToCopy());
 
         Map<Integer, Replacement> replacementMap = ContainerUtil.newHashMap();
         for (Map.Entry<Integer, Replacement> e : descriptor.getReplacementMap().entrySet()) {
@@ -238,8 +256,9 @@ public class KotlinExtractFunctionDialog extends DialogWrapper {
             }
         }
 
-        return new ExtractionDescriptor(
+        return new ExtractableCodeDescriptor(
                 descriptor.getExtractionData(),
+                descriptor.getOriginalContext(),
                 getFunctionName(),
                 getVisibility(),
                 ContainerUtil.newArrayList(oldToNewParameters.values()),
@@ -251,7 +270,12 @@ public class KotlinExtractFunctionDialog extends DialogWrapper {
     }
 
     @NotNull
-    public ExtractionDescriptor getCurrentDescriptor() {
+    public ExtractableCodeDescriptor getCurrentDescriptor() {
         return currentDescriptor;
+    }
+
+    @NotNull
+    public ExtractionGeneratorOptions getGeneratorOptions() {
+        return new ExtractionGeneratorOptions(false, propertyCheckBox.isSelected());
     }
 }

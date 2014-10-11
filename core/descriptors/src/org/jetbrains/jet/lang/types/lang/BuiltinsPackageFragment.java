@@ -28,6 +28,7 @@ import org.jetbrains.jet.lang.descriptors.ModuleDescriptor;
 import org.jetbrains.jet.lang.descriptors.PackageFragmentDescriptor;
 import org.jetbrains.jet.lang.descriptors.PackageFragmentProvider;
 import org.jetbrains.jet.lang.descriptors.impl.PackageFragmentDescriptorImpl;
+import org.jetbrains.jet.lang.resolve.name.ClassId;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
@@ -122,6 +123,7 @@ class BuiltinsPackageFragment extends PackageFragmentDescriptorImpl {
 
     @Nullable
     private static InputStream getStreamNullable(@NotNull String path) {
+        //noinspection ConstantConditions
         return KotlinBuiltIns.class.getClassLoader().getResourceAsStream(path);
     }
 
@@ -149,10 +151,10 @@ class BuiltinsPackageFragment extends PackageFragmentDescriptorImpl {
         @Nullable
         @Override
         public ClassData findClassData(@NotNull ClassId classId) {
-            InputStream stream = getStreamNullable(BuiltInsSerializationUtil.getClassMetadataPath(classId));
-            if (stream == null) {
-                return null;
-            }
+            String metadataPath = BuiltInsSerializationUtil.getClassMetadataPath(classId);
+            if (metadataPath == null) return null;
+            InputStream stream = getStreamNullable(metadataPath);
+            if (stream == null) return null;
 
             try {
                 ProtoBuf.Class classProto = ProtoBuf.Class.parseFrom(stream);

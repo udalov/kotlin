@@ -16,12 +16,16 @@
 
 package org.jetbrains.k2js.facade;
 
+import com.google.common.base.Predicates;
+import com.google.dart.compiler.backend.js.ast.JsNode;
 import com.google.dart.compiler.backend.js.ast.JsProgram;
 import com.google.dart.compiler.util.TextOutputImpl;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.openapi.vfs.VfsUtilCore;
 import com.intellij.openapi.vfs.VirtualFile;
+import com.intellij.psi.PsiFile;
+import com.intellij.util.Consumer;
 import com.intellij.util.Function;
 import com.intellij.util.SmartList;
 import com.intellij.util.containers.ContainerUtil;
@@ -30,13 +34,15 @@ import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.OutputFileCollection;
 import org.jetbrains.jet.SimpleOutputFile;
 import org.jetbrains.jet.SimpleOutputFileCollection;
+import org.jetbrains.jet.analyzer.AnalyzeExhaust;
+import org.jetbrains.jet.lang.descriptors.ModuleDescriptor;
 import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.utils.fileUtils.FileUtilsPackage;
 import org.jetbrains.js.compiler.JsSourceGenerationVisitor;
 import org.jetbrains.js.compiler.sourcemap.SourceMap3Builder;
 import org.jetbrains.js.compiler.sourcemap.SourceMapBuilder;
-import org.jetbrains.k2js.analyze.AnalyzerFacadeForJS;
+import org.jetbrains.k2js.analyze.TopDownAnalyzerFacadeForJS;
 import org.jetbrains.k2js.config.Config;
 import org.jetbrains.k2js.facade.exceptions.TranslationException;
 import org.jetbrains.k2js.translate.general.Translation;
@@ -63,12 +69,13 @@ public final class K2JSTranslator {
             @NotNull File outputFile,
             @Nullable File outputPrefixFile,
             @Nullable File outputPostfixFile,
-            @NotNull Config config
+            @NotNull Config config,
+            @NotNull Consumer<JsNode> astConsumer // hack for tests
     ) throws TranslationException, IOException {
         K2JSTranslator translator = new K2JSTranslator(config);
         TextOutputImpl output = new TextOutputImpl();
         SourceMapBuilder sourceMapBuilder = config.isSourcemap() ? new SourceMap3Builder(outputFile, output, new SourceMapBuilderConsumer()) : null;
-        String programCode = translator.generateProgramCode(files, mainCall, output, sourceMapBuilder);
+        String programCode = translator.generateProgramCode(files, mainCall, output, sourceMapBuilder, astConsumer);
 
         String prefix = FileUtilsPackage.readTextOrEmpty(outputPrefixFile);
         String postfix = FileUtilsPackage.readTextOrEmpty(outputPostfixFile);
@@ -121,7 +128,8 @@ public final class K2JSTranslator {
     @NotNull
     public String generateProgramCode(@NotNull List<JetFile> files, @NotNull MainCallParameters mainCallParameters)
             throws TranslationException {
-        return generateProgramCode(files, mainCallParameters, new TextOutputImpl(), null);
+        //noinspection unchecked
+        return generateProgramCode(files, mainCallParameters, new TextOutputImpl(), null, Consumer.EMPTY_CONSUMER);
     }
 
     @NotNull
@@ -129,11 +137,16 @@ public final class K2JSTranslator {
             @NotNull List<JetFile> files,
             @NotNull MainCallParameters mainCallParameters,
             @NotNull TextOutputImpl output,
-            @Nullable SourceMapBuilder sourceMapBuilder
+            @Nullable SourceMapBuilder sourceMapBuilder,
+            @NotNull Consumer<JsNode> astConsumer
     ) throws TranslationException {
         JsProgram program = generateProgram(files, mainCallParameters);
+
         JsSourceGenerationVisitor sourceGenerator = new JsSourceGenerationVisitor(output, sourceMapBuilder);
         program.accept(sourceGenerator);
+
+        astConsumer.consume(program);
+
         return output.toString();
     }
 
@@ -141,8 +154,11 @@ public final class K2JSTranslator {
     public JsProgram generateProgram(@NotNull List<JetFile> filesToTranslate,
             @NotNull MainCallParameters mainCallParameters)
             throws TranslationException {
-        BindingContext bindingContext = AnalyzerFacadeForJS.analyzeFilesAndCheckErrors(filesToTranslate, config);
-        return Translation.generateAst(bindingContext, filesToTranslate, mainCallParameters, config);
+        AnalyzeExhaust analyzeExhaust = TopDownAnalyzerFacadeForJS.analyzeFiles(filesToTranslate, Predicates.<PsiFile>alwaysTrue(), config);
+        BindingContext bindingContext = analyzeExhaust.getBindingContext();
+        TopDownAnalyzerFacadeForJS.checkForErrors(Config.withJsLibAdded(filesToTranslate, config), bindingContext);
+        ModuleDescriptor moduleDescriptor = analyzeExhaust.getModuleDescriptor();
+        return Translation.generateAst(bindingContext, filesToTranslate, mainCallParameters, moduleDescriptor, config);
     }
 
     @NotNull

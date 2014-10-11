@@ -16,8 +16,6 @@
 
 package org.jetbrains.jet.lang.resolve.calls
 
-import javax.inject.Inject
-import kotlin.properties.Delegates
 import org.jetbrains.jet.lang.descriptors.CallableDescriptor
 import org.jetbrains.jet.lang.resolve.calls.context.BasicCallResolutionContext
 import org.jetbrains.jet.lang.resolve.calls.results.OverloadResolutionResultsImpl
@@ -38,12 +36,12 @@ import org.jetbrains.jet.lang.resolve.calls.results.ResolutionStatus
 import org.jetbrains.jet.lang.resolve.calls.inference.InferenceErrorData
 import org.jetbrains.jet.lang.psi.ValueArgument
 import org.jetbrains.jet.lang.resolve.calls.model.ArgumentMapping
-import org.jetbrains.jet.lang.resolve.calls.autocasts.DataFlowInfo
+import org.jetbrains.jet.lang.resolve.calls.smartcasts.DataFlowInfo
 import org.jetbrains.jet.lang.resolve.calls.model.ArgumentUnmapped
 import org.jetbrains.jet.lang.resolve.calls.model.ArgumentMatch
-import org.jetbrains.jet.lang.psi.JetWhenExpression
 import org.jetbrains.jet.lang.resolve.BindingContext
 import org.jetbrains.jet.lang.resolve.calls.context.ResolutionContext
+import org.jetbrains.jet.lang.resolve.calls.callUtil.*
 import org.jetbrains.jet.lang.resolve.BindingContextUtils
 import org.jetbrains.jet.lang.resolve.calls.context.CallResolutionContext
 import org.jetbrains.jet.lang.types.expressions.DataFlowUtils
@@ -52,11 +50,9 @@ import org.jetbrains.jet.lang.psi.Call
 import org.jetbrains.jet.lang.types.expressions.ExpressionTypingUtils
 import org.jetbrains.jet.lang.psi.JetBlockExpression
 import org.jetbrains.jet.lang.psi.JetPsiUtil
-import org.jetbrains.jet.lang.resolve.bindingContextUtil.getCall
 import org.jetbrains.jet.lang.psi.JetSafeQualifiedExpression
 import org.jetbrains.jet.lang.resolve.calls.CallResolverUtil.ResolveArgumentsMode.RESOLVE_FUNCTION_ARGUMENTS
 import org.jetbrains.jet.lang.resolve.TemporaryBindingTrace
-import org.jetbrains.jet.lang.resolve.calls.util.getAllValueArguments
 import org.jetbrains.jet.lang.psi.JetQualifiedExpression
 import java.util.ArrayList
 
@@ -188,7 +184,7 @@ public class CallCompleter(
             return
         }
 
-        val receiverType = if (getReceiverArgument().exists()) getReceiverArgument().getType() else null
+        val receiverType = if (getExtensionReceiver().exists()) getExtensionReceiver().getType() else null
         val errorData = InferenceErrorData.create(
                 getCandidateDescriptor(), getConstraintSystem()!!, valueArgumentsCheckingResult.argumentTypes,
                 receiverType, context.expectedType)
@@ -215,10 +211,8 @@ public class CallCompleter(
             getDataFlowInfoForArgument = { context.dataFlowInfo }
         }
 
-        val arguments = context.call.getAllValueArguments()
-
-        for (valueArgument in arguments) {
-            val argumentMapping = getArgumentMapping(valueArgument)
+        for (valueArgument in context.call.getValueArguments()) {
+            val argumentMapping = getArgumentMapping(valueArgument!!)
             val expectedType = when (argumentMapping) {
                 is ArgumentMatch -> CandidateResolver.getEffectiveExpectedType(argumentMapping.valueParameter, valueArgument)
                 else -> TypeUtils.NO_EXPECTED_TYPE

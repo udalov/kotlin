@@ -36,6 +36,7 @@ import java.util.Set;
 public final class JetScopeUtils {
     private JetScopeUtils() {}
 
+    @NotNull
     public static List<ReceiverValue> getImplicitReceiversHierarchyValues(@NotNull JetScope scope) {
         Collection<ReceiverParameterDescriptor> hierarchy = scope.getImplicitReceiversHierarchy();
 
@@ -56,13 +57,14 @@ public final class JetScopeUtils {
      * @param scope Scope for query extensions.
      * @return extension descriptors.
      */
+    @NotNull
     public static Collection<CallableDescriptor> getAllExtensions(@NotNull JetScope scope) {
         Set<CallableDescriptor> result = Sets.newHashSet();
 
         for (DeclarationDescriptor descriptor : scope.getAllDescriptors()) {
             if (descriptor instanceof CallableDescriptor) {
                 CallableDescriptor callDescriptor = (CallableDescriptor) descriptor;
-                if (callDescriptor.getReceiverParameter() != null) {
+                if (callDescriptor.getExtensionReceiverParameter() != null) {
                     result.add(callDescriptor);
                 }
             }
@@ -79,7 +81,7 @@ public final class JetScopeUtils {
         JetScope propertyDeclarationInnerScope =
                 getPropertyDeclarationInnerScope(propertyDescriptor, parentScope,
                                                  propertyDescriptor.getTypeParameters(),
-                                                 propertyDescriptor.getReceiverParameter(), trace);
+                                                 propertyDescriptor.getExtensionReceiverParameter(), trace);
         WritableScope accessorScope = new WritableScopeImpl(propertyDeclarationInnerScope, parentScope.getContainingDeclaration(),
                                                             new TraceBasedRedeclarationHandler(trace), "Accessor Scope");
         accessorScope.changeLockLevel(WritableScope.LockLevel.READING);

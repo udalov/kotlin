@@ -37,6 +37,7 @@ import org.jetbrains.jet.descriptors.serialization.JavaProtoBuf
 import org.jetbrains.jet.lang.resolve.java.JvmClassName
 import org.jetbrains.jet.descriptors.serialization.PackageData
 import org.jetbrains.jet.lang.resolve.kotlin.DeserializationGlobalContextForJava
+import org.jetbrains.jet.lang.resolve.kotlin.incremental.cache.IncrementalCache
 
 public class IncrementalPackageFragmentProvider(
         sourceFiles: Collection<JetFile>,
@@ -51,10 +52,11 @@ public class IncrementalPackageFragmentProvider(
 
     val packagePartsToNotLoadFromCache = (
             sourceFiles.map { PackagePartClassUtils.getPackagePartInternalName(it) }
-                    + incrementalCache.getRemovedPackageParts(moduleId, sourceFiles).map { it.getInternalName() }
+                    + incrementalCache.getRemovedPackageParts(sourceFiles).map { it.getInternalName() }
             ).toSet()
     val fqNameToSubFqNames = MultiMap<FqName, FqName>()
     val fqNameToPackageFragment = HashMap<FqName, PackageFragmentDescriptor>()
+    val fqNamesToLoad: Set<FqName>
 
     ;{
         fun createPackageFragment(fqName: FqName) {
@@ -71,13 +73,12 @@ public class IncrementalPackageFragmentProvider(
             fqNameToPackageFragment[fqName] = IncrementalPackageFragment(fqName)
         }
 
-        for (source in PackagePartClassUtils.getPackageFilesWithCallables(sourceFiles)) {
-            createPackageFragment(source.getPackageFqName())
-        }
+        fqNamesToLoad = (
+                PackagePartClassUtils.getPackageFilesWithCallables(sourceFiles).map { it.getPackageFqName() }
+                + incrementalCache.getPackagesWithRemovedFiles(sourceFiles)
+        ).toSet()
 
-        for (fqName in incrementalCache.getPackagesWithRemovedFiles(moduleId, sourceFiles)) {
-            createPackageFragment(fqName)
-        }
+        fqNamesToLoad.forEach { createPackageFragment(it) }
     }
 
     override fun getSubPackagesOf(fqName: FqName): Collection<FqName> {
@@ -94,12 +95,17 @@ public class IncrementalPackageFragmentProvider(
             get() = this@IncrementalPackageFragmentProvider.moduleId
 
         val _memberScope: NotNullLazyValue<JetScope> = storageManager.createLazyValue {
-            val packageDataBytes = incrementalCache.getPackageData(moduleId, fqName)
-            if (packageDataBytes == null) {
+            if (fqName !in fqNamesToLoad) {
                 JetScope.EMPTY
             }
             else {
-                IncrementalPackageScope(JavaProtoBufUtil.readPackageDataFrom(packageDataBytes))
+                val packageDataBytes = incrementalCache.getPackageData(fqName)
+                if (packageDataBytes == null) {
+                    JetScope.EMPTY
+                }
+                else {
+                    IncrementalPackageScope(JavaProtoBufUtil.readPackageDataFrom(packageDataBytes))
+                }
             }
         }
 

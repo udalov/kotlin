@@ -18,9 +18,7 @@ package org.jetbrains.k2js.translate.intrinsic.functions.factories;
 
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
-import com.google.dart.compiler.backend.js.ast.JsExpression;
-import com.google.dart.compiler.backend.js.ast.JsPrefixOperation;
-import com.google.dart.compiler.backend.js.ast.JsUnaryOperator;
+import com.google.dart.compiler.backend.js.ast.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.FunctionDescriptor;
@@ -32,6 +30,7 @@ import org.jetbrains.k2js.translate.intrinsic.functions.basic.FunctionIntrinsic;
 import org.jetbrains.k2js.translate.intrinsic.functions.patterns.DescriptorPredicate;
 import org.jetbrains.k2js.translate.intrinsic.functions.patterns.NamePredicate;
 import org.jetbrains.k2js.translate.operation.OperatorTable;
+import org.jetbrains.k2js.translate.utils.JsAstUtils;
 import org.jetbrains.k2js.translate.utils.JsDescriptorUtils;
 
 import java.util.List;
@@ -46,19 +45,117 @@ public enum PrimitiveUnaryOperationFIF implements FunctionIntrinsicFactory {
     private static final NamePredicate UNARY_OPERATIONS = new NamePredicate(OperatorConventions.UNARY_OPERATION_NAMES.values());
     @NotNull
     private static final DescriptorPredicate UNARY_OPERATION_FOR_PRIMITIVE_NUMBER =
-            pattern(PRIMITIVE_NUMBERS, UNARY_OPERATIONS);
+            pattern(NamePredicate.PRIMITIVE_NUMBERS_MAPPED_TO_PRIMITIVE_JS, UNARY_OPERATIONS);
     @NotNull
     private static final Predicate<FunctionDescriptor> PRIMITIVE_UNARY_OPERATION_NAMES =
             Predicates.or(UNARY_OPERATION_FOR_PRIMITIVE_NUMBER, pattern("Boolean.not"), pattern("Int.inv"));
     @NotNull
     private static final DescriptorPredicate NO_PARAMETERS = new DescriptorPredicate() {
         @Override
-        public boolean apply(@NotNull FunctionDescriptor descriptor) {
+        public boolean apply(@Nullable FunctionDescriptor descriptor) {
+            assert descriptor != null : "argument for DescriptorPredicate.apply should not be null";
             return !JsDescriptorUtils.hasParameters(descriptor);
         }
     };
     @NotNull
     private static final Predicate<FunctionDescriptor> PATTERN = Predicates.and(PRIMITIVE_UNARY_OPERATION_NAMES, NO_PARAMETERS);
+
+    @NotNull
+    private static final DescriptorPredicate INC_OPERATION_FOR_PRIMITIVE_NUMBER = pattern(PRIMITIVE_NUMBERS, "inc");
+
+    @NotNull
+    private static final DescriptorPredicate DEC_OPERATION_FOR_PRIMITIVE_NUMBER = pattern(PRIMITIVE_NUMBERS, "dec");
+
+    @NotNull
+    private static final FunctionIntrinsic NUMBER_INC_INTRINSIC = new FunctionIntrinsic() {
+        @NotNull
+        @Override
+        public JsExpression apply(
+                @Nullable JsExpression receiver,
+                @NotNull List<JsExpression> arguments,
+                @NotNull TranslationContext context
+        ) {
+            assert receiver != null;
+            assert arguments.size() == 0;
+            return new JsBinaryOperation(JsBinaryOperator.ADD, receiver, context.program().getNumberLiteral(1));
+        }
+    };
+
+    @NotNull
+    private static final FunctionIntrinsic NUMBER_DEC_INTRINSIC = new FunctionIntrinsic() {
+        @NotNull
+        @Override
+        public JsExpression apply(
+                @Nullable JsExpression receiver,
+                @NotNull List<JsExpression> arguments,
+                @NotNull TranslationContext context
+        ) {
+            assert receiver != null;
+            assert arguments.size() == 0;
+            return new JsBinaryOperation(JsBinaryOperator.SUB, receiver, context.program().getNumberLiteral(1));
+        }
+    };
+
+    private static abstract class UnaryOperationInstrinsicBase extends FunctionIntrinsic {
+        @NotNull
+        public abstract JsExpression doApply(@NotNull JsExpression receiver, @NotNull TranslationContext context);
+
+        @NotNull
+        @Override
+        public JsExpression apply(
+                @Nullable JsExpression receiver,
+                @NotNull List<JsExpression> arguments,
+                @NotNull TranslationContext context
+        ) {
+            assert receiver != null;
+            assert arguments.size() == 0;
+            return doApply(receiver, context);
+        }
+    }
+
+    @NotNull
+    private static final FunctionIntrinsic CHAR_PLUS = new UnaryOperationInstrinsicBase() {
+        @NotNull
+        @Override
+        public JsExpression doApply(
+                @NotNull JsExpression receiver, @NotNull TranslationContext context
+        ) {
+            return JsAstUtils.charToInt(receiver);
+        }
+    };
+
+    @NotNull
+    private static final FunctionIntrinsic CHAR_MINUS = new UnaryOperationInstrinsicBase() {
+        @NotNull
+        @Override
+        public JsExpression doApply(
+                @NotNull JsExpression receiver, @NotNull TranslationContext context
+        ) {
+            return new JsPrefixOperation(JsUnaryOperator.NEG, JsAstUtils.charToInt(receiver));
+        }
+    };
+
+    @NotNull
+    private static final FunctionIntrinsic CHAR_INC = new UnaryOperationInstrinsicBase() {
+        @NotNull
+        @Override
+        public JsExpression doApply(
+                @NotNull JsExpression receiver, @NotNull TranslationContext context
+        ) {
+            return JsAstUtils.invokeKotlinFunction("charInc", receiver);
+        }
+    };
+
+    @NotNull
+    private static final FunctionIntrinsic CHAR_DEC = new UnaryOperationInstrinsicBase() {
+        @NotNull
+        @Override
+        public JsExpression doApply(
+                @NotNull JsExpression receiver, @NotNull TranslationContext context
+        ) {
+            return JsAstUtils.invokeKotlinFunction("charDec", receiver);
+        }
+    };
 
     @Nullable
     @Override
@@ -66,6 +163,27 @@ public enum PrimitiveUnaryOperationFIF implements FunctionIntrinsicFactory {
         if (!PATTERN.apply(descriptor)) {
             return null;
         }
+
+        if (pattern("Char.plus()").apply(descriptor)) {
+            return CHAR_PLUS;
+        }
+        if (pattern("Char.minus()").apply(descriptor)) {
+            return CHAR_MINUS;
+        }
+        if (pattern("Char.inc()").apply(descriptor)) {
+            return CHAR_INC;
+        }
+        if (pattern("Char.dec()").apply(descriptor)) {
+            return CHAR_DEC;
+        }
+
+        if (INC_OPERATION_FOR_PRIMITIVE_NUMBER.apply(descriptor)) {
+            return NUMBER_INC_INTRINSIC;
+        }
+        if (DEC_OPERATION_FOR_PRIMITIVE_NUMBER.apply(descriptor)) {
+            return NUMBER_DEC_INTRINSIC;
+        }
+
 
         Name name = descriptor.getName();
 
@@ -92,5 +210,4 @@ public enum PrimitiveUnaryOperationFIF implements FunctionIntrinsicFactory {
             }
         };
     }
-
 }

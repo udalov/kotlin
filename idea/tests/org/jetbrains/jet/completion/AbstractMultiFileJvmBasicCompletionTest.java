@@ -31,7 +31,7 @@ public abstract class AbstractMultiFileJvmBasicCompletionTest extends KotlinComp
     protected void doTest(@NotNull String testPath) throws Exception {
         configureByFile(getTestName(false) + ".kt", "");
         boolean shouldFail = testPath.contains("NoSpecifiedType");
-        AstAccessControl.instance$.testWithControlledAccessToAst(
+        AstAccessControl.INSTANCE$.testWithControlledAccessToAst(
                 shouldFail, getFile().getVirtualFile(), getProject(), getTestRootDisposable(),
                 new Function0<Unit>() {
                     @Override
@@ -42,8 +42,8 @@ public abstract class AbstractMultiFileJvmBasicCompletionTest extends KotlinComp
                                 complete(invocationCount);
                                 return myItems;
                             }
-                        });
-                        return Unit.VALUE;
+                        }, 0);
+                        return Unit.INSTANCE$;
                     }
                 }
         );

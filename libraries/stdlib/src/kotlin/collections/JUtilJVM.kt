@@ -2,12 +2,6 @@ package kotlin
 
 import java.util.*
 
-/** Returns a new read-only set of given elements */
-public fun setOf<T>(vararg values: T): Set<T> = values.toCollection(LinkedHashSet<T>())
-
-/** Returns a new LinkedList with a variable number of initial elements */
-public fun linkedListOf<T>(vararg values: T): LinkedList<T> = values.toCollection(LinkedList<T>())
-
 /**
  * Returns a new [[SortedSet]] with the initial elements
  */
@@ -46,4 +40,4 @@ public fun <T> Set<T>?.orEmpty(): Set<T>
  * specified enumeration in the order they are returned by the
  * enumeration.
  */
-fun <T> Enumeration<T>.toList(): List<T> = Collections.list(this)
+public fun <T> Enumeration<T>.toList(): List<T> = Collections.list(this)

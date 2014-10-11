@@ -56,18 +56,6 @@ public fun FqName.tail(headFQN: FqName): FqName {
     }
 }
 
-/**
- * Add one segment of nesting to given qualified name according to the full qualified name.
- *
- * @param fullFQN
- * @return qualified name with one more segment or null if fqn is not head part of fullFQN or there's no additional segment.
- */
-public fun FqName.plusOneSegment(fullFQN: FqName): FqName? {
-    if (!isParent(fullFQN) || fullFQN == this) return null
-
-    return child(fullFQN.tail(this).pathSegments().first!!)
-}
-
 public fun FqName.isImported(importPath: ImportPath, skipAliasedImports: Boolean = true): Boolean {
     return when {
         skipAliasedImports && importPath.hasAlias() -> false
@@ -82,15 +70,15 @@ public fun ImportPath.isImported(alreadyImported: ImportPath): Boolean {
 
 public fun ImportPath.isImported(imports: Iterable<ImportPath>): Boolean = imports.any { isImported(it) }
 
+// Check that it is javaName(\.javaName)* or an empty string
+private enum class State {
+    BEGINNING
+    MIDDLE
+    AFTER_DOT
+}
+
 public fun isValidJavaFqName(qualifiedName: String?): Boolean {
     if (qualifiedName == null) return false
-
-    // Check that it is javaName(\.javaName)* or an empty string
-    enum class State {
-        BEGINNING
-        MIDDLE
-        AFTER_DOT
-    }
 
     var state = State.BEGINNING
 

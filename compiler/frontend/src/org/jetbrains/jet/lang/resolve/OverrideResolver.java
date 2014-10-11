@@ -35,6 +35,7 @@ import org.jetbrains.jet.lang.descriptors.annotations.AnnotationDescriptor;
 import org.jetbrains.jet.lang.descriptors.impl.MutableClassDescriptor;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.calls.CallResolverUtil;
+import org.jetbrains.jet.lang.resolve.dataClassUtils.DataClassUtilsPackage;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
 import org.jetbrains.jet.lang.types.*;
@@ -48,6 +49,7 @@ import java.util.*;
 
 import static org.jetbrains.jet.lang.descriptors.CallableMemberDescriptor.Kind.*;
 import static org.jetbrains.jet.lang.diagnostics.Errors.*;
+import static org.jetbrains.jet.lang.resolve.DescriptorUtils.classCanHaveAbstractMembers;
 import static org.jetbrains.jet.lang.resolve.OverridingUtil.OverrideCompatibilityInfo.Result.OVERRIDABLE;
 
 public class OverrideResolver {
@@ -85,9 +87,9 @@ public class OverrideResolver {
             if (ourClasses.contains(klass)) {
                 generateOverridesAndDelegationInAClass(klass, processed, ourClasses);
 
-                ClassDescriptor classObject = klass.getClassObjectDescriptor();
-                if (classObject instanceof MutableClassDescriptor) {
-                    generateOverridesAndDelegationInAClass((MutableClassDescriptor) classObject, processed, ourClasses);
+                MutableClassDescriptor classObject = klass.getClassObjectDescriptor();
+                if (classObject != null) {
+                    generateOverridesAndDelegationInAClass(classObject, processed, ourClasses);
                 }
             }
         }
@@ -196,7 +198,7 @@ public class OverrideResolver {
                 if (element instanceof JetDeclaration) {
                     trace.report(CANNOT_INFER_VISIBILITY.on((JetDeclaration) element, descriptor));
                 }
-                return Unit.VALUE;
+                return Unit.INSTANCE$;
             }
         };
     }
@@ -251,7 +253,7 @@ public class OverrideResolver {
                     public boolean isEqual(D d1, D d2) {
                         CallableDescriptor f = transform.fun(d1);
                         CallableDescriptor g = transform.fun(d2);
-                        return DescriptorEquivalenceForOverrides.instance$.areEquivalent(f.getOriginal(), g.getOriginal());
+                        return DescriptorEquivalenceForOverrides.INSTANCE$.areEquivalent(f.getOriginal(), g.getOriginal());
                     }
                 });
 
@@ -298,10 +300,10 @@ public class OverrideResolver {
         // when B is defined in modules m1 and m2, and C (indirectly) inherits from both versions,
         // we'll be getting sets of members that do not override each other, but are structurally equivalent.
         // As other code relies on no equal descriptors passed here, we guard against f == g, but this may not be necessary
-        if (!f.equals(g) && DescriptorEquivalenceForOverrides.instance$.areEquivalent(f.getOriginal(), g.getOriginal())) return true;
+        if (!f.equals(g) && DescriptorEquivalenceForOverrides.INSTANCE$.areEquivalent(f.getOriginal(), g.getOriginal())) return true;
         CallableDescriptor originalG = g.getOriginal();
         for (D overriddenFunction : getAllOverriddenDescriptors(f)) {
-            if (DescriptorEquivalenceForOverrides.instance$.areEquivalent(originalG, overriddenFunction.getOriginal())) return true;
+            if (DescriptorEquivalenceForOverrides.INSTANCE$.areEquivalent(originalG, overriddenFunction.getOriginal())) return true;
         }
         return false;
     }
@@ -375,7 +377,7 @@ public class OverrideResolver {
             trace.report(MANY_IMPL_MEMBER_NOT_IMPLEMENTED.on(klass, klass, manyImpl.iterator().next()));
         }
 
-        if (classDescriptor.getModality() != Modality.ABSTRACT && !abstractNoImpl.isEmpty()) {
+        if (!classCanHaveAbstractMembers(classDescriptor) && !abstractNoImpl.isEmpty()) {
             trace.report(ABSTRACT_MEMBER_NOT_IMPLEMENTED.on(klass, klass, abstractNoImpl.iterator().next()));
         }
     }
@@ -602,8 +604,7 @@ public class OverrideResolver {
 
     private void checkOverrideForMember(@NotNull final CallableMemberDescriptor declared) {
         if (declared.getKind() == CallableMemberDescriptor.Kind.SYNTHESIZED) {
-            // TODO: this should be replaced soon by a framework of synthesized member generation tools
-            if (declared.getName().asString().startsWith(DescriptorResolver.COMPONENT_FUNCTION_NAME_PREFIX)) {
+            if (DataClassUtilsPackage.isComponentLike(declared.getName())) {
                 checkOverrideForComponentFunction(declared);
             }
             return;

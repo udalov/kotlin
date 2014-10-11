@@ -16,10 +16,8 @@
 
 package org.jetbrains.jet.renderer;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-import com.intellij.openapi.util.text.StringUtil;
-import com.intellij.util.Function;
+import kotlin.Function1;
+import kotlin.KotlinPackage;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.descriptors.annotations.Annotated;
@@ -36,12 +34,13 @@ import org.jetbrains.jet.lang.resolve.name.FqNameBase;
 import org.jetbrains.jet.lang.resolve.name.FqNameUnsafe;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.types.*;
+import org.jetbrains.jet.lang.types.ErrorUtils.UninferredParameterTypeConstructor;
 import org.jetbrains.jet.lang.types.error.MissingDependencyErrorClass;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
+import org.jetbrains.jet.utils.UtilsPackage;
 
 import java.util.*;
 
-import static org.jetbrains.jet.lang.types.ErrorUtils.UninferredParameterType;
 import static org.jetbrains.jet.lang.types.TypeUtils.CANT_INFER_LAMBDA_PARAM_TYPE;
 import static org.jetbrains.jet.lang.types.TypeUtils.DONT_CARE;
 
@@ -114,7 +113,7 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
         this.debugMode = debugMode;
         this.textFormat = textFormat;
         this.includePropertyConstant = includePropertyConstant;
-        this.excludedAnnotationClasses = Sets.newHashSet(excludedAnnotationClasses);
+        this.excludedAnnotationClasses = new HashSet<FqName>(excludedAnnotationClasses);
         this.prettyFunctionTypes = prettyFunctionTypes;
         this.uninferredTypeParameterAsName = uninferredTypeParameterAsName;
         this.includeSynthesizedParameterNames = includeSynthesizedParameterNames;
@@ -199,10 +198,26 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
     }
 
     /* NAMES RENDERING */
+    @Override
     @NotNull
-    private String renderName(@NotNull Name identifier) {
-        String asString = identifier.toString();
-        return escape(KeywordStringsGenerated.KEYWORDS.contains(asString) ? '`' + asString + '`' : asString);
+    public String renderName(@NotNull Name identifier) {
+        String asString = identifier.asString();
+        return escape(nameShouldBeEscaped(identifier) ? '`' + asString + '`' : asString);
+    }
+
+    private static boolean nameShouldBeEscaped(@NotNull Name identifier) {
+        if (identifier.isSpecial()) return false;
+
+        String name = identifier.asString();
+
+        if (KeywordStringsGenerated.KEYWORDS.contains(name)) return true;
+
+        for (int i = 0; i < name.length(); i++) {
+            char c = name.charAt(i);
+            if (!Character.isLetterOrDigit(c) && c != '_') return true;
+        }
+
+        return false;
     }
 
     private void renderName(@NotNull DeclarationDescriptor descriptor, @NotNull StringBuilder builder) {
@@ -211,8 +226,15 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
 
     private void renderClassObjectName(@NotNull DeclarationDescriptor descriptor, @NotNull StringBuilder builder) {
         if (renderClassObjectName) {
-            if (!startFromName) renderSpaceIfNeeded(builder);
-            builder.append("<class object>");
+            if (startFromName) {
+                builder.append("class object");
+            }
+            renderSpaceIfNeeded(builder);
+            DeclarationDescriptor containingDeclaration = descriptor.getContainingDeclaration();
+            if (containingDeclaration != null) {
+                builder.append("of ");
+                builder.append(renderName(containingDeclaration.getName()));
+            }
         }
         if (verbose) {
             if (!startFromName) renderSpaceIfNeeded(builder);
@@ -220,8 +242,9 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
         }
     }
 
+    @Override
     @NotNull
-    private String renderFqName(@NotNull FqNameBase fqName) {
+    public String renderFqName(@NotNull FqNameBase fqName) {
         return renderFqName(fqName.pathSegments());
     }
 
@@ -247,7 +270,7 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
             return klass.getTypeConstructor().toString();
         }
         if (shortNames) {
-            List<Name> qualifiedNameElements = Lists.newArrayList();
+            List<Name> qualifiedNameElements = new ArrayList<Name>();
 
             // for nested classes qualified name should be used
             DeclarationDescriptor current = klass;
@@ -274,12 +297,9 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
         }
         if (ErrorUtils.isUninferredParameter(type)) {
             if (uninferredTypeParameterAsName) {
-                return renderError(((UninferredParameterType) type).getTypeParameterDescriptor().getName().toString());
+                return renderError(((UninferredParameterTypeConstructor) type.getConstructor()).getTypeParameterDescriptor().getName().toString());
             }
             return "???";
-        }
-        if (type instanceof PackageType) {
-            return type.toString();
         }
         if (type instanceof LazyType && debugMode) {
             return type.toString();
@@ -407,15 +427,16 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
         StringBuilder sb = new StringBuilder();
         sb.append(renderType(annotation.getType()));
         if (verbose) {
-            sb.append("(").append(StringUtil.join(renderAndSortAnnotationArguments(annotation), ", ")).append(")");
+            sb.append("(").append(UtilsPackage.join(renderAndSortAnnotationArguments(annotation), ", ")).append(")");
         }
         return sb.toString();
     }
 
     @NotNull
     private List<String> renderAndSortAnnotationArguments(@NotNull AnnotationDescriptor descriptor) {
-        List<String> resultList = Lists.newArrayList();
-        for (Map.Entry<ValueParameterDescriptor, CompileTimeConstant<?>> entry : descriptor.getAllValueArguments().entrySet()) {
+        Set<Map.Entry<ValueParameterDescriptor, CompileTimeConstant<?>>> valueArguments = descriptor.getAllValueArguments().entrySet();
+        List<String> resultList = new ArrayList<String>(valueArguments.size());
+        for (Map.Entry<ValueParameterDescriptor, CompileTimeConstant<?>> entry : valueArguments) {
             CompileTimeConstant<?> value = entry.getValue();
             String typeSuffix = ": " + renderType(value.getType(KotlinBuiltIns.getInstance()));
             resultList.add(entry.getKey().getName().asString() + " = " + renderConstant(value) + typeSuffix);
@@ -435,17 +456,15 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
 
                     @Override
                     public String visitArrayValue(ArrayValue value, Void data) {
-                        return "{" +
-                               StringUtil.join(
-                                value.getValue(),
-                                new Function<CompileTimeConstant<?>, String>() {
-                                    @Override
-                                    public String fun(CompileTimeConstant<?> constant) {
-                                        return renderConstant(constant);
-                                    }
-                                },
-                                ", ") +
-                               "}";
+                        List<String> renderedElements =
+                                KotlinPackage.map(value.getValue(),
+                                                  new Function1<CompileTimeConstant<?>, String>() {
+                                                      @Override
+                                                      public String invoke(CompileTimeConstant<?> constant) {
+                                                          return renderConstant(constant);
+                                                      }
+                                                  });
+                        return "{" + UtilsPackage.join(renderedElements, ", ") + "}";
                     }
 
                     @Override
@@ -635,14 +654,14 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
     private void renderReceiverAfterName(CallableDescriptor callableDescriptor, StringBuilder builder) {
         if (!receiverAfterName) return;
 
-        ReceiverParameterDescriptor receiver = callableDescriptor.getReceiverParameter();
+        ReceiverParameterDescriptor receiver = callableDescriptor.getExtensionReceiverParameter();
         if (receiver != null) {
             builder.append(" on ").append(escape(renderType(receiver.getType())));
         }
     }
 
     private void renderReceiver(CallableDescriptor callableDescriptor, StringBuilder builder) {
-        ReceiverParameterDescriptor receiver = callableDescriptor.getReceiverParameter();
+        ReceiverParameterDescriptor receiver = callableDescriptor.getExtensionReceiverParameter();
         if (receiver != null) {
             builder.append(escape(renderType(receiver.getType()))).append(".");
         }
@@ -666,7 +685,7 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
     private void renderWhereSuffix(@NotNull List<TypeParameterDescriptor> typeParameters, @NotNull StringBuilder builder) {
         if (withoutTypeParameters) return;
 
-        List<String> upperBoundStrings = Lists.newArrayList();
+        List<String> upperBoundStrings = new ArrayList<String>(0);
 
         for (TypeParameterDescriptor typeParameter : typeParameters) {
             if (typeParameter.getUpperBounds().size() > 1) {
@@ -682,7 +701,7 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
         }
         if (!upperBoundStrings.isEmpty()) {
             builder.append(" ").append(renderKeyword("where")).append(" ");
-            builder.append(StringUtil.join(upperBoundStrings, ", "));
+            builder.append(UtilsPackage.join(upperBoundStrings, ", "));
         }
     }
 
@@ -851,7 +870,7 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
     }
 
     @NotNull
-    private static String getClassKindPrefix(@NotNull ClassDescriptor klass) {
+    public static String getClassKindPrefix(@NotNull ClassDescriptor klass) {
         switch (klass.getKind()) {
             case CLASS:
                 return "class";

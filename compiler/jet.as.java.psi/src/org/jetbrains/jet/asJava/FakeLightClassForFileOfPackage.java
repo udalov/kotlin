@@ -36,7 +36,7 @@ import org.jetbrains.jet.lang.resolve.name.FqName;
  * <p/>
  * See {@link LineBreakpoint#findClassCandidatesInSourceContent} for the primary usage this was introduced
  */
-/* package */ class FakeLightClassForFileOfPackage extends AbstractLightClass implements KotlinLightClass, JetJavaMirrorMarker {
+public class FakeLightClassForFileOfPackage extends AbstractLightClass implements KotlinLightClass, JetJavaMirrorMarker {
     private final KotlinLightClassForPackage delegate;
     private final JetFile file;
 
@@ -82,5 +82,10 @@ import org.jetbrains.jet.lang.resolve.name.FqName;
     @Override
     public PsiElement copy() {
         return new FakeLightClassForFileOfPackage(getManager(), delegate, file);
+    }
+
+    @Override
+    public String getText() {
+        return null;
     }
 }

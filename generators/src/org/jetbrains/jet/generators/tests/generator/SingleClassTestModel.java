@@ -22,6 +22,7 @@ import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.util.Processor;
 import com.intellij.util.containers.ContainerUtil;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.JetTestUtils;
 import org.jetbrains.jet.utils.Printer;
 
@@ -32,24 +33,34 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.regex.Pattern;
 
-public class SingleClassTestModel implements TestClassModel {
-    private final File rootFile;
-    private final Pattern filenamePattern;
-    private final String doTestMethodName;
-    private final String testClassName;
+import static org.jetbrains.jet.generators.tests.generator.TestGenerator.TargetBackend;
 
+public class SingleClassTestModel implements TestClassModel {
+    @NotNull
+    private final File rootFile;
+    @NotNull
+    private final Pattern filenamePattern;
+    @NotNull
+    private final String doTestMethodName;
+    @NotNull
+    private final String testClassName;
+    @NotNull
+    private final TargetBackend targetBackend;
+    @Nullable
     private Collection<TestMethodModel> testMethods;
 
     public SingleClassTestModel(
             @NotNull File rootFile,
             @NotNull Pattern filenamePattern,
             @NotNull String doTestMethodName,
-            @NotNull String testClassName
+            @NotNull String testClassName,
+            @NotNull TargetBackend targetBackend
     ) {
         this.rootFile = rootFile;
         this.filenamePattern = filenamePattern;
         this.doTestMethodName = doTestMethodName;
         this.testClassName = testClassName;
+        this.targetBackend = targetBackend;
     }
 
     @NotNull
@@ -90,8 +101,10 @@ public class SingleClassTestModel implements TestClassModel {
         return testMethods;
     }
 
+    @NotNull
     protected Collection<TestMethodModel> getTestMethodsFromFile(File file) {
-        return Collections.<TestMethodModel>singletonList(new SimpleTestMethodModel(rootFile, file, doTestMethodName, filenamePattern));
+        return Collections.<TestMethodModel>singletonList(new SimpleTestMethodModel(rootFile, file, doTestMethodName, filenamePattern,
+                                                                                    targetBackend));
     }
 
     @Override
@@ -103,6 +116,12 @@ public class SingleClassTestModel implements TestClassModel {
     @Override
     public String getDataString() {
         return JetTestUtils.getFilePath(rootFile);
+    }
+
+    @Nullable
+    @Override
+    public String getDataPathRoot() {
+        return "$PROJECT_ROOT";
     }
 
     @Override
@@ -117,10 +136,11 @@ public class SingleClassTestModel implements TestClassModel {
         }
 
         @Override
-        public void generateBody(@NotNull Printer p, @NotNull String generatorClassFqName) {
+        public void generateBody(@NotNull Printer p) {
             String assertTestsPresentStr = String.format(
-                    "JetTestUtils.assertAllTestsPresentInSingleGeneratedClass(this.getClass(), \"%s\", new File(\"%s\"), Pattern.compile(\"%s\"));",
-                    generatorClassFqName, JetTestUtils.getFilePath(rootFile), StringUtil.escapeStringCharacters(filenamePattern.pattern()));
+                    "JetTestUtils.assertAllTestsPresentInSingleGeneratedClass(this.getClass(), new File(\"%s\"), Pattern.compile(\"%s\"));",
+                    JetTestUtils.getFilePath(rootFile), StringUtil.escapeStringCharacters(filenamePattern.pattern())
+            );
             p.println(assertTestsPresentStr);
         }
 

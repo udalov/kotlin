@@ -16,9 +16,9 @@
 
 package org.jetbrains.jet.lang.resolve;
 
-import com.google.common.base.Predicate;
 import com.google.common.collect.Lists;
 import com.intellij.openapi.util.Pair;
+import kotlin.Function1;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.PlatformToKotlinClassMap;
@@ -70,12 +70,11 @@ public interface Importer {
                 @NotNull DeclarationDescriptor descriptor,
                 @NotNull PlatformToKotlinClassMap platformToKotlinClassMap
         ) {
-            final Collection<ClassDescriptor> kotlinAnalogsForClassesInside = platformToKotlinClassMap.mapPlatformClassesInside(
-                    descriptor);
+            final Collection<ClassDescriptor> kotlinAnalogsForClassesInside = platformToKotlinClassMap.mapPlatformClassesInside(descriptor);
             if (kotlinAnalogsForClassesInside.isEmpty()) return scope;
-            return new FilteringScope(scope, new Predicate<DeclarationDescriptor>() {
+            return new FilteringScope(scope, new Function1<DeclarationDescriptor, Boolean>() {
                 @Override
-                public boolean apply(DeclarationDescriptor descriptor) {
+                public Boolean invoke(DeclarationDescriptor descriptor) {
                     for (ClassDescriptor kotlinAnalog : kotlinAnalogsForClassesInside) {
                         if (kotlinAnalog.getName().equals(descriptor.getName())) {
                             return false;
@@ -87,12 +86,13 @@ public interface Importer {
         }
 
         protected void importAllUnderDeclaration(@NotNull DeclarationDescriptor descriptor, @NotNull PlatformToKotlinClassMap platformToKotlinClassMap) {
-            List<JetScope> scopesToImport = new ArrayList<JetScope>(2);
+            List<JetScope> scopesToImport = new ArrayList<JetScope>(3);
             if (descriptor instanceof PackageViewDescriptor) {
                 scopesToImport.add(((PackageViewDescriptor) descriptor).getMemberScope());
             }
             else if (descriptor instanceof ClassDescriptor && ((ClassDescriptor) descriptor).getKind() != ClassKind.OBJECT) {
                 ClassDescriptor classDescriptor = (ClassDescriptor) descriptor;
+                scopesToImport.add(classDescriptor.getStaticScope());
                 scopesToImport.add(classDescriptor.getUnsubstitutedInnerClassesScope());
                 ClassDescriptor classObjectDescriptor = classDescriptor.getClassObjectDescriptor();
                 if (classObjectDescriptor != null) {

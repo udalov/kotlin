@@ -31,7 +31,7 @@ import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.DescriptorResolver;
 import org.jetbrains.jet.lang.resolve.TopDownAnalysisParameters;
-import org.jetbrains.jet.lang.resolve.calls.autocasts.DataFlowInfo;
+import org.jetbrains.jet.lang.resolve.calls.smartcasts.DataFlowInfo;
 import org.jetbrains.jet.lang.resolve.lazy.JvmResolveUtil;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
 import org.jetbrains.jet.lang.resolve.scopes.RedeclarationHandler;
@@ -134,8 +134,8 @@ public class JetDefaultModalityModifiersTest extends JetLiteFixture {
 
             List<JetDeclaration> declarations = aClass.getDeclarations();
             JetProperty property = (JetProperty) declarations.get(0);
-            PropertyDescriptor propertyDescriptor = descriptorResolver.resolvePropertyDescriptor(classDescriptor, scope, property,
-                                                                                                 JetTestUtils.DUMMY_TRACE, DataFlowInfo.EMPTY);
+            PropertyDescriptor propertyDescriptor = descriptorResolver.resolvePropertyDescriptor(
+                    classDescriptor, scope, property, JetTestUtils.DUMMY_TRACE, DataFlowInfo.EMPTY);
 
             assertEquals(expectedPropertyModality, propertyDescriptor.getModality());
         }
@@ -147,8 +147,8 @@ public class JetDefaultModalityModifiersTest extends JetLiteFixture {
 
             List<JetDeclaration> declarations = aClass.getDeclarations();
             JetProperty property = (JetProperty) declarations.get(0);
-            PropertyDescriptor propertyDescriptor = descriptorResolver.resolvePropertyDescriptor(classDescriptor, scope, property,
-                                                                                                 JetTestUtils.DUMMY_TRACE, DataFlowInfo.EMPTY);
+            PropertyDescriptor propertyDescriptor = descriptorResolver.resolvePropertyDescriptor(
+                    classDescriptor, scope, property, JetTestUtils.DUMMY_TRACE, DataFlowInfo.EMPTY);
             PropertyAccessorDescriptor propertyAccessor = isGetter
                                                           ? propertyDescriptor.getGetter()
                                                           : propertyDescriptor.getSetter();

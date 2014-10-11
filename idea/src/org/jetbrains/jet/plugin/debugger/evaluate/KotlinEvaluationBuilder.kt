@@ -24,9 +24,7 @@ import com.intellij.debugger.engine.evaluation.expression.*
 import org.jetbrains.jet.lang.resolve.AnalyzingUtils
 import org.jetbrains.jet.codegen.state.GenerationState
 import org.jetbrains.jet.codegen.ClassBuilderFactories
-import java.util.Collections
 import org.jetbrains.jet.codegen.KotlinCodegenFacade
-import com.intellij.openapi.application.ApplicationManager
 import com.intellij.testFramework.LightVirtualFile
 import org.jetbrains.jet.plugin.JetLanguage
 import org.jetbrains.jet.lang.psi.JetFile
@@ -36,7 +34,6 @@ import com.intellij.openapi.vfs.CharsetToolkit
 import org.jetbrains.org.objectweb.asm.tree.MethodNode
 import org.jetbrains.org.objectweb.asm.Opcodes.ASM5
 import org.jetbrains.org.objectweb.asm.*
-import com.intellij.openapi.util.Computable
 import org.jetbrains.eval4j.*
 import org.jetbrains.eval4j.jdi.JDIEval
 import org.jetbrains.eval4j.jdi.asJdiValue
@@ -59,10 +56,22 @@ import com.sun.jdi.ObjectReference
 import com.intellij.debugger.engine.SuspendContext
 import org.jetbrains.jet.plugin.debugger.evaluate.KotlinEvaluateExpressionCache.*
 import org.jetbrains.jet.lang.resolve.BindingContext
-import com.sun.jdi.StackFrame
 import com.sun.jdi.VirtualMachine
 import org.jetbrains.jet.codegen.AsmUtil
 import com.sun.jdi.InvalidStackFrameException
+import org.jetbrains.jet.plugin.util.application.runReadAction
+import org.jetbrains.jet.lang.psi.analysisContext
+import org.jetbrains.jet.lang.descriptors.ClassDescriptor
+import org.jetbrains.jet.lang.resolve.java.JvmClassName
+import org.jetbrains.jet.lang.resolve.java.mapping.JavaToKotlinClassMap
+import com.intellij.psi.JavaPsiFacade
+import com.intellij.psi.search.GlobalSearchScope
+import org.jetbrains.jet.plugin.caches.resolve.JavaResolveExtension
+import org.jetbrains.jet.lang.resolve.java.structure.impl.JavaClassImpl
+import com.intellij.openapi.project.Project
+import org.jetbrains.jet.lang.resolve.DescriptorUtils
+import org.jetbrains.jet.codegen.StackValue
+import org.jetbrains.jet.analyzer.AnalyzeExhaust
 
 private val RECEIVER_NAME = "\$receiver"
 private val THIS_NAME = "this"
@@ -79,7 +88,7 @@ object KotlinEvaluationBuilder: EvaluatorBuilder {
         }
 
         val packageName = file.getPackageDirective()?.getFqName()?.asString()
-        if (packageName != null) {
+        if (packageName != null && packageName.isNotEmpty()) {
             codeFragment.addImportsFromString("import $packageName.*")
         }
         return ExpressionEvaluatorImpl(KotlinEvaluator(codeFragment as JetCodeFragment, position))
@@ -114,7 +123,12 @@ class KotlinEvaluator(val codeFragment: JetCodeFragment,
             throw e
         }
         catch (e: Exception) {
-            logger.error("Couldn't evaluate expression:\nfileText = ${sourcePosition.getFile().getText()}\nline = ${sourcePosition.getLine()}\ncodeFragment = ${codeFragment.getText()}", e)
+            logger.error("Couldn't evaluate expression:\n" +
+                         "FILE NAME: ${sourcePosition.getFile().getName()}\n" +
+                         "BREAKPOINT LINE: ${sourcePosition.getLine()}\n" +
+                         "CODE FRAGMENT:\n${codeFragment.getText()}\n" +
+                         "FILE TEXT: \n${sourcePosition.getFile().getText()}\n", e)
+
             val cause = if (e.getMessage() != null) ": ${e.getMessage()}" else ""
             exception("An exception occurs during Evaluate Expression Action $cause")
         }
@@ -126,16 +140,18 @@ class KotlinEvaluator(val codeFragment: JetCodeFragment,
 
     class object {
         private fun extractAndCompile(codeFragment: JetCodeFragment, sourcePosition: SourcePosition): CompiledDataDescriptor {
+            codeFragment.checkForErrors()
+
             val extractedFunction = getFunctionForExtractedFragment(codeFragment, sourcePosition.getFile(), sourcePosition.getLine())
             if (extractedFunction == null) {
-                throw IllegalStateException("Code fragment cannot be extracted to function: ${sourcePosition.getFile().getText()}:${sourcePosition.getLine()},\ncodeFragment = ${codeFragment.getText()}")
+                throw IllegalStateException("Code fragment cannot be extracted to function")
             }
 
             val classFileFactory = createClassFileFactory(codeFragment, extractedFunction)
 
             // KT-4509
             val outputFiles = (classFileFactory : OutputFileCollection).asList().filter { it.relativePath != "$packageInternalName.class" }
-            if (outputFiles.size() != 1) exception("Expression compiles to more than one class file. Note that lambdas, classes and objects are unsupported yet. List of files: ${outputFiles.makeString(",")}")
+            if (outputFiles.size() != 1) exception("Expression compiles to more than one class file. Note that lambdas, classes and objects are unsupported yet. List of files: ${outputFiles.joinToString(",")}")
 
             val funName = extractedFunction.getName()
             if (funName == null) {
@@ -154,6 +170,9 @@ class KotlinEvaluator(val codeFragment: JetCodeFragment,
                         val args = context.getArgumentsForEval4j(compiledData.parameters.getParameterNames(), Type.getArgumentTypes(desc))
                         return object : MethodNode(Opcodes.ASM5, access, name, desc, signature, exceptions) {
                             override fun visitEnd() {
+                                val breakpoints = virtualMachine.eventRequestManager().breakpointRequests()
+                                breakpoints?.forEach { it.disable() }
+
                                 resultValue = interpreterLoop(
                                         this,
                                         makeInitialFrame(this, args),
@@ -162,6 +181,8 @@ class KotlinEvaluator(val codeFragment: JetCodeFragment,
                                                 context.getSuspendContext().getThread()?.getThreadReference()!!,
                                                 context.getSuspendContext().getInvokePolicy())
                                 )
+
+                                breakpoints?.forEach { it.enable() }
                             }
                         }
                     }
@@ -184,12 +205,12 @@ class KotlinEvaluator(val codeFragment: JetCodeFragment,
         }
 
         private fun JetNamedFunction.getParametersForDebugger(): ParametersDescriptor {
-            return ApplicationManager.getApplication()?.runReadAction(Computable {
+            return runReadAction {
                 val parameters = ParametersDescriptor()
                 val bindingContext = getAnalysisResults().getBindingContext()
                 val descriptor = bindingContext[BindingContext.FUNCTION, this]
                 if (descriptor != null) {
-                    val receiver = descriptor.getReceiverParameter()
+                    val receiver = descriptor.getExtensionReceiverParameter()
                     if (receiver != null) {
                         parameters.add(THIS_NAME, receiver.getType())
                     }
@@ -200,7 +221,7 @@ class KotlinEvaluator(val codeFragment: JetCodeFragment,
                     }
                 }
                 parameters
-            })!!
+            }!!
         }
 
         private fun EvaluationContextImpl.getArgumentsForEval4j(parameterNames: List<String>, parameterTypes: Array<Type>): List<Value> {
@@ -208,39 +229,24 @@ class KotlinEvaluator(val codeFragment: JetCodeFragment,
         }
 
         private fun createClassFileFactory(codeFragment: JetCodeFragment, extractedFunction: JetNamedFunction): ClassFileFactory {
-            return ApplicationManager.getApplication()?.runReadAction(object : Computable<ClassFileFactory> {
-                override fun compute(): ClassFileFactory? {
-                    val file = createFileForDebugger(codeFragment, extractedFunction)
+            return runReadAction {
+                val file = createFileForDebugger(codeFragment, extractedFunction)
 
-                    checkForSyntacticErrors(file)
+                file.checkForErrors()
 
-                    val analyzeExhaust = file.getAnalysisResults()
-                    if (analyzeExhaust.isError()) {
-                        exception(analyzeExhaust.getError())
-                    }
+                val analyzeExhaust = file.getAnalysisResults()
+                val state = GenerationState(
+                        file.getProject(),
+                        ClassBuilderFactories.BINARIES,
+                        analyzeExhaust.getModuleDescriptor(),
+                        analyzeExhaust.getBindingContext(),
+                        listOf(file)
+                )
 
-                    val bindingContext = analyzeExhaust.getBindingContext()
-                    bindingContext.getDiagnostics().forEach {
-                        diagnostic ->
-                        if (diagnostic.getSeverity() == Severity.ERROR) {
-                            exception(DefaultErrorMessages.RENDERER.render(diagnostic))
-                        }
-                    }
+                KotlinCodegenFacade.compileCorrectFiles(state, CompilationErrorHandler.THROW_EXCEPTION)
 
-                    val state = GenerationState(
-                            file.getProject(),
-                            ClassBuilderFactories.BINARIES,
-                            analyzeExhaust.getModuleDescriptor(),
-                            bindingContext,
-                            listOf(file)
-                    )
-
-                    KotlinCodegenFacade.compileCorrectFiles(state, CompilationErrorHandler.THROW_EXCEPTION)
-
-                    return state.getFactory()
-                }
-            })!!
-
+                state.getFactory()
+            }!!
         }
 
         private fun exception(msg: String) = throw EvaluateExceptionUtil.createEvaluateException(msg)
@@ -251,6 +257,27 @@ class KotlinEvaluator(val codeFragment: JetCodeFragment,
                 exception(message)
             }
             throw EvaluateExceptionUtil.createEvaluateException(e)
+        }
+
+        private fun JetFile.checkForErrors() {
+            runReadAction {
+                try {
+                    AnalyzingUtils.checkForSyntacticErrors(this)
+                }
+                catch (e: IllegalArgumentException) {
+                    throw EvaluateExceptionUtil.createEvaluateException(e.getMessage())
+                }
+
+                val analyzeExhaust = this.getAnalysisResults()
+                if (analyzeExhaust.isError()) {
+                    throw EvaluateExceptionUtil.createEvaluateException(analyzeExhaust.getError())
+                }
+
+                val bindingContext = analyzeExhaust.getBindingContext()
+                bindingContext.getDiagnostics().firstOrNull { it.getSeverity() == Severity.ERROR }?.let {
+                    throw EvaluateExceptionUtil.createEvaluateException(DefaultErrorMessages.RENDERER.render(it))
+                }
+            }
         }
     }
 }
@@ -271,7 +298,7 @@ private fun createFileForDebugger(codeFragment: JetCodeFragment,
     var fileText = template.replace("!IMPORT_LIST!",
                                     codeFragment.importsToString()
                                             .split(JetCodeFragment.IMPORT_SEPARATOR)
-                                            .makeString("\n"))
+                                            .joinToString("\n"))
 
     val extractedFunctionText = extractedFunction.getText()
     assert(extractedFunctionText != null, "Text of extracted function shouldn't be null")
@@ -282,16 +309,8 @@ private fun createFileForDebugger(codeFragment: JetCodeFragment,
     val jetFile = (PsiFileFactory.getInstance(codeFragment.getProject()) as PsiFileFactoryImpl)
             .trySetupPsiForFile(virtualFile, JetLanguage.INSTANCE, true, false) as JetFile
     jetFile.skipVisibilityCheck = true
+    jetFile.analysisContext = codeFragment
     return jetFile
-}
-
-fun checkForSyntacticErrors(file: JetFile) {
-    try {
-        AnalyzingUtils.checkForSyntacticErrors(file)
-    }
-    catch (e: IllegalArgumentException) {
-        throw EvaluateExceptionUtil.createEvaluateException(e.getMessage())
-    }
 }
 
 private fun SuspendContext.getInvokePolicy(): Int {
@@ -299,8 +318,20 @@ private fun SuspendContext.getInvokePolicy(): Int {
 }
 
 fun EvaluationContextImpl.findLocalVariable(name: String, asmType: Type?, checkType: Boolean, failIfNotFound: Boolean): Value? {
+    val project = getDebugProcess().getProject()
     val frame = getFrameProxy()?.getStackFrame()
     if (frame == null) return null
+
+    fun isValueOfCorrectType(value: Value, asmType: Type?, shouldCheckType: Boolean): Boolean {
+        if (!shouldCheckType || asmType == null || value.asmType == asmType) return true
+        if (project == null) return false
+
+        val thisDesc = value.asmType.getClassDescriptor(project)
+        val expDesc = asmType.getClassDescriptor(project)
+        return thisDesc != null && expDesc != null && runReadAction { DescriptorUtils.isSubclass(thisDesc, expDesc) }!!
+    }
+
+
     try {
         when (name) {
             THIS_NAME -> {
@@ -317,18 +348,12 @@ fun EvaluationContextImpl.findLocalVariable(name: String, asmType: Type?, checkT
                 if (this0 != null) return this0
             }
             else -> {
-                val localVariable = frame.visibleVariableByName(name)
-                if (localVariable != null) {
-                    val eval4jValue = frame.getValue(localVariable).asValue()
-                    if (isValueOfCorrectType(eval4jValue, asmType, checkType)) return eval4jValue
-                }
-
                 val eval4j = JDIEval(frame.virtualMachine()!!,
                                      getClassLoader()!!,
                                      getSuspendContext().getThread()?.getThreadReference()!!,
                                      getSuspendContext().getInvokePolicy())
 
-                fun JDIEval.getField(owner: Value, name: String, asmType: Type?): Value? {
+                fun JDIEval.getField(owner: Value, name: String, asmType: Type?, checkType: Boolean): Value? {
                     val fieldDescription = FieldDescription(owner.asmType.getInternalName(), name, asmType?.getDescriptor() ?: "", isStatic = false)
                     try {
                         val fieldValue = getField(owner, fieldDescription)
@@ -340,14 +365,39 @@ fun EvaluationContextImpl.findLocalVariable(name: String, asmType: Type?, checkT
                     }
                 }
 
+                fun Value.isSharedVar(expectedType: Type?): Boolean  {
+                    return expectedType != null && this.asmType == StackValue.sharedTypeForType(expectedType)
+                }
+
+                fun JDIEval.getValueForSharedVar(value: Value, expectedType: Type?, checkType: Boolean): Value? {
+                    val sharedVarValue = this.getField(value, "element", expectedType, checkType)
+                    if (sharedVarValue != null && isValueOfCorrectType(sharedVarValue, expectedType, checkType)) {
+                        return sharedVarValue
+                    }
+                    return null
+                }
+
+                val localVariable = frame.visibleVariableByName(name)
+                if (localVariable != null) {
+                    val eval4jValue = frame.getValue(localVariable).asValue()
+                    if (eval4jValue.isSharedVar(asmType)) {
+                        val sharedVarValue = eval4j.getValueForSharedVar(eval4jValue, asmType, checkType)
+                        if (sharedVarValue != null) {
+                            return sharedVarValue
+                        }
+                    }
+
+                    if (isValueOfCorrectType(eval4jValue, asmType, checkType)) return eval4jValue
+                }
+
                 fun findCapturedVal(name: String): Value? {
                     var result: Value? = null
                     var thisObj: Value? = frame.thisObject().asValue()
 
                     while (result == null && thisObj != null) {
-                        result = eval4j.getField(thisObj!!, name, asmType)
+                        result = eval4j.getField(thisObj!!, name, asmType, checkType)
                         if (result == null) {
-                            thisObj = eval4j.getField(thisObj!!, AsmUtil.CAPTURED_THIS_FIELD, null)
+                            thisObj = eval4j.getField(thisObj!!, AsmUtil.CAPTURED_THIS_FIELD, null, false)
                         }
                     }
                     return result
@@ -355,7 +405,15 @@ fun EvaluationContextImpl.findLocalVariable(name: String, asmType: Type?, checkT
 
                 val capturedValName = getCapturedFieldName(name)
                 val capturedVal = findCapturedVal(capturedValName)
-                if (capturedVal != null) return capturedVal
+                if (capturedVal != null) {
+                    if (capturedVal.isSharedVar(asmType)) {
+                        val sharedVarValue = eval4j.getValueForSharedVar(capturedVal, asmType, checkType)
+                        if (sharedVarValue != null) {
+                            return sharedVarValue
+                        }
+                    }
+                    return capturedVal
+                }
             }
         }
 
@@ -369,6 +427,24 @@ fun EvaluationContextImpl.findLocalVariable(name: String, asmType: Type?, checkT
     }
 }
 
+fun Type.getClassDescriptor(project: Project): ClassDescriptor? {
+    if (AsmUtil.isPrimitive(this)) return null
+
+    val jvmName = JvmClassName.byInternalName(getInternalName()).getFqNameForClassNameWithoutDollars()
+
+    val platformClasses = JavaToKotlinClassMap.getInstance().mapPlatformClass(jvmName)
+    if (platformClasses.notEmpty) return platformClasses.first()
+
+    return runReadAction {
+        val classes = JavaPsiFacade.getInstance(project).findClasses(jvmName.asString(), GlobalSearchScope.allScope(project))
+        if (classes.isEmpty()) null
+        else {
+            val clazz = classes.first()
+            JavaResolveExtension.getResolver(project, clazz).resolveClass(JavaClassImpl(clazz))
+        }
+    }
+}
+
 private fun getCapturedFieldName(name: String) = when (name) {
     RECEIVER_NAME -> AsmUtil.CAPTURED_RECEIVER_FIELD
     THIS_NAME -> AsmUtil.CAPTURED_THIS_FIELD
@@ -377,4 +453,3 @@ private fun getCapturedFieldName(name: String) = when (name) {
     else -> "$$name"
 }
 
-private fun isValueOfCorrectType(value: Value, asmType: Type?, shouldCheckType: Boolean) = !shouldCheckType || asmType == null || value.asmType == asmType

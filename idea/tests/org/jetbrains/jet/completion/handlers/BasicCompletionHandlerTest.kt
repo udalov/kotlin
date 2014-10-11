@@ -48,7 +48,9 @@ public class BasicCompletionHandlerTest : CompletionHandlerTestBase(){
 
     fun testNamedParametersCompletion() = doTest()
 
-    fun testNamedParametersCompletionOnEqual() = doTest(0, "paramTest", null, '=')
+    fun testNamedParametersCompletionOnEqual() = doTest(0, "paramTest =", null, '=')
+
+    fun testNamedParameterKeywordName() = doTest(1, "class =", null, '\n')
 
     fun testInsertJavaClassImport() = doTest()
 
@@ -137,6 +139,18 @@ public class BasicCompletionHandlerTest : CompletionHandlerTestBase(){
     fun testEnumMember() = doTest(1, "A", null, '\n')
     fun testEnumMember1() = doTest(1, "A", null, '\n')
     fun testClassFromClassObject() = doTest(1, "Some", null, '\n')
+    fun testClassFromClassObjectInPackage() = doTest(1, "Some", null, '\n')
 
     fun testParameterType() = doTest(1, "StringBuilder", " (java.lang)", '\n')
+
+    fun testLocalClassCompletion() = doTest(1, "LocalClass", null, '\n')
+    fun testNestedLocalClassCompletion() = doTest(1, "Nested", null, '\n')
+
+    fun testTypeArgOfSuper() = doTest(1, "X", null, '\n')
+
+    fun testKeywordClassName() = doTest(1, "class", null, '\n')
+    fun testKeywordFunctionName() = doTest(1, "fun", "fun()", null, '\n')
+
+    fun testInfixCall() = doTest(1, "to", null, null, '\n')
+    fun testInfixCallOnSpace() = doTest(1, "to", null, null, ' ')
 }

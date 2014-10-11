@@ -26,7 +26,6 @@ import com.intellij.util.Range
 import org.jetbrains.jet.lang.resolve.BindingContext
 import org.jetbrains.jet.plugin.project.AnalyzerFacadeWithCache
 import org.jetbrains.jet.asJava.LightClassUtil
-import org.jetbrains.jet.lang.resolve.BindingContextUtils
 import org.jetbrains.jet.lang.descriptors.CallableMemberDescriptor
 import com.intellij.psi.PsiElement
 import org.jetbrains.jet.lang.psi.*
@@ -38,8 +37,9 @@ import com.sun.jdi.Location
 import com.intellij.psi.PsiMethod
 import org.jetbrains.jet.plugin.codeInsight.CodeInsightUtils
 import com.intellij.psi.PsiDocumentManager
-import org.jetbrains.jet.lang.resolve.bindingContextUtil.getResolvedCall
+import org.jetbrains.jet.lang.resolve.calls.callUtil.getResolvedCall
 import org.jetbrains.jet.lang.resolve.DescriptorToSourceUtils
+import org.jetbrains.jet.plugin.util.application.runReadAction
 
 public class KotlinSmartStepIntoHandler : JvmSmartStepIntoHandler() {
 
@@ -192,7 +192,7 @@ public class KotlinSmartStepIntoHandler : JvmSmartStepIntoHandler() {
         override fun locationMatches(process: DebugProcessImpl, location: Location): Boolean {
             if (super.locationMatches(process, location)) return true
 
-            val containingFile = stepTarget.resolvedElement.getContainingFile()
+            val containingFile = runReadAction { stepTarget.resolvedElement.getContainingFile() }
             if (containingFile !is JetFile) return false
 
             val positionManager = process.getPositionManager()

@@ -26,6 +26,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.psi.stubs.PsiJetFunctionStub;
 import org.jetbrains.jet.lang.psi.stubs.elements.JetStubElementTypes;
+import org.jetbrains.jet.lang.psi.typeRefHelpers.TypeRefHelpersPackage;
 import org.jetbrains.jet.lexer.JetTokens;
 
 import java.util.Collections;
@@ -125,12 +126,12 @@ public class JetNamedFunction extends JetTypeParameterListOwnerStub<PsiJetFuncti
 
     @Override
     public boolean hasDeclaredReturnType() {
-        return getReturnTypeRef() != null;
+        return getTypeReference() != null;
     }
 
     @Override
     @Nullable
-    public JetTypeReference getReceiverTypeRef() {
+    public JetTypeReference getReceiverTypeReference() {
         PsiJetFunctionStub stub = getStub();
         if (stub != null) {
             if (!stub.isExtension()) {
@@ -164,7 +165,7 @@ public class JetNamedFunction extends JetTypeParameterListOwnerStub<PsiJetFuncti
 
     @Override
     @Nullable
-    public JetTypeReference getReturnTypeRef() {
+    public JetTypeReference getTypeReference() {
         PsiJetFunctionStub stub = getStub();
         if (stub != null) {
             List<JetTypeReference> typeReferences = getStubOrPsiChildrenAsList(JetStubElementTypes.TYPE_REFERENCE);
@@ -174,31 +175,13 @@ public class JetNamedFunction extends JetTypeParameterListOwnerStub<PsiJetFuncti
             }
             return typeReferences.get(returnTypeIndex);
         }
-        return getReturnTypeRefByPsi();
+        return TypeRefHelpersPackage.getTypeReference(this);
     }
 
-    @Nullable
-    private JetTypeReference getReturnTypeRefByPsi() {
-        boolean colonPassed = false;
-        PsiElement child = getFirstChild();
-        while (child != null) {
-            IElementType tt = child.getNode().getElementType();
-            if (tt == JetTokens.COLON) {
-                colonPassed = true;
-            }
-            if (colonPassed && child instanceof JetTypeReference) {
-                return (JetTypeReference) child;
-            }
-            child = child.getNextSibling();
-        }
-
-        return null;
-    }
-
-    @NotNull
     @Override
-    public JetElement asElement() {
-        return this;
+    @Nullable
+    public JetTypeReference setTypeReference(@Nullable JetTypeReference typeRef) {
+        return TypeRefHelpersPackage.setTypeReference(this, getValueParameterList(), typeRef);
     }
 
     @Override

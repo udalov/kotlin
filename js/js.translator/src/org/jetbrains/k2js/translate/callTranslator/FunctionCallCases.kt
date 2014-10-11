@@ -34,10 +34,13 @@ import org.jetbrains.k2js.translate.reference.CallArgumentTranslator
 import org.jetbrains.jet.lang.descriptors.CallableMemberDescriptor
 import org.jetbrains.jet.lang.descriptors.Visibilities
 import org.jetbrains.jet.lang.psi.Call.CallType
+import com.intellij.util.SmartList
+import org.jetbrains.k2js.translate.utils.JsDescriptorUtils
+import org.jetbrains.jet.lang.resolve.DescriptorUtils
 
 public fun addReceiverToArgs(receiver: JsExpression, arguments: List<JsExpression>): List<JsExpression> {
     if (arguments.isEmpty())
-        return Collections.singletonList(receiver)
+        return SmartList(receiver)
 
     val argumentList = ArrayList<JsExpression>(1 + arguments.size())
     argumentList.add(receiver)
@@ -49,21 +52,21 @@ public fun addReceiverToArgs(receiver: JsExpression, arguments: List<JsExpressio
 // call may be native and|or with spreadOperator
 object DefaultFunctionCallCase : FunctionCallCase {
     // TODO: refactor after fix ArgumentsInfo - duplicate code
-    private fun nativeSpreadFunWithThisObjectOrReceiver(argumentsInfo: CallArgumentTranslator.ArgumentsInfo, functionName: JsName): JsExpression {
+    private fun nativeSpreadFunWithDispatchOrExtensionReceiver(argumentsInfo: CallArgumentTranslator.ArgumentsInfo, functionName: JsName): JsExpression {
         val cachedReceiver = argumentsInfo.getCachedReceiver()!!
         val functionCallRef = Namer.getFunctionApplyRef(JsNameRef(functionName, cachedReceiver.assignmentExpression()))
         return JsInvocation(functionCallRef, argumentsInfo.getTranslateArguments())
     }
 
-    fun buildDefaultCallWithThisObject(argumentsInfo: CallArgumentTranslator.ArgumentsInfo,
-                                       thisObject: JsExpression,
+    fun buildDefaultCallWithDispatchReceiver(argumentsInfo: CallArgumentTranslator.ArgumentsInfo,
+                                       dispatchReceiver: JsExpression,
                                        functionName: JsName,
                                        isNative: Boolean,
                                        hasSpreadOperator: Boolean): JsExpression {
         if (isNative && hasSpreadOperator) {
-            return nativeSpreadFunWithThisObjectOrReceiver(argumentsInfo, functionName)
+            return nativeSpreadFunWithDispatchOrExtensionReceiver(argumentsInfo, functionName)
         }
-        val functionRef = JsNameRef(functionName, thisObject)
+        val functionRef = JsNameRef(functionName, dispatchReceiver)
         return JsInvocation(functionRef, argumentsInfo.getTranslateArguments())
     }
 
@@ -92,16 +95,16 @@ object DefaultFunctionCallCase : FunctionCallCase {
         return buildDefaultCallWithoutReceiver(context, argumentsInfo, callableDescriptor, functionName, isNative(), hasSpreadOperator())
     }
 
-    override fun FunctionCallInfo.thisObject(): JsExpression {
-        return buildDefaultCallWithThisObject(argumentsInfo, thisObject!!, functionName, isNative(), hasSpreadOperator())
+    override fun FunctionCallInfo.dispatchReceiver(): JsExpression {
+        return buildDefaultCallWithDispatchReceiver(argumentsInfo, dispatchReceiver!!, functionName, isNative(), hasSpreadOperator())
     }
 
-    override fun FunctionCallInfo.receiverArgument(): JsExpression {
+    override fun FunctionCallInfo.extensionReceiver(): JsExpression {
         if (isNative() && hasSpreadOperator()) {
-            return nativeSpreadFunWithThisObjectOrReceiver(argumentsInfo, functionName)
+            return nativeSpreadFunWithDispatchOrExtensionReceiver(argumentsInfo, functionName)
         }
         if (isNative()) {
-            return JsInvocation(JsNameRef(functionName, receiverObject), argumentsInfo.getTranslateArguments())
+            return JsInvocation(JsNameRef(functionName, extensionReceiver), argumentsInfo.getTranslateArguments())
         }
 
         val functionRef = context.aliasOrValue(callableDescriptor) {
@@ -117,13 +120,13 @@ object DefaultFunctionCallCase : FunctionCallCase {
                     functionRef
                 }
 
-        return JsInvocation(referenceToCall, addReceiverToArgs(receiverObject!!, argumentsInfo.getTranslateArguments()))
+        return JsInvocation(referenceToCall, addReceiverToArgs(extensionReceiver!!, argumentsInfo.getTranslateArguments()))
     }
 
     override fun FunctionCallInfo.bothReceivers(): JsExpression {
         // TODO: think about crazy case: spreadOperator + native
-        val functionRef = JsNameRef(functionName, thisObject!!)
-        return JsInvocation(functionRef, addReceiverToArgs(receiverObject!!, argumentsInfo.getTranslateArguments()))
+        val functionRef = JsNameRef(functionName, dispatchReceiver!!)
+        return JsInvocation(functionRef, addReceiverToArgs(extensionReceiver!!, argumentsInfo.getTranslateArguments()))
     }
 }
 
@@ -143,17 +146,36 @@ object InvokeIntrinsic : FunctionCallCase {
             return false
         val parameterCount = callInfo.callableDescriptor.getValueParameters().size()
         val funDeclaration = callInfo.callableDescriptor.getContainingDeclaration()
-        return funDeclaration == ((if (callInfo.callableDescriptor.getReceiverParameter() == null)
-            KotlinBuiltIns.getInstance().getFunction(parameterCount)
+
+        val reflectionTypes = callInfo.context.getReflectionTypes()
+        return if (callInfo.callableDescriptor.getExtensionReceiverParameter() == null)
+            funDeclaration == KotlinBuiltIns.getInstance().getFunction(parameterCount) ||
+            funDeclaration == reflectionTypes.getKFunction(parameterCount)
         else
-            KotlinBuiltIns.getInstance().getExtensionFunction(parameterCount)))
+            funDeclaration == KotlinBuiltIns.getInstance().getExtensionFunction(parameterCount) ||
+            funDeclaration == reflectionTypes.getKExtensionFunction(parameterCount) ||
+            funDeclaration == reflectionTypes.getKMemberFunction(parameterCount)
     }
 
-    override fun FunctionCallInfo.thisObject(): JsExpression {
-        return JsInvocation(thisObject, argumentsInfo.getTranslateArguments())
+    override fun FunctionCallInfo.dispatchReceiver(): JsExpression {
+        return JsInvocation(dispatchReceiver, argumentsInfo.getTranslateArguments())
     }
+
+    /**
+     * A call of extension lambda in compiler looks like as call of invoke function of some ExtensionFunctionN instance.
+     * So that call have both receivers -- some ExtensionFunctionN instance as this and receiverObject as receiver.
+     *
+     * in Kotlin code:
+     *      obj.extLambda(some, args)
+     *
+     * in compiler:
+     *      (this: extLambda, receiver: obj).invoke(some, args)
+     *
+     * in result JS:
+     *      extLambda.call(obj, some, args)
+     */
     override fun FunctionCallInfo.bothReceivers(): JsExpression {
-        return JsInvocation(Namer.getFunctionCallRef(thisObject!!), addReceiverToArgs(receiverObject!!, argumentsInfo.getTranslateArguments()))
+        return JsInvocation(Namer.getFunctionCallRef(dispatchReceiver!!), addReceiverToArgs(extensionReceiver!!, argumentsInfo.getTranslateArguments()))
     }
 }
 
@@ -163,13 +185,10 @@ object ConstructorCallCase : FunctionCallCase {
     }
 
     override fun FunctionCallInfo.noReceivers(): JsExpression {
-        if (isNative()) {
-            return JsNew(JsNameRef(functionName), argumentsInfo.getTranslateArguments())
-        }
+        val fqName = context.getQualifiedReference(callableDescriptor)
 
-        val functionRef = context.aliasOrValue(callableDescriptor) {
-            context.getQualifiedReference(it)
-        }
+        val functionRef = if (isNative()) fqName else context.aliasOrValue(callableDescriptor) { fqName }
+
         return JsNew(functionRef, argumentsInfo.getTranslateArguments())
     }
 }
@@ -179,9 +198,9 @@ object SuperCallCase : FunctionCallCase {
         return callInfo.isSuperInvocation()
     }
 
-    override fun FunctionCallInfo.thisObject(): JsExpression {
+    override fun FunctionCallInfo.dispatchReceiver(): JsExpression {
         // TODO: spread operator
-        val prototypeClass = JsNameRef(Namer.getPrototypeName(), thisObject!!)
+        val prototypeClass = JsNameRef(Namer.getPrototypeName(), dispatchReceiver!!)
         val functionRef = Namer.getFunctionCallRef(JsNameRef(functionName, prototypeClass))
         return JsInvocation(functionRef, addReceiverToArgs(JsLiteral.THIS, argumentsInfo.getTranslateArguments()))
     }

@@ -31,6 +31,7 @@ import org.jetbrains.k2js.translate.general.AbstractTranslator;
 import org.jetbrains.k2js.translate.general.Translation;
 import org.jetbrains.k2js.translate.intrinsic.functions.patterns.NamePredicate;
 import org.jetbrains.k2js.translate.utils.BindingUtils;
+import org.jetbrains.k2js.translate.utils.JsAstUtils;
 import org.jetbrains.k2js.translate.utils.TranslationUtils;
 
 import static org.jetbrains.k2js.translate.utils.BindingUtils.getTypeByReference;
@@ -51,7 +52,7 @@ public final class PatternTranslator extends AbstractTranslator {
     @NotNull
     public JsExpression translateIsExpression(@NotNull JetIsExpression expression) {
         JsExpression left = Translation.translateAsExpression(expression.getLeftHandSide(), context());
-        JetTypeReference typeReference = expression.getTypeRef();
+        JetTypeReference typeReference = expression.getTypeReference();
         assert typeReference != null;
         JsExpression result = translateIsCheck(left, typeReference);
         if (expression.isNegated()) {
@@ -92,7 +93,16 @@ public final class PatternTranslator extends AbstractTranslator {
         if (NamePredicate.STRING.apply(typeName)) {
             jsSTypeName = "string";
         }
-        else if (NamePredicate.PRIMITIVE_NUMBERS.apply(typeName)) {
+        else if (NamePredicate.LONG.apply(typeName)) {
+            return JsAstUtils.isLong(expressionToMatch);
+        }
+        else if (NamePredicate.NUMBER.apply(typeName)) {
+            return JsAstUtils.isNumber(expressionToMatch);
+        }
+        else if (NamePredicate.CHAR.apply(typeName)) {
+            return JsAstUtils.isChar(expressionToMatch);
+        }
+        else if (NamePredicate.PRIMITIVE_NUMBERS_MAPPED_TO_PRIMITIVE_JS.apply(typeName)) {
             jsSTypeName = "number";
         }
         else {

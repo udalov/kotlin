@@ -98,6 +98,7 @@ public class DefaultErrorMessages {
         MAP.put(ABSTRACT_MODIFIER_IN_TRAIT, "Modifier ''abstract'' is redundant in trait");
         MAP.put(OPEN_MODIFIER_IN_TRAIT, "Modifier ''open'' is redundant in trait");
         MAP.put(OPEN_MODIFIER_IN_ENUM, "Modifier ''open'' is not applicable for enum class");
+        MAP.put(ABSTRACT_MODIFIER_IN_ENUM, "Modifier ''abstract'' is not applicable for enum class");
         MAP.put(ILLEGAL_ENUM_ANNOTATION, "Annotation ''enum'' is only applicable for class");
         MAP.put(REDUNDANT_MODIFIER_IN_GETTER, "Visibility modifiers are redundant in getter");
         MAP.put(TRAIT_CAN_NOT_BE_FINAL, "Trait cannot be final");
@@ -216,8 +217,11 @@ public class DefaultErrorMessages {
 
         MAP.put(MANY_CLASS_OBJECTS, "Only one class object is allowed per class");
         MAP.put(CLASS_OBJECT_NOT_ALLOWED, "A class object is not allowed here");
+        MAP.put(LOCAL_OBJECT_NOT_ALLOWED, "Named object ''{0}'' is a singleton and cannot be local. Try to use anonymous object instead", NAME);
+        MAP.put(LOCAL_ENUM_NOT_ALLOWED, "Enum class ''{0}'' cannot be local", NAME);
         MAP.put(DELEGATION_IN_TRAIT, "Traits cannot use delegation");
         MAP.put(DELEGATION_NOT_TO_TRAIT, "Only traits can be delegated to");
+        MAP.put(UNMET_TRAIT_REQUIREMENT, "Super trait ''{0}'' requires subclasses to extend ''{1}''", NAME, NAME);
         MAP.put(NO_CONSTRUCTOR, "This class does not have a constructor");
         MAP.put(NOT_A_CLASS, "Not a class");
         MAP.put(ILLEGAL_ESCAPE_SEQUENCE, "Illegal escape sequence");
@@ -258,6 +262,8 @@ public class DefaultErrorMessages {
         MAP.put(TYPE_PARAMETER_IS_NOT_AN_EXPRESSION, "Type parameter ''{0}'' is not an expression", NAME);
         MAP.put(TYPE_PARAMETER_ON_LHS_OF_DOT, "Type parameter ''{0}'' cannot have or inherit a class object, so it cannot be on the left hand side of dot", NAME);
         MAP.put(NO_GENERICS_IN_SUPERTYPE_SPECIFIER, "Generic arguments of the base type must be specified");
+        MAP.put(NESTED_CLASS_ACCESSED_VIA_INSTANCE_REFERENCE, "Nested {0} accessed via instance reference", RENDER_CLASS_OR_OBJECT_NAME);
+        MAP.put(NESTED_CLASS_SHOULD_BE_QUALIFIED, "Nested {0} should be qualified as ''{1}''", RENDER_CLASS_OR_OBJECT_NAME, TO_STRING);
 
         MAP.put(INACCESSIBLE_OUTER_CLASS_EXPRESSION, "Expression is inaccessible from a nested class ''{0}'', use ''inner'' keyword to make the class inner", NAME);
         MAP.put(NESTED_CLASS_NOT_ALLOWED, "Nested class is not allowed here, use ''inner'' keyword to make the class inner");
@@ -280,6 +286,7 @@ public class DefaultErrorMessages {
                 STRING, AMBIGUOUS_CALLS);
         MAP.put(DELEGATE_SPECIAL_FUNCTION_RETURN_TYPE_MISMATCH, "The ''{0}'' function of property delegate is expected to return ''{1}'', but returns ''{2}''",
                 STRING, RENDER_TYPE, RENDER_TYPE);
+        MAP.put(DELEGATE_PD_METHOD_NONE_APPLICABLE, "''{0}'' method may be missing. None of the following functions will be called: {1}", STRING, AMBIGUOUS_CALLS);
 
         MAP.put(COMPARE_TO_TYPE_MISMATCH, "''compareTo()'' must return kotlin.Int, but returns {0}", RENDER_TYPE);
 
@@ -370,8 +377,8 @@ public class DefaultErrorMessages {
                 return typeConstraint.getSubjectTypeParameterName().getReferencedName();
             }
         }, DECLARATION_NAME);
-        MAP.put(AUTOCAST_IMPOSSIBLE,
-                "Automatic cast to ''{0}'' is impossible, because ''{1}'' could have changed since the is-check", RENDER_TYPE, STRING);
+        MAP.put(SMARTCAST_IMPOSSIBLE,
+                "Smart cast to ''{0}'' is impossible, because ''{1}'' could have changed since the is-check", RENDER_TYPE, STRING);
 
         MAP.put(VARIANCE_ON_TYPE_PARAMETER_OF_FUNCTION_OR_PROPERTY, "Variance annotations are only allowed for type parameters of classes and traits");
         MAP.put(REDUNDANT_PROJECTION, "Projection is redundant: the corresponding type parameter of {0} has the same variance", NAME);

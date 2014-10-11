@@ -24,7 +24,6 @@ import org.jetbrains.jet.lang.psi.JetFile
 import org.jetbrains.jet.plugin.codeInsight.ShortenReferences
 import java.util.HashSet
 import com.intellij.codeInsight.lookup.LookupElementDecorator
-import com.intellij.codeInsight.lookup.AutoCompletionPolicy
 import org.jetbrains.jet.lang.descriptors.FunctionDescriptor
 import org.jetbrains.jet.lang.types.JetType
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns
@@ -32,10 +31,8 @@ import org.jetbrains.jet.lang.types.checker.JetTypeChecker
 import com.intellij.codeInsight.lookup.LookupElementPresentation
 import java.util.ArrayList
 import org.jetbrains.jet.plugin.completion.*
-import com.intellij.openapi.util.Key
 import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor
 import org.jetbrains.jet.plugin.project.ResolveSessionForBodies
-import org.jetbrains.jet.lang.resolve.BindingContext
 import org.jetbrains.jet.plugin.completion.handlers.WithTailInsertHandler
 
 class ArtificialElementInsertHandler(
@@ -87,16 +84,13 @@ fun LookupElement.addTail(tail: Tail?): LookupElement {
     }
 }
 
-fun LookupElement.addTail(matchedExpectedInfos: Collection<ExpectedInfo>): LookupElement
-    = addTail(mergeTails(matchedExpectedInfos.map { it.tail }))
-
-fun LookupElement.suppressAutoInsertion() = AutoCompletionPolicy.NEVER_AUTOCOMPLETE.applyPolicy(this)
-
-val KEEP_OLD_ARGUMENT_LIST_ON_TAB_KEY = Key<Unit>("KEEP_OLD_ARGUMENT_LIST_ON_TAB_KEY")
-
-fun LookupElement.keepOldArgumentListOnTab(): LookupElement {
-    putUserData(KEEP_OLD_ARGUMENT_LIST_ON_TAB_KEY, Unit.VALUE)
-    return this
+fun LookupElement.addTailAndNameSimilarity(matchedExpectedInfos: Collection<ExpectedInfo>): LookupElement {
+    val lookupElement = addTail(mergeTails(matchedExpectedInfos.map { it.tail }))
+    val similarity = calcNameSimilarity(lookupElement.getLookupString(), matchedExpectedInfos)
+    if (similarity != 0) {
+        lookupElement.putUserData(NAME_SIMILARITY_KEY, similarity)
+    }
+    return lookupElement
 }
 
 enum class ExpectedInfoClassification {
@@ -120,7 +114,7 @@ fun MutableCollection<LookupElement>.addLookupElements(expectedInfos: Collection
     if (matchedInfos.isNotEmpty()) {
         val lookupElement = lookupElementFactory()
         if (lookupElement != null) {
-            add(lookupElement.addTail(matchedInfos))
+            add(lookupElement.addTailAndNameSimilarity(matchedInfos))
         }
     }
     else if (matchedInfosNotNullable.isNotEmpty()) {
@@ -141,7 +135,7 @@ fun MutableCollection<LookupElement>.addLookupElementsForNullable(factory: () ->
             }
         }
         lookupElement = lookupElement!!.suppressAutoInsertion()
-        add(lookupElement!!.addTail(matchedInfos))
+        add(lookupElement!!.addTailAndNameSimilarity(matchedInfos))
     }
 
     lookupElement = factory()
@@ -156,7 +150,7 @@ fun MutableCollection<LookupElement>.addLookupElementsForNullable(factory: () ->
             }
         }
         lookupElement = lookupElement!!.suppressAutoInsertion()
-        add(lookupElement!!.addTail(matchedInfos))
+        add(lookupElement!!.addTailAndNameSimilarity(matchedInfos))
     }
 }
 

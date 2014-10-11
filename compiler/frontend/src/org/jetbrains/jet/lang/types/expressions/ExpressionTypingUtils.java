@@ -32,16 +32,18 @@ import org.jetbrains.jet.lang.diagnostics.DiagnosticFactory;
 import org.jetbrains.jet.lang.diagnostics.Errors;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.*;
-import org.jetbrains.jet.lang.resolve.bindingContextUtil.BindingContextUtilPackage;
 import org.jetbrains.jet.lang.resolve.calls.CallResolver;
+import org.jetbrains.jet.lang.resolve.calls.callUtil.CallUtilPackage;
 import org.jetbrains.jet.lang.resolve.calls.inference.ConstraintPosition;
 import org.jetbrains.jet.lang.resolve.calls.inference.ConstraintSystem;
 import org.jetbrains.jet.lang.resolve.calls.inference.ConstraintSystemImpl;
 import org.jetbrains.jet.lang.resolve.calls.inference.ConstraintsUtil;
 import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCall;
 import org.jetbrains.jet.lang.resolve.calls.results.OverloadResolutionResults;
+import org.jetbrains.jet.lang.resolve.calls.smartcasts.DataFlowInfo;
+import org.jetbrains.jet.lang.resolve.calls.smartcasts.SmartCastUtils;
 import org.jetbrains.jet.lang.resolve.calls.util.CallMaker;
-import org.jetbrains.jet.lang.resolve.name.FqName;
+import org.jetbrains.jet.lang.resolve.dataClassUtils.DataClassUtilsPackage;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
 import org.jetbrains.jet.lang.resolve.scopes.WritableScope;
@@ -84,9 +86,15 @@ public class ExpressionTypingUtils {
 
     @NotNull
     protected static ExpressionReceiver safeGetExpressionReceiver(@NotNull ExpressionTypingFacade facade, @NotNull JetExpression expression, ExpressionTypingContext context) {
-        JetType type = facade.safeGetTypeInfo(expression, context).getType();
-        assert type != null : "safeGetTypeInfo should return @NotNull type";
+        JetType type = safeGetType(facade.safeGetTypeInfo(expression, context));
         return new ExpressionReceiver(expression, type);
+    }
+
+    @NotNull
+    public static JetType safeGetType(@NotNull JetTypeInfo typeInfo) {
+        JetType type = typeInfo.getType();
+        assert type != null : "safeGetType should be invoked on safe JetTypeInfo; safeGetTypeInfo should return @NotNull type";
+        return type;
     }
 
     @NotNull
@@ -150,12 +158,7 @@ public class ExpressionTypingUtils {
 
         PsiElement parent = scopeDeclaration.getParent();
         assert parent instanceof JetFunctionLiteralExpression : "parent of JetFunctionLiteral is " + parent;
-        JetCallExpression callExpression = getCallExpression((JetFunctionLiteralExpression) parent);
-        if (callExpression == null) {
-            return false;
-        }
-
-        ResolvedCall<?> resolvedCall = BindingContextUtilPackage.getResolvedCall(callExpression, context);
+        ResolvedCall<?> resolvedCall = CallUtilPackage.getParentResolvedCall((JetFunctionLiteralExpression) parent, context, true);
         if (resolvedCall == null) {
             return false;
         }
@@ -171,26 +174,6 @@ public class ExpressionTypingUtils {
         }
     }
 
-    @Nullable
-    private static JetCallExpression getCallExpression(@NotNull JetFunctionLiteralExpression functionLiteralExpression) {
-        PsiElement parent = functionLiteralExpression.getParent();
-        if (parent instanceof JetValueArgument) {
-            // foo({ ... })    or     foo(f = { ... })
-
-            PsiElement valueArgumentList = parent.getParent();
-            assert valueArgumentList instanceof JetValueArgumentList : "parent of value argument is " + valueArgumentList;
-
-            if (valueArgumentList.getParent() instanceof JetCallExpression) { // may be argument list of annotation
-                return (JetCallExpression) valueArgumentList.getParent();
-            }
-        }
-        else if (parent instanceof JetCallExpression) {
-            // foo { ... }
-
-            return  (JetCallExpression) parent;
-        }
-        return null;
-    }
     public static void checkCapturingInClosure(JetSimpleNameExpression expression, BindingTrace trace, JetScope scope) {
         VariableDescriptor variable = BindingContextUtils.extractVariableDescriptorIfAny(trace.getBindingContext(), expression, true);
         if (variable != null) {
@@ -205,60 +188,31 @@ public class ExpressionTypingUtils {
         }
     }
 
-    /**
-     * Check that function or property with the given qualified name can be resolved in given scope and called on given receiver
-     *
-     * @param callableFQN
-     * @param scope
-     * @return
-     */
-    public static List<CallableDescriptor> canFindSuitableCall(
-            @NotNull FqName callableFQN,
-            @NotNull JetExpression receiverExpression,
-            @NotNull JetType receiverType,
-            @NotNull JetScope scope,
-            @NotNull ModuleDescriptor module
-    ) {
-        JetImportDirective importDirective = JetPsiFactory(receiverExpression).createImportDirective(callableFQN.asString());
-
-        Collection<? extends DeclarationDescriptor> declarationDescriptors = new QualifiedExpressionResolver()
-                .analyseImportReference(importDirective, scope, new BindingTraceContext(), module);
-
-        List<CallableDescriptor> callableExtensionDescriptors = new ArrayList<CallableDescriptor>();
-        ReceiverValue receiverValue = new ExpressionReceiver(receiverExpression, receiverType);
-
-        for (DeclarationDescriptor declarationDescriptor : declarationDescriptors) {
-            if (declarationDescriptor instanceof CallableDescriptor) {
-                CallableDescriptor callableDescriptor = (CallableDescriptor) declarationDescriptor;
-
-                if (checkIsExtensionCallable(receiverValue, callableDescriptor)) {
-                    callableExtensionDescriptors.add(callableDescriptor);
-                }
-            }
-        }
-
-        return callableExtensionDescriptors;
-    }
-
     /*
     * Checks if receiver declaration could be resolved to call expected receiver.
     */
     public static boolean checkIsExtensionCallable (
             @NotNull ReceiverValue receiverArgument,
-            @NotNull CallableDescriptor callableDescriptor
+            @NotNull CallableDescriptor callableDescriptor,
+            boolean isInfixCall,
+            @NotNull BindingContext bindingContext,
+            @NotNull DataFlowInfo dataFlowInfo
     ) {
-        JetType type = receiverArgument.getType();
-
-        if (type instanceof PackageType) {
-            // This fake class ruins standard algorithms
+        if (isInfixCall
+              && (!(callableDescriptor instanceof SimpleFunctionDescriptor) || callableDescriptor.getValueParameters().size() != 1)) {
             return false;
         }
 
-        if (checkReceiverResolution(receiverArgument, type, callableDescriptor)) return true;
-        if (type.isNullable()) {
-            JetType notNullableType = TypeUtils.makeNotNullable(type);
-            if (checkReceiverResolution(receiverArgument, notNullableType, callableDescriptor)) return true;
+        List<JetType> types = SmartCastUtils.getSmartCastVariants(receiverArgument, bindingContext, dataFlowInfo);
+
+        for (JetType type : types) {
+            if (checkReceiverResolution(receiverArgument, type, callableDescriptor)) return true;
+            if (type.isNullable()) {
+                JetType notNullableType = TypeUtils.makeNotNullable(type);
+                if (checkReceiverResolution(receiverArgument, notNullableType, callableDescriptor)) return true;
+            }
         }
+
         return false;
     }
 
@@ -267,7 +221,7 @@ public class ExpressionTypingUtils {
             @NotNull JetType receiverType,
             @NotNull CallableDescriptor callableDescriptor
     ) {
-        ReceiverParameterDescriptor receiverParameter = callableDescriptor.getReceiverParameter();
+        ReceiverParameterDescriptor receiverParameter = callableDescriptor.getExtensionReceiverParameter();
 
         if (!receiverArgument.exists() && receiverParameter == null) {
             // Both receivers do not exist
@@ -389,7 +343,7 @@ public class ExpressionTypingUtils {
     ) {
         int componentIndex = 1;
         for (JetMultiDeclarationEntry entry : multiDeclaration.getEntries()) {
-            Name componentName = Name.identifier(DescriptorResolver.COMPONENT_FUNCTION_NAME_PREFIX + componentIndex);
+            Name componentName = DataClassUtilsPackage.createComponentName(componentIndex);
             componentIndex++;
 
             JetType expectedType = getExpectedTypeForComponent(context, entry);
@@ -437,7 +391,7 @@ public class ExpressionTypingUtils {
 
     @NotNull
     private JetType getExpectedTypeForComponent(ExpressionTypingContext context, JetMultiDeclarationEntry entry) {
-        JetTypeReference entryTypeRef = entry.getTypeRef();
+        JetTypeReference entryTypeRef = entry.getTypeReference();
         if (entryTypeRef != null) {
             return expressionTypingServices.getTypeResolver().resolveType(context.scope, entryTypeRef, context.trace, true);
         }

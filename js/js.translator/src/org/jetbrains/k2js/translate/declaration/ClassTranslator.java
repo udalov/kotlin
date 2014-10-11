@@ -19,36 +19,38 @@ package org.jetbrains.k2js.translate.declaration;
 import com.google.dart.compiler.backend.js.ast.*;
 import com.intellij.util.SmartList;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.jet.lang.descriptors.ClassDescriptor;
-import org.jetbrains.jet.lang.descriptors.ClassKind;
-import org.jetbrains.jet.lang.descriptors.PropertyDescriptor;
-import org.jetbrains.jet.lang.descriptors.ReceiverParameterDescriptor;
+import org.jetbrains.jet.backend.common.CodegenUtil;
+import org.jetbrains.jet.codegen.bridges.Bridge;
+import org.jetbrains.jet.codegen.bridges.BridgesPackage;
+import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.psi.JetClassOrObject;
 import org.jetbrains.jet.lang.psi.JetObjectDeclaration;
 import org.jetbrains.jet.lang.psi.JetParameter;
+import org.jetbrains.jet.lang.resolve.DescriptorUtils;
 import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.lang.types.TypeConstructor;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 import org.jetbrains.k2js.translate.context.DefinitionPlace;
 import org.jetbrains.k2js.translate.context.Namer;
 import org.jetbrains.k2js.translate.context.TranslationContext;
+import org.jetbrains.k2js.translate.declaration.propertyTranslator.PropertyTranslatorPackage;
 import org.jetbrains.k2js.translate.expression.ExpressionPackage;
 import org.jetbrains.k2js.translate.general.AbstractTranslator;
 import org.jetbrains.k2js.translate.initializer.ClassInitializerTranslator;
 import org.jetbrains.k2js.translate.utils.JsAstUtils;
+import org.jetbrains.k2js.translate.utils.UtilsPackage;
 
 import java.util.*;
 
 import static org.jetbrains.jet.lang.resolve.DescriptorUtils.*;
 import static org.jetbrains.jet.lang.types.TypeUtils.topologicallySortSuperclassesAndRecordAllInstances;
-import static org.jetbrains.k2js.translate.initializer.InitializerUtils.createClassObjectInitializer;
 import static org.jetbrains.k2js.translate.reference.ReferenceTranslator.translateAsFQReference;
 import static org.jetbrains.k2js.translate.utils.BindingUtils.getClassDescriptor;
 import static org.jetbrains.k2js.translate.utils.BindingUtils.getPropertyDescriptorForConstructorParameter;
-import static org.jetbrains.k2js.translate.utils.JsDescriptorUtils.getContainingClass;
 import static org.jetbrains.k2js.translate.utils.JsDescriptorUtils.*;
 import static org.jetbrains.k2js.translate.utils.PsiUtils.getPrimaryConstructorParameters;
 import static org.jetbrains.k2js.translate.utils.TranslationUtils.simpleReturnFunction;
+import static org.jetbrains.k2js.translate.utils.UtilsPackage.*;
 
 /**
  * Generates a definition of a single class.
@@ -100,6 +102,7 @@ public final class ClassTranslator extends AbstractTranslator {
         return descriptor.getKind().equals(ClassKind.TRAIT);
     }
 
+    @NotNull
     private List<JsExpression> getClassCreateInvocationArguments(@NotNull TranslationContext declarationContext) {
         List<JsExpression> invocationArguments = new ArrayList<JsExpression>();
 
@@ -115,7 +118,7 @@ public final class ClassTranslator extends AbstractTranslator {
             if (!descriptor.getKind().isSingleton() && !isAnonymousObject(descriptor)) {
                 qualifiedReference = declarationContext.getQualifiedReference(descriptor);
                 JsScope scope = context().getScopeForDescriptor(descriptor);
-                definitionPlace = new DefinitionPlace(scope, qualifiedReference, staticProperties);
+                definitionPlace = new DefinitionPlace((JsObjectScope) scope, qualifiedReference, staticProperties);
             }
 
             declarationContext = declarationContext.newDeclaration(descriptor, definitionPlace);
@@ -124,18 +127,35 @@ public final class ClassTranslator extends AbstractTranslator {
         declarationContext = fixContextForClassObjectAccessing(declarationContext);
 
         invocationArguments.add(getSuperclassReferences(declarationContext));
+        DelegationTranslator delegationTranslator = new DelegationTranslator(classDeclaration, context());
         if (!isTrait()) {
-            JsFunction initializer = new ClassInitializerTranslator(classDeclaration, declarationContext).generateInitializeMethod();
+            JsFunction initializer = new ClassInitializerTranslator(classDeclaration, declarationContext).generateInitializeMethod(delegationTranslator);
             invocationArguments.add(initializer.getBody().getStatements().isEmpty() ? JsLiteral.NULL : initializer);
         }
 
         translatePropertiesAsConstructorParameters(declarationContext, properties);
         DeclarationBodyVisitor bodyVisitor = new DeclarationBodyVisitor(properties, staticProperties);
         bodyVisitor.traverseContainer(classDeclaration, declarationContext);
-        mayBeAddEnumEntry(bodyVisitor.getEnumEntryList(), staticProperties, declarationContext);
+        delegationTranslator.generateDelegated(properties);
 
         if (KotlinBuiltIns.getInstance().isData(descriptor)) {
             new JsDataClassGenerator(classDeclaration, declarationContext, properties).generate();
+        }
+
+        if (isEnumClass(descriptor)) {
+            JsObjectLiteral enumEntries = new JsObjectLiteral(bodyVisitor.getEnumEntryList(), true);
+            JsFunction function = simpleReturnFunction(declarationContext.getScopeForDescriptor(descriptor), enumEntries);
+            invocationArguments.add(function);
+        }
+
+        generateTraitMethods(properties);
+
+        if (!DescriptorUtils.isTrait(descriptor)) {
+            for (DeclarationDescriptor memberDescriptor : descriptor.getDefaultType().getMemberScope().getAllDescriptors()) {
+                if (memberDescriptor instanceof FunctionDescriptor) {
+                    generateBridges((FunctionDescriptor) memberDescriptor, properties);
+                }
+            }
         }
 
         boolean hasStaticProperties = !staticProperties.isEmpty();
@@ -155,6 +175,7 @@ public final class ClassTranslator extends AbstractTranslator {
             invocationArguments.add(new JsDocComment(JsAstUtils.LENDS_JS_DOC_TAG, qualifiedReference));
             invocationArguments.add(new JsObjectLiteral(staticProperties, true));
         }
+
         return invocationArguments;
     }
 
@@ -176,21 +197,6 @@ public final class ClassTranslator extends AbstractTranslator {
         }
 
         return declarationContext;
-    }
-
-    private void mayBeAddEnumEntry(@NotNull List<JsPropertyInitializer> enumEntryList,
-            @NotNull List<JsPropertyInitializer> staticProperties,
-            @NotNull TranslationContext declarationContext
-    ) {
-        if (descriptor.getKind() == ClassKind.ENUM_CLASS) {
-            JsInvocation invocation = context().namer().enumEntriesObjectCreateInvocation();
-            invocation.getArguments().add(new JsObjectLiteral(enumEntryList, true));
-
-            JsFunction fun = simpleReturnFunction(declarationContext.getScopeForDescriptor(descriptor), invocation);
-            staticProperties.add(createClassObjectInitializer(fun, declarationContext));
-        } else {
-            assert enumEntryList.isEmpty(): "Only enum class may have enum entry. Class kind is: " + descriptor.getKind();
-        }
     }
 
     private JsExpression getSuperclassReferences(@NotNull TranslationContext declarationContext) {
@@ -241,18 +247,61 @@ public final class ClassTranslator extends AbstractTranslator {
         for (JetParameter parameter : getPrimaryConstructorParameters(classDeclaration)) {
             PropertyDescriptor descriptor = getPropertyDescriptorForConstructorParameter(bindingContext(), parameter);
             if (descriptor != null) {
-                PropertyTranslator.translateAccessors(descriptor, result, classDeclarationContext);
+                PropertyTranslatorPackage.translateAccessors(descriptor, result, classDeclarationContext);
             }
         }
     }
 
     @NotNull
     private JsExpression translateObjectInsideClass(@NotNull TranslationContext outerClassContext) {
-        JsFunction fun = new JsFunction(outerClassContext.scope(), new JsBlock());
+        JsFunction fun = new JsFunction(outerClassContext.scope(), new JsBlock(), "initializer for " + descriptor.getName().asString());
         TranslationContext funContext = outerClassContext.newFunctionBodyWithUsageTracker(fun, descriptor);
 
         fun.getBody().getStatements().add(new JsReturn(translate(funContext)));
 
         return ExpressionPackage.withCapturedParameters(fun, funContext, outerClassContext, descriptor);
+    }
+
+    private void generateBridges(
+            @NotNull FunctionDescriptor descriptor,
+            @NotNull List<JsPropertyInitializer> properties
+    ) {
+        Set<Bridge<FunctionDescriptor>> bridgesToGenerate =
+                BridgesPackage.generateBridgesForFunctionDescriptor(descriptor, UtilsPackage.<FunctionDescriptor>getID());
+
+        for (Bridge<FunctionDescriptor> bridge : bridgesToGenerate) {
+            generateBridge(bridge, properties);
+        }
+    }
+
+    private void generateBridge(
+            @NotNull Bridge<FunctionDescriptor> bridge,
+            @NotNull List<JsPropertyInitializer> properties
+    ) {
+        FunctionDescriptor fromDescriptor = bridge.getFrom();
+        FunctionDescriptor toDescriptor = bridge.getTo();
+        if (areNamesEqual(fromDescriptor, toDescriptor)) return;
+
+        if (fromDescriptor.getKind().isReal() &&
+            fromDescriptor.getModality() != Modality.ABSTRACT &&
+            !toDescriptor.getKind().isReal()) return;
+
+        properties.add(generateDelegateCall(fromDescriptor, toDescriptor, JsLiteral.THIS, context()));
+    }
+
+    private void generateTraitMethods(@NotNull List<JsPropertyInitializer> properties) {
+        if (isTrait()) return;
+
+        for(Map.Entry<FunctionDescriptor, FunctionDescriptor> entry : CodegenUtil.getTraitMethods(descriptor).entrySet()) {
+            if (!areNamesEqual(entry.getKey(), entry.getValue())) {
+                properties.add(generateDelegateCall(entry.getValue(), entry.getKey(), JsLiteral.THIS, context()));
+            }
+        }
+    }
+
+    private boolean areNamesEqual(@NotNull FunctionDescriptor first, @NotNull FunctionDescriptor second) {
+        JsName firstName = context().getNameForDescriptor(first);
+        JsName secondName = context().getNameForDescriptor(second);
+        return firstName.getIdent().equals(secondName.getIdent());
     }
 }

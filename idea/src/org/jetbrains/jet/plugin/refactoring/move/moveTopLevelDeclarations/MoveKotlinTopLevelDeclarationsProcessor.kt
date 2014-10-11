@@ -27,7 +27,6 @@ import com.intellij.usageView.UsageViewUtil
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.psi.PsiElement
 import com.intellij.refactoring.util.NonCodeUsageInfo
-import com.intellij.refactoring.move.moveClassesOrPackages.CommonMoveUtil
 import com.intellij.util.IncorrectOperationException
 import com.intellij.refactoring.util.RefactoringUIUtil
 import org.jetbrains.jet.utils.keysToMap
@@ -38,10 +37,7 @@ import com.intellij.psi.PsiDirectory
 import org.jetbrains.jet.lang.psi.psiUtil.getPackage
 import org.jetbrains.jet.lang.psi.JetFile
 import org.jetbrains.jet.plugin.refactoring.move.PackageNameInfo
-import org.jetbrains.jet.lang.psi.JetPsiUtil
-import org.jetbrains.jet.lang.resolve.name.FqName
 import org.jetbrains.jet.plugin.refactoring.createKotlinFile
-import org.jetbrains.jet.plugin.refactoring.move.updateInternalReferencesOnPackageNameChange
 import org.jetbrains.jet.plugin.codeInsight.addToShorteningWaitSet
 import org.jetbrains.jet.plugin.refactoring.move.getFileNameAfterMove
 import org.jetbrains.jet.lang.psi.JetNamedDeclaration
@@ -52,7 +48,6 @@ import java.util.ArrayList
 import java.util.HashSet
 import com.intellij.psi.PsiReference
 import com.intellij.psi.search.searches.ReferencesSearch
-import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.refactoring.util.MoveRenameUsageInfo
 import com.intellij.refactoring.util.TextOccurrencesUtil
 import com.intellij.refactoring.move.moveClassesOrPackages.MoveClassHandler
@@ -70,8 +65,13 @@ import com.intellij.psi.PsiModifier
 import com.intellij.util.VisibilityUtil
 import com.intellij.openapi.util.Ref
 import org.jetbrains.jet.plugin.refactoring.getKotlinFqName
-import org.jetbrains.jet.plugin.references.JetSimpleNameReference.ShorteningMode
 import org.jetbrains.jet.plugin.search.projectScope
+import org.jetbrains.jet.plugin.refactoring.move.getInternalReferencesToUpdateOnPackageNameChange
+import org.jetbrains.jet.plugin.refactoring.move.createMoveUsageInfo
+import org.jetbrains.jet.plugin.refactoring.move.postProcessMoveUsages
+import org.jetbrains.jet.plugin.references.JetSimpleNameReference.ShorteningMode
+import org.jetbrains.jet.lang.psi.psiUtil.isAncestor
+import org.jetbrains.jet.plugin.refactoring.move.MoveRenameUsageInfoForExtension
 
 public class MoveKotlinTopLevelDeclarationsOptions(
         val elementsToMove: Collection<JetNamedDeclaration>,
@@ -85,7 +85,7 @@ public class MoveKotlinTopLevelDeclarationsProcessor(project: Project, val optio
     class object {
         private val LOG: Logger = Logger.getInstance(javaClass<MoveKotlinTopLevelDeclarationsProcessor>())
 
-        private val REFACTORING_NAME: String = JetRefactoringBundle.message("refactoring.move.top.level.declarations")!!
+        private val REFACTORING_NAME: String = JetRefactoringBundle.message("refactoring.move.top.level.declarations")
     }
 
     private var nonCodeUsages: Array<NonCodeUsageInfo>? = null
@@ -112,9 +112,8 @@ public class MoveKotlinTopLevelDeclarationsProcessor(project: Project, val optio
                 val results = ReferencesSearch
                         .search(lightElement, projectScope, false)
                         .mapTo(ArrayList<UsageInfo?>()) { ref ->
-                            if (foundReferences.add(ref)) {
-                                val range = ref.getRangeInElement()!!
-                                MoveRenameUsageInfo(ref.getElement(), ref, range.getStartOffset(), range.getEndOffset(), lightElement, false)
+                            if (foundReferences.add(ref) && elementsToMove.all { !it.isAncestor(ref.getElement())}) {
+                                createMoveUsageInfo(ref, lightElement, true)
                             }
                             else null
                         }
@@ -176,7 +175,7 @@ public class MoveKotlinTopLevelDeclarationsProcessor(project: Project, val optio
         fun collectConflictsInDeclarations() {
             val declarationToReferenceTargets = HashMap<JetNamedDeclaration, MutableSet<PsiElement>>()
             for (declaration in elementsToMove) {
-                val referenceToContext = JetFileReferencesResolver.resolve(element = declaration, visitReceivers = false)
+                val referenceToContext = JetFileReferencesResolver.resolve(element = declaration, resolveQualifiers = false)
                 for ((refExpr, bindingContext) in referenceToContext) {
                     val refTarget = bindingContext[BindingContext.REFERENCE_TARGET, refExpr]?.let { descriptor ->
                         DescriptorToDeclarationUtil.getDeclaration(declaration.getProject(), descriptor)
@@ -204,7 +203,7 @@ public class MoveKotlinTopLevelDeclarationsProcessor(project: Project, val optio
                                     "0.uses.package.private.1",
                                     RefactoringUIUtil.getDescription(declaration, true),
                                     RefactoringUIUtil.getDescription(refTarget, true)
-                            )!!.capitalize()
+                            ).capitalize()
                     )
                 }
             }
@@ -220,10 +219,14 @@ public class MoveKotlinTopLevelDeclarationsProcessor(project: Project, val optio
         return showConflicts(conflicts, refUsages.get())
     }
 
-    override fun performRefactoring(usages: Array<out UsageInfo>?) {
-        fun moveDeclaration(declaration: JetNamedDeclaration, moveTarget: KotlinMoveTarget): JetNamedDeclaration? {
+    override fun performRefactoring(usages: Array<out UsageInfo>) {
+        fun moveDeclaration(
+                declaration: JetNamedDeclaration,
+                moveTarget: KotlinMoveTarget,
+                usagesToProcessAfterMove: MutableList<UsageInfo>
+        ): JetNamedDeclaration? {
             val file = declaration.getContainingFile() as? JetFile
-            assert (file != null, "${declaration.getClass()}: ${declaration.getText()}")
+            assert (file != null, "${declaration.javaClass}: ${declaration.getText()}")
 
             val targetPsi = moveTarget.getOrCreateTargetPsi(declaration)
             val targetFile =
@@ -238,16 +241,14 @@ public class MoveKotlinTopLevelDeclarationsProcessor(project: Project, val optio
                     }
                     else targetPsi
 
-            assert(targetFile is JetFile, "Couldn't create Koltin file for: ${declaration.getClass()}: ${declaration.getText()}")
+            assert(targetFile is JetFile, "Couldn't create Koltin file for: ${declaration.javaClass}: ${declaration.getText()}")
 
-            val newPackageFqName = (targetFile as JetFile).getPackageFqName()
-
-            val packageNameInfo = PackageNameInfo(file!!.getPackageFqName(), newPackageFqName)
-            declaration.updateInternalReferencesOnPackageNameChange(
-                    packageNameInfo,
-                    updateImportedReferences = true,
-                    shorteningMode = ShorteningMode.NO_SHORTENING
-            )
+            val packageNameInfo = PackageNameInfo(file!!.getPackageFqName(), (targetFile as JetFile).getPackageFqName())
+            val (usagesToProcessLater, usagesToProcessNow) = declaration
+                    .getInternalReferencesToUpdateOnPackageNameChange(packageNameInfo)
+                    .partition { it is MoveRenameUsageInfoForExtension }
+            postProcessMoveUsages(usagesToProcessNow, shorteningMode = ShorteningMode.NO_SHORTENING)
+            usagesToProcessAfterMove.addAll(usagesToProcessLater)
 
             val newElement = targetFile.add(declaration) as JetNamedDeclaration
             declaration.delete()
@@ -258,9 +259,13 @@ public class MoveKotlinTopLevelDeclarationsProcessor(project: Project, val optio
         }
 
         try {
+            val usageList = usages.toArrayList()
+
             val oldToNewElementsMapping = HashMap<PsiElement, PsiElement>()
             for ((oldDeclaration, oldLightElements) in kotlinToLightElements) {
-                val newDeclaration = moveDeclaration(oldDeclaration, options.moveTarget)
+                val oldFile = oldDeclaration.getContainingJetFile()
+
+                val newDeclaration = moveDeclaration(oldDeclaration, options.moveTarget, usageList)
                 if (newDeclaration == null) {
                     for (oldElement in oldLightElements) {
                         oldToNewElementsMapping[oldElement] = oldElement
@@ -268,13 +273,15 @@ public class MoveKotlinTopLevelDeclarationsProcessor(project: Project, val optio
                     continue
                 }
 
+                oldToNewElementsMapping[oldFile] = newDeclaration.getContainingJetFile()
+
                 getTransaction()!!.getElementListener(oldDeclaration).elementMoved(newDeclaration)
                 for ((oldElement, newElement) in oldLightElements.stream() zip newDeclaration.toLightElements().stream()) {
                     oldToNewElementsMapping[oldElement] = newElement
                 }
             }
 
-            nonCodeUsages = CommonMoveUtil.retargetUsages(usages, oldToNewElementsMapping)
+            nonCodeUsages = postProcessMoveUsages(usageList, oldToNewElementsMapping).copyToArray()
         }
         catch (e: IncorrectOperationException) {
             nonCodeUsages = null

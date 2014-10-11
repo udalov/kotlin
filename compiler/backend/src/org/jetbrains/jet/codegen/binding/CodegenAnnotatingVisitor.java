@@ -20,6 +20,7 @@ import com.intellij.psi.PsiElement;
 import com.intellij.psi.tree.IElementType;
 import com.intellij.psi.tree.TokenSet;
 import com.intellij.util.containers.Stack;
+import kotlin.Function1;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.codegen.AsmUtil;
@@ -27,27 +28,33 @@ import org.jetbrains.jet.codegen.JvmRuntimeTypes;
 import org.jetbrains.jet.codegen.SamCodegenUtil;
 import org.jetbrains.jet.codegen.SamType;
 import org.jetbrains.jet.codegen.state.GenerationState;
+import org.jetbrains.jet.codegen.when.SwitchCodegenUtil;
+import org.jetbrains.jet.codegen.when.WhenByEnumsMapping;
+import org.jetbrains.jet.lang.cfg.WhenChecker;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.descriptors.impl.ClassDescriptorImpl;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.BindingTrace;
+import org.jetbrains.jet.lang.resolve.DescriptorToSourceUtils;
 import org.jetbrains.jet.lang.resolve.DescriptorUtils;
-import org.jetbrains.jet.lang.resolve.bindingContextUtil.BindingContextUtilPackage;
+import org.jetbrains.jet.lang.resolve.calls.callUtil.CallUtilPackage;
 import org.jetbrains.jet.lang.resolve.calls.model.ExpressionValueArgument;
 import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCall;
 import org.jetbrains.jet.lang.resolve.calls.model.ResolvedValueArgument;
+import org.jetbrains.jet.lang.resolve.constants.CompileTimeConstant;
+import org.jetbrains.jet.lang.resolve.constants.EnumValue;
+import org.jetbrains.jet.lang.resolve.constants.NullValue;
 import org.jetbrains.jet.lang.resolve.java.JvmAbi;
-import org.jetbrains.jet.lang.resolve.java.PackageClassUtils;
-import org.jetbrains.jet.lang.resolve.name.FqName;
+import org.jetbrains.jet.lang.resolve.kotlin.PackagePartClassUtils;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
+import org.jetbrains.jet.lang.resolve.source.SourcePackage;
 import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.org.objectweb.asm.Type;
 
 import java.util.*;
 
-import static org.jetbrains.jet.codegen.JvmCodegenUtil.peekFromStack;
 import static org.jetbrains.jet.codegen.binding.CodegenBinding.*;
 import static org.jetbrains.jet.lang.resolve.BindingContext.*;
 import static org.jetbrains.jet.lang.resolve.name.SpecialNames.safeIdentifier;
@@ -100,6 +107,7 @@ class CodegenAnnotatingVisitor extends JetVisitorVoid {
 
     @NotNull
     private ClassDescriptor recordClassForFunction(
+            @NotNull JetElement element,
             @NotNull FunctionDescriptor funDescriptor,
             @NotNull Collection<JetType> supertypes,
             @NotNull String name
@@ -107,7 +115,7 @@ class CodegenAnnotatingVisitor extends JetVisitorVoid {
         String simpleName = name.substring(name.lastIndexOf('/') + 1);
         ClassDescriptorImpl classDescriptor = new ClassDescriptorImpl(
                 funDescriptor.getContainingDeclaration(), Name.special("<closure-" + simpleName + ">"), Modality.FINAL, supertypes,
-                SourceElement.NO_SOURCE
+                SourcePackage.toSourceElement(element)
         );
         classDescriptor.initialize(JetScope.EMPTY, Collections.<ConstructorDescriptor>emptySet(), null);
 
@@ -186,7 +194,7 @@ class CodegenAnnotatingVisitor extends JetVisitorVoid {
                                                        JetPsiUtil.getElementTextWithContext(classObject));
 
         String name = peekFromStack(nameStack) + JvmAbi.CLASS_OBJECT_SUFFIX;
-        recordClosure(classObject, classDescriptor, name);
+        recordClosure(classDescriptor, name);
 
         pushClassDescriptor(classDescriptor);
         nameStack.push(name);
@@ -208,7 +216,7 @@ class CodegenAnnotatingVisitor extends JetVisitorVoid {
             if (classDescriptor == null) return;
 
             String name = getName(classDescriptor);
-            recordClosure(declaration, classDescriptor, name);
+            recordClosure(classDescriptor, name);
 
             pushClassDescriptor(classDescriptor);
             nameStack.push(name);
@@ -227,7 +235,7 @@ class CodegenAnnotatingVisitor extends JetVisitorVoid {
         if (classDescriptor == null) return;
 
         String name = getName(classDescriptor);
-        recordClosure(klass, classDescriptor, name);
+        recordClosure(classDescriptor, name);
 
         pushClassDescriptor(classDescriptor);
         nameStack.push(name);
@@ -253,11 +261,10 @@ class CodegenAnnotatingVisitor extends JetVisitorVoid {
         }
 
         String name = inventAnonymousClassName(expression.getObjectDeclaration());
-        recordClosure(expression.getObjectDeclaration(), classDescriptor, name);
+        recordClosure(classDescriptor, name);
 
         pushClassDescriptor(classDescriptor);
-        //noinspection ConstantConditions
-        nameStack.push(bindingContext.get(ASM_TYPE, classDescriptor).getInternalName());
+        nameStack.push(CodegenBinding.getAsmType(bindingContext, classDescriptor).getInternalName());
         super.visitObjectLiteralExpression(expression);
         nameStack.pop();
         popClassDescriptor();
@@ -273,8 +280,8 @@ class CodegenAnnotatingVisitor extends JetVisitorVoid {
 
         String name = inventAnonymousClassName(expression);
         Collection<JetType> supertypes = runtimeTypes.getSupertypesForClosure(functionDescriptor);
-        ClassDescriptor classDescriptor = recordClassForFunction(functionDescriptor, supertypes, name);
-        recordClosure(functionLiteral, classDescriptor, name);
+        ClassDescriptor classDescriptor = recordClassForFunction(functionLiteral, functionDescriptor, supertypes, name);
+        recordClosure(classDescriptor, name);
 
         pushClassDescriptor(classDescriptor);
         nameStack.push(name);
@@ -318,14 +325,14 @@ class CodegenAnnotatingVisitor extends JetVisitorVoid {
         // working around a problem with shallow analysis
         if (functionDescriptor == null) return;
 
-        ResolvedCall<?> referencedFunction = BindingContextUtilPackage.getResolvedCall(expression.getCallableReference(), bindingContext);
+        ResolvedCall<?> referencedFunction = CallUtilPackage.getResolvedCall(expression.getCallableReference(), bindingContext);
         if (referencedFunction == null) return;
         Collection<JetType> supertypes =
                 runtimeTypes.getSupertypesForFunctionReference((FunctionDescriptor) referencedFunction.getResultingDescriptor());
 
         String name = inventAnonymousClassName(expression);
-        ClassDescriptor classDescriptor = recordClassForFunction(functionDescriptor, supertypes, name);
-        recordClosure(expression, classDescriptor, name);
+        ClassDescriptor classDescriptor = recordClassForFunction(expression, functionDescriptor, supertypes, name);
+        recordClosure(classDescriptor, name);
 
         pushClassDescriptor(classDescriptor);
         nameStack.push(name);
@@ -335,12 +342,8 @@ class CodegenAnnotatingVisitor extends JetVisitorVoid {
     }
 
 
-    private void recordClosure(
-            @NotNull JetElement element,
-            @NotNull ClassDescriptor classDescriptor,
-            @NotNull String name
-    ) {
-        CodegenBinding.recordClosure(bindingTrace, element, classDescriptor, getOuterClassDescriptor(), Type.getObjectType(name));
+    private void recordClosure(@NotNull ClassDescriptor classDescriptor, @NotNull String name) {
+        CodegenBinding.recordClosure(bindingTrace, classDescriptor, getOuterClassDescriptor(), Type.getObjectType(name));
     }
 
     @Override
@@ -375,8 +378,8 @@ class CodegenAnnotatingVisitor extends JetVisitorVoid {
         else {
             String name = inventAnonymousClassName(function);
             Collection<JetType> supertypes = runtimeTypes.getSupertypesForClosure(functionDescriptor);
-            ClassDescriptor classDescriptor = recordClassForFunction(functionDescriptor, supertypes, name);
-            recordClosure(function, classDescriptor, name);
+            ClassDescriptor classDescriptor = recordClassForFunction(function, functionDescriptor, supertypes, name);
+            recordClosure(classDescriptor, name);
 
             pushClassDescriptor(classDescriptor);
             nameStack.push(name);
@@ -396,20 +399,18 @@ class CodegenAnnotatingVisitor extends JetVisitorVoid {
             return peek + '$' + name;
         }
         else if (containingDeclaration instanceof PackageFragmentDescriptor) {
-            FqName qualifiedName = ((PackageFragmentDescriptor) containingDeclaration).getFqName();
-            String packageClassShortName = PackageClassUtils.getPackageClassName(qualifiedName);
-            String packageClassName = peek.isEmpty() ? packageClassShortName : peek + "/" + packageClassShortName;
-            return packageClassName + '$' + name;
+            JetFile containingFile = DescriptorToSourceUtils.getContainingFile(descriptor);
+            assert containingFile != null : "File not found for " + descriptor;
+            return PackagePartClassUtils.getPackagePartInternalName(containingFile) + '$' + name;
         }
-        else {
-            return null;
-        }
+
+        return null;
     }
 
     @Override
     public void visitCallExpression(@NotNull JetCallExpression expression) {
         super.visitCallExpression(expression);
-        ResolvedCall<?> call = BindingContextUtilPackage.getResolvedCall(expression, bindingContext);
+        ResolvedCall<?> call = CallUtilPackage.getResolvedCall(expression, bindingContext);
         if (call == null) return;
 
         CallableDescriptor descriptor = call.getResultingDescriptor();
@@ -488,5 +489,71 @@ class CodegenAnnotatingVisitor extends JetVisitorVoid {
                 bindingTrace.record(CodegenBinding.SAM_VALUE, indexExpression, samType);
             }
         }
+    }
+
+    @Override
+    public void visitWhenExpression(@NotNull JetWhenExpression expression) {
+        super.visitWhenExpression(expression);
+        if (!isWhenWithEnums(expression)) return;
+
+        String currentClassName = getCurrentTopLevelClassOrPackagePartInternalName(expression.getContainingJetFile());
+
+        if (bindingContext.get(MAPPINGS_FOR_WHENS_BY_ENUM_IN_CLASS_FILE, currentClassName) == null) {
+            bindingTrace.record(MAPPINGS_FOR_WHENS_BY_ENUM_IN_CLASS_FILE, currentClassName, new ArrayList<WhenByEnumsMapping>(1));
+        }
+
+        List<WhenByEnumsMapping> mappings = bindingContext.get(MAPPINGS_FOR_WHENS_BY_ENUM_IN_CLASS_FILE, currentClassName);
+        assert mappings != null : "guaranteed by contract";
+
+        int fieldNumber = mappings.size();
+
+        JetType type = bindingContext.get(BindingContext.EXPRESSION_TYPE, expression.getSubjectExpression());
+        assert type != null : "should not be null in a valid when by enums";
+        ClassDescriptor classDescriptor = (ClassDescriptor) type.getConstructor().getDeclarationDescriptor();
+        assert classDescriptor != null : "because it's enum";
+
+        WhenByEnumsMapping mapping = new WhenByEnumsMapping(classDescriptor, currentClassName, fieldNumber);
+
+        for (CompileTimeConstant constant : SwitchCodegenUtil.getAllConstants(expression, bindingContext)) {
+            if (constant instanceof NullValue) continue;
+
+            assert constant instanceof EnumValue : "expression in when should be EnumValue";
+            mapping.putFirstTime((EnumValue) constant, mapping.size() + 1);
+        }
+
+        mappings.add(mapping);
+
+        bindingTrace.record(MAPPING_FOR_WHEN_BY_ENUM, expression, mapping);
+    }
+
+    private boolean isWhenWithEnums(@NotNull JetWhenExpression expression) {
+        return WhenChecker.isWhenByEnum(expression, bindingContext) &&
+               SwitchCodegenUtil.checkAllItemsAreConstantsSatisfying(
+                       expression,
+                       bindingContext,
+                       new Function1<CompileTimeConstant, Boolean>() {
+                           @Override
+                           public Boolean invoke(@NotNull CompileTimeConstant constant) {
+                               return constant instanceof EnumValue || constant instanceof NullValue;
+                           }
+                       }
+               );
+    }
+
+    @NotNull
+    private String getCurrentTopLevelClassOrPackagePartInternalName(@NotNull JetFile file) {
+        ListIterator<ClassDescriptorWithState> iterator = classStack.listIterator(classStack.size());
+        while (iterator.hasPrevious()) {
+            ClassDescriptor previous = iterator.previous().getDescriptor();
+            if (DescriptorUtils.isTopLevelOrInnerClass(previous)) {
+                return CodegenBinding.getAsmType(bindingContext, previous).getInternalName();
+            }
+        }
+
+        return PackagePartClassUtils.getPackagePartInternalName(file);
+    }
+
+    private static <T> T peekFromStack(@NotNull Stack<T> stack) {
+        return stack.empty() ? null : stack.peek();
     }
 }

@@ -34,6 +34,7 @@ import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.resolve.*;
 import org.jetbrains.jet.lang.resolve.java.JavaBindingContext;
 import org.jetbrains.jet.lang.resolve.java.JvmAbi;
+import org.jetbrains.jet.lang.resolve.java.JvmClassName;
 import org.jetbrains.jet.lang.resolve.java.resolver.TraceBasedErrorReporter;
 import org.jetbrains.jet.lang.resolve.kotlin.VirtualFileKotlinClass;
 
@@ -144,7 +145,7 @@ public final class AnalyzerWithCompilerReport {
             Integer abiVersion = bindingContext.get(TraceBasedErrorReporter.ABI_VERSION_ERRORS, kotlinClass);
             String path = toSystemDependentName(kotlinClass.getFile().getPath());
             messageCollectorWrapper.report(CompilerMessageSeverity.ERROR,
-                                           "Class '" + kotlinClass.getClassName() +
+                                           "Class '" + JvmClassName.byClassId(kotlinClass.getClassId()) +
                                            "' was compiled with an incompatible version of Kotlin. " +
                                            "Its ABI version is " + abiVersion + ", expected ABI version is " + JvmAbi.VERSION,
                                            CompilerMessageLocation.create(path, 0, 0));
@@ -167,32 +168,32 @@ public final class AnalyzerWithCompilerReport {
 
     public static class SyntaxErrorReport {
         private final boolean hasErrors;
-        private final boolean onlyErrorAtEof;
+        private final boolean allErrorsAtEof;
 
-        public SyntaxErrorReport(boolean hasErrors, boolean onlyErrorAtEof) {
+        public SyntaxErrorReport(boolean hasErrors, boolean allErrorsAtEof) {
             this.hasErrors = hasErrors;
-            this.onlyErrorAtEof = onlyErrorAtEof;
+            this.allErrorsAtEof = allErrorsAtEof;
         }
 
         public boolean isHasErrors() {
             return hasErrors;
         }
 
-        public boolean isOnlyErrorAtEof() {
-            return onlyErrorAtEof;
+        public boolean isAllErrorsAtEof() {
+            return allErrorsAtEof;
         }
     }
 
     public static SyntaxErrorReport reportSyntaxErrors(@NotNull final PsiElement file, @NotNull final MessageCollector messageCollector) {
         class ErrorReportingVisitor extends AnalyzingUtils.PsiErrorElementVisitor {
             boolean hasErrors = false;
-            boolean onlyErrorAtEof = false;
+            boolean allErrorsAtEof = true;
 
             private <E extends PsiElement> void reportDiagnostic(E element, DiagnosticFactory0<E> factory, String message) {
                 MyDiagnostic<?> diagnostic = new MyDiagnostic<E>(element, factory, message);
                 AnalyzerWithCompilerReport.reportDiagnostic(diagnostic, messageCollector);
-                if (element.getTextRange().getStartOffset() == file.getTextRange().getEndOffset()) {
-                    onlyErrorAtEof = !hasErrors;
+                if (element.getTextRange().getStartOffset() != file.getTextRange().getEndOffset()) {
+                    allErrorsAtEof = false;
                 }
                 hasErrors = true;
             }
@@ -207,7 +208,7 @@ public final class AnalyzerWithCompilerReport {
 
         file.accept(visitor);
 
-        return new SyntaxErrorReport(visitor.hasErrors, visitor.onlyErrorAtEof);
+        return new SyntaxErrorReport(visitor.hasErrors, visitor.allErrorsAtEof);
     }
 
     @Nullable

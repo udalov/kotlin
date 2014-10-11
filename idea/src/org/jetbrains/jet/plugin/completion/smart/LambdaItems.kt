@@ -19,13 +19,12 @@ package org.jetbrains.jet.plugin.completion.smart
 import com.intellij.codeInsight.lookup.LookupElement
 import com.intellij.codeInsight.lookup.LookupElementBuilder
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns
-import org.jetbrains.jet.plugin.completion.handlers.functionParameterTypes
-import org.jetbrains.jet.renderer.DescriptorRenderer
 import org.jetbrains.jet.plugin.completion.handlers.insertLambdaTemplate
 import com.intellij.openapi.util.TextRange
 import org.jetbrains.jet.plugin.completion.JetCompletionCharFilter
 import org.jetbrains.jet.plugin.completion.ExpectedInfo
 import org.jetbrains.jet.plugin.completion.handlers.buildLambdaPresentation
+import org.jetbrains.jet.plugin.completion.suppressAutoInsertion
 
 object LambdaItems {
     public fun addToCollection(collection: MutableCollection<LookupElement>, functionExpectedInfos: Collection<ExpectedInfo>) {
@@ -38,7 +37,7 @@ object LambdaItems {
             val lookupElement = LookupElementBuilder.create("{...}")
                     .withInsertHandler(ArtificialElementInsertHandler("{ ", " }", false))
                     .suppressAutoInsertion()
-                    .addTail(functionExpectedInfos)
+                    .addTailAndNameSimilarity(functionExpectedInfos)
             lookupElement.putUserData(JetCompletionCharFilter.ACCEPT_OPENING_BRACE, true)
             collection.add(lookupElement)
         }
@@ -54,7 +53,7 @@ object LambdaItems {
                                                insertLambdaTemplate(context, TextRange(offset, offset + placeholder.length), functionType)
                                            })
                         .suppressAutoInsertion()
-                        .addTail(functionExpectedInfos.filter { it.`type` == functionType })
+                        .addTailAndNameSimilarity(functionExpectedInfos.filter { it.`type` == functionType })
                 lookupElement.putUserData(JetCompletionCharFilter.ACCEPT_OPENING_BRACE, true)
                 collection.add(lookupElement)
             }

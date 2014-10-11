@@ -18,18 +18,23 @@ package org.jetbrains.jet.backend.common;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.jet.lang.descriptors.ClassDescriptor;
-import org.jetbrains.jet.lang.descriptors.ClassifierDescriptor;
-import org.jetbrains.jet.lang.descriptors.FunctionDescriptor;
-import org.jetbrains.jet.lang.descriptors.ValueParameterDescriptor;
+import org.jetbrains.jet.codegen.bridges.BridgesPackage;
+import org.jetbrains.jet.lang.descriptors.*;
+import org.jetbrains.jet.lang.psi.JetDelegationSpecifier;
+import org.jetbrains.jet.lang.psi.JetExpression;
+import org.jetbrains.jet.lang.psi.JetSimpleNameExpression;
+import org.jetbrains.jet.lang.resolve.BindingContext;
+import org.jetbrains.jet.lang.resolve.DescriptorUtils;
 import org.jetbrains.jet.lang.resolve.calls.CallResolverUtil;
+import org.jetbrains.jet.lang.resolve.calls.callUtil.CallUtilPackage;
+import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCall;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.types.JetType;
+import org.jetbrains.jet.lang.types.TypeUtils;
+import org.jetbrains.jet.lang.types.checker.JetTypeChecker;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
+import java.util.*;
 
 /**
  * Backend-independent utility class.
@@ -91,6 +96,100 @@ public class CodegenUtil {
         return function;
     }
 
+    @Nullable
+    public static PropertyDescriptor getDelegatePropertyIfAny(JetExpression expression, ClassDescriptor classDescriptor, BindingContext bindingContext) {
+        PropertyDescriptor propertyDescriptor = null;
+        if (expression instanceof JetSimpleNameExpression) {
+            ResolvedCall<?> call = CallUtilPackage.getResolvedCall(expression, bindingContext);
+            if (call != null) {
+                CallableDescriptor callResultingDescriptor = call.getResultingDescriptor();
+                if (callResultingDescriptor instanceof ValueParameterDescriptor) {
+                    ValueParameterDescriptor valueParameterDescriptor = (ValueParameterDescriptor) callResultingDescriptor;
+                    // constructor parameter
+                    if (valueParameterDescriptor.getContainingDeclaration() instanceof ConstructorDescriptor) {
+                        // constructor of my class
+                        if (valueParameterDescriptor.getContainingDeclaration().getContainingDeclaration() == classDescriptor) {
+                            propertyDescriptor = bindingContext.get(BindingContext.VALUE_PARAMETER_AS_PROPERTY, valueParameterDescriptor);
+                        }
+                    }
+                }
+
+                // todo: when and if frontend will allow properties defined not as constructor parameters to be used in delegation specifier
+            }
+        }
+        return propertyDescriptor;
+    }
+
+    public static boolean isFinalPropertyWithBackingField(PropertyDescriptor propertyDescriptor, BindingContext bindingContext) {
+        return propertyDescriptor != null &&
+               !propertyDescriptor.isVar() &&
+               Boolean.TRUE.equals(bindingContext.get(BindingContext.BACKING_FIELD_REQUIRED, propertyDescriptor));
+    }
+
+    public static Map<CallableMemberDescriptor, CallableMemberDescriptor> getDelegates(ClassDescriptor descriptor, ClassDescriptor toClass) {
+        Map<CallableMemberDescriptor, CallableMemberDescriptor> result = new LinkedHashMap<CallableMemberDescriptor, CallableMemberDescriptor>();
+        for (DeclarationDescriptor declaration : descriptor.getDefaultType().getMemberScope().getAllDescriptors()) {
+            if (declaration instanceof CallableMemberDescriptor) {
+                CallableMemberDescriptor callableMemberDescriptor = (CallableMemberDescriptor) declaration;
+                if (callableMemberDescriptor.getKind() == CallableMemberDescriptor.Kind.DELEGATION) {
+                    Set<? extends CallableMemberDescriptor> overriddenDescriptors = callableMemberDescriptor.getOverriddenDescriptors();
+                    for (CallableMemberDescriptor overriddenDescriptor : overriddenDescriptors) {
+                        if (overriddenDescriptor.getContainingDeclaration() == toClass) {
+                            assert !result.containsKey(callableMemberDescriptor) :
+                                    "overridden is already set for " + callableMemberDescriptor;
+                            result.put(callableMemberDescriptor, overriddenDescriptor);
+                        }
+                    }
+                }
+            }
+        }
+        return result;
+    }
+
+    @NotNull
+    public static Map<FunctionDescriptor, FunctionDescriptor> getTraitMethods(ClassDescriptor descriptor) {
+        Map<FunctionDescriptor, FunctionDescriptor> result = new LinkedHashMap<FunctionDescriptor, FunctionDescriptor>();
+        for (DeclarationDescriptor declaration : descriptor.getDefaultType().getMemberScope().getAllDescriptors()) {
+            if (!(declaration instanceof CallableMemberDescriptor)) continue;
+
+            CallableMemberDescriptor inheritedMember = (CallableMemberDescriptor) declaration;
+            CallableMemberDescriptor traitMember = BridgesPackage.findTraitImplementation(inheritedMember);
+            if (traitMember == null) continue;
+
+            assert traitMember.getModality() != Modality.ABSTRACT : "Cannot delegate to abstract trait method: " + inheritedMember;
+
+            // inheritedMember can be abstract here. In order for FunctionCodegen to generate the method body, we're creating a copy here
+            // with traitMember's modality
+            CallableMemberDescriptor copy =
+                    inheritedMember.copy(inheritedMember.getContainingDeclaration(), traitMember.getModality(), Visibilities.PUBLIC,
+                                         CallableMemberDescriptor.Kind.DECLARATION, true);
+
+            if (traitMember instanceof SimpleFunctionDescriptor) {
+                result.put((FunctionDescriptor) traitMember, (FunctionDescriptor) copy);
+            }
+            else if (traitMember instanceof PropertyDescriptor) {
+                for (PropertyAccessorDescriptor traitAccessor : ((PropertyDescriptor) traitMember).getAccessors()) {
+                    for (PropertyAccessorDescriptor inheritedAccessor : ((PropertyDescriptor) copy).getAccessors()) {
+                        if (inheritedAccessor.getClass() == traitAccessor.getClass()) { // same accessor kind
+                            result.put(traitAccessor, inheritedAccessor);
+                        }
+                    }
+                }
+            }
+        }
+        return result;
+    }
+
+    @NotNull
+    public static ClassDescriptor getSuperClassByDelegationSpecifier(@NotNull JetDelegationSpecifier specifier, @NotNull BindingContext bindingContext) {
+        JetType superType = bindingContext.get(BindingContext.TYPE, specifier.getTypeReference());
+        assert superType != null : "superType should not be null: " + specifier.getText();
+
+        ClassDescriptor superClassDescriptor = (ClassDescriptor) superType.getConstructor().getDeclarationDescriptor();
+        assert superClassDescriptor != null : "superClassDescriptor should not be null: " + specifier.getText();
+        return superClassDescriptor;
+    }
+
     private static boolean valueParameterClassesMatch(
             @NotNull List<ValueParameterDescriptor> parameters,
             @NotNull List<ClassifierDescriptor> classifiers
@@ -107,6 +206,20 @@ public class CodegenUtil {
     }
 
     private static boolean rawTypeMatches(JetType type, ClassifierDescriptor classifier) {
-        return type.getConstructor().getDeclarationDescriptor().getOriginal() == classifier.getOriginal();
+        return type.getConstructor().equals(classifier.getTypeConstructor());
+    }
+
+    public static boolean isEnumValueOfMethod(@NotNull FunctionDescriptor functionDescriptor) {
+        List<ValueParameterDescriptor> methodTypeParameters = functionDescriptor.getValueParameters();
+        JetType nullableString = TypeUtils.makeNullable(KotlinBuiltIns.getInstance().getStringType());
+        return DescriptorUtils.ENUM_VALUE_OF.equals(functionDescriptor.getName())
+               && methodTypeParameters.size() == 1
+               && JetTypeChecker.DEFAULT.isSubtypeOf(methodTypeParameters.get(0).getType(), nullableString);
+    }
+
+    public static boolean isEnumValuesMethod(@NotNull FunctionDescriptor functionDescriptor) {
+        List<ValueParameterDescriptor> methodTypeParameters = functionDescriptor.getValueParameters();
+        return DescriptorUtils.ENUM_VALUES.equals(functionDescriptor.getName())
+               && methodTypeParameters.isEmpty();
     }
 }

@@ -32,6 +32,7 @@ import org.jetbrains.jet.lang.cfg.pseudocode.instructions.eval.AccessTarget;
 import org.jetbrains.jet.lang.cfg.pseudocode.instructions.eval.InstructionWithValue;
 import org.jetbrains.jet.lang.cfg.pseudocode.instructions.eval.MagicKind;
 import org.jetbrains.jet.lang.descriptors.*;
+import org.jetbrains.jet.lang.descriptors.impl.AnonymousFunctionDescriptor;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.psi.psiUtil.PsiUtilPackage;
 import org.jetbrains.jet.lang.resolve.BindingContext;
@@ -55,7 +56,7 @@ import java.util.*;
 
 import static org.jetbrains.jet.lang.cfg.JetControlFlowBuilder.PredefinedOperation.*;
 import static org.jetbrains.jet.lang.diagnostics.Errors.*;
-import static org.jetbrains.jet.lang.resolve.bindingContextUtil.BindingContextUtilPackage.getResolvedCall;
+import static org.jetbrains.jet.lang.resolve.calls.callUtil.CallUtilPackage.getResolvedCall;
 import static org.jetbrains.jet.lexer.JetTokens.*;
 
 public class JetControlFlowProcessor {
@@ -99,6 +100,13 @@ public class JetControlFlowProcessor {
     }
 
     private void generateImplicitReturnValue(@NotNull JetExpression bodyExpression, @NotNull JetElement subroutine) {
+        CallableDescriptor subroutineDescriptor = (CallableDescriptor) trace.get(BindingContext.DECLARATION_TO_DESCRIPTOR, subroutine);
+        if (subroutineDescriptor == null) return;
+
+        JetType returnType = subroutineDescriptor.getReturnType();
+        KotlinBuiltIns builtIns = KotlinBuiltIns.getInstance();
+        if (returnType != null && builtIns.isUnit(returnType) && subroutineDescriptor instanceof AnonymousFunctionDescriptor) return;
+
         PseudoValue returnValue = builder.getBoundValue(bodyExpression);
         if (returnValue == null) return;
 
@@ -109,7 +117,7 @@ public class JetControlFlowProcessor {
         JetElement parent = PsiTreeUtil.getParentOfType(subroutine, JetElement.class);
         assert parent != null;
 
-        Label afterDeclaration = builder.createUnboundLabel();
+        Label afterDeclaration = builder.createUnboundLabel("after local declaration");
 
         builder.nondeterministicJump(afterDeclaration, parent, null);
         generate(subroutine);
@@ -216,28 +224,26 @@ public class JetControlFlowProcessor {
 
         @NotNull
         private Map<PseudoValue, TypePredicate> defaultTypeMap(List<PseudoValue> values) {
-            return PseudocodePackage.expectedTypeFor(AllTypes.instance$, values);
+            return PseudocodePackage.expectedTypeFor(AllTypes.INSTANCE$, values);
         }
 
         private void mergeValues(@NotNull List<JetExpression> from, @NotNull JetExpression to) {
-            List<PseudoValue> values = elementsToValues(from);
-            switch (values.size()) {
-                case 0:
-                    break;
-                case 1:
-                    builder.bindValue(values.get(0), to);
-                    break;
-                default:
-                    builder.merge(to, values);
-                    break;
-            }
+            builder.merge(to, elementsToValues(from));
         }
 
         private void copyValue(@Nullable JetElement from, @NotNull JetElement to) {
-            PseudoValue value = builder.getBoundValue(from);
+            PseudoValue value = getBoundOrUnreachableValue(from);
             if (value != null) {
                 builder.bindValue(value, to);
             }
+        }
+
+        @Nullable
+        private PseudoValue getBoundOrUnreachableValue(@Nullable JetElement element) {
+            if (element == null) return null;
+
+            PseudoValue value = builder.getBoundValue(element);
+            return value != null || element instanceof JetDeclaration ? value : builder.newValue(element);
         }
 
         private List<PseudoValue> elementsToValues(List<? extends JetElement> from) {
@@ -248,7 +254,7 @@ public class JetControlFlowProcessor {
                             new Function1<JetElement, PseudoValue>() {
                                 @Override
                                 public PseudoValue invoke(JetElement element) {
-                                    return builder.getBoundValue(element);
+                                    return getBoundOrUnreachableValue(element);
                                 }
                             }
                     )
@@ -268,7 +274,7 @@ public class JetControlFlowProcessor {
         @NotNull
         private AccessTarget getResolvedCallAccessTarget(JetElement element) {
             ResolvedCall<?> resolvedCall = getResolvedCall(element, trace.getBindingContext());
-            return resolvedCall != null ? new AccessTarget.Call(resolvedCall) : AccessTarget.BlackBox.instance$;
+            return resolvedCall != null ? new AccessTarget.Call(resolvedCall) : AccessTarget.BlackBox.INSTANCE$;
         }
 
         @NotNull
@@ -276,7 +282,7 @@ public class JetControlFlowProcessor {
             DeclarationDescriptor descriptor = trace.get(BindingContext.DECLARATION_TO_DESCRIPTOR, element);
             return descriptor instanceof VariableDescriptor
                    ? new AccessTarget.Declaration((VariableDescriptor) descriptor)
-                   : AccessTarget.BlackBox.instance$;
+                   : AccessTarget.BlackBox.INSTANCE$;
         }
 
         @Override
@@ -308,7 +314,7 @@ public class JetControlFlowProcessor {
 
             CallableDescriptor resultingDescriptor = resolvedCall.getResultingDescriptor();
             if (resultingDescriptor instanceof ReceiverParameterDescriptor) {
-                builder.readVariable(expression, resolvedCall, getReceiverValues(resolvedCall, true));
+                builder.readVariable(expression, resolvedCall, getReceiverValues(resolvedCall));
             }
 
             copyValue(expression, expression.getInstanceReference());
@@ -376,7 +382,7 @@ public class JetControlFlowProcessor {
             else if (operationType == ELVIS) {
                 generateInstructions(left);
                 mark(expression);
-                Label afterElvis = builder.createUnboundLabel();
+                Label afterElvis = builder.createUnboundLabel("after elvis operator");
                 builder.jumpOnTrue(afterElvis, expression, builder.getBoundValue(left));
                 if (right != null) {
                     generateInstructions(right);
@@ -396,7 +402,7 @@ public class JetControlFlowProcessor {
             JetExpression left = expression.getLeft();
             JetExpression right = expression.getRight();
 
-            Label resultLabel = builder.createUnboundLabel();
+            Label resultLabel = builder.createUnboundLabel("result of boolean operation");
             generateInstructions(left);
             if (operationType == ANDAND) {
                 builder.jumpOnFalse(resultLabel, expression, builder.getBoundValue(left));
@@ -426,7 +432,7 @@ public class JetControlFlowProcessor {
                 @Override
                 public PseudoValue invoke() {
                     generateInstructions(expression);
-                    return builder.getBoundValue(expression);
+                    return getBoundOrUnreachableValue(expression);
                 }
             };
         }
@@ -444,7 +450,11 @@ public class JetControlFlowProcessor {
             mark(expression);
         }
 
-        private void visitAssignment(JetExpression lhs, @NotNull Function0<PseudoValue> rhsDeferredValue, JetExpression parentExpression) {
+        private void visitAssignment(
+                JetExpression lhs,
+                @NotNull Function0<PseudoValue> rhsDeferredValue,
+                JetExpression parentExpression
+        ) {
             JetExpression left = JetPsiUtil.deparenthesize(lhs);
             if (left == null) {
                 builder.compilationError(lhs, "No lValue in assignment");
@@ -457,28 +467,18 @@ public class JetControlFlowProcessor {
             }
 
             Map<PseudoValue, ReceiverValue> receiverValues = SmartFMap.emptyMap();
-            AccessTarget accessTarget = AccessTarget.BlackBox.instance$;
-            boolean unsupported = false;
+            AccessTarget accessTarget = AccessTarget.BlackBox.INSTANCE$;
             if (left instanceof JetSimpleNameExpression || left instanceof JetQualifiedExpression) {
                 accessTarget = getResolvedCallAccessTarget(PsiUtilPackage.getQualifiedElementSelector(left));
                 if (accessTarget instanceof AccessTarget.Call) {
-                    receiverValues = getReceiverValues(((AccessTarget.Call) accessTarget).getResolvedCall(), true);
+                    receiverValues = getReceiverValues(((AccessTarget.Call) accessTarget).getResolvedCall());
                 }
             }
             else if (left instanceof JetProperty) {
                 accessTarget = getDeclarationAccessTarget(left);
             }
-            else {
-                unsupported = true;
-            }
 
-            PseudoValue rhsValue = rhsDeferredValue.invoke();
-            if (unsupported) {
-                builder.unsupported(parentExpression); // TODO
-            }
-            else {
-                recordWrite(left, accessTarget, rhsValue, receiverValues, parentExpression);
-            }
+            recordWrite(left, accessTarget, rhsDeferredValue.invoke(), receiverValues, parentExpression);
         }
 
         private void generateArrayAssignment(
@@ -500,7 +500,7 @@ public class JetControlFlowProcessor {
 
             generateInstructions(lhs.getArrayExpression());
 
-            Map<PseudoValue, ReceiverValue> receiverValues = getReceiverValues(setResolvedCall, false);
+            Map<PseudoValue, ReceiverValue> receiverValues = getReceiverValues(setResolvedCall);
             SmartFMap<PseudoValue, ValueParameterDescriptor> argumentValues =
                     getArraySetterArguments(rhsDeferredValue, setResolvedCall);
 
@@ -558,9 +558,13 @@ public class JetControlFlowProcessor {
                 @NotNull Map<PseudoValue, ReceiverValue> receiverValues,
                 @NotNull JetExpression parentExpression
         ) {
-            VariableDescriptor descriptor = BindingContextUtils.extractVariableDescriptorIfAny(trace.getBindingContext(), left, false);
-            if (descriptor != null) {
-                PseudoValue rValue = rightValue != null ? rightValue : createSyntheticValue(parentExpression, MagicKind.UNRECOGNIZED_WRITE_RHS);
+            if (target == AccessTarget.BlackBox.INSTANCE$) {
+                List<PseudoValue> values = ContainerUtil.createMaybeSingletonList(rightValue);
+                builder.magic(parentExpression, parentExpression, values, defaultTypeMap(values), MagicKind.UNSUPPORTED_ELEMENT);
+            }
+            else {
+                PseudoValue rValue =
+                        rightValue != null ? rightValue : createSyntheticValue(parentExpression, MagicKind.UNRECOGNIZED_WRITE_RHS);
                 builder.write(parentExpression, left, rValue, target, receiverValues);
             }
         }
@@ -635,7 +639,7 @@ public class JetControlFlowProcessor {
             if (condition != null) {
                 generateInstructions(condition);
             }
-            Label elseLabel = builder.createUnboundLabel();
+            Label elseLabel = builder.createUnboundLabel("else branch");
             builder.jumpOnFalse(elseLabel, expression, builder.getBoundValue(condition));
             JetExpression thenBranch = expression.getThen();
             if (thenBranch != null) {
@@ -645,7 +649,7 @@ public class JetControlFlowProcessor {
             else {
                 builder.loadUnit(expression);
             }
-            Label resultLabel = builder.createUnboundLabel();
+            Label resultLabel = builder.createUnboundLabel("'if' expression result");
             builder.jump(resultLabel, expression);
             builder.bindLabel(elseLabel);
             JetExpression elseBranch = expression.getElse();
@@ -796,7 +800,7 @@ public class JetControlFlowProcessor {
 
         @Override
         public void visitWhileExpression(@NotNull JetWhileExpression expression) {
-            LoopInfo loopInfo = builder.enterLoop(expression, null, null);
+            LoopInfo loopInfo = builder.enterLoop(expression);
 
             builder.bindLabel(loopInfo.getConditionEntryPoint());
             JetExpression condition = expression.getCondition();
@@ -808,14 +812,22 @@ public class JetControlFlowProcessor {
             if (!conditionIsTrueConstant) {
                 builder.jumpOnFalse(loopInfo.getExitPoint(), expression, builder.getBoundValue(condition));
             }
+            else {
+                assert condition != null : "Invalid while condition: " + expression.getText();
+                List<PseudoValue> values = ContainerUtil.createMaybeSingletonList(builder.getBoundValue(condition));
+                Map<PseudoValue, TypePredicate> typePredicates =
+                        PseudocodePackage.expectedTypeFor(new SingleType(KotlinBuiltIns.getInstance().getBooleanType()), values);
+                builder.magic(condition, null, values, typePredicates, MagicKind.VALUE_CONSUMER);
+            }
 
-            builder.bindLabel(loopInfo.getBodyEntryPoint());
+            builder.enterLoopBody(expression);
             JetExpression body = expression.getBody();
             if (body != null) {
                 generateInstructions(body);
             }
             builder.jump(loopInfo.getEntryPoint(), expression);
-            builder.exitLoop(expression);
+            builder.exitLoopBody(expression);
+            builder.bindLabel(loopInfo.getExitPoint());
             builder.loadUnit(expression);
         }
 
@@ -823,20 +835,21 @@ public class JetControlFlowProcessor {
         public void visitDoWhileExpression(@NotNull JetDoWhileExpression expression) {
             builder.enterLexicalScope(expression);
             mark(expression);
-            LoopInfo loopInfo = builder.enterLoop(expression, null, null);
+            LoopInfo loopInfo = builder.enterLoop(expression);
 
-            builder.bindLabel(loopInfo.getBodyEntryPoint());
+            builder.enterLoopBody(expression);
             JetExpression body = expression.getBody();
             if (body != null) {
                 generateInstructions(body);
             }
+            builder.exitLoopBody(expression);
             builder.bindLabel(loopInfo.getConditionEntryPoint());
             JetExpression condition = expression.getCondition();
             if (condition != null) {
                 generateInstructions(condition);
             }
             builder.jumpOnTrue(loopInfo.getEntryPoint(), expression, builder.getBoundValue(condition));
-            builder.exitLoop(expression);
+            builder.bindLabel(loopInfo.getExitPoint());
             builder.loadUnit(expression);
             builder.exitLexicalScope(expression);
         }
@@ -852,26 +865,24 @@ public class JetControlFlowProcessor {
             declareLoopParameter(expression);
 
             // TODO : primitive cases
-            Label loopExitPoint = builder.createUnboundLabel();
-            Label conditionEntryPoint = builder.createUnboundLabel();
+            LoopInfo loopInfo = builder.enterLoop(expression);
 
-            builder.bindLabel(conditionEntryPoint);
-            builder.nondeterministicJump(loopExitPoint, expression, null);
+            builder.bindLabel(loopInfo.getConditionEntryPoint());
+            builder.nondeterministicJump(loopInfo.getExitPoint(), expression, null);
 
-            LoopInfo loopInfo = builder.enterLoop(expression, loopExitPoint, conditionEntryPoint);
 
-            builder.bindLabel(loopInfo.getBodyEntryPoint());
             writeLoopParameterAssignment(expression);
 
             mark(expression);
+            builder.enterLoopBody(expression);
             JetExpression body = expression.getBody();
             if (body != null) {
                 generateInstructions(body);
             }
+            builder.jump(loopInfo.getEntryPoint(), expression);
 
-            builder.nondeterministicJump(loopInfo.getEntryPoint(), expression, null);
-
-            builder.exitLoop(expression);
+            builder.exitLoopBody(expression);
+            builder.bindLabel(loopInfo.getExitPoint());
             builder.loadUnit(expression);
             builder.exitLexicalScope(expression);
         }
@@ -892,21 +903,17 @@ public class JetControlFlowProcessor {
             JetMultiDeclaration multiDeclaration = expression.getMultiParameter();
             JetExpression loopRange = expression.getLoopRange();
 
-            TypePredicate loopRangeTypePredicate = AllTypes.instance$;
-            ResolvedCall<?> iteratorResolvedCall = trace.get(BindingContext.LOOP_RANGE_ITERATOR_RESOLVED_CALL, loopRange);
-            if (iteratorResolvedCall != null) {
-                ReceiverValue iteratorReceiver = getExplicitReceiverValue(iteratorResolvedCall);
-                if (iteratorReceiver.exists()) {
-                    loopRangeTypePredicate = PseudocodePackage.getReceiverTypePredicate(iteratorResolvedCall, iteratorReceiver);
-                }
-            }
+            TypePredicate loopRangeTypePredicate =
+                    getTypePredicateByReceiverValue(trace.get(BindingContext.LOOP_RANGE_ITERATOR_RESOLVED_CALL, loopRange));
 
             PseudoValue loopRangeValue = builder.getBoundValue(loopRange);
             PseudoValue value = builder.magic(
                     loopRange != null ? loopRange : expression,
                     null,
-                    Collections.singletonList(loopRangeValue),
-                    Collections.singletonMap(loopRangeValue, loopRangeTypePredicate),
+                    ContainerUtil.createMaybeSingletonList(loopRangeValue),
+                    loopRangeValue != null
+                        ? Collections.singletonMap(loopRangeValue, loopRangeTypePredicate)
+                        : Collections.<PseudoValue, TypePredicate>emptyMap(),
                     MagicKind.LOOP_RANGE_ITERATION
             ).getOutputValue();
 
@@ -922,10 +929,10 @@ public class JetControlFlowProcessor {
 
         private ReceiverValue getExplicitReceiverValue(ResolvedCall<?> resolvedCall) {
             switch(resolvedCall.getExplicitReceiverKind()) {
-                case THIS_OBJECT:
-                    return resolvedCall.getThisObject();
-                case RECEIVER_ARGUMENT:
-                    return resolvedCall.getReceiverArgument();
+                case DISPATCH_RECEIVER:
+                    return resolvedCall.getDispatchReceiver();
+                case EXTENSION_RECEIVER:
+                    return resolvedCall.getExtensionReceiver();
                 default:
                     return ReceiverValue.NO_RECEIVER;
             }
@@ -945,13 +952,14 @@ public class JetControlFlowProcessor {
             JetElement loop = getCorrespondingLoop(expression);
             if (loop != null) {
                 checkJumpDoesNotCrossFunctionBoundary(expression, loop);
-                builder.jump(builder.getEntryPoint(loop), expression);
+                builder.jump(builder.getConditionEntryPoint(loop), expression);
             }
         }
 
+        @Nullable
         private JetElement getCorrespondingLoop(JetExpressionWithLabel expression) {
             String labelName = expression.getLabelName();
-            JetElement loop;
+            JetLoopExpression loop;
             if (labelName != null) {
                 JetSimpleNameExpression targetLabel = expression.getTargetLabel();
                 assert targetLabel != null;
@@ -969,6 +977,12 @@ public class JetControlFlowProcessor {
                 if (loop == null) {
                     trace.report(BREAK_OR_CONTINUE_OUTSIDE_A_LOOP.on(expression));
                 }
+            }
+            if (loop != null && loop.getBody() != null
+                    // the faster version of 'isAncestor' check:
+                    && !loop.getBody().getTextRange().contains(expression.getTextRange())) {
+                trace.report(BREAK_OR_CONTINUE_OUTSIDE_A_LOOP.on(expression));
+                return null;
             }
             return loop;
         }
@@ -1015,6 +1029,9 @@ public class JetControlFlowProcessor {
                 else {
                     builder.returnValue(expression, returnValue, subroutine);
                 }
+            }
+            else {
+                createNonSyntheticValue(expression, MagicKind.UNSUPPORTED_ELEMENT, returnedExpression);
             }
         }
 
@@ -1095,7 +1112,7 @@ public class JetControlFlowProcessor {
             }
             else {
                 generateInstructions(receiverExpression);
-                createNonSyntheticValue(expression, MagicKind.UNSUPPORTED_OPERATION, receiverExpression);
+                createNonSyntheticValue(expression, MagicKind.UNSUPPORTED_ELEMENT, receiverExpression);
             }
         }
 
@@ -1109,10 +1126,6 @@ public class JetControlFlowProcessor {
                         generateInstructions(argumentExpression);
                         inputExpressions.add(argumentExpression);
                     }
-                }
-                for (JetExpression functionLiteral : expression.getFunctionLiteralArguments()) {
-                    generateInstructions(functionLiteral);
-                    inputExpressions.add(functionLiteral);
                 }
                 JetExpression calleeExpression = expression.getCalleeExpression();
                 generateInstructions(calleeExpression);
@@ -1148,12 +1161,47 @@ public class JetControlFlowProcessor {
             JetExpression delegate = property.getDelegateExpression();
             if (delegate != null) {
                 generateInstructions(delegate);
+                generateDelegateConsumer(property, delegate);
             }
+
             if (JetPsiUtil.isLocal(property)) {
                 for (JetPropertyAccessor accessor : property.getAccessors()) {
                     generateInstructions(accessor);
                 }
             }
+        }
+
+        private void generateDelegateConsumer(@NotNull JetProperty property, @NotNull JetExpression delegate) {
+            DeclarationDescriptor descriptor = trace.get(BindingContext.DECLARATION_TO_DESCRIPTOR, property);
+            if (!(descriptor instanceof PropertyDescriptor)) return;
+
+            PseudoValue delegateValue = builder.getBoundValue(delegate);
+            if (delegateValue == null) return;
+
+            List<TypePredicate> typePredicates = KotlinPackage.map(
+                    ((PropertyDescriptor) descriptor).getAccessors(),
+                    new Function1<PropertyAccessorDescriptor, TypePredicate>() {
+                        @Override
+                        public TypePredicate invoke(PropertyAccessorDescriptor descriptor) {
+                            return getTypePredicateByReceiverValue(trace.get(BindingContext.DELEGATED_PROPERTY_RESOLVED_CALL, descriptor));
+                        }
+                    }
+            );
+            Map<PseudoValue, TypePredicate> valuesToTypePredicates = SmartFMap
+                    .<PseudoValue, TypePredicate>emptyMap()
+                    .plus(delegateValue, PseudocodePackage.and(KotlinPackage.filterNotNull(typePredicates)));
+            builder.magic(property, null, Collections.singletonList(delegateValue), valuesToTypePredicates, MagicKind.VALUE_CONSUMER);
+        }
+
+        private TypePredicate getTypePredicateByReceiverValue(@Nullable ResolvedCall<?> resolvedCall) {
+            if (resolvedCall == null) return AllTypes.INSTANCE$;
+
+            ReceiverValue receiverValue = getExplicitReceiverValue(resolvedCall);
+            if (receiverValue.exists()) {
+                return PseudocodePackage.getReceiverTypePredicate(resolvedCall, receiverValue);
+            }
+
+            return AllTypes.INSTANCE$;
         }
 
         @Override
@@ -1174,7 +1222,7 @@ public class JetControlFlowProcessor {
                     writtenValue = builder.call(
                             entry,
                             resolvedCall,
-                            getReceiverValues(resolvedCall, false),
+                            getReceiverValues(resolvedCall),
                             Collections.<PseudoValue, ValueParameterDescriptor>emptyMap()
                     ).getOutputValue();
                 }
@@ -1201,11 +1249,13 @@ public class JetControlFlowProcessor {
             JetExpression left = expression.getLeft();
             if (operationType == JetTokens.COLON || operationType == JetTokens.AS_KEYWORD || operationType == JetTokens.AS_SAFE) {
                 generateInstructions(left);
-                copyValue(left, expression);
+                if (getBoundOrUnreachableValue(left) != null) {
+                    createNonSyntheticValue(expression, MagicKind.CAST, left);
+                }
             }
             else {
                 visitJetElement(expression);
-                createNonSyntheticValue(expression, MagicKind.UNSUPPORTED_OPERATION, left);
+                createNonSyntheticValue(expression, MagicKind.UNSUPPORTED_ELEMENT, left);
             }
         }
 
@@ -1250,11 +1300,9 @@ public class JetControlFlowProcessor {
                 generateInstructions(subjectExpression);
             }
 
-            boolean hasElse = false;
-
             List<JetExpression> branches = new ArrayList<JetExpression>();
 
-            Label doneLabel = builder.createUnboundLabel();
+            Label doneLabel = builder.createUnboundLabel("after 'when' expression");
 
             Label nextLabel = null;
             for (Iterator<JetWhenEntry> iterator = expression.getEntries().iterator(); iterator.hasNext(); ) {
@@ -1263,12 +1311,11 @@ public class JetControlFlowProcessor {
 
                 boolean isElse = whenEntry.isElse();
                 if (isElse) {
-                    hasElse = true;
                     if (iterator.hasNext()) {
                         trace.report(ELSE_MISPLACED_IN_WHEN.on(whenEntry));
                     }
                 }
-                Label bodyLabel = builder.createUnboundLabel();
+                Label bodyLabel = builder.createUnboundLabel("'when' entry body");
 
                 JetWhenCondition[] conditions = whenEntry.getConditions();
                 for (int i = 0; i < conditions.length; i++) {
@@ -1280,7 +1327,7 @@ public class JetControlFlowProcessor {
                 }
 
                 if (!isElse) {
-                    nextLabel = builder.createUnboundLabel();
+                    nextLabel = builder.createUnboundLabel("next 'when' entry");
                     JetWhenCondition lastCondition = KotlinPackage.lastOrNull(conditions);
                     builder.nondeterministicJump(nextLabel, expression, builder.getBoundValue(lastCondition));
                 }
@@ -1298,9 +1345,6 @@ public class JetControlFlowProcessor {
                 }
             }
             builder.bindLabel(doneLabel);
-            if (!hasElse && WhenChecker.mustHaveElse(expression, trace)) {
-                trace.report(NO_ELSE_IN_WHEN.on(expression));
-            }
 
             mergeValues(branches, expression);
         }
@@ -1397,12 +1441,20 @@ public class JetControlFlowProcessor {
             generateInstructions(specifier.getDelegateExpression());
 
             List<PseudoValue> arguments = ContainerUtil.createMaybeSingletonList(builder.getBoundValue(specifier.getDelegateExpression()));
-            TypePredicate expectedTypePredicate =
-                    PseudocodePackage.getSubtypesPredicate(trace.get(BindingContext.TYPE, specifier.getTypeReference()));
-            if (expectedTypePredicate == null) {
-                expectedTypePredicate = AllTypes.instance$;
-            }
-            builder.magic(specifier, specifier, arguments, PseudocodePackage.expectedTypeFor(expectedTypePredicate, arguments), MagicKind.VALUE_CONSUMER);
+            JetType jetType = trace.get(BindingContext.TYPE, specifier.getTypeReference());
+            TypePredicate expectedTypePredicate = jetType != null ? PseudocodePackage.getSubtypesPredicate(jetType) : AllTypes.INSTANCE$;
+            builder.magic(specifier, null, arguments, PseudocodePackage.expectedTypeFor(expectedTypePredicate, arguments),
+                          MagicKind.VALUE_CONSUMER);
+        }
+
+        @Override
+        public void visitDelegationToSuperClassSpecifier(@NotNull JetDelegatorToSuperClass specifier) {
+            // Do not generate UNSUPPORTED_ELEMENT here
+        }
+
+        @Override
+        public void visitDelegationSpecifierList(@NotNull JetDelegationSpecifierList list) {
+            list.acceptChildren(this);
         }
 
         @Override
@@ -1415,14 +1467,21 @@ public class JetControlFlowProcessor {
         }
 
         @Override
+        public void visitCallableReferenceExpression(@NotNull JetCallableReferenceExpression expression) {
+            mark(expression);
+            createNonSyntheticValue(expression, MagicKind.CALLABLE_REFERENCE);
+        }
+
+        @Override
         public void visitJetElement(@NotNull JetElement element) {
-            builder.unsupported(element);
+            createNonSyntheticValue(element, MagicKind.UNSUPPORTED_ELEMENT);
         }
 
         private boolean generateCall(@Nullable JetElement callElement) {
             if (callElement == null) return false;
             return checkAndGenerateCall(callElement, getResolvedCall(callElement, trace.getBindingContext()));
         }
+
         private boolean checkAndGenerateCall(@NotNull JetElement callElement, @Nullable ResolvedCall<?> resolvedCall) {
             if (resolvedCall == null) {
                 builder.compilationError(callElement, "No resolved call");
@@ -1442,37 +1501,40 @@ public class JetControlFlowProcessor {
             }
 
             CallableDescriptor resultingDescriptor = resolvedCall.getResultingDescriptor();
-            Map<PseudoValue, ReceiverValue> receivers = getReceiverValues(resolvedCall, true);
+            Map<PseudoValue, ReceiverValue> receivers = getReceiverValues(resolvedCall);
             SmartFMap<PseudoValue, ValueParameterDescriptor> parameterValues = SmartFMap.emptyMap();
-            for (ValueParameterDescriptor parameterDescriptor : resultingDescriptor.getValueParameters()) {
-                ResolvedValueArgument argument = resolvedCall.getValueArguments().get(parameterDescriptor);
-                if (argument == null) continue;
-
-                parameterValues = generateValueArgument(argument, parameterDescriptor, parameterValues);
+            for (ValueArgument argument : resolvedCall.getCall().getValueArguments()) {
+                ArgumentMapping argumentMapping = resolvedCall.getArgumentMapping(argument);
+                JetExpression argumentExpression = argument.getArgumentExpression();
+                if (argumentMapping instanceof ArgumentMatch) {
+                    parameterValues = generateValueArgument(argument, ((ArgumentMatch) argumentMapping).getValueParameter(), parameterValues);
+                }
+                else if (argumentExpression != null) {
+                    generateInstructions(argumentExpression);
+                    createSyntheticValue(argumentExpression, MagicKind.VALUE_CONSUMER, argumentExpression);
+                }
             }
 
             if (resultingDescriptor instanceof VariableDescriptor) {
                 // If a callee of the call is just a variable (without 'invoke'), 'read variable' is generated.
                 // todo : process arguments for such a case (KT-5387)
-                JetExpression calleeExpression = PsiUtilPackage.getCalleeExpressionIfAny(callElement);
-                assert calleeExpression != null
+                JetExpression callExpression = callElement instanceof JetExpression ? (JetExpression) callElement : null;
+                assert callExpression != null
                         : "Variable-based call without callee expression: " + callElement.getText();
                 assert parameterValues.isEmpty()
                         : "Variable-based call with non-empty argument list: " + callElement.getText();
-                return builder.readVariable(calleeExpression, resolvedCall, receivers);
+                return builder.readVariable(callExpression, resolvedCall, receivers);
             }
             mark(resolvedCall.getCall().getCallElement());
             return builder.call(callElement, resolvedCall, receivers, parameterValues);
         }
 
         @NotNull
-        private Map<PseudoValue, ReceiverValue> getReceiverValues(
-                ResolvedCall<?> resolvedCall,
-                boolean generateInstructions) {
+        private Map<PseudoValue, ReceiverValue> getReceiverValues(ResolvedCall<?> resolvedCall) {
             SmartFMap<PseudoValue, ReceiverValue> receiverValues = SmartFMap.emptyMap();
             JetElement callElement = resolvedCall.getCall().getCallElement();
-            receiverValues = getReceiverValues(callElement, resolvedCall.getThisObject(), generateInstructions, receiverValues);
-            receiverValues = getReceiverValues(callElement, resolvedCall.getReceiverArgument(), generateInstructions, receiverValues);
+            receiverValues = getReceiverValues(callElement, resolvedCall.getDispatchReceiver(), receiverValues);
+            receiverValues = getReceiverValues(callElement, resolvedCall.getExtensionReceiver(), receiverValues);
             return receiverValues;
         }
 
@@ -1480,23 +1542,20 @@ public class JetControlFlowProcessor {
         private SmartFMap<PseudoValue, ReceiverValue> getReceiverValues(
                 JetElement callElement,
                 ReceiverValue receiver,
-                boolean generateInstructions,
                 SmartFMap<PseudoValue, ReceiverValue> receiverValues
         ) {
             if (!receiver.exists()) return receiverValues;
 
             if (receiver instanceof ThisReceiver) {
-                if (generateInstructions) {
-                    receiverValues = receiverValues.plus(createSyntheticValue(callElement, MagicKind.IMPLICIT_RECEIVER), receiver);
-                }
+                receiverValues = receiverValues.plus(createSyntheticValue(callElement, MagicKind.IMPLICIT_RECEIVER), receiver);
             }
             else if (receiver instanceof ExpressionReceiver) {
                 JetExpression expression = ((ExpressionReceiver) receiver).getExpression();
-                if (generateInstructions) {
+                if (builder.getBoundValue(expression) == null) {
                     generateInstructions(expression);
                 }
 
-                PseudoValue receiverPseudoValue = builder.getBoundValue(expression);
+                PseudoValue receiverPseudoValue = getBoundOrUnreachableValue(expression);
                 if (receiverPseudoValue != null) {
                     receiverValues = receiverValues.plus(receiverPseudoValue, receiver);
                 }
@@ -1513,19 +1572,6 @@ public class JetControlFlowProcessor {
 
         @NotNull
         private SmartFMap<PseudoValue, ValueParameterDescriptor> generateValueArgument(
-                ResolvedValueArgument argument,
-                ValueParameterDescriptor parameterDescriptor,
-                SmartFMap<PseudoValue, ValueParameterDescriptor> parameterValues
-        ) {
-            for (ValueArgument valueArgument : argument.getArguments()) {
-                parameterValues = generateValueArgument(valueArgument, parameterDescriptor, parameterValues);
-            }
-
-            return parameterValues;
-        }
-
-        @NotNull
-        private SmartFMap<PseudoValue, ValueParameterDescriptor> generateValueArgument(
                 ValueArgument valueArgument,
                 ValueParameterDescriptor parameterDescriptor,
                 SmartFMap<PseudoValue, ValueParameterDescriptor> parameterValues) {
@@ -1535,7 +1581,7 @@ public class JetControlFlowProcessor {
                     generateInstructions(expression);
                 }
 
-                PseudoValue argValue = builder.getBoundValue(expression);
+                PseudoValue argValue = getBoundOrUnreachableValue(expression);
                 if (argValue != null) {
                     parameterValues = parameterValues.plus(argValue, parameterDescriptor);
                 }

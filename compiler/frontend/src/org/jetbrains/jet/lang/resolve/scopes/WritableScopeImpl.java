@@ -19,7 +19,6 @@ package org.jetbrains.jet.lang.resolve.scopes;
 import com.google.common.collect.*;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.annotations.TestOnly;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.types.checker.JetTypeChecker;
@@ -211,7 +210,7 @@ public class WritableScopeImpl extends WritableScopeWithImports {
             checkForPropertyRedeclaration(name, variableDescriptor);
             getPropertyGroups().put(name, variableDescriptor);
         }
-        if (variableDescriptor.getReceiverParameter() == null) {
+        if (variableDescriptor.getExtensionReceiverParameter() == null) {
             checkForRedeclaration(name, variableDescriptor);
             // TODO : Should this always happen?
             getVariableOrClassDescriptors().put(name, variableDescriptor);
@@ -348,9 +347,9 @@ public class WritableScopeImpl extends WritableScopeWithImports {
     
     private void checkForPropertyRedeclaration(@NotNull Name name, VariableDescriptor variableDescriptor) {
         Set<VariableDescriptor> properties = getPropertyGroups().get(name);
-        ReceiverParameterDescriptor receiverParameter = variableDescriptor.getReceiverParameter();
+        ReceiverParameterDescriptor receiverParameter = variableDescriptor.getExtensionReceiverParameter();
         for (VariableDescriptor oldProperty : properties) {
-            ReceiverParameterDescriptor receiverParameterForOldVariable = oldProperty.getReceiverParameter();
+            ReceiverParameterDescriptor receiverParameterForOldVariable = oldProperty.getExtensionReceiverParameter();
             if (((receiverParameter != null && receiverParameterForOldVariable != null) &&
                  (JetTypeChecker.DEFAULT.equalTypes(receiverParameter.getType(), receiverParameterForOldVariable.getType())))) {
                 redeclarationHandler.handleRedeclaration(oldProperty, variableDescriptor);
@@ -427,7 +426,6 @@ public class WritableScopeImpl extends WritableScopeWithImports {
         return declaredDescriptorsAccessibleBySimpleName.values();
     }
 
-    @TestOnly
     @Override
     protected void printAdditionalScopeStructure(@NotNull Printer p) {
         p.println("allDescriptorsDone = ", allDescriptorsDone);

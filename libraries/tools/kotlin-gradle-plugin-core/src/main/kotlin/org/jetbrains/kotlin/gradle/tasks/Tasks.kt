@@ -28,15 +28,15 @@ import org.jetbrains.kotlin.gradle.plugin.*
 import org.jetbrains.kotlin.doc.KDocConfig
 import java.util.concurrent.Callable
 import org.gradle.api.Project
-import org.jetbrains.jet.cli.common.arguments.CompilerArgumentsUtil
+import org.jetbrains.jet.config.Services
 
 public open class KotlinCompile(): AbstractCompile() {
 
     val srcDirsRoots = HashSet<File>()
     val compiler = K2JVMCompiler()
 
-    private val _logger = Logging.getLogger(getClass())
-    override fun getLogger() = _logger
+    private val logger = Logging.getLogger(this.javaClass)
+    override fun getLogger() = logger
 
     public var kotlinOptions: K2JVMCompilerArguments = K2JVMCompilerArguments();
 
@@ -99,11 +99,7 @@ public open class KotlinCompile(): AbstractCompile() {
             return
         }
 
-        val customSources = args.src;
-        if (customSources == null || customSources.isEmpty()) {
-            args.src = sources.map { it.getAbsolutePath() } .makeString(File.pathSeparator)
-        }
-
+        args.freeArgs = sources.map { it.getAbsolutePath() }
 
         if (StringUtils.isEmpty(kotlinOptions.classpath)) {
             val existingClasspathEntries =  getClasspath().filter(KSpec<File?>({ it != null && it.exists() }))
@@ -111,7 +107,7 @@ public open class KotlinCompile(): AbstractCompile() {
             args.classpath = effectiveClassPath
         }
 
-        args.outputDir = if (StringUtils.isEmpty(kotlinOptions.outputDir)) { kotlinDestinationDir?.getPath() } else { kotlinOptions.outputDir }
+        args.destination = if (StringUtils.isEmpty(kotlinOptions.destination)) { kotlinDestinationDir?.getPath() } else { kotlinOptions.destination }
 
         val embeddedAnnotations = getAnnotations(getProject(), getLogger())
         val userAnnotations = (kotlinOptions.annotations ?: "").split(File.pathSeparatorChar).toList()
@@ -120,20 +116,14 @@ public open class KotlinCompile(): AbstractCompile() {
 
         args.noStdlib = true
         args.noJdkAnnotations = true
-        args.inline = kotlinOptions.inline
-        args.optimize = kotlinOptions.optimize
-
-        if (!CompilerArgumentsUtil.checkOption(args.inline)) {
-            throw GradleException(CompilerArgumentsUtil.getWrongCheckOptionErrorMessage("inline", args.inline))
-        }
-
-        if (!CompilerArgumentsUtil.checkOption(args.optimize)) {
-            throw GradleException(CompilerArgumentsUtil.getWrongCheckOptionErrorMessage("optimize", args.optimize))
-        }
+        args.noInline = kotlinOptions.noInline
+        args.noOptimize = kotlinOptions.noOptimize
+        args.noCallAssertions = kotlinOptions.noCallAssertions
+        args.noParamAssertions = kotlinOptions.noParamAssertions
 
         val messageCollector = GradleMessageCollector(getLogger())
         getLogger().debug("Calling compiler")
-        val exitCode = compiler.exec(messageCollector, args)
+        val exitCode = compiler.exec(messageCollector, Services.EMPTY, args)
 
         when (exitCode) {
             ExitCode.COMPILATION_ERROR -> throw GradleException("Compilation error. See log for more details")
@@ -143,7 +133,7 @@ public open class KotlinCompile(): AbstractCompile() {
 
         getLogger().debug("Copying resulting files to classes")
         // Copy kotlin classes to all classes directory
-        val outputDirFile = File(args.outputDir!!)
+        val outputDirFile = File(args.destination!!)
         if (outputDirFile.exists()) {
             FileUtils.copyDirectory(outputDirFile, getDestinationDir())
         }
@@ -152,8 +142,8 @@ public open class KotlinCompile(): AbstractCompile() {
 
 public open class KDoc(): SourceTask() {
 
-    private val _logger = Logging.getLogger(getClass())
-    override fun getLogger() = _logger
+    private val logger = Logging.getLogger(this.javaClass)
+    override fun getLogger() = logger
 
     public var kdocArgs: KDocArguments = KDocArguments()
 
@@ -182,11 +172,11 @@ public open class KDoc(): SourceTask() {
         cfg.packageSummaryText.putAll(kdocOptions.packageSummaryText)
 
         // KDoc compiler does not accept list of files as input. Try to pass directories instead.
-        args.src = getSource().map { it.getParentFile()!!.getAbsolutePath() }.toSet().makeString(File.pathSeparator)
+        args.freeArgs = getSource().map { it.getParentFile()!!.getAbsolutePath() }
         // Drop compiled sources to temp. Why KDoc compiles anything after all?!
-        args.outputDir = getTemporaryDir()?.getAbsolutePath()
+        args.destination = getTemporaryDir()?.getAbsolutePath()
 
-        getLogger().warn(args.src)
+        getLogger().warn(args.freeArgs.toString())
         val embeddedAnnotations = getAnnotations(getProject(), getLogger())
         val userAnnotations = (kdocArgs.annotations ?: "").split(File.pathSeparatorChar).toList()
         val allAnnotations = if (kdocArgs.noJdkAnnotations) userAnnotations else userAnnotations.plus(embeddedAnnotations.map {it.getPath()})
@@ -199,7 +189,7 @@ public open class KDoc(): SourceTask() {
         val compiler = KDocCompiler()
 
         val messageCollector = GradleMessageCollector(getLogger())
-        val exitCode = compiler.exec(messageCollector, args);
+        val exitCode = compiler.exec(messageCollector, Services.EMPTY, args);
 
         when (exitCode) {
             ExitCode.COMPILATION_ERROR -> throw GradleException("Failed to generate kdoc. See log for more details")
@@ -223,16 +213,30 @@ fun getAnnotations(project: Project, logger: Logger): Collection<File> {
 
 class GradleMessageCollector(val logger : Logger): MessageCollector {
     public override fun report(severity: CompilerMessageSeverity, message: String, location: CompilerMessageLocation) {
-        val path = location.getPath()
-        val hasLocation = path != null && location.getLine() > 0 && location.getColumn() > 0
-        val text: String
-        if (hasLocation) {
-            val warningPrefix = if (severity == CompilerMessageSeverity.WARNING) "warning:" else ""
-            val errorMarkerLine = "${" ".repeat(location.getColumn() - 1)}^"
-            text = "$path:${location.getLine()}:$warningPrefix$message\n${errorMarkerLine}"
-        }
-        else {
-            text = "${severity.name().toLowerCase()}:$message"
+        val text = with(StringBuilder()) {
+            append(when (severity) {
+                in CompilerMessageSeverity.VERBOSE -> "v"
+                in CompilerMessageSeverity.ERRORS -> "e"
+                CompilerMessageSeverity.INFO -> "i"
+                CompilerMessageSeverity.WARNING -> "w"
+                else -> throw IllegalArgumentException("Unknown CompilerMessageSeverity: $severity")
+            })
+            append(": ")
+
+            val path = location.getPath()
+            if (path != null) {
+                append(path)
+                append(": ")
+                append("(")
+                append(location.getLine())
+                append(", ")
+                append(location.getColumn())
+                append("): ")
+            }
+
+            append(message)
+
+            toString()
         }
         when (severity) {
             in CompilerMessageSeverity.VERBOSE -> logger.debug(text)

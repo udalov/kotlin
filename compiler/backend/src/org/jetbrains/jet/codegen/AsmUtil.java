@@ -24,12 +24,14 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.codegen.binding.CalculatedClosure;
 import org.jetbrains.jet.codegen.binding.CodegenBinding;
+import org.jetbrains.jet.codegen.context.CodegenContext;
 import org.jetbrains.jet.codegen.state.GenerationState;
 import org.jetbrains.jet.codegen.state.JetTypeMapper;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.resolve.DescriptorToSourceUtils;
 import org.jetbrains.jet.lang.resolve.DescriptorUtils;
+import org.jetbrains.jet.lang.resolve.annotations.AnnotationsPackage;
 import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCall;
 import org.jetbrains.jet.lang.resolve.java.*;
 import org.jetbrains.jet.lang.resolve.java.descriptor.JavaCallableMemberDescriptor;
@@ -38,10 +40,7 @@ import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 import org.jetbrains.jet.lexer.JetTokens;
-import org.jetbrains.org.objectweb.asm.AnnotationVisitor;
-import org.jetbrains.org.objectweb.asm.Label;
-import org.jetbrains.org.objectweb.asm.MethodVisitor;
-import org.jetbrains.org.objectweb.asm.Type;
+import org.jetbrains.org.objectweb.asm.*;
 import org.jetbrains.org.objectweb.asm.commons.InstructionAdapter;
 import org.jetbrains.org.objectweb.asm.commons.Method;
 
@@ -165,11 +164,13 @@ public class AsmUtil {
                && !isStaticMethod(kind, functionDescriptor);
     }
 
-    public static boolean isStaticMethod(OwnerKind kind, FunctionDescriptor functionDescriptor) {
-        return isStatic(kind) || JetTypeMapper.isAccessor(functionDescriptor);
+    public static boolean isStaticMethod(OwnerKind kind, CallableMemberDescriptor functionDescriptor) {
+        return isStaticKind(kind) ||
+               JetTypeMapper.isAccessor(functionDescriptor) ||
+               AnnotationsPackage.isPlatformStaticInObject(functionDescriptor);
     }
 
-    public static boolean isStatic(OwnerKind kind) {
+    public static boolean isStaticKind(OwnerKind kind) {
         return kind == OwnerKind.PACKAGE || kind == OwnerKind.TRAIT_IMPL;
     }
 
@@ -220,7 +221,7 @@ public class AsmUtil {
         }
         Integer defaultMapping = visibilityToAccessFlag.get(descriptor.getVisibility());
         if (defaultMapping == null) {
-            throw new IllegalStateException(descriptor.getVisibility() + " is not a valid visibility in backend. Descriptor: " + descriptor);
+            throw new IllegalStateException(descriptor.getVisibility() + " is not a valid visibility in backend: " + descriptor);
         }
         return defaultMapping;
     }
@@ -239,7 +240,6 @@ public class AsmUtil {
         return NO_FLAG_PACKAGE_PRIVATE;
     }
 
-
     public static int getVisibilityAccessFlagForAnonymous(@NotNull ClassDescriptor descriptor) {
         if (isDeclarationInsideInlineFunction(descriptor)) {
             return ACC_PUBLIC;
@@ -247,7 +247,7 @@ public class AsmUtil {
         return NO_FLAG_PACKAGE_PRIVATE;
     }
 
-    public static boolean isDeclarationInsideInlineFunction(@NotNull ClassDescriptor descriptor) {
+    private static boolean isDeclarationInsideInlineFunction(@NotNull ClassDescriptor descriptor) {
         //NB: constructor context couldn't be inline
         DeclarationDescriptor parentDeclaration = descriptor.getContainingDeclaration();
         if (parentDeclaration instanceof SimpleFunctionDescriptor &&
@@ -257,11 +257,36 @@ public class AsmUtil {
         return false;
     }
 
+    public static int calculateInnerClassAccessFlags(@NotNull ClassDescriptor innerClass) {
+        return getVisibilityAccessFlag(innerClass) |
+               innerAccessFlagsForModalityAndKind(innerClass) |
+               (innerClass.isInner() ? 0 : ACC_STATIC);
+    }
+
+    private static int innerAccessFlagsForModalityAndKind(@NotNull ClassDescriptor innerClass) {
+        switch (innerClass.getKind()) {
+            case TRAIT:
+                return ACC_ABSTRACT | ACC_INTERFACE;
+            case ENUM_CLASS:
+                return ACC_FINAL | ACC_ENUM;
+            case ANNOTATION_CLASS:
+                return ACC_ABSTRACT | ACC_ANNOTATION | ACC_INTERFACE;
+            default:
+                if (innerClass.getModality() == Modality.FINAL) {
+                    return ACC_FINAL;
+                }
+                else if (innerClass.getModality() == Modality.ABSTRACT) {
+                    return ACC_ABSTRACT;
+                }
+        }
+        return 0;
+    }
+
     public static int getDeprecatedAccessFlag(@NotNull MemberDescriptor descriptor) {
         if (descriptor instanceof PropertyAccessorDescriptor) {
             return KotlinBuiltIns.getInstance().isDeprecated(descriptor)
-                     ? ACC_DEPRECATED
-                     : getDeprecatedAccessFlag(((PropertyAccessorDescriptor) descriptor).getCorrespondingProperty());
+                   ? ACC_DEPRECATED
+                   : getDeprecatedAccessFlag(((PropertyAccessorDescriptor) descriptor).getCorrespondingProperty());
         }
         else if (KotlinBuiltIns.getInstance().isDeprecated(descriptor)) {
             return ACC_DEPRECATED;
@@ -291,23 +316,19 @@ public class AsmUtil {
         if (isEnumEntry(memberDescriptor)) {
             return NO_FLAG_PACKAGE_PRIVATE;
         }
+        if (memberDescriptor instanceof ConstructorDescriptor && isAnonymousObject(memberDescriptor.getContainingDeclaration())) {
+            return NO_FLAG_PACKAGE_PRIVATE;
+        }
         if (memberVisibility != Visibilities.PRIVATE) {
             return null;
         }
         // the following code is only for PRIVATE visibility of member
         if (memberDescriptor instanceof ConstructorDescriptor) {
-            if (isAnonymousObject(containingDeclaration)) {
-                return NO_FLAG_PACKAGE_PRIVATE;
-            }
-
             ClassKind kind = ((ClassDescriptor) containingDeclaration).getKind();
-            if (kind == ClassKind.OBJECT) {
+            if (kind == ClassKind.OBJECT || kind == ClassKind.ENUM_ENTRY) {
                 return NO_FLAG_PACKAGE_PRIVATE;
             }
-            else if (kind == ClassKind.ENUM_ENTRY) {
-                return NO_FLAG_PACKAGE_PRIVATE;
-            }
-            else if (kind == ClassKind.ENUM_CLASS) {
+            if (kind == ClassKind.ENUM_CLASS) {
                 //TODO: should be ACC_PRIVATE
                 // see http://youtrack.jetbrains.com/issue/KT-2680
                 return ACC_PROTECTED;
@@ -340,13 +361,17 @@ public class AsmUtil {
         }
     }
 
-    public static void genThrow(@NotNull MethodVisitor mv, @NotNull String exception, @NotNull String message) {
-        InstructionAdapter iv = new InstructionAdapter(mv);
-        iv.anew(Type.getObjectType(exception));
-        iv.dup();
-        iv.aconst(message);
-        iv.invokespecial(exception, "<init>", "(Ljava/lang/String;)V");
-        iv.athrow();
+    public static void genThrow(@NotNull InstructionAdapter v, @NotNull String exception, @Nullable String message) {
+        v.anew(Type.getObjectType(exception));
+        v.dup();
+        if (message != null) {
+            v.aconst(message);
+            v.invokespecial(exception, "<init>", "(Ljava/lang/String;)V", false);
+        }
+        else {
+            v.invokespecial(exception, "<init>", "()V", false);
+        }
+        v.athrow();
     }
 
     public static void genClosureFields(CalculatedClosure closure, ClassBuilder v, JetTypeMapper typeMapper) {
@@ -395,18 +420,18 @@ public class AsmUtil {
     public static void genStringBuilderConstructor(InstructionAdapter v) {
         v.visitTypeInsn(NEW, "java/lang/StringBuilder");
         v.dup();
-        v.invokespecial("java/lang/StringBuilder", "<init>", "()V");
+        v.invokespecial("java/lang/StringBuilder", "<init>", "()V", false);
     }
 
     public static void genInvokeAppendMethod(InstructionAdapter v, Type type) {
         type = stringBuilderAppendType(type);
-        v.invokevirtual("java/lang/StringBuilder", "append", "(" + type.getDescriptor() + ")Ljava/lang/StringBuilder;");
+        v.invokevirtual("java/lang/StringBuilder", "append", "(" + type.getDescriptor() + ")Ljava/lang/StringBuilder;", false);
     }
 
     public static StackValue genToString(InstructionAdapter v, StackValue receiver, Type receiverType) {
         Type type = stringValueOfType(receiverType);
         receiver.put(type, v);
-        v.invokestatic("java/lang/String", "valueOf", "(" + type.getDescriptor() + ")Ljava/lang/String;");
+        v.invokestatic("java/lang/String", "valueOf", "(" + type.getDescriptor() + ")Ljava/lang/String;", false);
         return StackValue.onStack(JAVA_STRING_TYPE);
     }
 
@@ -414,24 +439,24 @@ public class AsmUtil {
         if (type.getSort() == Type.ARRAY) {
             Type elementType = correctElementType(type);
             if (elementType.getSort() == Type.OBJECT || elementType.getSort() == Type.ARRAY) {
-                iv.invokestatic("java/util/Arrays", "hashCode", "([Ljava/lang/Object;)I");
+                iv.invokestatic("java/util/Arrays", "hashCode", "([Ljava/lang/Object;)I", false);
             }
             else {
-                iv.invokestatic("java/util/Arrays", "hashCode", "(" + type.getDescriptor() + ")I");
+                iv.invokestatic("java/util/Arrays", "hashCode", "(" + type.getDescriptor() + ")I", false);
             }
         }
         else if (type.getSort() == Type.OBJECT) {
-            iv.invokevirtual("java/lang/Object", "hashCode", "()I");
+            iv.invokevirtual("java/lang/Object", "hashCode", "()I", false);
         }
         else if (type.getSort() == Type.LONG) {
             genLongHashCode(mv, iv);
         }
         else if (type.getSort() == Type.DOUBLE) {
-            iv.invokestatic("java/lang/Double", "doubleToLongBits", "(D)J");
+            iv.invokestatic("java/lang/Double", "doubleToLongBits", "(D)J", false);
             genLongHashCode(mv, iv);
         }
         else if (type.getSort() == Type.FLOAT) {
-            iv.invokestatic("java/lang/Float", "floatToIntBits", "(F)I");
+            iv.invokestatic("java/lang/Float", "floatToIntBits", "(F)I", false);
         }
         else if (type.getSort() == Type.BOOLEAN) {
             Label end = new Label();
@@ -473,7 +498,7 @@ public class AsmUtil {
                 return StackValue.cmp(opToken, leftType);
             }
             else {
-                v.invokestatic("kotlin/jvm/internal/Intrinsics", "areEqual", "(Ljava/lang/Object;Ljava/lang/Object;)Z");
+                v.invokestatic("kotlin/jvm/internal/Intrinsics", "areEqual", "(Ljava/lang/Object;Ljava/lang/Object;)Z", false);
 
                 if (opToken == JetTokens.EXCLEQ || opToken == JetTokens.EXCLEQEQEQ) {
                     genInvertBoolean(v);
@@ -515,14 +540,17 @@ public class AsmUtil {
         if (stackTop.getSize() == 1) {
             if (afterTop.getSize() == 1) {
                 v.swap();
-            } else {
+            }
+            else {
                 v.dupX2();
                 v.pop();
             }
-        } else {
+        }
+        else {
             if (afterTop.getSize() == 1) {
                 v.dup2X1();
-            } else {
+            }
+            else {
                 v.dup2X2();
             }
             v.pop2();
@@ -535,7 +563,7 @@ public class AsmUtil {
             @NotNull FunctionDescriptor descriptor,
             @NotNull FrameMap frameMap
     ) {
-        if (!state.isGenerateNotNullParamAssertions()) return;
+        if (!state.isParamAssertionsEnabled()) return;
 
         // Private method is not accessible from other classes, no assertions needed
         if (getVisibilityAccessFlag(descriptor) == ACC_PRIVATE) return;
@@ -549,7 +577,8 @@ public class AsmUtil {
             if (asmType.getSort() == Type.OBJECT || asmType.getSort() == Type.ARRAY) {
                 v.load(index, asmType);
                 v.visitLdcInsn(parameter.getName().asString());
-                v.invokestatic("kotlin/jvm/internal/Intrinsics", "checkParameterIsNotNull", "(Ljava/lang/Object;Ljava/lang/String;)V");
+                v.invokestatic("kotlin/jvm/internal/Intrinsics", "checkParameterIsNotNull",
+                               "(Ljava/lang/Object;Ljava/lang/String;)V", false);
             }
         }
     }
@@ -579,7 +608,7 @@ public class AsmUtil {
             @NotNull CallableDescriptor descriptor,
             @NotNull String assertMethodToCall
     ) {
-        if (!state.isGenerateNotNullAssertions()) return;
+        if (!state.isCallAssertionsEnabled()) return;
 
         if (!isDeclaredInJava(descriptor)) return;
 
@@ -591,7 +620,8 @@ public class AsmUtil {
             v.dup();
             v.visitLdcInsn(descriptor.getContainingDeclaration().getName().asString());
             v.visitLdcInsn(descriptor.getName().asString());
-            v.invokestatic("kotlin/jvm/internal/Intrinsics", assertMethodToCall, "(Ljava/lang/Object;Ljava/lang/String;Ljava/lang/String;)V");
+            v.invokestatic("kotlin/jvm/internal/Intrinsics", assertMethodToCall,
+                           "(Ljava/lang/Object;Ljava/lang/String;Ljava/lang/String;)V", false);
         }
     }
 
@@ -633,36 +663,43 @@ public class AsmUtil {
     }
 
     public static boolean isPropertyWithBackingFieldInOuterClass(@NotNull PropertyDescriptor propertyDescriptor) {
-        return isPropertyWithSpecialBackingField(propertyDescriptor.getContainingDeclaration(), ClassKind.CLASS);
+        return isClassObjectWithBackingFieldsInOuter(propertyDescriptor.getContainingDeclaration());
     }
 
     public static int getVisibilityForSpecialPropertyBackingField(@NotNull PropertyDescriptor propertyDescriptor, boolean isDelegate) {
-        boolean isExtensionProperty = propertyDescriptor.getReceiverParameter() != null;
+        boolean isExtensionProperty = propertyDescriptor.getExtensionReceiverParameter() != null;
         if (isDelegate || isExtensionProperty) {
             return ACC_PRIVATE;
-        } else {
-            return areBothAccessorDefault(propertyDescriptor) ?  getVisibilityAccessFlag(descriptorForVisibility(propertyDescriptor)) : ACC_PRIVATE;
+        }
+        else {
+            return areBothAccessorDefault(propertyDescriptor)
+                   ? getVisibilityAccessFlag(descriptorForVisibility(propertyDescriptor))
+                   : ACC_PRIVATE;
         }
     }
 
     private static MemberDescriptor descriptorForVisibility(@NotNull PropertyDescriptor propertyDescriptor) {
-        if (!propertyDescriptor.isVar() ) {
+        if (!propertyDescriptor.isVar()) {
             return propertyDescriptor;
-        } else {
+        }
+        else {
             return propertyDescriptor.getSetter() != null ? propertyDescriptor.getSetter() : propertyDescriptor;
         }
     }
 
     public static boolean isPropertyWithBackingFieldCopyInOuterClass(@NotNull PropertyDescriptor propertyDescriptor) {
-        boolean isExtensionProperty = propertyDescriptor.getReceiverParameter() != null;
-        return !propertyDescriptor.isVar() && !isExtensionProperty
-               && isPropertyWithSpecialBackingField(propertyDescriptor.getContainingDeclaration(), ClassKind.TRAIT)
+        boolean isExtensionProperty = propertyDescriptor.getExtensionReceiverParameter() != null;
+        DeclarationDescriptor propertyContainer = propertyDescriptor.getContainingDeclaration();
+        return !propertyDescriptor.isVar()
+               && !isExtensionProperty
+               && isClassObject(propertyContainer) && isTrait(propertyContainer.getContainingDeclaration())
                && areBothAccessorDefault(propertyDescriptor)
                && getVisibilityForSpecialPropertyBackingField(propertyDescriptor, false) == ACC_PUBLIC;
     }
 
     public static boolean isClassObjectWithBackingFieldsInOuter(@NotNull DeclarationDescriptor classObject) {
-        return isPropertyWithSpecialBackingField(classObject, ClassKind.CLASS);
+        DeclarationDescriptor containingClass = classObject.getContainingDeclaration();
+        return isClassObject(classObject) && (isClass(containingClass) || isEnumClass(containingClass));
     }
 
     private static boolean areBothAccessorDefault(@NotNull PropertyDescriptor propertyDescriptor) {
@@ -672,10 +709,6 @@ public class AsmUtil {
 
     private static boolean isAccessorWithEmptyBody(@Nullable PropertyAccessorDescriptor accessorDescriptor) {
         return accessorDescriptor == null || !accessorDescriptor.hasBody();
-    }
-
-    private static boolean isPropertyWithSpecialBackingField(@NotNull DeclarationDescriptor classObject, ClassKind kind) {
-        return isClassObject(classObject) && isKindOf(classObject.getContainingDeclaration(), kind);
     }
 
     public static Type comparisonOperandType(Type left, Type right) {
@@ -693,12 +726,12 @@ public class AsmUtil {
         return expectedType;
     }
 
-    public static void pop(@NotNull InstructionAdapter v, @NotNull Type type) {
+    public static void pop(@NotNull MethodVisitor v, @NotNull Type type) {
         if (type.getSize() == 2) {
-            v.pop2();
+            v.visitInsn(Opcodes.POP2);
         }
         else {
-            v.pop();
+            v.visitInsn(Opcodes.POP);
         }
     }
 
@@ -761,12 +794,17 @@ public class AsmUtil {
     }
 
     @NotNull
-    private static String getOuterClassName(@NotNull ClassDescriptor classDescriptor, @NotNull DeclarationDescriptor originalDescriptor, @NotNull JetTypeMapper typeMapper) {
+    private static String getOuterClassName(
+            @NotNull ClassDescriptor classDescriptor,
+            @NotNull DeclarationDescriptor originalDescriptor,
+            @NotNull JetTypeMapper typeMapper
+    ) {
         DeclarationDescriptor container = classDescriptor.getContainingDeclaration();
         while (container != null) {
             if (container instanceof ClassDescriptor) {
-                return typeMapper.mapClass((ClassDescriptor)container).getInternalName();
-            } else if (CodegenBinding.isLocalFunOrLambda(container)) {
+                return typeMapper.mapClass((ClassDescriptor) container).getInternalName();
+            }
+            else if (CodegenBinding.isLocalFunOrLambda(container)) {
                 ClassDescriptor descriptor =
                         CodegenBinding.anonymousClassForFunction(typeMapper.getBindingContext(), (FunctionDescriptor) container);
                 return typeMapper.mapClass(descriptor).getInternalName();
@@ -787,5 +825,11 @@ public class AsmUtil {
         else {
             v.aconst(type);
         }
+    }
+
+    public static int getReceiverIndex(@NotNull CodegenContext context, @NotNull CallableMemberDescriptor descriptor) {
+        OwnerKind kind = context.getContextKind();
+        //Trait always should have this descriptor
+        return kind != OwnerKind.TRAIT_IMPL && isStaticMethod(kind, descriptor) ? 0 : 1;
     }
 }

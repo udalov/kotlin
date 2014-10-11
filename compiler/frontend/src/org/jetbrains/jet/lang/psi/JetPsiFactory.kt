@@ -25,9 +25,17 @@ import com.intellij.util.LocalTimeCounter
 import org.jetbrains.jet.lang.resolve.ImportPath
 import org.jetbrains.jet.lexer.JetKeywordToken
 import org.jetbrains.jet.plugin.JetFileType
+import org.jetbrains.jet.lang.psi.JetPsiFactory.CallableBuilder.Target
+import com.intellij.openapi.util.Key
+import java.io.PrintWriter
+import java.io.StringWriter
+import com.intellij.openapi.application.ApplicationManager
 
 public fun JetPsiFactory(project: Project?): JetPsiFactory = JetPsiFactory(project!!)
 public fun JetPsiFactory(contextElement: JetElement): JetPsiFactory = JetPsiFactory(contextElement.getProject())
+
+public var JetFile.doNotAnalyze: String? by UserDataProperty(Key.create("DO_NOT_ANALYZE"))
+public var JetFile.analysisContext: PsiElement? by UserDataProperty(Key.create("ANALYSIS_CONTEXT"))
 
 public class JetPsiFactory(private val project: Project) {
 
@@ -60,7 +68,7 @@ public class JetPsiFactory(private val project: Project) {
     }
 
     public fun createType(`type`: String): JetTypeReference {
-        return createProperty("val x : $`type`").getTypeRef()!!
+        return createProperty("val x : $`type`").getTypeReference()!!
     }
 
     public fun createStar(): PsiElement {
@@ -69,6 +77,10 @@ public class JetPsiFactory(private val project: Project) {
 
     public fun createComma(): PsiElement {
         return createType("T<X, Y>").findElementAt(3)!!
+    }
+
+    public fun createDot(): PsiElement {
+        return createType("T.(X)").findElementAt(1)!!
     }
 
     public fun createColon(): PsiElement {
@@ -109,8 +121,31 @@ public class JetPsiFactory(private val project: Project) {
         return createFile("dummy.kt", text)
     }
 
-    public fun createFile(fileName: String, text: String): JetFile {
+    private fun doCreateFile(fileName: String, text: String): JetFile {
         return PsiFileFactory.getInstance(project).createFileFromText(fileName, JetFileType.INSTANCE, text, LocalTimeCounter.currentTime(), false) as JetFile
+    }
+
+    public fun createFile(fileName: String, text: String): JetFile {
+        val file = doCreateFile(fileName, text)
+        //TODO: KotlinInternalMode should be used here
+        if (ApplicationManager.getApplication()!!.isInternal()) {
+            val sw = StringWriter()
+            Exception().printStackTrace(PrintWriter(sw))
+            file.doNotAnalyze = "This file was created by JetPsiFactory and should not be analyzed. It was created at:\n" + sw.toString()
+        }
+        else {
+            file.doNotAnalyze = "This file was created by JetPsiFactory and should not be analyzed\n" +
+                                "Enable kotlin internal mode get more info for debugging\n" +
+                                "Use createAnalyzableFile to create file that can be analyzed\n"
+        }
+
+        return file
+    }
+
+    public fun createAnalyzableFile(fileName: String, text: String, contextToAnalyzeIn: PsiElement): JetFile {
+        val file = doCreateFile(fileName, text)
+        file.analysisContext = contextToAnalyzeIn
+        return file
     }
 
     public fun createPhysicalFile(fileName: String, text: String): JetFile {
@@ -181,9 +216,8 @@ public class JetPsiFactory(private val project: Project) {
         return createClass("class A(){}").getBody()!!
     }
 
-    public fun createParameter(name: String, `type`: String): JetParameter {
-        val function = createFunction("fun foo(" + name + " : " + `type` + ") {}")
-        return function.getValueParameters().first()
+    public fun createParameter(text : String): JetParameter {
+        return createClass("class A($text)").getPrimaryConstructorParameters().first()
     }
 
     public fun createParameterList(text: String): JetParameterList {
@@ -275,8 +309,13 @@ public class JetPsiFactory(private val project: Project) {
         return createExpression(JetPsiUnparsingUtils.toIf(condition, thenExpr, elseExpr)) as JetIfExpression
     }
 
-    public fun createArgumentWithName(name: String, argumentExpression: JetExpression): JetValueArgument {
-        return createCallArguments("(" + name + " = " + argumentExpression.getText() + ")").getArguments().first()
+    public fun createArgumentWithName(name: String?, argumentExpression: JetExpression): JetValueArgument {
+        val argumentText = (if (name != null) "$name = " else "") + argumentExpression.getText()
+        return createCallArguments("($argumentText)").getArguments().first()
+    }
+
+    public fun createArgument(argumentExpression: JetExpression): JetValueArgument {
+        return createArgumentWithName(null, argumentExpression)
     }
 
     public inner class IfChainBuilder() {
@@ -415,7 +454,12 @@ public class JetPsiFactory(private val project: Project) {
         return WhenBuilder(subject?.getText())
     }
 
-    public class FunctionBuilder() {
+    public class CallableBuilder(private val target: Target) {
+        public enum class Target {
+            FUNCTION
+            READ_ONLY_PROPERTY
+        }
+
         enum class State {
             MODIFIERS
             NAME
@@ -431,25 +475,35 @@ public class JetPsiFactory(private val project: Project) {
         private var state = State.MODIFIERS
 
         private fun closeParams() {
-            assert(state == State.FIRST_PARAM || state == State.REST_PARAMS)
-
-            sb.append(")")
+            if (target == Target.FUNCTION) {
+                assert(state == State.FIRST_PARAM || state == State.REST_PARAMS)
+                sb.append(")")
+            }
 
             state = State.TYPE_CONSTRAINTS
         }
 
-        private fun placeFun() {
+        private fun placeKeyword() {
             assert(state == State.MODIFIERS)
 
             if (sb.length() != 0) {
                 sb.append(" ")
             }
-            sb.append("fun ")
+            val keyword = when (target) {
+                Target.FUNCTION -> "fun"
+                Target.READ_ONLY_PROPERTY -> "val"
+            }
+            sb.append("$keyword ")
 
             state = State.RECEIVER
         }
 
-        public fun modifier(modifier: String): FunctionBuilder {
+        private fun blockPrefix() = when (target) {
+            Target.FUNCTION -> ""
+            Target.READ_ONLY_PROPERTY -> "\nget()"
+        }
+
+        public fun modifier(modifier: String): CallableBuilder {
             assert(state == State.MODIFIERS)
 
             sb.append(modifier)
@@ -457,8 +511,8 @@ public class JetPsiFactory(private val project: Project) {
             return this
         }
 
-        public fun typeParams(values: Collection<String>): FunctionBuilder {
-            placeFun()
+        public fun typeParams(values: Collection<String>): CallableBuilder {
+            placeKeyword()
             if (!values.isEmpty()) {
                 sb.append(values.joinToString(", ", "<", "> ", -1, ""))
             }
@@ -466,7 +520,7 @@ public class JetPsiFactory(private val project: Project) {
             return this
         }
 
-        public fun receiver(receiverType: String): FunctionBuilder {
+        public fun receiver(receiverType: String): CallableBuilder {
             assert(state == State.RECEIVER)
 
             sb.append(receiverType).append(".")
@@ -475,16 +529,24 @@ public class JetPsiFactory(private val project: Project) {
             return this
         }
 
-        public fun name(name: String): FunctionBuilder {
+        public fun name(name: String): CallableBuilder {
             assert(state == State.NAME || state == State.RECEIVER)
 
-            sb.append(name).append("(")
-            state = State.FIRST_PARAM
+            sb.append(name)
+            when (target) {
+                Target.FUNCTION -> {
+                    sb.append("(")
+                    state = State.FIRST_PARAM
+                }
+                else ->
+                    state = State.TYPE_CONSTRAINTS
+            }
 
             return this
         }
 
-        public fun param(name: String, `type`: String): FunctionBuilder {
+        public fun param(name: String, `type`: String): CallableBuilder {
+            assert(target == Target.FUNCTION)
             assert(state == State.FIRST_PARAM || state == State.REST_PARAMS)
 
             if (state == State.REST_PARAMS) {
@@ -498,20 +560,20 @@ public class JetPsiFactory(private val project: Project) {
             return this
         }
 
-        public fun returnType(`type`: String): FunctionBuilder {
+        public fun returnType(`type`: String): CallableBuilder {
             closeParams()
             sb.append(": ").append(`type`)
 
             return this
         }
 
-        public fun noReturnType(): FunctionBuilder {
+        public fun noReturnType(): CallableBuilder {
             closeParams()
 
             return this
         }
 
-        public fun typeConstraints(values: Collection<String>): FunctionBuilder {
+        public fun typeConstraints(values: Collection<String>): CallableBuilder {
             assert(state == State.TYPE_CONSTRAINTS)
 
             if (!values.isEmpty()) {
@@ -522,25 +584,25 @@ public class JetPsiFactory(private val project: Project) {
             return this
         }
 
-        public fun simpleBody(body: String): FunctionBuilder {
+        public fun simpleBody(body: String): CallableBuilder {
             assert(state == State.BODY || state == State.TYPE_CONSTRAINTS)
 
-            sb.append(" = ").append(body)
+            sb.append(blockPrefix()).append(" = ").append(body)
             state = State.DONE
 
             return this
         }
 
-        public fun blockBody(body: String): FunctionBuilder {
+        public fun blockBody(body: String): CallableBuilder {
             assert(state == State.BODY || state == State.TYPE_CONSTRAINTS)
 
-            sb.append(" {\n").append(body).append("\n}")
+            sb.append(blockPrefix()).append(" {\n").append(body).append("\n}")
             state = State.DONE
 
             return this
         }
 
-        public fun toFunctionText(): String {
+        public fun asString(): String {
             if (state != State.DONE) {
                 state = State.DONE
             }

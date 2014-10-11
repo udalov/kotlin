@@ -189,7 +189,7 @@ public class SingleAbstractMethodUtils {
             ) {
                 result.initialize(
                         null,
-                        original.getExpectedThisObject(),
+                        original.getDispatchReceiverParameter(),
                         typeParameters,
                         valueParameters,
                         returnType,
@@ -210,12 +210,7 @@ public class SingleAbstractMethodUtils {
                     @NotNull List<ValueParameterDescriptor> valueParameters,
                     @Nullable JetType returnType
             ) {
-                result.initialize(
-                        typeParameters,
-                        valueParameters,
-                        original.getVisibility(),
-                        original.getExpectedThisObject() == ReceiverParameterDescriptor.NO_RECEIVER_PARAMETER
-                );
+                result.initialize(typeParameters, valueParameters, original.getVisibility());
             }
         });
     }
@@ -285,10 +280,6 @@ public class SingleAbstractMethodUtils {
         return new TypeParameters(typeParameters, typeParametersSubstitutor);
     }
 
-    public static boolean isSamInterface(@NotNull JavaClass javaClass) {
-        return getSamInterfaceMethod(javaClass) != null;
-    }
-
     // Returns null if not SAM interface
     @Nullable
     public static JavaMethod getSamInterfaceMethod(@NotNull JavaClass javaClass) {
@@ -331,6 +322,8 @@ public class SingleAbstractMethodUtils {
     }
 
     private static class OnlyAbstractMethodFinder {
+        private static final FqName OBJECT_FQ_NAME = new FqName("java.lang.Object");
+
         private JavaMethod foundMethod;
         private JavaTypeSubstitutor foundClassSubstitutor;
 
@@ -342,10 +335,16 @@ public class SingleAbstractMethodUtils {
             }
             assert classifier instanceof JavaClass : "Classifier should be a class here: " + classifier;
             JavaClass javaClass = (JavaClass) classifier;
-            if (DescriptorResolverUtils.OBJECT_FQ_NAME.equals(javaClass.getFqName())) {
+            if (OBJECT_FQ_NAME.equals(javaClass.getFqName())) {
                 return true;
             }
             for (JavaMethod method : javaClass.getMethods()) {
+
+                //skip java 8 default methods
+                if (!method.isAbstract()) {
+                    continue;
+                }
+
                 if (DescriptorResolverUtils.isObjectMethod(method)) { // e.g., ignore toString() declared in interface
                     continue;
                 }
@@ -382,18 +381,19 @@ public class SingleAbstractMethodUtils {
                 @NotNull JavaMethod method2,
                 @NotNull JavaTypeSubstitutor substitutor2
         ) {
-            if (method1.isConstructor() != method2.isConstructor()) return false;
-            if (!method1.isConstructor() && !method1.getName().equals(method2.getName())) return false;
-
-            if (method1.isVararg() != method2.isVararg()) return false;
+            if (!method1.getName().equals(method2.getName())) return false;
 
             Collection<JavaValueParameter> parameters1 = method1.getValueParameters();
             Collection<JavaValueParameter> parameters2 = method2.getValueParameters();
             if (parameters1.size() != parameters2.size()) return false;
 
             for (Iterator<JavaValueParameter> it1 = parameters1.iterator(), it2 = parameters2.iterator(); it1.hasNext(); ) {
-                JavaType type1 = DescriptorResolverUtils.erasure(substitutor1.substitute(it1.next().getType()), substitutor1);
-                JavaType type2 = DescriptorResolverUtils.erasure(substitutor2.substitute(it2.next().getType()), substitutor2);
+                JavaValueParameter param1 = it1.next();
+                JavaValueParameter param2 = it2.next();
+                if (param1.isVararg() != param2.isVararg()) return false;
+
+                JavaType type1 = DescriptorResolverUtils.erasure(substitutor1.substitute(param1.getType()), substitutor1);
+                JavaType type2 = DescriptorResolverUtils.erasure(substitutor2.substitute(param2.getType()), substitutor2);
                 if (!(type1 == null ? type2 == null : type1.equals(type2))) return false;
             }
 

@@ -29,7 +29,7 @@ public final class MiscTest extends AbstractExpressionTest {
     }
 
     public void testLocalProperty() throws Exception {
-        fooBoxIsValue(50);
+        checkFooBoxIsOk();
     }
 
     public void testIntRange() throws Exception {
@@ -43,15 +43,6 @@ public final class MiscTest extends AbstractExpressionTest {
 
     public void testClassWithoutPackage() throws Exception {
         runFunctionOutputTest("classWithoutPackage.kt", Namer.getRootPackageName(), TEST_FUNCTION, true);
-    }
-
-    public void testIfElseAsExpressionWithThrow() throws Exception {
-        try {
-            fooBoxTest();
-            fail();
-        }
-        catch (JavaScriptException e) {
-        }
     }
 
     public void testKt1052_2() throws Exception {
@@ -193,5 +184,9 @@ public final class MiscTest extends AbstractExpressionTest {
 
     public void testKt5058() throws Exception {
         checkFooBoxIsTrue("KT-5058.kt");
+    }
+
+    public void testRightAssocForGeneratedConditionalOperator() throws Exception {
+        checkFooBoxIsOk();
     }
 }

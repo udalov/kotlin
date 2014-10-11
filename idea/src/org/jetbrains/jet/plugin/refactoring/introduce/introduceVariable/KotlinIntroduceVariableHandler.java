@@ -16,7 +16,6 @@
 
 package org.jetbrains.jet.plugin.refactoring.introduce.introduceVariable;
 
-import com.intellij.codeInsight.PsiEquivalenceUtil;
 import com.intellij.openapi.actionSystem.DataContext;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.command.CommandProcessor;
@@ -31,18 +30,20 @@ import com.intellij.psi.PsiWhiteSpace;
 import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.refactoring.HelpID;
 import com.intellij.refactoring.introduce.inplace.OccurrencesChooser;
+import kotlin.Function1;
+import kotlin.KotlinPackage;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.analyzer.AnalyzerPackage;
 import org.jetbrains.jet.lang.psi.*;
+import org.jetbrains.jet.lang.psi.psiUtil.PsiUtilPackage;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.BindingTraceContext;
 import org.jetbrains.jet.lang.resolve.ObservableBindingTrace;
-import org.jetbrains.jet.lang.resolve.calls.autocasts.DataFlowInfo;
-import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCall;
+import org.jetbrains.jet.lang.resolve.bindingContextUtil.BindingContextUtilPackage;
+import org.jetbrains.jet.lang.resolve.calls.smartcasts.DataFlowInfo;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
 import org.jetbrains.jet.lang.types.JetType;
-import org.jetbrains.jet.lang.types.PackageType;
 import org.jetbrains.jet.lang.types.TypeUtils;
 import org.jetbrains.jet.lang.types.checker.JetTypeChecker;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
@@ -50,19 +51,24 @@ import org.jetbrains.jet.lexer.JetTokens;
 import org.jetbrains.jet.plugin.caches.resolve.ResolvePackage;
 import org.jetbrains.jet.plugin.codeInsight.CodeInsightUtils;
 import org.jetbrains.jet.plugin.codeInsight.ShortenReferences;
-import org.jetbrains.jet.plugin.project.AnalyzerFacadeWithCache;
 import org.jetbrains.jet.plugin.project.ResolveSessionForBodies;
 import org.jetbrains.jet.plugin.refactoring.JetNameSuggester;
 import org.jetbrains.jet.plugin.refactoring.JetNameValidatorImpl;
 import org.jetbrains.jet.plugin.refactoring.JetRefactoringBundle;
 import org.jetbrains.jet.plugin.refactoring.JetRefactoringUtil;
 import org.jetbrains.jet.plugin.refactoring.introduce.KotlinIntroduceHandlerBase;
+import org.jetbrains.jet.plugin.util.psi.patternMatching.JetPsiRange;
+import org.jetbrains.jet.plugin.util.psi.patternMatching.JetPsiUnifier;
+import org.jetbrains.jet.plugin.util.psi.patternMatching.PatternMatchingPackage;
+import org.jetbrains.jet.plugin.util.psiModificationUtil.PsiModificationUtilPackage;
 import org.jetbrains.jet.renderer.DescriptorRenderer;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashSet;
+import java.util.List;
 
 import static org.jetbrains.jet.lang.psi.PsiPackage.JetPsiFactory;
-import static org.jetbrains.jet.lang.resolve.bindingContextUtil.BindingContextUtilPackage.getResolvedCall;
 
 public class KotlinIntroduceVariableHandler extends KotlinIntroduceHandlerBase {
 
@@ -98,7 +104,6 @@ public class KotlinIntroduceVariableHandler extends KotlinIntroduceHandlerBase {
         }
         final JetExpression expression = _expression;
         boolean noTypeInference = false;
-        boolean needParentheses = false;
         if (expression.getParent() instanceof JetQualifiedExpression) {
             JetQualifiedExpression qualifiedExpression = (JetQualifiedExpression)expression.getParent();
             if (qualifiedExpression.getReceiverExpression() != expression) {
@@ -109,13 +114,6 @@ public class KotlinIntroduceVariableHandler extends KotlinIntroduceHandlerBase {
         else if (expression instanceof JetStatementExpression) {
             showErrorHint(project, editor, JetRefactoringBundle.message("cannot.refactor.no.expression"));
             return;
-        } else if (expression.getParent() instanceof JetCallElement) {
-            if (expression instanceof JetFunctionLiteralExpression) {
-                needParentheses = true;
-            } else {
-                showErrorHint(project, editor, JetRefactoringBundle.message("cannot.refactor.no.expression"));
-                return;
-            }
         }
         else if (expression.getParent() instanceof JetOperationExpression) {
             JetOperationExpression operationExpression = (JetOperationExpression)expression.getParent();
@@ -126,14 +124,11 @@ public class KotlinIntroduceVariableHandler extends KotlinIntroduceHandlerBase {
         }
         ResolveSessionForBodies resolveSession =
                 ResolvePackage.getLazyResolveSession(expression);
-        BindingContext bindingContext = resolveSession.resolveToElement(expression);
+        final BindingContext bindingContext = resolveSession.resolveToElement(expression);
         final JetType expressionType = bindingContext.get(BindingContext.EXPRESSION_TYPE, expression); //can be null or error type
         JetScope scope = bindingContext.get(BindingContext.RESOLUTION_SCOPE, expression);
         if (scope != null) {
-            DataFlowInfo dataFlowInfo = bindingContext.get(BindingContext.NON_DEFAULT_EXPRESSION_DATA_FLOW, expression);
-            if (dataFlowInfo == null) {
-                dataFlowInfo = DataFlowInfo.EMPTY;
-            }
+            DataFlowInfo dataFlowInfo = BindingContextUtilPackage.getDataFlowInfo(bindingContext, expression);
 
             ObservableBindingTrace bindingTrace = new ObservableBindingTrace(new BindingTraceContext());
             JetType typeNoExpectedType = AnalyzerPackage.computeTypeInfoInContext(
@@ -144,7 +139,8 @@ public class KotlinIntroduceVariableHandler extends KotlinIntroduceHandlerBase {
                 noTypeInference = true;
             }
         }
-        if (expressionType instanceof PackageType) {
+
+        if (expressionType == null && bindingContext.get(BindingContext.QUALIFIER, expression) != null) {
             showErrorHint(project, editor, JetRefactoringBundle.message("cannot.refactor.package.expression"));
             return;
         }
@@ -176,7 +172,6 @@ public class KotlinIntroduceVariableHandler extends KotlinIntroduceHandlerBase {
         }
 
         final boolean finalNoTypeInference = noTypeInference;
-        final boolean finalNeedParentheses = needParentheses;
         Pass<OccurrencesChooser.ReplaceChoice> callback = new Pass<OccurrencesChooser.ReplaceChoice>() {
             @Override
             public void pass(OccurrencesChooser.ReplaceChoice replaceChoice) {
@@ -203,9 +198,10 @@ public class KotlinIntroduceVariableHandler extends KotlinIntroduceHandlerBase {
                 final Ref<JetProperty> propertyRef = new Ref<JetProperty>();
                 final ArrayList<JetExpression> references = new ArrayList<JetExpression>();
                 final Ref<JetExpression> reference = new Ref<JetExpression>();
-                final Runnable introduceRunnable = introduceVariable(expression, suggestedNames, allReplaces, commonContainer,
-                                                                     commonParent, replaceOccurrence, propertyRef, references,
-                                                                     reference, finalNoTypeInference, finalNeedParentheses, expressionType);
+                final Runnable introduceRunnable = introduceVariable(
+                        expression, suggestedNames, allReplaces, commonContainer,
+                        commonParent, replaceOccurrence, propertyRef, references,
+                        reference, finalNoTypeInference, expressionType, bindingContext);
                 final boolean finalReplaceOccurrence = replaceOccurrence;
                 CommandProcessor.getInstance().executeCommand(project, new Runnable() {
                     @Override
@@ -250,9 +246,10 @@ public class KotlinIntroduceVariableHandler extends KotlinIntroduceHandlerBase {
             final ArrayList<JetExpression> references,
             final Ref<JetExpression> reference,
             final boolean noTypeInference,
-            final boolean needParentheses,
-            final JetType expressionType
+            final JetType expressionType,
+            final BindingContext bindingContext
     ) {
+        final JetPsiFactory psiFactory = JetPsiFactory(expression);
         return new Runnable() {
             @Override
             public void run() {
@@ -274,7 +271,6 @@ public class KotlinIntroduceVariableHandler extends KotlinIntroduceHandlerBase {
                 else {
                     variableText += expression.getText();
                 }
-                JetPsiFactory psiFactory = JetPsiFactory(expression);
                 JetProperty property = psiFactory.createProperty(variableText);
                 PsiElement anchor = calculateAnchor(commonParent, commonContainer, allReplaces);
                 if (anchor == null) return;
@@ -291,15 +287,7 @@ public class KotlinIntroduceVariableHandler extends KotlinIntroduceHandlerBase {
                     emptyBody.addAfter(psiFactory.createNewLine(), firstChild);
                     if (replaceOccurrence && commonContainer != null) {
                         for (JetExpression replace : allReplaces) {
-                            boolean isActualExpression = expression == replace;
-                            if (!needParentheses && !(replace.getParent() instanceof JetCallExpression)) {
-                                JetExpression element = (JetExpression) replace.replace(psiFactory.createExpression(suggestedNames[0]));
-                                if (isActualExpression) reference.set(element);
-                            } else {
-                                JetValueArgumentList argumentList = psiFactory.createCallArguments("(" + suggestedNames[0] + ")");
-                                JetValueArgumentList element = (JetValueArgumentList) replace.replace(argumentList);
-                                if (isActualExpression) reference.set(element.getArguments().get(0).getArgumentExpression());
-                            }
+                            replaceExpression(replace);
                         }
                         PsiElement oldElement = commonContainer;
                         if (commonContainer instanceof JetWhenEntry) {
@@ -390,22 +378,7 @@ public class KotlinIntroduceVariableHandler extends KotlinIntroduceHandlerBase {
                 }
                 for (JetExpression replace : allReplaces) {
                     if (replaceOccurrence && !needBraces) {
-                        boolean isActualExpression = expression == replace;
-
-                        if (!needParentheses && !(replace.getParent() instanceof JetCallExpression)) {
-                            JetExpression element =
-                                    (JetExpression)replace.replace(psiFactory.createExpression(suggestedNames[0]));
-                            references.add(element);
-                            if (isActualExpression) reference.set(element);
-                        } else {
-                            JetValueArgumentList argumentList = psiFactory.createCallArguments("(" + suggestedNames[0] + ")");
-                            JetValueArgumentList element = (JetValueArgumentList) replace.replace(argumentList);
-                            JetExpression argumentExpression = element.getArguments().get(0).getArgumentExpression();
-                            references.add(argumentExpression);
-                            if (isActualExpression) {
-                                reference.set(argumentExpression);
-                            }
-                        }
+                        replaceExpression(replace);
                     }
                     else if (!needBraces) {
                         replace.delete();
@@ -413,8 +386,27 @@ public class KotlinIntroduceVariableHandler extends KotlinIntroduceHandlerBase {
                 }
                 propertyRef.set(property);
                 if (noTypeInference) {
-                    ShortenReferences.instance$.process(property);
+                    ShortenReferences.INSTANCE$.process(property);
                 }
+            }
+
+            private void replaceExpression(JetExpression replace) {
+                boolean isActualExpression = expression == replace;
+
+                JetExpression replacement = psiFactory.createExpression(suggestedNames[0]);
+                JetExpression result;
+                if (PsiUtilPackage.isFunctionLiteralOutsideParentheses(replace)) {
+                    JetFunctionLiteralArgument functionLiteralArgument =
+                            PsiTreeUtil.getParentOfType(replace, JetFunctionLiteralArgument.class);
+                    JetCallExpression newCallExpression = PsiModificationUtilPackage
+                            .moveInsideParenthesesAndReplaceWith(functionLiteralArgument, replacement, bindingContext);
+                    result = KotlinPackage.last(newCallExpression.getValueArguments()).getArgumentExpression();
+                }
+                else {
+                    result = (JetExpression)replace.replace(replacement);
+                }
+                references.add(result);
+                if (isActualExpression) reference.set(result);
             }
         };
     }
@@ -442,84 +434,21 @@ public class KotlinIntroduceVariableHandler extends KotlinIntroduceHandlerBase {
         return anchor;
     }
 
-    private static ArrayList<JetExpression> findOccurrences(PsiElement occurrenceContainer, @NotNull JetExpression expression) {
-        if (expression instanceof JetParenthesizedExpression) {
-            JetParenthesizedExpression parenthesizedExpression = (JetParenthesizedExpression)expression;
-            JetExpression innerExpression = parenthesizedExpression.getExpression();
-            if (innerExpression != null) {
-                expression = innerExpression;
-            }
-        }
-        final JetExpression actualExpression = expression;
-
-        final ArrayList<JetExpression> result = new ArrayList<JetExpression>();
-
-        final BindingContext bindingContext = AnalyzerFacadeWithCache.getContextForElement(expression);
-
-        JetVisitorVoid visitor = new JetVisitorVoid() {
-            @Override
-            public void visitJetElement(@NotNull JetElement element) {
-                element.acceptChildren(this);
-                super.visitJetElement(element);
-            }
-
-            @Override
-            public void visitExpression(@NotNull JetExpression expression) {
-                if (PsiEquivalenceUtil.areElementsEquivalent(expression, actualExpression, null, new Comparator<PsiElement>() {
-                    private boolean compareCalleesAndReceivers(@NotNull ResolvedCall<?> rc1, @NotNull ResolvedCall<?> rc2) {
-                        if (rc1.getResultingDescriptor() != rc2.getResultingDescriptor() ||
-                               rc1.getExplicitReceiverKind() != rc2.getExplicitReceiverKind()) return false;
-
-                        switch (rc1.getExplicitReceiverKind()) {
-                            case NO_EXPLICIT_RECEIVER:
-                                return rc1.getReceiverArgument() == rc2.getReceiverArgument()
-                                          && rc1.getThisObject() == rc2.getThisObject();
-                            case RECEIVER_ARGUMENT:
-                                return rc1.getThisObject() == rc2.getThisObject();
-                            case THIS_OBJECT:
-                                return rc1.getReceiverArgument() == rc2.getReceiverArgument();
-                            default:
-                                return true;
-                        }
-                    }
-
+    private static List<JetExpression> findOccurrences(PsiElement occurrenceContainer, @NotNull JetExpression originalExpression) {
+        return KotlinPackage.map(
+                PatternMatchingPackage.toRange(originalExpression).match(occurrenceContainer, JetPsiUnifier.DEFAULT),
+                new Function1<JetPsiRange.Match, JetExpression>() {
                     @Override
-                    public int compare(@NotNull PsiElement element1, @NotNull PsiElement element2) {
-                        if (element1.getNode().getElementType() == JetTokens.IDENTIFIER &&
-                            element2.getNode().getElementType() == JetTokens.IDENTIFIER) {
-                            if (element1.getParent() instanceof JetSimpleNameExpression &&
-                                element2.getParent() instanceof JetSimpleNameExpression) {
-                                JetSimpleNameExpression expr1 = (JetSimpleNameExpression)element1.getParent();
-                                JetSimpleNameExpression expr2 = (JetSimpleNameExpression)element2.getParent();
+                    public JetExpression invoke(JetPsiRange.Match match) {
+                        PsiElement candidate = ((JetPsiRange.ListRange) match.getRange()).getStartElement();
+                        if (candidate instanceof JetExpression) return (JetExpression) candidate;
+                        if (candidate instanceof JetStringTemplateEntryWithExpression)
+                            return ((JetStringTemplateEntryWithExpression) candidate).getExpression();
 
-                                ResolvedCall<?> rc1 = getResolvedCall(expr1, bindingContext);
-                                ResolvedCall<?> rc2 = getResolvedCall(expr2, bindingContext);
-                                return (rc1 != null && rc2 != null) && compareCalleesAndReceivers(rc1, rc2) ? 0 : 1;
-                            }
-                        }
-                        if (!element1.textMatches(element2)) {
-                            return 1;
-                        }
-                        else {
-                            return 0;
-                        }
-                    }
-                }, null, false)) {
-                    PsiElement parent = expression.getParent();
-                    if (parent instanceof JetParenthesizedExpression) {
-                        result.add((JetParenthesizedExpression)parent);
-                    }
-                    else {
-                        result.add(expression);
+                        throw new AssertionError("Unexpected candidate element: " + candidate.getText());
                     }
                 }
-                else {
-                    super.visitExpression(expression);
-                }
-            }
-        };
-        occurrenceContainer.accept(visitor);
-        return result;
+        );
     }
 
     @Nullable

@@ -31,6 +31,7 @@ import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.psi.psiUtil.PsiUtilPackage;
 import org.jetbrains.jet.lexer.JetTokens;
+import org.jetbrains.jet.plugin.refactoring.RefactoringPackage;
 
 import java.util.List;
 
@@ -229,10 +230,10 @@ public class JetExpressionMover extends AbstractJetUpDownMover {
                 (JetCallExpression) JetPsiUtil.getOutermostDescendantElement(element, down, IS_CALL_EXPRESSION);
         if (callExpression == null) return null;
 
-        List<JetExpression> functionLiterals = callExpression.getFunctionLiteralArguments();
+        List<JetFunctionLiteralArgument> functionLiterals = callExpression.getFunctionLiteralArguments();
         if (functionLiterals.isEmpty()) return null;
 
-        return ((JetFunctionLiteralExpression) functionLiterals.get(0)).getBodyExpression();
+        return functionLiterals.get(0).getFunctionLiteral().getBodyExpression();
     }
 
     @Nullable
@@ -431,7 +432,6 @@ public class JetExpressionMover extends AbstractJetUpDownMover {
     }
 
     protected static PsiElement adjustSibling(
-            @NotNull Editor editor,
             @NotNull LineRange sourceRange,
             @NotNull MoveInfo info,
             boolean down
@@ -448,7 +448,7 @@ public class JetExpressionMover extends AbstractJetUpDownMover {
         }
 
         if (whiteSpaceTestSubject instanceof PsiWhiteSpace) {
-            if (getElementLineCount(whiteSpaceTestSubject, editor) > 1) {
+            if (RefactoringPackage.isMultiLine(whiteSpaceTestSubject)) {
                 int nearLine = down ? sourceRange.endLine : sourceRange.startLine - 1;
 
                 info.toMove = sourceRange;
@@ -524,7 +524,7 @@ public class JetExpressionMover extends AbstractJetUpDownMover {
         LineRange sourceRange = getSourceRange(firstElement, lastElement, editor, oldRange);
         if (sourceRange == null) return false;
 
-        PsiElement sibling = getLastNonWhiteSiblingInLine(adjustSibling(editor, sourceRange, info, down), editor, down);
+        PsiElement sibling = getLastNonWhiteSiblingInLine(adjustSibling(sourceRange, info, down), editor, down);
 
         // Either reached last sibling, or jumped over multi-line whitespace
         if (sibling == null) return true;

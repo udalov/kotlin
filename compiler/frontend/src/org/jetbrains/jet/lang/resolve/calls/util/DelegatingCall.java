@@ -46,8 +46,8 @@ public class DelegatingCall implements Call {
 
     @NotNull
     @Override
-    public ReceiverValue getThisObject() {
-        return delegate.getThisObject();
+    public ReceiverValue getDispatchReceiver() {
+        return delegate.getDispatchReceiver();
     }
 
     @Override
@@ -70,7 +70,7 @@ public class DelegatingCall implements Call {
 
     @Override
     @NotNull
-    public List<JetExpression> getFunctionLiteralArguments() {
+    public List<JetFunctionLiteralArgument> getFunctionLiteralArguments() {
         return delegate.getFunctionLiteralArguments();
     }
 

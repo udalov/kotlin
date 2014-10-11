@@ -19,6 +19,7 @@ package org.jetbrains.jet.jps.build;
 import com.intellij.openapi.util.io.FileUtil;
 import com.intellij.openapi.util.text.StringUtil;
 import com.intellij.util.containers.ContainerUtil;
+import com.intellij.util.containers.MultiMap;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.compiler.runner.KotlinModuleDescriptionBuilder;
@@ -56,12 +57,12 @@ public class KotlinBuilderModuleScriptGenerator {
     public static File generateModuleDescription(
             CompileContext context,
             ModuleChunk chunk,
-            List<File> sourceFiles, // ignored for non-incremental compilation
+            MultiMap<ModuleBuildTarget, File> sourceFiles, // ignored for non-incremental compilation
             boolean hasRemovedFiles
     )
             throws IOException
     {
-        KotlinModuleDescriptionBuilder builder = FACTORY.create(getIncrementalCacheDir(context).getAbsolutePath());
+        KotlinModuleDescriptionBuilder builder = FACTORY.create();
 
         boolean noSources = true;
 
@@ -73,15 +74,16 @@ public class KotlinBuilderModuleScriptGenerator {
         for (ModuleBuildTarget target : chunk.getTargets()) {
             File outputDir = getOutputDir(target);
 
-            if (!IncrementalCompilation.ENABLED) {
-                sourceFiles = new ArrayList<File>(KotlinSourceFileCollector.getAllKotlinSourceFiles(target));
-            }
+            List<File> moduleSources = new ArrayList<File>(
+                    IncrementalCompilation.ENABLED
+                    ? sourceFiles.get(target)
+                    : KotlinSourceFileCollector.getAllKotlinSourceFiles(target));
 
-            if (sourceFiles.size() > 0 || hasRemovedFiles) {
+            if (moduleSources.size() > 0 || hasRemovedFiles) {
                 noSources = false;
 
                 if (logger.isEnabled()) {
-                    logger.logCompiledFiles(sourceFiles, KotlinBuilder.KOTLIN_BUILDER_NAME, "Compiling files:");
+                    logger.logCompiledFiles(moduleSources, KotlinBuilder.KOTLIN_BUILDER_NAME, "Compiling files:");
                 }
             }
 
@@ -89,7 +91,7 @@ public class KotlinBuilderModuleScriptGenerator {
                     target.getId(),
                     outputDir.getAbsolutePath(),
                     getKotlinModuleDependencies(context, target),
-                    sourceFiles,
+                    moduleSources,
                     target.isTests(),
                     // this excludes the output directories from the class path, to be removed for true incremental compilation
                     outputDirs
@@ -103,10 +105,6 @@ public class KotlinBuilderModuleScriptGenerator {
         FileUtil.writeToFile(scriptFile, builder.asText().toString());
 
         return scriptFile;
-    }
-
-    public static File getIncrementalCacheDir(CompileContext context) {
-        return new File(context.getProjectDescriptor().dataManager.getDataPaths().getDataStorageRoot(), "kotlin");
     }
 
     @NotNull

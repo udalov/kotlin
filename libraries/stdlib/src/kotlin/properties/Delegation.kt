@@ -50,7 +50,9 @@ private class NotNullVar<T: Any>() : ReadWriteProperty<Any?, T> {
     }
 }
 
-class ObservableProperty<T>(initialValue: T, val onChange: (name: PropertyMetadata, oldValue: T, newValue: T) -> Boolean): ReadWriteProperty<Any?, T> {
+public class ObservableProperty<T>(
+        initialValue: T, private val onChange: (name: PropertyMetadata, oldValue: T, newValue: T) -> Boolean
+) : ReadWriteProperty<Any?, T> {
     private var value = initialValue
 
     public override fun get(thisRef: Any?, desc: PropertyMetadata): T {
@@ -64,7 +66,7 @@ class ObservableProperty<T>(initialValue: T, val onChange: (name: PropertyMetada
     }
 }
 
-private val NULL_VALUE: Any = Any()
+private object NULL_VALUE {}
 
 private fun escape(value: Any?): Any {
     return value ?: NULL_VALUE

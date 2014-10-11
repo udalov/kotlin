@@ -6,9 +6,9 @@ Note that only a subset of the api is supported for now.
 
 package fancylines
 
-import js.dom.html5.*
-import js.dom.html.window
-import js.jquery.*
+import kotlin.js.dom.html.window
+import kotlin.js.dom.html5.*
+import jquery.*
 
 fun main(args: Array<String>) {
     jq {
@@ -43,7 +43,7 @@ class FancyLines() {
         context.bezierCurveTo(width * Math.random(), height * Math.random(),
                               width * Math.random(), height * Math.random(), x, y);
 
-        hue += Math.random() * 10;
+        hue += (Math.random() * 10).toInt();
 
         context.strokeStyle = "hsl($hue, 50%, 50%)";
 

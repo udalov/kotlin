@@ -16,21 +16,14 @@
 
 package org.jetbrains.jet.plugin.intentions.declarations;
 
-import com.google.common.base.Predicate;
-import com.intellij.openapi.project.Project;
-import com.intellij.openapi.util.Pair;
-import com.intellij.psi.PsiComment;
 import com.intellij.psi.PsiElement;
-import com.intellij.psi.PsiWhiteSpace;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.types.JetType;
-import org.jetbrains.jet.lexer.JetTokens;
 import org.jetbrains.jet.plugin.codeInsight.ShortenReferences;
 import org.jetbrains.jet.plugin.project.AnalyzerFacadeWithCache;
-import org.jetbrains.jet.plugin.util.JetPsiMatcher;
 import org.jetbrains.jet.renderer.DescriptorRenderer;
 
 import static org.jetbrains.jet.lang.psi.PsiPackage.JetPsiFactory;
@@ -47,45 +40,9 @@ public class DeclarationUtils {
         return property.hasInitializer() && property.isLocal();
     }
 
-    public static final Predicate<PsiElement> SKIP_DELIMITERS = new Predicate<PsiElement>() {
-        @Override
-        public boolean apply(@Nullable PsiElement input) {
-            return input == null
-                   || input instanceof PsiWhiteSpace || input instanceof PsiComment
-                   || input.getNode().getElementType() == JetTokens.SEMICOLON;
-        }
-    };
-
-    @Nullable
-    public static Pair<JetProperty, JetBinaryExpression> checkAndGetPropertyAndInitializer(@NotNull PsiElement element) {
-        JetProperty property = null;
-        JetExpression initializer = null;
-
-        if (element instanceof JetProperty) {
-            PsiElement nextElement = JetPsiUtil.skipSiblingsForwardByPredicate(element, SKIP_DELIMITERS);
-            if (nextElement instanceof JetExpression) {
-                property = (JetProperty) element;
-                initializer = (JetExpression) nextElement;
-            }
-        }
-
-        if (property == null) return null;
-        if (property.hasInitializer()) return null;
-        if (!JetPsiUtil.isOrdinaryAssignment(initializer)) return null;
-
-        JetBinaryExpression assignment = (JetBinaryExpression) initializer;
-
-        if (!(assignment.getLeft() instanceof JetSimpleNameExpression)) return null;
-        if (assignment.getRight() == null) return null;
-        //noinspection ConstantConditions
-        if (!JetPsiMatcher.checkIdentifierMatch(property.getNameIdentifier().getText(), assignment.getLeft().getText())) return null;
-
-        return new Pair<JetProperty, JetBinaryExpression>(property, assignment);
-    }
-
     @Nullable
     private static JetType getPropertyTypeIfNeeded(@NotNull JetProperty property) {
-        if (property.getTypeRef() != null) return null;
+        if (property.getTypeReference() != null) return null;
 
         JetType type = AnalyzerFacadeWithCache.getContextForElement(property).get(
                 BindingContext.EXPRESSION_TYPE, property.getInitializer()
@@ -117,7 +74,7 @@ public class DeclarationUtils {
 
         String typeStr = inferredType != null
                          ? DescriptorRenderer.FQ_NAMES_IN_TYPES.renderType(inferredType)
-                         : JetPsiUtil.getNullableText(property.getTypeRef());
+                         : JetPsiUtil.getNullableText(property.getTypeReference());
 
         //noinspection ConstantConditions
         property = (JetProperty) property.replace(
@@ -125,47 +82,9 @@ public class DeclarationUtils {
         );
 
         if (inferredType != null) {
-            ShortenReferences.instance$.process(property.getTypeRef());
+            ShortenReferences.INSTANCE$.process(property.getTypeReference());
         }
 
         return newInitializer;
-    }
-
-    @NotNull
-    public static JetProperty changePropertyInitializer(@NotNull JetProperty property, @Nullable JetExpression initializer) {
-        //noinspection ConstantConditions
-        return JetPsiFactory(property).createProperty(
-                property.getNameIdentifier().getText(),
-                JetPsiUtil.getNullableText(property.getTypeRef()),
-                property.isVar(),
-                JetPsiUtil.getNullableText(initializer)
-        );
-    }
-
-    // Returns joined property
-    @NotNull
-    public static JetProperty joinPropertyDeclarationWithInitializer(
-            @NotNull Pair<JetProperty, JetBinaryExpression> propertyAndInitializer
-    ) {
-        JetProperty property = propertyAndInitializer.first;
-        assertNotNull(property);
-
-        JetBinaryExpression assignment = propertyAndInitializer.second;
-        assertNotNull(assignment);
-
-        JetProperty newProperty = changePropertyInitializer(property, assignment.getRight());
-
-        property.getParent().deleteChildRange(property.getNextSibling(), assignment);
-        return (JetProperty) property.replace(newProperty);
-    }
-
-    // Returns joined property
-    @NotNull
-    public static JetProperty joinPropertyDeclarationWithInitializer(@NotNull PsiElement element) {
-        Pair<JetProperty, JetBinaryExpression> propertyAndInitializer = checkAndGetPropertyAndInitializer(element);
-        assertNotNull(propertyAndInitializer);
-
-        //noinspection ConstantConditions
-        return joinPropertyDeclarationWithInitializer(propertyAndInitializer);
     }
 }

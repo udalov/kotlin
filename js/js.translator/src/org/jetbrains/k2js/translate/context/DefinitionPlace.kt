@@ -19,15 +19,24 @@ package org.jetbrains.k2js.translate.context
 import com.google.dart.compiler.backend.js.ast.JsExpression
 import com.google.dart.compiler.backend.js.ast.JsPropertyInitializer
 import com.google.dart.compiler.backend.js.ast.JsNameRef
-import com.google.dart.compiler.backend.js.ast.JsScope
+import com.google.dart.compiler.backend.js.ast.JsObjectScope
+import com.google.dart.compiler.backend.js.ast.JsFunction
+import com.google.dart.compiler.backend.js.ast.metadata.staticRef
 
 class DefinitionPlace(
-        private val scope: JsScope,
+        private val scope: JsObjectScope,
         private val fqName: JsExpression,
         val properties: MutableList<JsPropertyInitializer>
 ) {
     fun define(suggestedName: String, expression : JsExpression): JsNameRef {
         val name = scope.declareFreshName(suggestedName)
+
+        if (expression is JsFunction) {
+            /** JsInliner should be able
+             * to find function by name */
+            name.staticRef = expression
+        }
+
         properties.add(JsPropertyInitializer(name.makeRef(), expression))
         return JsNameRef(name, fqName)
     }

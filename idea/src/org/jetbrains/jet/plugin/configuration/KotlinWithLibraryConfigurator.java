@@ -35,12 +35,14 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.plugin.JetPluginUtil;
 import org.jetbrains.jet.plugin.framework.ui.FileUIUtils;
+import org.jetbrains.jet.plugin.project.ProjectStructureUtil;
 
 import java.io.File;
 
 import static org.jetbrains.jet.plugin.configuration.ConfigureKotlinInProjectUtils.showInfoNotification;
 
 public abstract class KotlinWithLibraryConfigurator implements KotlinProjectConfigurator {
+    public static final String DEFAULT_LIBRARY_DIR = "lib";
 
     @NotNull
     protected abstract String getLibraryName();
@@ -73,16 +75,17 @@ public abstract class KotlinWithLibraryConfigurator implements KotlinProjectConf
     ) {
         Project project = module.getProject();
 
-        FileState runtimeState = getJarState(project, getJarName(), OrderRootType.CLASSES, defaultPath, pathFromDialog);
         LibraryState libraryState = getLibraryState(project);
         String dirToCopyJar = getPathToCopyFileTo(project, OrderRootType.CLASSES, defaultPath, pathFromDialog);
+        FileState runtimeState = getJarState(project, getJarName(), OrderRootType.CLASSES, dirToCopyJar, pathFromDialog == null);
 
         configureModuleWithLibraryClasses(module, libraryState, runtimeState, dirToCopyJar);
 
         Library library = getKotlinLibrary(project);
         assert library != null : "Kotlin library should exists when adding sources root";
-        FileState sourcesState = getJarState(project, getSourcesJarName(), OrderRootType.SOURCES, defaultPath, pathFromDialog);
         String dirToCopySourcesJar = getPathToCopyFileTo(project, OrderRootType.SOURCES, defaultPath, pathFromDialog);
+        FileState sourcesState = getJarState(project, getSourcesJarName(), OrderRootType.SOURCES, dirToCopySourcesJar,
+                                             pathFromDialog == null);
 
         configureModuleWithLibrarySources(library, sourcesState, dirToCopySourcesJar);
     }
@@ -284,7 +287,7 @@ public abstract class KotlinWithLibraryConfigurator implements KotlinProjectConf
 
     @NotNull
     private static DependencyScope getDependencyScope(@NotNull Module module) {
-        if (ConfigureKotlinInProjectUtils.hasKotlinFilesOnlyInTests(module)) {
+        if (ProjectStructureUtil.hasKotlinFilesOnlyInTests(module)) {
             return DependencyScope.TEST;
         }
         return DependencyScope.COMPILE;
@@ -375,8 +378,8 @@ public abstract class KotlinWithLibraryConfigurator implements KotlinProjectConf
         return !isProjectLibraryPresent(project) && !getFileInDir(getJarName(), defaultPath).exists();
     }
 
-    protected static String getDefaultPathToJarFile(@NotNull Project project) {
-        return FileUIUtils.createRelativePath(project, project.getBaseDir(), "lib");
+    protected String getDefaultPathToJarFile(@NotNull Project project) {
+        return FileUIUtils.createRelativePath(project, project.getBaseDir(), DEFAULT_LIBRARY_DIR);
     }
 
     protected void showError(@NotNull String message) {
@@ -411,19 +414,17 @@ public abstract class KotlinWithLibraryConfigurator implements KotlinProjectConf
             @NotNull Project project,
             @NotNull String jarName,
             @NotNull OrderRootType jarType,
-            @NotNull String defaultPath,
-            @Nullable String pathFromDialog
+            @NotNull String copyPath,
+            boolean useBundled
     ) {
         String pathFromLibrary = getPathFromLibrary(project, jarType);
-        if (getFileInDir(jarName, defaultPath).exists() ||
-            (pathFromDialog != null && getFileInDir(jarName, pathFromDialog).exists()) ||
-            (pathFromLibrary != null && getFileInDir(jarName, pathFromLibrary).exists())) {
+        if (getFileInDir(jarName, copyPath).exists()) {
            return FileState.EXISTS;
         }
         else if (pathFromLibrary != null) {
             return FileState.COPY;
         }
-        else if (pathFromDialog == null) {
+        else if (useBundled) {
             return FileState.DO_NOT_COPY;
         }
         else {

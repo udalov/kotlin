@@ -27,22 +27,22 @@ import com.intellij.psi.PsiJavaFile
 import org.jetbrains.jet.utils.PathUtil
 import java.io.File
 import java.net.URLClassLoader
+import com.intellij.codeInsight.NullableNotNullManager
 
 public object JavaToKotlinTranslator {
     private val DISPOSABLE = Disposer.newDisposable()
 
     private fun createFile(text: String): PsiFile? {
         val javaCoreEnvironment: JavaCoreProjectEnvironment? = setUpJavaCoreEnvironment()
-        return PsiFileFactory.getInstance(javaCoreEnvironment?.getProject()!!)?.createFileFromText("test.java", JavaLanguage.INSTANCE, text)
-    }
-
-    fun createFile(project: Project, text: String): PsiJavaFile {
-        return PsiFileFactory.getInstance(project)?.createFileFromText("test.java", JavaLanguage.INSTANCE, text) as PsiJavaFile
+        return PsiFileFactory.getInstance(javaCoreEnvironment?.getProject()!!).createFileFromText("test.java", JavaLanguage.INSTANCE, text)
     }
 
     fun setUpJavaCoreEnvironment(): JavaCoreProjectEnvironment {
         val applicationEnvironment = JavaCoreApplicationEnvironment(DISPOSABLE)
         val javaCoreEnvironment = JavaCoreProjectEnvironment(DISPOSABLE, applicationEnvironment)
+
+        javaCoreEnvironment.getProject().registerService(javaClass<NullableNotNullManager>(), NullableNotNullManager())
+
         for (root in PathUtil.getJdkClassesRoots()) {
             javaCoreEnvironment.addJarToClassPath(root)
         }
@@ -87,7 +87,7 @@ public object JavaToKotlinTranslator {
     fun generateKotlinCode(javaCode: String): String {
         val file = createFile(javaCode)
         if (file is PsiJavaFile) {
-            val converter = Converter.create(file.getProject(), ConverterSettings.defaultSettings, FilesConversionScope(listOf(file)))
+            val converter = Converter.create(file.getProject(), ConverterSettings.defaultSettings, FilesConversionScope(listOf(file)), EmptyReferenceSearcher, null)
             return prettify(converter.elementToKotlin(file))
         }
         return ""

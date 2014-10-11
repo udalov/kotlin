@@ -21,6 +21,9 @@ import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor;
 import org.jetbrains.jet.lang.descriptors.FunctionDescriptor;
 import org.jetbrains.jet.lang.descriptors.ValueParameterDescriptor;
 import org.jetbrains.jet.lang.descriptors.annotations.AnnotationDescriptor;
+import org.jetbrains.jet.lang.resolve.name.FqName;
+import org.jetbrains.jet.lang.resolve.name.FqNameBase;
+import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.lang.types.TypeProjection;
 
@@ -48,6 +51,11 @@ public interface DescriptorRenderer extends Renderer<DeclarationDescriptor> {
     DescriptorRenderer COMPACT = new DescriptorRendererBuilder()
             .setWithDefinedIn(false)
             .setModifiers().build();
+
+    DescriptorRenderer COMPACT_WITH_SHORT_TYPES = new DescriptorRendererBuilder()
+            .setModifiers()
+            .setShortNames(true)
+            .setIncludeSynthesizedParameterNames(false).build();
 
     DescriptorRenderer STARTS_FROM_NAME = new DescriptorRendererBuilder()
             .setWithDefinedIn(false)
@@ -78,6 +86,7 @@ public interface DescriptorRenderer extends Renderer<DeclarationDescriptor> {
     DescriptorRenderer HTML_NAMES_WITH_SHORT_TYPES = new DescriptorRendererBuilder()
             .setWithDefinedIn(false)
             .setShortNames(true)
+            .setRenderClassObjectName(true)
             .setTextFormat(TextFormat.HTML).build();
 
     DescriptorRenderer HTML = new DescriptorRendererBuilder().setTextFormat(TextFormat.HTML).build();
@@ -103,6 +112,12 @@ public interface DescriptorRenderer extends Renderer<DeclarationDescriptor> {
 
     @NotNull
     String renderFunctionParameters(@NotNull FunctionDescriptor functionDescriptor);
+
+    @NotNull
+    String renderName(@NotNull Name name);
+
+    @NotNull
+    String renderFqName(@NotNull FqNameBase fqName);
 
     enum TextFormat {
         PLAIN, HTML

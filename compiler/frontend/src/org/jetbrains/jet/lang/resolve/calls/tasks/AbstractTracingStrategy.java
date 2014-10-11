@@ -20,15 +20,13 @@ import com.google.common.collect.Sets;
 import com.intellij.lang.ASTNode;
 import com.intellij.psi.PsiElement;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.jet.lang.descriptors.CallableDescriptor;
-import org.jetbrains.jet.lang.descriptors.DeclarationDescriptorWithVisibility;
-import org.jetbrains.jet.lang.descriptors.ReceiverParameterDescriptor;
-import org.jetbrains.jet.lang.descriptors.ValueParameterDescriptor;
+import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.psi.*;
-import org.jetbrains.jet.lang.psi.codeFragmentUtil.CodeFragmentUtilPackage;
 import org.jetbrains.jet.lang.resolve.BindingTrace;
 import org.jetbrains.jet.lang.resolve.calls.inference.*;
 import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCall;
+import org.jetbrains.jet.lang.resolve.descriptorUtil.DescriptorUtilPackage;
+import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.resolve.scopes.receivers.ExpressionReceiver;
 import org.jetbrains.jet.lang.resolve.scopes.receivers.ReceiverValue;
@@ -43,6 +41,7 @@ import java.util.List;
 
 import static org.jetbrains.jet.lang.diagnostics.Errors.*;
 import static org.jetbrains.jet.lang.resolve.BindingContext.AMBIGUOUS_REFERENCE_TARGET;
+import static org.jetbrains.jet.lang.resolve.DescriptorUtils.getFqNameFromTopLevelClass;
 import static org.jetbrains.jet.lang.types.TypeUtils.noExpectedType;
 
 public abstract class AbstractTracingStrategy implements TracingStrategy {
@@ -132,6 +131,28 @@ public abstract class AbstractTracingStrategy implements TracingStrategy {
     }
 
     @Override
+    public void nestedClassAccessViaInstanceReference(
+            @NotNull BindingTrace trace,
+            @NotNull ClassDescriptor classDescriptor,
+            @NotNull ExplicitReceiverKind explicitReceiverKind
+    ) {
+        if (explicitReceiverKind == ExplicitReceiverKind.NO_EXPLICIT_RECEIVER) {
+            String qualifiedName;
+            FqName fqName = getFqNameFromTopLevelClass(DescriptorUtilPackage.getImportableDescriptor(classDescriptor));
+            if (reference.getParent() instanceof JetCallableReferenceExpression) {
+                qualifiedName = fqName.parent() + "::" + classDescriptor.getName();
+            }
+            else {
+                qualifiedName = fqName.asString();
+            }
+            trace.report(NESTED_CLASS_SHOULD_BE_QUALIFIED.on(reference, classDescriptor, qualifiedName));
+        }
+        else {
+            trace.report(NESTED_CLASS_ACCESSED_VIA_INSTANCE_REFERENCE.on(reference, classDescriptor));
+        }
+    }
+
+    @Override
     public void unsafeCall(@NotNull BindingTrace trace, @NotNull JetType type, boolean isCallForImplicitInvoke) {
         ASTNode callOperationNode = call.getCallOperationNode();
         if (callOperationNode != null && !isCallForImplicitInvoke) {
@@ -167,9 +188,9 @@ public abstract class AbstractTracingStrategy implements TracingStrategy {
     }
 
     @Override
-    public void danglingFunctionLiteralArgumentSuspected(@NotNull BindingTrace trace, @NotNull List<JetExpression> functionLiteralArguments) {
-        for (JetExpression functionLiteralArgument : functionLiteralArguments) {
-            trace.report(DANGLING_FUNCTION_LITERAL_ARGUMENT_SUSPECTED.on(functionLiteralArgument));
+    public void danglingFunctionLiteralArgumentSuspected(@NotNull BindingTrace trace, @NotNull List<JetFunctionLiteralArgument> functionLiteralArguments) {
+        for (JetFunctionLiteralArgument functionLiteralArgument : functionLiteralArguments) {
+            trace.report(DANGLING_FUNCTION_LITERAL_ARGUMENT_SUSPECTED.on(functionLiteralArgument.getArgumentExpression()));
         }
     }
 

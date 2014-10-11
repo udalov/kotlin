@@ -21,8 +21,12 @@ import com.intellij.psi.tree.TokenSet;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.JetNodeTypes;
+import org.jetbrains.jet.lang.psi.typeRefHelpers.TypeRefHelpersPackage;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lexer.JetTokens;
+
+import java.util.Collections;
+import java.util.List;
 
 import static org.jetbrains.jet.lexer.JetTokens.VAL_KEYWORD;
 import static org.jetbrains.jet.lexer.JetTokens.VAR_KEYWORD;
@@ -33,8 +37,38 @@ public class JetMultiDeclarationEntry extends JetNamedDeclarationNotStubbed impl
     }
 
     @Override
-    public JetTypeReference getTypeRef() {
-        return (JetTypeReference) findChildByType(JetNodeTypes.TYPE_REFERENCE);
+    public JetTypeReference getTypeReference() {
+        return TypeRefHelpersPackage.getTypeReference(this);
+    }
+
+    @Override
+    @Nullable
+    public JetTypeReference setTypeReference(@Nullable JetTypeReference typeRef) {
+        return TypeRefHelpersPackage.setTypeReference(this, getNameIdentifier(), typeRef);
+    }
+
+    @Nullable
+    @Override
+    public JetParameterList getValueParameterList() {
+        return null;
+    }
+
+    @Nullable
+    @Override
+    public JetTypeReference getReceiverTypeReference() {
+        return null;
+    }
+
+    @NotNull
+    @Override
+    public List<JetTypeConstraint> getTypeConstraints() {
+        return Collections.emptyList();
+    }
+
+    @NotNull
+    @Override
+    public List<JetTypeParameter> getTypeParameters() {
+        return Collections.emptyList();
     }
 
     @Override

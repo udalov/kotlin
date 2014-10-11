@@ -26,8 +26,9 @@ import kotlin.Function1;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.ReadOnly;
-import org.jetbrains.jet.context.GlobalContextImpl;
+import org.jetbrains.jet.context.GlobalContext;
 import org.jetbrains.jet.lang.descriptors.*;
+import org.jetbrains.jet.lang.descriptors.annotations.Annotations;
 import org.jetbrains.jet.lang.descriptors.impl.ModuleDescriptorImpl;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.*;
@@ -35,9 +36,7 @@ import org.jetbrains.jet.lang.resolve.lazy.data.JetClassLikeInfo;
 import org.jetbrains.jet.lang.resolve.lazy.data.JetScriptInfo;
 import org.jetbrains.jet.lang.resolve.lazy.declarations.DeclarationProviderFactory;
 import org.jetbrains.jet.lang.resolve.lazy.declarations.PackageMemberDeclarationProvider;
-import org.jetbrains.jet.lang.resolve.lazy.descriptors.LazyClassDescriptor;
-import org.jetbrains.jet.lang.resolve.lazy.descriptors.LazyPackageDescriptor;
-import org.jetbrains.jet.lang.resolve.lazy.descriptors.LazyScriptDescriptor;
+import org.jetbrains.jet.lang.resolve.lazy.descriptors.*;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
@@ -62,6 +61,8 @@ public class ResolveSession implements KotlinCodeAnalyzer {
     private final PackageFragmentProvider packageFragmentProvider;
 
     private final MemoizedFunctionToNotNull<JetScript, LazyScriptDescriptor> scriptDescriptors;
+
+    private final MemoizedFunctionToNotNull<JetFile, LazyAnnotations> annotations;
 
     private ScopeProvider scopeProvider;
 
@@ -111,12 +112,13 @@ public class ResolveSession implements KotlinCodeAnalyzer {
     @Deprecated
     public ResolveSession(
             @NotNull Project project,
-            @NotNull GlobalContextImpl globalContext,
+            @NotNull GlobalContext globalContext,
             @NotNull ModuleDescriptorImpl rootDescriptor,
             @NotNull DeclarationProviderFactory declarationProviderFactory,
             @NotNull BindingTrace delegationTrace
     ) {
-        LockBasedLazyResolveStorageManager lockBasedLazyResolveStorageManager = new LockBasedLazyResolveStorageManager(globalContext.getStorageManager());
+        LockBasedLazyResolveStorageManager lockBasedLazyResolveStorageManager = new LockBasedLazyResolveStorageManager(
+                (LockBasedStorageManager) globalContext.getStorageManager());
         this.storageManager = lockBasedLazyResolveStorageManager;
         this.exceptionTracker = globalContext.getExceptionTracker();
         this.trace = lockBasedLazyResolveStorageManager.createSafeTrace(delegationTrace);
@@ -150,9 +152,6 @@ public class ResolveSession implements KotlinCodeAnalyzer {
             }
         };
 
-        // TODO: parameter modification
-        rootDescriptor.addFragmentProvider(DependencyKind.SOURCES, packageFragmentProvider);
-
         this.scriptDescriptors = storageManager.createMemoizedFunction(
                 new Function1<JetScript, LazyScriptDescriptor>() {
                     @Override
@@ -166,6 +165,15 @@ public class ResolveSession implements KotlinCodeAnalyzer {
                     }
                 }
         );
+
+        annotations = storageManager.createMemoizedFunction(new Function1<JetFile, LazyAnnotations>() {
+            @Override
+            public LazyAnnotations invoke(JetFile file) {
+                JetScope scope = getScopeProvider().getFileScope(file);
+                LazyAnnotationsContextImpl lazyAnnotationContext = new LazyAnnotationsContextImpl(annotationResolve, storageManager, trace, scope);
+                return new LazyAnnotations(lazyAnnotationContext, file.getAnnotationEntries());
+            }
+        });
     }
 
     @NotNull
@@ -420,6 +428,11 @@ public class ResolveSession implements KotlinCodeAnalyzer {
                                             JetPsiUtil.getElementTextWithContext(declaration));
         }
         return result;
+    }
+
+    @NotNull
+    public Annotations getFileAnnotations(@NotNull JetFile file) {
+        return annotations.invoke(file);
     }
 
     @NotNull

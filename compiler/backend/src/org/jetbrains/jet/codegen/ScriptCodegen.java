@@ -16,6 +16,7 @@
 
 package org.jetbrains.jet.codegen;
 
+import com.intellij.util.ArrayUtil;
 import kotlin.Function0;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.codegen.context.CodegenContext;
@@ -26,9 +27,9 @@ import org.jetbrains.jet.lang.descriptors.ClassDescriptor;
 import org.jetbrains.jet.lang.descriptors.PropertyDescriptor;
 import org.jetbrains.jet.lang.descriptors.ScriptDescriptor;
 import org.jetbrains.jet.lang.descriptors.ValueParameterDescriptor;
-import org.jetbrains.jet.lang.psi.JetDeclaration;
-import org.jetbrains.jet.lang.psi.JetScript;
+import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.BindingContext;
+import org.jetbrains.jet.lang.resolve.java.JvmAbi;
 import org.jetbrains.jet.lang.resolve.java.jvmSignature.JvmMethodSignature;
 import org.jetbrains.org.objectweb.asm.MethodVisitor;
 import org.jetbrains.org.objectweb.asm.Type;
@@ -37,8 +38,10 @@ import org.jetbrains.org.objectweb.asm.commons.InstructionAdapter;
 import java.util.Collections;
 import java.util.List;
 
-import static org.jetbrains.jet.codegen.binding.CodegenBinding.*;
-import static org.jetbrains.jet.lang.resolve.java.AsmTypeConstants.OBJECT_TYPE;
+import static org.jetbrains.jet.codegen.AsmUtil.method;
+import static org.jetbrains.jet.codegen.binding.CodegenBinding.CLASS_FOR_SCRIPT;
+import static org.jetbrains.jet.codegen.binding.CodegenBinding.asmTypeForScriptDescriptor;
+import static org.jetbrains.jet.lang.resolve.java.AsmTypeConstants.*;
 import static org.jetbrains.jet.lang.resolve.java.diagnostics.DiagnosticsPackage.OtherOrigin;
 import static org.jetbrains.jet.lang.resolve.java.diagnostics.JvmDeclarationOrigin.NO_ORIGIN;
 import static org.jetbrains.org.objectweb.asm.Opcodes.*;
@@ -51,17 +54,17 @@ public class ScriptCodegen extends MemberCodegen<JetScript> {
             @NotNull GenerationState state,
             @NotNull CodegenContext parentContext
     ) {
-        ScriptDescriptor scriptDescriptor = state.getBindingContext().get(BindingContext.SCRIPT, declaration);
+        BindingContext bindingContext = state.getBindingContext();
+        ScriptDescriptor scriptDescriptor = bindingContext.get(BindingContext.SCRIPT, declaration);
         assert scriptDescriptor != null;
 
-        ClassDescriptor classDescriptorForScript = state.getBindingContext().get(CLASS_FOR_SCRIPT, scriptDescriptor);
+        ClassDescriptor classDescriptorForScript = bindingContext.get(CLASS_FOR_SCRIPT, scriptDescriptor);
         assert classDescriptorForScript != null;
 
-        Type className = state.getBindingContext().get(ASM_TYPE, classDescriptorForScript);
-        assert className != null;
+        Type classType = asmTypeForScriptDescriptor(bindingContext, scriptDescriptor);
 
         ClassBuilder builder = state.getFactory().newVisitor(OtherOrigin(declaration, classDescriptorForScript),
-                                                             className, declaration.getContainingFile());
+                                                             classType, declaration.getContainingFile());
         List<ScriptDescriptor> earlierScripts = state.getEarlierScriptsForReplInterpreter();
         ScriptContext scriptContext = parentContext.intoScript(
                 scriptDescriptor,
@@ -89,8 +92,7 @@ public class ScriptCodegen extends MemberCodegen<JetScript> {
 
     @Override
     protected void generateDeclaration() {
-        Type classType = bindingContext.get(ASM_TYPE, context.getContextDescriptor());
-        assert classType != null;
+        Type classType = typeMapper.mapClass(context.getContextDescriptor());
 
         v.defineClass(scriptDeclaration,
                       V1_6,
@@ -98,7 +100,10 @@ public class ScriptCodegen extends MemberCodegen<JetScript> {
                       classType.getInternalName(),
                       null,
                       "java/lang/Object",
-                      new String[0]);
+                      ArrayUtil.EMPTY_STRING_ARRAY);
+
+        generateReflectionObjectField(state, classType, v, method("kClassFromKotlin", K_CLASS_IMPL_TYPE, getType(Class.class)),
+                                      JvmAbi.KOTLIN_CLASS_FIELD_NAME, createOrGetClInitCodegen().v);
     }
 
     @Override
@@ -120,6 +125,7 @@ public class ScriptCodegen extends MemberCodegen<JetScript> {
             @NotNull ClassBuilder classBuilder,
             @NotNull final MethodContext methodContext
     ) {
+        //noinspection ConstantConditions
         Type blockType = typeMapper.mapType(scriptDescriptor.getScriptCodeDescriptor().getReturnType());
 
         PropertyDescriptor scriptResultProperty = scriptDescriptor.getScriptResultProperty();
@@ -136,15 +142,14 @@ public class ScriptCodegen extends MemberCodegen<JetScript> {
 
         mv.visitCode();
 
-        final InstructionAdapter instructionAdapter = new InstructionAdapter(mv);
+        final InstructionAdapter iv = new InstructionAdapter(mv);
 
-        Type classType = bindingContext.get(ASM_TYPE, classDescriptorForScript);
-        assert classType != null;
+        Type classType = typeMapper.mapType(classDescriptorForScript);
 
-        instructionAdapter.load(0, classType);
-        instructionAdapter.invokespecial("java/lang/Object", "<init>", "()V");
+        iv.load(0, classType);
+        iv.invokespecial("java/lang/Object", "<init>", "()V", false);
 
-        instructionAdapter.load(0, classType);
+        iv.load(0, classType);
 
         final FrameMap frameMap = new FrameMap();
         frameMap.enterTemp(OBJECT_TYPE);
@@ -164,7 +169,7 @@ public class ScriptCodegen extends MemberCodegen<JetScript> {
         generateInitializers(new Function0<ExpressionCodegen>() {
             @Override
             public ExpressionCodegen invoke() {
-                return new ExpressionCodegen(instructionAdapter, frameMap, Type.VOID_TYPE, methodContext, state, ScriptCodegen.this);
+                return new ExpressionCodegen(iv, frameMap, Type.VOID_TYPE, methodContext, state, ScriptCodegen.this);
             }
         });
 
@@ -172,29 +177,28 @@ public class ScriptCodegen extends MemberCodegen<JetScript> {
 
         for (ScriptDescriptor earlierScript : context.getEarlierScripts()) {
             Type earlierClassType = asmTypeForScriptDescriptor(bindingContext, earlierScript);
-            instructionAdapter.load(0, classType);
-            instructionAdapter.load(offset, earlierClassType);
+            iv.load(0, classType);
+            iv.load(offset, earlierClassType);
             offset += earlierClassType.getSize();
-            instructionAdapter.putfield(classType.getInternalName(), context.getScriptFieldName(earlierScript), earlierClassType.getDescriptor());
+            iv.putfield(classType.getInternalName(), context.getScriptFieldName(earlierScript), earlierClassType.getDescriptor());
         }
 
         for (ValueParameterDescriptor parameter : scriptDescriptor.getScriptCodeDescriptor().getValueParameters()) {
             Type parameterType = typeMapper.mapType(parameter.getType());
-            instructionAdapter.load(0, classType);
-            instructionAdapter.load(offset, parameterType);
+            iv.load(0, classType);
+            iv.load(offset, parameterType);
             offset += parameterType.getSize();
-            instructionAdapter.putfield(classType.getInternalName(), parameter.getName().getIdentifier(), parameterType.getDescriptor());
+            iv.putfield(classType.getInternalName(), parameter.getName().getIdentifier(), parameterType.getDescriptor());
         }
 
         StackValue stackValue =
                 new ExpressionCodegen(mv, frameMap, Type.VOID_TYPE, methodContext, state, this).gen(scriptDeclaration.getBlockExpression());
         if (stackValue.type != Type.VOID_TYPE) {
-            stackValue.put(stackValue.type, instructionAdapter);
-            instructionAdapter.putfield(classType.getInternalName(), ScriptDescriptor.LAST_EXPRESSION_VALUE_FIELD_NAME,
-                                        blockType.getDescriptor());
+            stackValue.put(blockType, iv);
+            iv.putfield(classType.getInternalName(), ScriptDescriptor.LAST_EXPRESSION_VALUE_FIELD_NAME, blockType.getDescriptor());
         }
 
-        instructionAdapter.areturn(Type.VOID_TYPE);
+        iv.areturn(Type.VOID_TYPE);
         mv.visitMaxs(-1, -1);
         mv.visitEnd();
     }
@@ -215,7 +219,12 @@ public class ScriptCodegen extends MemberCodegen<JetScript> {
 
     private void genMembers() {
         for (JetDeclaration declaration : scriptDeclaration.getDeclarations()) {
-            genFunctionOrProperty(declaration);
+            if (declaration instanceof JetProperty || declaration instanceof JetNamedFunction) {
+                genFunctionOrProperty(declaration);
+            }
+            else if (declaration instanceof JetClassOrObject) {
+                genClassOrObject((JetClassOrObject) declaration);
+            }
         }
     }
 }

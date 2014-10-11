@@ -56,8 +56,12 @@ public class PackagePartClassUtils {
         String fileName = FileUtil.getNameWithoutExtension(PathUtil.getFileName(file.getName()));
 
         // path hashCode to prevent same name / different path collision
-        String srcName = facadeFqName.shortName().asString() + "-" + replaceSpecialSymbols(fileName) + "-" + Integer.toHexString(
-                getPathHashCode(file));
+        String srcName = String.format(
+                "%s$%s$%08x",
+                facadeFqName.shortName().asString(),
+                replaceSpecialSymbols(fileName),
+                getPathHashCode(file)
+        );
 
         return facadeFqName.parent().child(Name.identifier(srcName));
     }
@@ -69,8 +73,13 @@ public class PackagePartClassUtils {
 
     @NotNull
     public static String getPackagePartInternalName(@NotNull JetFile file) {
-        FqName fqName = getPackagePartFqName(getPackageClassFqName(file.getPackageFqName()), file.getVirtualFile());
+        FqName fqName = getPackagePartFqName(file);
         return JvmClassName.byFqNameWithoutInnerClasses(fqName).getInternalName();
+    }
+
+    @NotNull
+    public static FqName getPackagePartFqName(@NotNull JetFile file) {
+        return getPackagePartFqName(getPackageClassFqName(file.getPackageFqName()), file.getVirtualFile());
     }
 
     @NotNull

@@ -7,6 +7,7 @@ package com.google.dart.compiler.backend.js.ast;
 import gnu.trove.TDoubleObjectHashMap;
 import gnu.trove.THashMap;
 import gnu.trove.TIntObjectHashMap;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.Map;
 
@@ -17,7 +18,9 @@ import static com.google.dart.compiler.backend.js.ast.JsNumberLiteral.JsIntLiter
  * A JavaScript program.
  */
 public final class JsProgram extends SourceInfoAwareJsNode {
+    @NotNull
     private final JsEmpty emptyStatement;
+    @NotNull final JsExpression emptyExpression;
 
     private JsProgramFragment[] fragments;
 
@@ -26,18 +29,25 @@ public final class JsProgram extends SourceInfoAwareJsNode {
 
     private final JsRootScope rootScope;
     private final Map<String, JsStringLiteral> stringLiteralMap = new THashMap<String, JsStringLiteral>();
-    private final JsScope topScope;
+    private final JsObjectScope topScope;
 
     public JsProgram(String unitId) {
         rootScope = new JsRootScope(this);
-        topScope = new JsScope(rootScope, "Global", unitId);
+        topScope = new JsObjectScope(rootScope, "Global", unitId);
         setFragmentCount(1);
 
         emptyStatement = new JsEmpty();
+        emptyExpression = new JsEmptyExpression();
     }
 
+    @NotNull
     public JsEmpty getEmptyStatement() {
         return emptyStatement;
+    }
+
+    @NotNull
+    public JsExpression getEmptyExpression() {
+        return emptyExpression;
     }
 
     public JsBlock getFragmentBlock(int fragment) {
@@ -84,13 +94,14 @@ public final class JsProgram extends SourceInfoAwareJsNode {
      * Gets the top level scope. This is the scope of all the statements in the
      * main program.
      */
-    public JsScope getScope() {
+    public JsObjectScope getScope() {
         return topScope;
     }
 
     /**
      * Creates or retrieves a JsStringLiteral from an interned object pool.
      */
+    @NotNull
     public JsStringLiteral getStringLiteral(String value) {
         JsStringLiteral literal = stringLiteralMap.get(value);
         if (literal == null) {
@@ -117,5 +128,21 @@ public final class JsProgram extends SourceInfoAwareJsNode {
         for (JsProgramFragment fragment : fragments) {
             visitor.accept(fragment);
         }
+    }
+
+    @Override
+    public void traverse(JsVisitorWithContext v, JsContext ctx) {
+        if (v.visit(this, ctx)) {
+            for (JsProgramFragment fragment : fragments) {
+                v.accept(fragment);
+            }
+        }
+        v.endVisit(this, ctx);
+    }
+
+    @NotNull
+    @Override
+    public JsProgram deepCopy() {
+        throw new UnsupportedOperationException();
     }
 }
