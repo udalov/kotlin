@@ -33,6 +33,7 @@ import org.jetbrains.jet.codegen.state.GenerationState;
 import org.jetbrains.jet.lang.descriptors.PackageViewDescriptor;
 import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.resolve.BindingContext;
+import org.jetbrains.jet.lang.resolve.CompositeBindingContext;
 import org.jetbrains.jet.lang.resolve.java.PackageClassUtils;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.utils.UtilsPackage;
@@ -153,7 +154,7 @@ public abstract class AbstractObjCWithJavaTest extends UsefulTestCase {
     }
 
     private void generate(@NotNull List<JetFile> files, @NotNull AnalyzeExhaust analyzeExhaust, @NotNull BindingContext objcBinding) {
-        BindingContext context = new ChainedBindingContext(analyzeExhaust.getBindingContext(), objcBinding);
+        BindingContext context = CompositeBindingContext.OBJECT$.create(Arrays.asList(analyzeExhaust.getBindingContext(), objcBinding));
 
         GenerationState state =
                 new GenerationState(project, ClassBuilderFactories.TEST, analyzeExhaust.getModuleDescriptor(), context, files);

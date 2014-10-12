@@ -9,7 +9,7 @@ public trait <metaclass-for-A+Cat> {
 public trait <metaclass-for-A> : objc.<metaclass-for-A+>, objc.<metaclass-for-A+Cat> {
 }
 
-public open class A : kotlin.jvm.objc.ObjCObject, objc.A+, objc.A+Cat {
+public open class A : kotlin.jvm.objc.ObjCObject, objc.`A+`, objc.`A+Cat` {
     invisible_fake final override /*1*/ /*fake_override*/ val pointer: kotlin.Long
 
     public class object <class-object-for-A> : kotlin.jvm.objc.ObjCClass, objc.<metaclass-for-A>, objc.A {
@@ -17,8 +17,8 @@ public open class A : kotlin.jvm.objc.ObjCObject, objc.A+, objc.A+Cat {
     }
 }
 
-public trait A+ {
+public trait `A+` {
 }
 
-public trait A+Cat {
+public trait `A+Cat` {
 }

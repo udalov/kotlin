@@ -558,7 +558,7 @@ jobject coerceNativeToJVM(JNIEnv *env, void *value, const Type& type) {
         std::string className = OBJC_PACKAGE_PREFIX + object_getClassName((id) value);
         std::string classObjectDescriptor = "L" + className + "$object;";
         jclass clazz = env->FindClass(className.c_str());
-        jfieldID classObjectField = env->GetStaticFieldID(clazz, "object$", classObjectDescriptor.c_str());
+        jfieldID classObjectField = env->GetStaticFieldID(clazz, "OBJECT$", classObjectDescriptor.c_str());
         return env->GetStaticObjectField(clazz, classObjectField);
     } else if (kind == TYPE_POINTER) {
         return env->NewObject(cache->pointerClass, cache->pointerConstructor, value);

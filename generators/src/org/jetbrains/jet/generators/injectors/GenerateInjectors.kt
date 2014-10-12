@@ -137,6 +137,11 @@ private fun generatorForTopDownAnalyzerForObjC() =
             publicField(javaClass<ObjCPackageFragmentProvider>())
             publicField(javaClass<ObjCBuiltIns>())
 
+            field(javaClass<AdditionalCheckerProvider>(),
+                  init = GivenExpression(javaClass<AdditionalCheckerProvider.Empty>().getCanonicalName() + ".INSTANCE$"))
+
+            field(javaClass <GlobalSearchScope>(),
+                  init = GivenExpression(javaClass<GlobalSearchScope>().getName() + ".allScope(project)"))
             fields(
                     javaClass<JavaClassFinderImpl>(),
                     javaClass<TraceBasedExternalSignatureResolver>(),
@@ -146,7 +151,8 @@ private fun generatorForTopDownAnalyzerForObjC() =
                     javaClass<PsiBasedExternalAnnotationResolver>(),
                     javaClass<MutablePackageFragmentProvider>(),
                     javaClass<JavaPropertyInitializerEvaluatorImpl>(),
-                    javaClass<JavaSourceElementFactoryImpl>()
+                    javaClass<JavaSourceElementFactoryImpl>(),
+                    javaClass<SingleModuleClassResolver>()
             )
             field(javaClass<VirtualFileFinder>(), init = GivenExpression(javaClass<VirtualFileFinder>().getName() + ".SERVICE.getInstance(project)"))
         }
