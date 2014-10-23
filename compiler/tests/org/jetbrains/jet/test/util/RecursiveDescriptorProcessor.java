@@ -90,6 +90,11 @@ public class RecursiveDescriptorProcessor {
         }
 
         @Override
+        public Boolean visitEnumEntryDescriptor(EnumEntryDescriptor descriptor, D data) {
+            return processCallable(descriptor, data);
+        }
+
+        @Override
         public Boolean visitFunctionDescriptor(FunctionDescriptor descriptor, D data) {
             return processCallable(descriptor, data);
         }

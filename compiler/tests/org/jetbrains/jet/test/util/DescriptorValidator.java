@@ -309,6 +309,13 @@ public class DescriptorValidator {
         }
 
         @Override
+        public Boolean visitEnumEntryDescriptor(
+                EnumEntryDescriptor descriptor, DiagnosticCollector collector
+        ) {
+            return visitVariableDescriptor(descriptor, collector);
+        }
+
+        @Override
         public Boolean visitValueParameterDescriptor(
                 ValueParameterDescriptor descriptor, DiagnosticCollector collector
         ) {
@@ -452,6 +459,13 @@ public class DescriptorValidator {
         @Override
         public Void visitPropertyDescriptor(
                 PropertyDescriptor descriptor, JetScope scope
+        ) {
+            return visitVariableDescriptor(descriptor, scope);
+        }
+
+        @Override
+        public Void visitEnumEntryDescriptor(
+                EnumEntryDescriptor descriptor, JetScope scope
         ) {
             return visitVariableDescriptor(descriptor, scope);
         }

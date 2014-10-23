@@ -1041,6 +1041,12 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
         }
 
         @Override
+        public Void visitEnumEntryDescriptor(EnumEntryDescriptor descriptor, StringBuilder builder) {
+            // TODO!
+            throw new UnsupportedOperationException("TODO");
+        }
+
+        @Override
         public Void visitFunctionDescriptor(FunctionDescriptor descriptor, StringBuilder builder) {
             renderFunction(descriptor, builder);
             return null;

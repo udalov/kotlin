@@ -154,6 +154,12 @@ public class RecursiveDescriptorProcessorTest extends KotlinTestWithEnvironment 
             }
 
             @Override
+            public Boolean visitEnumEntryDescriptor(EnumEntryDescriptor descriptor, Void data) {
+                add(descriptor);
+                return true;
+            }
+
+            @Override
             public Boolean visitValueParameterDescriptor(
                     ValueParameterDescriptor descriptor, Void data
             ) {
