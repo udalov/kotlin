@@ -22,10 +22,7 @@ import org.jetbrains.annotations.Mutable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.ReadOnly;
 import org.jetbrains.jet.context.GlobalContext;
-import org.jetbrains.jet.lang.descriptors.ClassDescriptorWithResolutionScopes;
-import org.jetbrains.jet.lang.descriptors.PropertyDescriptor;
-import org.jetbrains.jet.lang.descriptors.ScriptDescriptor;
-import org.jetbrains.jet.lang.descriptors.SimpleFunctionDescriptor;
+import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.calls.smartcasts.DataFlowInfo;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
@@ -57,6 +54,8 @@ public interface BodiesResolveContext extends GlobalContext {
     Map<JetProperty, PropertyDescriptor> getProperties();
     @Mutable
     Map<JetNamedFunction, SimpleFunctionDescriptor> getFunctions();
+    @Mutable
+    Map<JetEnumEntry, EnumEntryDescriptor> getEnumEntries();
 
     Function<JetDeclaration, JetScope> getDeclaringScopes();
     DataFlowInfo getOuterDataFlowInfo();

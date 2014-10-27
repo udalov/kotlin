@@ -19,7 +19,10 @@ package org.jetbrains.jet.lang.resolve.lazy.data;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.ClassKind;
-import org.jetbrains.jet.lang.psi.*;
+import org.jetbrains.jet.lang.psi.JetClass;
+import org.jetbrains.jet.lang.psi.JetClassObject;
+import org.jetbrains.jet.lang.psi.JetParameter;
+import org.jetbrains.jet.lang.psi.JetTypeParameterList;
 
 import java.util.List;
 
@@ -28,10 +31,7 @@ public class JetClassInfo extends JetClassOrObjectInfo<JetClass> {
 
     protected JetClassInfo(@NotNull JetClass classOrObject) {
         super(classOrObject);
-        if (element instanceof JetEnumEntry) {
-            this.kind = ClassKind.ENUM_ENTRY;
-        }
-        else if (element.isTrait()) {
+        if (element.isTrait()) {
             this.kind = ClassKind.TRAIT;
         }
         else if (element.isAnnotation()) {

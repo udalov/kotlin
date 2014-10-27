@@ -38,8 +38,7 @@ import java.util.*;
 import static org.jetbrains.jet.lang.diagnostics.Errors.*;
 import static org.jetbrains.jet.lang.resolve.BindingContext.TYPE;
 import static org.jetbrains.jet.lang.resolve.BindingContext.TYPE_PARAMETER;
-import static org.jetbrains.jet.lang.resolve.DescriptorUtils.classCanHaveAbstractMembers;
-import static org.jetbrains.jet.lang.resolve.DescriptorUtils.classCanHaveOpenMembers;
+import static org.jetbrains.jet.lang.resolve.DescriptorUtils.*;
 
 public class DeclarationsChecker {
     private BindingTrace trace;
@@ -106,6 +105,14 @@ public class DeclarationsChecker {
             if (!bodiesResolveContext.completeAnalysisNeeded(property)) continue;
             checkProperty(property, propertyDescriptor);
             modifiersChecker.checkModifiersForDeclaration(property, propertyDescriptor);
+        }
+
+        Map<JetEnumEntry, EnumEntryDescriptor> enumEntries = bodiesResolveContext.getEnumEntries();
+        for (Map.Entry<JetEnumEntry, EnumEntryDescriptor> entry : enumEntries.entrySet()) {
+            JetEnumEntry enumEntry = entry.getKey();
+            EnumEntryDescriptor descriptor = entry.getValue();
+
+            checkEnumEntry(enumEntry, descriptor);
         }
 
     }
@@ -283,9 +290,6 @@ public class DeclarationsChecker {
             if (aClass.isLocal()) {
                 trace.report(LOCAL_ENUM_NOT_ALLOWED.on(aClass, classDescriptor));
             }
-        }
-        else if (aClass instanceof JetEnumEntry) {
-            checkEnumEntry((JetEnumEntry) aClass, classDescriptor);
         }
     }
 
@@ -487,10 +491,12 @@ public class DeclarationsChecker {
         checkDeclaredTypeInPublicMember(function, functionDescriptor);
         if (containingDescriptor instanceof ClassDescriptor) {
             ClassDescriptor classDescriptor = (ClassDescriptor) containingDescriptor;
-            boolean inTrait = classDescriptor.getKind() == ClassKind.TRAIT;
             if (hasAbstractModifier && !classCanHaveAbstractMembers(classDescriptor)) {
                 trace.report(ABSTRACT_FUNCTION_IN_NON_ABSTRACT_CLASS.on(function, functionDescriptor.getName().asString(), classDescriptor));
             }
+        }
+        if (containingDescriptor instanceof ClassDescriptor || containingDescriptor instanceof EnumEntryDescriptor) {
+            boolean inTrait = isTrait(containingDescriptor);
             if (hasAbstractModifier && inTrait) {
                 trace.report(ABSTRACT_MODIFIER_IN_TRAIT.on(function));
             }
@@ -545,10 +551,8 @@ public class DeclarationsChecker {
         }
     }
 
-    private void checkEnumEntry(@NotNull JetEnumEntry enumEntry, @NotNull ClassDescriptor classDescriptor) {
-        DeclarationDescriptor declaration = classDescriptor.getContainingDeclaration();
-        assert DescriptorUtils.isEnumClass(declaration) : "Enum entry should be declared in enum class: " + classDescriptor;
-        ClassDescriptor enumClass = (ClassDescriptor) declaration;
+    private void checkEnumEntry(@NotNull JetEnumEntry enumEntry, @NotNull EnumEntryDescriptor descriptor) {
+        ClassDescriptor enumClass = descriptor.getContainingDeclaration();
 
         List<JetDelegationSpecifier> delegationSpecifiers = enumEntry.getDelegationSpecifiers();
         ConstructorDescriptor constructor = enumClass.getUnsubstitutedPrimaryConstructor();

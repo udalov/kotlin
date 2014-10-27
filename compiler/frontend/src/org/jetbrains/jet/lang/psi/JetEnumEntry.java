@@ -22,26 +22,32 @@ import com.intellij.util.IncorrectOperationException;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.jet.lang.psi.stubs.PsiJetClassStub;
+import org.jetbrains.jet.JetNodeTypes;
+import org.jetbrains.jet.lang.psi.stubs.PsiJetEnumEntryStub;
 import org.jetbrains.jet.lang.psi.stubs.elements.JetStubElementTypes;
 
 import java.util.Collections;
 import java.util.List;
 
-public class JetEnumEntry extends JetClass {
+public class JetEnumEntry extends JetNamedDeclarationStub<PsiJetEnumEntryStub> implements JetNamedDeclaration,
+                                                                                          JetDelegationSpecifierListOwner {
     public JetEnumEntry(@NotNull ASTNode node) {
         super(node);
     }
 
-    public JetEnumEntry(@NotNull PsiJetClassStub stub) {
-        super(stub);
+    public JetEnumEntry(@NotNull PsiJetEnumEntryStub stub) {
+        super(stub, JetStubElementTypes.ENUM_ENTRY);
+    }
+
+    public JetObjectDeclarationName getNameAsDeclaration() {
+        return (JetObjectDeclarationName) findChildByType(JetNodeTypes.OBJECT_DECLARATION_NAME);
     }
 
     @Override
     public String getName() {
-        PsiJetClassStub classStub = getStub();
-        if (classStub != null) {
-            return classStub.getName();
+        PsiJetEnumEntryStub enumEntryStub = getStub();
+        if (enumEntryStub != null) {
+            return enumEntryStub.getName();
         }
 
         JetObjectDeclarationName nameAsDeclaration = getNameAsDeclaration();
@@ -60,8 +66,12 @@ public class JetEnumEntry extends JetClass {
         return nameAsDeclaration == null ? null : nameAsDeclaration.setName(name);
     }
 
-    @NotNull
+    public JetClassBody getBody() {
+        return getStubOrPsiChild(JetStubElementTypes.CLASS_BODY);
+    }
+
     @Override
+    @NotNull
     public List<JetDelegationSpecifier> getDelegationSpecifiers() {
         JetInitializerList initializerList = getInitializerList();
         if (initializerList == null) {

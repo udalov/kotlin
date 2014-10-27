@@ -23,12 +23,10 @@ import org.jetbrains.jet.lang.resolve.name.Name;
 
 import java.util.List;
 
-public interface JetClassOrObject extends PsiNameIdentifierOwner, JetDeclarationContainer, JetElement, JetModifierListOwner, JetNamedDeclaration {
+public interface JetClassOrObject extends PsiNameIdentifierOwner, JetDeclarationContainer, JetElement, JetModifierListOwner,
+                                          JetNamedDeclaration, JetDelegationSpecifierListOwner {
     @Nullable
     JetDelegationSpecifierList getDelegationSpecifierList();
-
-    @NotNull
-    List<JetDelegationSpecifier> getDelegationSpecifiers();
 
     @NotNull
     List<JetClassInitializer> getAnonymousInitializers();

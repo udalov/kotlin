@@ -23,19 +23,25 @@ import com.intellij.util.containers.Queue;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.*;
+import org.jetbrains.jet.lang.descriptors.impl.MutableClassDescriptor;
+import org.jetbrains.jet.lang.diagnostics.DiagnosticFactory;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.calls.CallResolver;
 import org.jetbrains.jet.lang.resolve.calls.results.OverloadResolutionResults;
+import org.jetbrains.jet.lang.resolve.calls.smartcasts.DataFlowInfo;
 import org.jetbrains.jet.lang.resolve.calls.util.CallMaker;
 import org.jetbrains.jet.lang.resolve.constants.CompileTimeConstant;
+import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.resolve.scopes.*;
 import org.jetbrains.jet.lang.resolve.scopes.receivers.ReceiverValue;
 import org.jetbrains.jet.lang.types.*;
+import org.jetbrains.jet.lang.types.expressions.ExpressionTypingContext;
 import org.jetbrains.jet.lang.types.expressions.ExpressionTypingServices;
 import org.jetbrains.jet.lexer.JetTokens;
 import org.jetbrains.jet.util.Box;
 import org.jetbrains.jet.util.ReenteringLazyValueComputationException;
 import org.jetbrains.jet.util.slicedmap.WritableSlice;
+import org.jetbrains.jet.utils.Printer;
 
 import javax.inject.Inject;
 import java.util.*;
@@ -114,6 +120,7 @@ public class BodyResolver {
         resolveDelegationSpecifierLists(c);
 
         resolvePropertyDeclarationBodies(c);
+        resolveEnumEntryBodies(c);
 
         if (!c.getTopDownAnalysisParameters().isLazyTopDownAnalysis()) {
             resolveClassAnnotations(c);
@@ -144,25 +151,35 @@ public class BodyResolver {
             JetClassOrObject classOrObject = entry.getKey();
             ClassDescriptorWithResolutionScopes descriptor = entry.getValue();
 
-            resolveDelegationSpecifierList(c, classOrObject, descriptor,
-                                           descriptor.getUnsubstitutedPrimaryConstructor(),
-                                           descriptor.getScopeForClassHeaderResolution(),
-                                           descriptor.getScopeForMemberDeclarationResolution());
+            ConstructorDescriptor primaryConstructor = descriptor.getUnsubstitutedPrimaryConstructor();
+            JetScope scopeForConstructor =
+                    primaryConstructor == null
+                    ? null
+                    : FunctionDescriptorUtil.getFunctionInnerScope(descriptor.getScopeForClassHeaderResolution(), primaryConstructor, trace);
+
+            resolveDelegationSpecifierList(c, classOrObject, descriptor, scopeForConstructor, descriptor.getScopeForMemberDeclarationResolution());
+        }
+
+        for (Map.Entry<JetEnumEntry, EnumEntryDescriptor> entry : c.getEnumEntries().entrySet()) {
+            JetEnumEntry enumEntry = entry.getKey();
+            EnumEntryDescriptor descriptor = entry.getValue();
+
+            MutableClassDescriptor enumClass = (MutableClassDescriptor) descriptor.getContainingDeclaration();
+            JetScope scopeForConstructor = enumClass.getScopeForClassHeaderResolution(); // TODO: this is wrong (see KT-6133)
+            resolveDelegationSpecifierList(c, enumEntry, descriptor, scopeForConstructor, enumClass.getStaticScope());
         }
     }
 
     public void resolveDelegationSpecifierList(
             @NotNull final BodiesResolveContext c,
-            @NotNull JetClassOrObject jetClass,
-            @NotNull final ClassDescriptor descriptor,
-            @Nullable final ConstructorDescriptor primaryConstructor,
-            @NotNull JetScope scopeForSupertypeResolution,
-            @NotNull final JetScope scopeForMemberResolution) {
-        if (!c.completeAnalysisNeeded(jetClass)) return;
-        final JetScope scopeForConstructor = primaryConstructor == null
-                ? null
-                : FunctionDescriptorUtil.getFunctionInnerScope(scopeForSupertypeResolution, primaryConstructor, trace);
+            @NotNull JetDelegationSpecifierListOwner owner,
+            @NotNull final DeclarationDescriptor descriptor,
+            @Nullable final JetScope scopeForConstructor,
+            @NotNull final JetScope scopeForMemberResolution
+    ) {
+        if (!c.completeAnalysisNeeded(owner)) return;
         final ExpressionTypingServices typeInferrer = expressionTypingServices; // TODO : flow
+        final boolean isTrait = DescriptorUtils.isTrait(descriptor);
 
         final Map<JetTypeReference, JetType> supertypes = Maps.newLinkedHashMap();
         JetVisitorVoid visitor = new JetVisitorVoid() {
@@ -173,7 +190,7 @@ public class BodyResolver {
 
             @Override
             public void visitDelegationByExpressionSpecifier(@NotNull JetDelegatorByExpressionSpecifier specifier) {
-                if (descriptor.getKind() == ClassKind.TRAIT) {
+                if (isTrait) {
                     trace.report(DELEGATION_IN_TRAIT.on(specifier));
                 }
                 JetType supertype = trace.getBindingContext().get(BindingContext.TYPE, specifier.getTypeReference());
@@ -199,13 +216,13 @@ public class BodyResolver {
             public void visitDelegationToSuperCallSpecifier(@NotNull JetDelegatorToSuperCall call) {
                 JetValueArgumentList valueArgumentList = call.getValueArgumentList();
                 PsiElement elementToMark = valueArgumentList == null ? call : valueArgumentList;
-                if (descriptor.getKind() == ClassKind.TRAIT) {
+                if (isTrait) {
                     trace.report(SUPERTYPE_INITIALIZED_IN_TRAIT.on(elementToMark));
                 }
                 JetTypeReference typeReference = call.getTypeReference();
                 if (typeReference == null) return;
-                if (primaryConstructor == null) {
-                    assert descriptor.getKind() == ClassKind.TRAIT;
+                if (scopeForConstructor == null) {
+                    assert isTrait : "Not a trait: " + descriptor;
                     recordSupertype(typeReference, trace.getBindingContext().get(BindingContext.TYPE, typeReference));
                     return;
                 }
@@ -239,7 +256,7 @@ public class BodyResolver {
                     // A "singleton in supertype" diagnostic will be reported later
                     return;
                 }
-                if (descriptor.getKind() != ClassKind.TRAIT && !superClass.getConstructors().isEmpty() && !ErrorUtils.isError(superClass)) {
+                if (!isTrait && !superClass.getConstructors().isEmpty() && !ErrorUtils.isError(superClass)) {
                     trace.report(SUPERTYPE_NOT_INITIALIZED.on(specifier));
                 }
             }
@@ -255,27 +272,27 @@ public class BodyResolver {
             }
         };
 
-        for (JetDelegationSpecifier delegationSpecifier : jetClass.getDelegationSpecifiers()) {
+        for (JetDelegationSpecifier delegationSpecifier : owner.getDelegationSpecifiers()) {
             delegationSpecifier.accept(visitor);
         }
 
-        if (DescriptorUtils.isAnnotationClass(descriptor) && jetClass.getDelegationSpecifierList() != null) {
-            trace.report(SUPERTYPES_FOR_ANNOTATION_CLASS.on(jetClass.getDelegationSpecifierList()));
+        if (owner instanceof JetClassOrObject) {
+            JetClassOrObject jetClass = (JetClassOrObject) owner;
+            if (DescriptorUtils.isAnnotationClass(descriptor) && jetClass.getDelegationSpecifierList() != null) {
+                trace.report(SUPERTYPES_FOR_ANNOTATION_CLASS.on(jetClass.getDelegationSpecifierList()));
+            }
+            checkSupertypeList(supertypes, Collections.<TypeConstructor>emptySet(), DescriptorUtils.isEnumClass(descriptor));
         }
-
-        Set<TypeConstructor> parentEnum =
-                jetClass instanceof JetEnumEntry
-                ? Collections.singleton(((ClassDescriptor) descriptor.getContainingDeclaration()).getTypeConstructor())
-                : Collections.<TypeConstructor>emptySet();
-
-        checkSupertypeList(descriptor, supertypes, parentEnum);
+        else if (owner instanceof JetEnumEntry) {
+            checkSupertypeList(supertypes, Collections.singleton(((ClassDescriptor) descriptor.getContainingDeclaration()).getTypeConstructor()), false);
+        }
     }
 
     // allowedFinalSupertypes typically contains a enum type of which supertypeOwner is an entry
     private void checkSupertypeList(
-            @NotNull ClassDescriptor supertypeOwner,
             @NotNull Map<JetTypeReference, JetType> supertypes,
-            @NotNull Set<TypeConstructor> allowedFinalSupertypes
+            @NotNull Set<TypeConstructor> allowedFinalSupertypes,
+            boolean ownerIsEnum
     ) {
         Set<TypeConstructor> typeConstructors = Sets.newHashSet();
         boolean classAppeared = false;
@@ -286,7 +303,7 @@ public class BodyResolver {
             ClassDescriptor classDescriptor = TypeUtils.getClassDescriptor(supertype);
             if (classDescriptor != null) {
                 if (classDescriptor.getKind() != ClassKind.TRAIT) {
-                    if (supertypeOwner.getKind() == ClassKind.ENUM_CLASS) {
+                    if (ownerIsEnum) {
                         trace.report(CLASS_IN_SUPERTYPE_FOR_ENUM.on(typeReference));
                     }
                     if (classAppeared) {
@@ -404,7 +421,6 @@ public class BodyResolver {
     }
 
     private void resolvePropertyDeclarationBodies(@NotNull BodiesResolveContext c) {
-
         // Member properties
         Set<JetProperty> processed = Sets.newHashSet();
         for (Map.Entry<JetClassOrObject, ClassDescriptorWithResolutionScopes> entry : c.getDeclaredClasses().entrySet()) {
@@ -464,6 +480,20 @@ public class BodyResolver {
             resolveAnnotationArguments(propertyScope, property);
 
             resolvePropertyAccessors(c, property, propertyDescriptor);
+        }
+    }
+
+    private void resolveEnumEntryBodies(@NotNull BodiesResolveContext c) {
+        for (Map.Entry<JetEnumEntry, EnumEntryDescriptor> entry : c.getEnumEntries().entrySet()) {
+            JetEnumEntry enumEntry = entry.getKey();
+            EnumEntryDescriptor descriptor = entry.getValue();
+            JetClassBody body = enumEntry.getBody();
+            if (body != null) {
+                // TODO! top-down analysis of this class body
+                ExpressionTypingContext etc = ExpressionTypingContext.newContext(expressionTypingServices, trace, ErrorUtils.createErrorScope("lol") /* TODO */,
+                                                                                 c.getOuterDataFlowInfo(), NO_EXPECTED_TYPE);
+                TopDownAnalyzer.processClassOrObject(c, null, etc, descriptor, enumEntry, AdditionalCheckerProvider.Empty.INSTANCE$ /* TODO */);
+            }
         }
     }
 

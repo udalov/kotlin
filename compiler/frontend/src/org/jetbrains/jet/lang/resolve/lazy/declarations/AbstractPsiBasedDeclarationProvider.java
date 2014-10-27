@@ -43,6 +43,8 @@ public abstract class AbstractPsiBasedDeclarationProvider implements Declaration
         private final List<JetDeclaration> allDeclarations = Lists.newArrayList();
         private final Multimap<Name, JetNamedFunction> functions = HashMultimap.create();
         private final Multimap<Name, JetProperty> properties = HashMultimap.create();
+        // TODO: MultiMap or Map?
+        private final Multimap<Name, JetEnumEntry> enumEntries = ArrayListMultimap.create();
         private final Multimap<Name, JetClassLikeInfo> classesAndObjects = ArrayListMultimap.create(); // order matters here
 
         public void putToIndex(@NotNull JetDeclaration declaration) {
@@ -57,6 +59,10 @@ public abstract class AbstractPsiBasedDeclarationProvider implements Declaration
             else if (declaration instanceof JetProperty) {
                 JetProperty property = (JetProperty) declaration;
                 properties.put(safeNameForLazyResolve(property), property);
+            }
+            else if (declaration instanceof JetEnumEntry) {
+                JetEnumEntry enumEntry = (JetEnumEntry) declaration;
+                enumEntries.put(safeNameForLazyResolve(enumEntry), enumEntry);
             }
             else if (declaration instanceof JetClassOrObject) {
                 JetClassOrObject classOrObject = (JetClassOrObject) declaration;
@@ -115,6 +121,12 @@ public abstract class AbstractPsiBasedDeclarationProvider implements Declaration
     @Override
     public List<JetProperty> getPropertyDeclarations(@NotNull Name name) {
         return Lists.newArrayList(index.invoke().properties.get(ResolveSessionUtils.safeNameForLazyResolve(name)));
+    }
+
+    @NotNull
+    @Override
+    public Collection<JetEnumEntry> getEnumEntryDeclarations(@NotNull Name name) {
+        return index.invoke().enumEntries.get(ResolveSessionUtils.safeNameForLazyResolve(name));
     }
 
     @NotNull

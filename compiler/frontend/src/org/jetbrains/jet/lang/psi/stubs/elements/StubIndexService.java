@@ -46,6 +46,10 @@ public interface StubIndexService {
         }
 
         @Override
+        public void indexEnumEntry(PsiJetEnumEntryStub stub, IndexSink sink) {
+        }
+
+        @Override
         public void indexAnnotation(PsiJetAnnotationEntryStub stub, IndexSink sink) {
         }
     };
@@ -55,5 +59,6 @@ public interface StubIndexService {
     void indexFunction(PsiJetFunctionStub stub, IndexSink sink);
     void indexObject(PsiJetObjectStub stub, IndexSink sink);
     void indexProperty(PsiJetPropertyStub stub, IndexSink sink);
+    void indexEnumEntry(PsiJetEnumEntryStub stub, IndexSink sink);
     void indexAnnotation(PsiJetAnnotationEntryStub stub, IndexSink sink);
 }

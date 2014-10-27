@@ -18,6 +18,7 @@ package org.jetbrains.jet.lang.descriptors.impl;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor;
+import org.jetbrains.jet.lang.descriptors.EnumEntryDescriptor;
 import org.jetbrains.jet.lang.descriptors.PropertyDescriptor;
 import org.jetbrains.jet.lang.descriptors.SimpleFunctionDescriptor;
 import org.jetbrains.jet.lang.resolve.scopes.WritableScope;
@@ -53,6 +54,11 @@ public class ScopeBasedPackageLikeBuilder implements PackageLikeBuilder {
     @Override
     public void addPropertyDescriptor(@NotNull PropertyDescriptor propertyDescriptor) {
         scope.addPropertyDescriptor(propertyDescriptor);
+    }
+
+    @Override
+    public void addEnumEntryDescriptor(@NotNull EnumEntryDescriptor enumEntryDescriptor) {
+        throw new IllegalStateException("Must be guaranteed not to happen by the parser");
     }
 
     @Override

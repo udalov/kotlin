@@ -176,11 +176,12 @@ class CodegenAnnotatingVisitor extends JetVisitorVoid {
 
     @Override
     public void visitEnumEntry(@NotNull JetEnumEntry enumEntry) {
-        ClassDescriptor descriptor = bindingContext.get(CLASS, enumEntry);
+        EnumEntryDescriptor descriptor = (EnumEntryDescriptor) bindingContext.get(VARIABLE, enumEntry);
         assert descriptor != null :
                 String.format("No descriptor for enum entry \n---\n%s\n---\n", JetPsiUtil.getElementTextWithContext(enumEntry));
 
-        if (enumEntry.getDeclarations().isEmpty()) {
+        JetClassBody body = enumEntry.getBody();
+        if (body == null || body.getDeclarations().isEmpty()) {
             for (JetDelegationSpecifier specifier : enumEntry.getDelegationSpecifiers()) {
                 specifier.accept(this);
             }

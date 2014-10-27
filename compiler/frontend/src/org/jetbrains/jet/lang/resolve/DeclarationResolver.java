@@ -169,6 +169,46 @@ public class DeclarationResolver {
                     classDescriptor.getScopeForInitializerResolution(), classDescriptor.getScopeForMemberDeclarationResolution(),
                     classDescriptor.getBuilder());
         }
+        kotlin.Pair<JetEnumEntry, EnumEntryDescriptor> enumEntry = c.getDeclaringEnumEntry();
+        if (enumEntry != null) {
+            final EnumEntryDescriptor enumEntryDescriptor = enumEntry.getSecond();
+            JetScope enumScope = enumEntryDescriptor.getContainingDeclaration().getDefaultType().getMemberScope();
+            resolveFunctionAndPropertyHeaders(
+                    c,
+                    enumEntry.getFirst().getBody().getDeclarations(),
+                    enumScope,
+                    enumScope,
+                    enumScope,
+                    new PackageLikeBuilder() { // TODO: store resolved declarations somewhere in EnumEntryDescriptor
+                        @NotNull
+                        @Override
+                        public DeclarationDescriptor getOwnerForChildren() {
+                            return enumEntryDescriptor;
+                        }
+
+                        @Override
+                        public void addClassifierDescriptor(@NotNull MutableClassDescriptor classDescriptor) {
+                        }
+
+                        @Override
+                        public void addFunctionDescriptor(@NotNull SimpleFunctionDescriptor functionDescriptor) {
+                        }
+
+                        @Override
+                        public void addPropertyDescriptor(@NotNull PropertyDescriptor propertyDescriptor) {
+                        }
+
+                        @Override
+                        public void addEnumEntryDescriptor(@NotNull EnumEntryDescriptor enumEntryDescriptor) {
+                        }
+
+                        @Override
+                        public ClassObjectStatus setClassObjectDescriptor(@NotNull MutableClassDescriptor classObjectDescriptor) {
+                            return ClassObjectStatus.NOT_ALLOWED;
+                        }
+                    }
+            );
+        }
 
         // TODO : Extensions
     }
@@ -217,6 +257,17 @@ public class DeclarationResolver {
                     if (setter != null) {
                         c.registerDeclaringScope(setter, scopeForPropertyAccessors);
                     }
+                }
+
+                @Override
+                public void visitEnumEntry(@NotNull JetEnumEntry enumEntry) {
+                    EnumEntryDescriptor enumEntryDescriptor = descriptorResolver.resolveEnumEntryDescriptor(
+                            enumEntry,
+                            (ClassDescriptor) packageLike.getOwnerForChildren(),
+                            trace
+                    );
+                    packageLike.addEnumEntryDescriptor(enumEntryDescriptor);
+                    c.getEnumEntries().put(enumEntry, enumEntryDescriptor);
                 }
             });
         }

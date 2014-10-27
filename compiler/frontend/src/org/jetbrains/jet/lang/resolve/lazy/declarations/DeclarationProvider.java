@@ -19,6 +19,7 @@ package org.jetbrains.jet.lang.resolve.lazy.declarations;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.ReadOnly;
 import org.jetbrains.jet.lang.psi.JetDeclaration;
+import org.jetbrains.jet.lang.psi.JetEnumEntry;
 import org.jetbrains.jet.lang.psi.JetNamedFunction;
 import org.jetbrains.jet.lang.psi.JetProperty;
 import org.jetbrains.jet.lang.resolve.lazy.data.JetClassLikeInfo;
@@ -39,6 +40,10 @@ public interface DeclarationProvider {
     @ReadOnly
     @NotNull
     Collection<JetProperty> getPropertyDeclarations(@NotNull Name name);
+
+    @ReadOnly
+    @NotNull
+    Collection<JetEnumEntry> getEnumEntryDeclarations(@NotNull Name name);
 
     @ReadOnly
     @NotNull

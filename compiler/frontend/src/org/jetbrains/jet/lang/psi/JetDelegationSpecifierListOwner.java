@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2013 JetBrains s.r.o.
+ * Copyright 2010-2014 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,10 +14,13 @@
  * limitations under the License.
  */
 
-package org.jetbrains.jet.lang.psi.stubs;
+package org.jetbrains.jet.lang.psi;
 
-import org.jetbrains.jet.lang.psi.JetClass;
+import org.jetbrains.annotations.NotNull;
 
-public interface PsiJetClassStub extends PsiJetClassOrObjectStub<JetClass> {
-    boolean isTrait();
+import java.util.List;
+
+public interface JetDelegationSpecifierListOwner extends JetElement {
+    @NotNull
+    List<JetDelegationSpecifier> getDelegationSpecifiers();
 }

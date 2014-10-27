@@ -516,6 +516,11 @@ public abstract class ElementResolver {
         }
 
         @Override
+        public Map<JetEnumEntry, EnumEntryDescriptor> getEnumEntries() {
+            return Collections.emptyMap();
+        }
+
+        @Override
         public Function<JetDeclaration, JetScope> getDeclaringScopes() {
             //noinspection unchecked
             return (Function<JetDeclaration, JetScope>) declaringScopes;

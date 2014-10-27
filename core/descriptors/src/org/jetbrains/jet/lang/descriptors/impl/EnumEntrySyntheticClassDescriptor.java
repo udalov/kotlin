@@ -37,17 +37,19 @@ import org.jetbrains.jet.storage.NotNullLazyValue;
 import org.jetbrains.jet.storage.StorageManager;
 import org.jetbrains.jet.utils.Printer;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 
 public class EnumEntrySyntheticClassDescriptor extends ClassDescriptorBase {
     private final ClassKind kind;
     private final TypeConstructor typeConstructor;
     private final ConstructorDescriptor primaryConstructor;
     private final JetScope scope;
-    private final JetScope staticScope = new StaticScopeForKotlinClass(this);
+    private final JetScope staticScope = new StaticScopeForKotlinClass(this, new Function0<List<EnumEntryDescriptor>>() {
+        @Override
+        public List<EnumEntryDescriptor> invoke() {
+            throw new UnsupportedOperationException();
+        }
+    });
     private final EnumEntrySyntheticClassDescriptor classObjectDescriptor;
     private final NotNullLazyValue<Collection<Name>> enumMemberNames;
 

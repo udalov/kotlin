@@ -23,7 +23,9 @@ import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
 import kotlin.Function1;
 import kotlin.KotlinPackage;
+import kotlin.Pair;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.descriptors.impl.MutableClassDescriptor;
 import org.jetbrains.jet.lang.descriptors.impl.MutablePackageFragmentDescriptor;
@@ -50,12 +52,13 @@ public class TopDownAnalysisContext implements BodiesResolveContext {
     private final Map<JetDeclaration, JetScope> declaringScopes = Maps.newHashMap();
     private final Map<JetNamedFunction, SimpleFunctionDescriptor> functions = Maps.newLinkedHashMap();
     private final Map<JetProperty, PropertyDescriptor> properties = Maps.newLinkedHashMap();
+    private final Map<JetEnumEntry, EnumEntryDescriptor> enumEntries = Maps.newLinkedHashMap();
     private final Map<JetParameter, PropertyDescriptor> primaryConstructorParameterProperties = Maps.newHashMap();
     private Map<JetDeclaration, CallableMemberDescriptor> members = null;
 
     // File scopes - package scope extended with imports
     protected final Map<JetFile, WritableScope> fileScopes = Maps.newHashMap();
-
+    private Pair<JetEnumEntry, EnumEntryDescriptor> declaringEnumEntry = null;
     public final Map<JetDeclarationContainer, DeclarationDescriptor> forDeferredResolver = Maps.newHashMap();
 
     public final Map<JetDeclarationContainer, JetScope> normalScope = Maps.newHashMap();
@@ -123,6 +126,15 @@ public class TopDownAnalysisContext implements BodiesResolveContext {
         return packageFragments;
     }
 
+    @Nullable
+    public Pair<JetEnumEntry, EnumEntryDescriptor> getDeclaringEnumEntry() {
+        return declaringEnumEntry;
+    }
+
+    public void setDeclaringEnumEntry(@NotNull Pair<JetEnumEntry, EnumEntryDescriptor> declaringEnumEntry) {
+        this.declaringEnumEntry = declaringEnumEntry;
+    }
+
     @NotNull
     @Override
     public StorageManager getStorageManager() {
@@ -171,6 +183,11 @@ public class TopDownAnalysisContext implements BodiesResolveContext {
     @Override
     public Map<JetNamedFunction, SimpleFunctionDescriptor> getFunctions() {
         return functions;
+    }
+
+    @Override
+    public Map<JetEnumEntry, EnumEntryDescriptor> getEnumEntries() {
+        return enumEntries;
     }
 
     public Map<JetDeclaration, CallableMemberDescriptor> getMembers() {

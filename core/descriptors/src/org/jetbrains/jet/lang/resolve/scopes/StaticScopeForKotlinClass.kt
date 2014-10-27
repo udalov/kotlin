@@ -24,7 +24,8 @@ import kotlin.properties.Delegates
 import org.jetbrains.jet.lang.resolve.DescriptorFactory.*
 
 public class StaticScopeForKotlinClass(
-        private val containingClass: ClassDescriptor
+        private val containingClass: ClassDescriptor,
+        private val computeEnumEntries: () -> List<EnumEntryDescriptor>
 ) : JetScope {
     override fun getClassifier(name: Name) = null // TODO
 
@@ -37,14 +38,16 @@ public class StaticScopeForKotlinClass(
         }
     }
 
-    override fun getAllDescriptors() = functions
+    private val enumEntries: List<EnumEntryDescriptor> by Delegates.lazy { computeEnumEntries() }
 
-    override fun getOwnDeclaredDescriptors() = functions
+    override fun getAllDescriptors() = enumEntries + functions
+
+    override fun getOwnDeclaredDescriptors() = getAllDescriptors()
 
     override fun getFunctions(name: Name) = functions.filterTo(ArrayList<FunctionDescriptor>(2)) { it.getName() == name }
 
     override fun getPackage(name: Name) = null
-    override fun getProperties(name: Name) = listOf<VariableDescriptor>()
+    override fun getProperties(name: Name) = enumEntries.filterTo(ArrayList<VariableDescriptor>(0)) { it.getName() == name }
     override fun getLocalVariable(name: Name) = null
     override fun getContainingDeclaration() = containingClass
     override fun getDeclarationsByLabel(labelName: Name) = listOf<DeclarationDescriptor>()

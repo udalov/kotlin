@@ -76,6 +76,12 @@ public final class BindingUtils {
     }
 
     @NotNull
+    public static EnumEntryDescriptor getEnumEntryDescriptor(@NotNull BindingContext context,
+            @NotNull JetEnumEntry enumEntry) {
+        return (EnumEntryDescriptor) BindingContextUtils.getNotNull(context, BindingContext.VARIABLE, enumEntry);
+    }
+
+    @NotNull
     public static JetFunction getFunctionForDescriptor(@NotNull SimpleFunctionDescriptor descriptor) {
         PsiElement result = DescriptorToSourceUtils.callableDescriptorToDeclaration(descriptor);
         assert result instanceof JetFunction : message(descriptor, "SimpleFunctionDescriptor should have declaration of type JetFunction");

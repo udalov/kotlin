@@ -54,7 +54,7 @@ public class CodegenBinding {
 
     public static final WritableSlice<ClassDescriptor, Type> ASM_TYPE = Slices.createSimpleSlice();
 
-    public static final WritableSlice<ClassDescriptor, Boolean> ENUM_ENTRY_CLASS_NEED_SUBCLASS = Slices.createSimpleSetSlice();
+    public static final WritableSlice<EnumEntryDescriptor, Boolean> ENUM_ENTRY_CLASS_NEED_SUBCLASS = Slices.createSimpleSetSlice();
 
     public static final WritableSlice<ClassDescriptor, Collection<ClassDescriptor>> INNER_CLASSES = Slices.createSimpleSlice();
 
@@ -81,11 +81,8 @@ public class CodegenBinding {
     }
 
     public static boolean enumEntryNeedSubclass(BindingContext bindingContext, JetEnumEntry enumEntry) {
-        return enumEntryNeedSubclass(bindingContext, bindingContext.get(CLASS, enumEntry));
-    }
-
-    public static boolean enumEntryNeedSubclass(BindingContext bindingContext, ClassDescriptor classDescriptor) {
-        return Boolean.TRUE.equals(bindingContext.get(ENUM_ENTRY_CLASS_NEED_SUBCLASS, classDescriptor));
+        EnumEntryDescriptor descriptor = (EnumEntryDescriptor) bindingContext.get(VARIABLE, enumEntry);
+        return Boolean.TRUE.equals(bindingContext.get(ENUM_ENTRY_CLASS_NEED_SUBCLASS, descriptor));
     }
 
     // SCRIPT: Generate asmType for script, move to ScriptingUtil

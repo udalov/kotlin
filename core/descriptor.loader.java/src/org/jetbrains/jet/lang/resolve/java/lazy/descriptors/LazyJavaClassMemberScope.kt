@@ -224,13 +224,17 @@ public class LazyJavaClassMemberScope(
         val jNestedClass = nestedClassIndex()[name]
         if (jNestedClass == null) {
             val field = enumEntryIndex()[name]
+/*
+            // TODO: drop
             if (field != null) {
                 EnumEntrySyntheticClassDescriptor.create(c.storageManager, getContainingDeclaration(), name,
                                                          c.storageManager.createLazyValue {
                                                              memberIndex().getAllFieldNames() + memberIndex().getAllMethodNames()
                                                          }, c.sourceElementFactory.source(field))
             }
-            else null
+            else
+*/
+            null
         }
         else {
             LazyJavaClassDescriptor(

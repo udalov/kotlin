@@ -107,7 +107,7 @@ public class JetVisitor<R, D> extends PsiElementVisitor {
     }
 
     public R visitEnumEntry(@NotNull JetEnumEntry enumEntry, D data) {
-        return visitClass(enumEntry, data);
+        return visitNamedDeclaration(enumEntry, data);
     }
 
     public R visitParameterList(@NotNull JetParameterList list, D data) {

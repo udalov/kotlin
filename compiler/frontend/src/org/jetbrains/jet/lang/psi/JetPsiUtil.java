@@ -442,12 +442,13 @@ public class JetPsiUtil {
                 parent = parent.getParent();
                 assert parent instanceof JetClassBody : "Parent of class object is not a class body: " + parent;
             }
-            if (!(parent instanceof JetClassBody)) {
+            PsiElement grandParent = parent.getParent();
+            if (!(grandParent instanceof JetClassOrObject)) {
                 // It is a local class, no legitimate outer
                 return current;
             }
 
-            current = (JetClassOrObject) parent.getParent();
+            current = (JetClassOrObject) grandParent;
         }
     }
 

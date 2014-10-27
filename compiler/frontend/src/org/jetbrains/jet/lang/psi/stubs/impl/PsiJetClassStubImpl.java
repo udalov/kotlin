@@ -32,7 +32,6 @@ public class PsiJetClassStubImpl extends JetStubBaseImpl<JetClass> implements Ps
     private final StringRef name;
     private final StringRef[] superNames;
     private final boolean isTrait;
-    private final boolean isEnumEntry;
     private final boolean isLocal;
     private final boolean isTopLevel;
 
@@ -43,7 +42,6 @@ public class PsiJetClassStubImpl extends JetStubBaseImpl<JetClass> implements Ps
             StringRef name,
             StringRef[] superNames,
             boolean isTrait,
-            boolean isEnumEntry,
             boolean isLocal,
             boolean isTopLevel
     ) {
@@ -52,7 +50,6 @@ public class PsiJetClassStubImpl extends JetStubBaseImpl<JetClass> implements Ps
         this.name = name;
         this.superNames = superNames;
         this.isTrait = isTrait;
-        this.isEnumEntry = isEnumEntry;
         this.isLocal = isLocal;
         this.isTopLevel = isTopLevel;
     }
@@ -71,11 +68,6 @@ public class PsiJetClassStubImpl extends JetStubBaseImpl<JetClass> implements Ps
         return isTrait;
     }
 
-    @Override
-    public boolean isEnumEntry() {
-        return isEnumEntry;
-    }
-    
     @Override
     public boolean isLocal() {
         return isLocal;

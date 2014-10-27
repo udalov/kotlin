@@ -16,6 +16,7 @@
 
 package org.jetbrains.jet.lang.descriptors.impl;
 
+import kotlin.Function0;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.*;
@@ -30,12 +31,18 @@ import org.jetbrains.jet.storage.LockBasedStorageManager;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 
 public class ClassDescriptorImpl extends ClassDescriptorBase {
     private final Modality modality;
     private final TypeConstructor typeConstructor;
-    private final JetScope staticScope = new StaticScopeForKotlinClass(this);
+    private final JetScope staticScope = new StaticScopeForKotlinClass(this, new Function0<List<EnumEntryDescriptor>>() {
+        @Override
+        public List<EnumEntryDescriptor> invoke() {
+            throw new UnsupportedOperationException();
+        }
+    });
 
     private JetScope scopeForMemberLookup;
     private Set<ConstructorDescriptor> constructors;

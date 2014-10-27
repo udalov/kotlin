@@ -33,6 +33,7 @@ import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.descriptors.annotations.Annotations;
 import org.jetbrains.jet.lang.descriptors.impl.AbstractClassDescriptor;
 import org.jetbrains.jet.lang.descriptors.impl.ConstructorDescriptorImpl;
+import org.jetbrains.jet.lang.descriptors.impl.EnumEntryDescriptorImpl;
 import org.jetbrains.jet.lang.descriptors.impl.EnumEntrySyntheticClassDescriptor;
 import org.jetbrains.jet.lang.resolve.DescriptorFactory;
 import org.jetbrains.jet.lang.resolve.OverridingUtil;
@@ -66,7 +67,12 @@ public class DeserializedClassDescriptor extends AbstractClassDescriptor impleme
 
     private final NullableLazyValue<ClassDescriptor> classObjectDescriptor;
     private final NestedClassDescriptors nestedClasses;
-    private final JetScope staticScope = new StaticScopeForKotlinClass(this);
+    private final JetScope staticScope = new StaticScopeForKotlinClass(this, new Function0<List<EnumEntryDescriptor>>() {
+        @Override
+        public List<EnumEntryDescriptor> invoke() {
+            return computeEnumEntries();
+        }
+    });
 
     private final NotNullLazyValue<DeclarationDescriptor> containingDeclaration;
     private final DeserializedClassTypeConstructor typeConstructor;
@@ -267,6 +273,19 @@ public class DeserializedClassDescriptor extends AbstractClassDescriptor impleme
         return supertypes;
     }
 
+    @NotNull
+    private List<EnumEntryDescriptor> computeEnumEntries() {
+        if (getKind() != ClassKind.ENUM_CLASS) return Collections.emptyList();
+
+        List<EnumEntryDescriptor> result = new ArrayList<EnumEntryDescriptor>(classProto.getEnumEntryCount());
+        NameResolver nameResolver = context.getNameResolver();
+        for (Integer index : classProto.getEnumEntryList()) {
+            Name name = nameResolver.getName(index);
+            result.add(new EnumEntryDescriptorImpl(this, Annotations.EMPTY /* TODO */, name, SourceElement.NO_SOURCE));
+        }
+        return result;
+    }
+
     @Override
     public String toString() {
         // not using descriptor render to preserve laziness
@@ -451,10 +470,13 @@ public class DeserializedClassDescriptor extends AbstractClassDescriptor impleme
             this.findClass = storageManager.createMemoizedFunctionWithNullableValues(new Function1<Name, ClassDescriptor>() {
                 @Override
                 public ClassDescriptor invoke(Name name) {
+                    /*
+                    // TODO: drop
                     if (enumEntryNames.contains(name)) {
                         return EnumEntrySyntheticClassDescriptor
                                 .create(storageManager, DeserializedClassDescriptor.this, name, enumMemberNames, SourceElement.NO_SOURCE);
                     }
+                    */
                     if (nestedClassNames.contains(name)) {
                         return ContextPackage.deserializeClass(context, classId.createNestedClassId(name));
                     }

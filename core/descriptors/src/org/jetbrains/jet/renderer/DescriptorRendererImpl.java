@@ -902,6 +902,11 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
         renderWhereSuffix(property.getTypeParameters(), builder);
     }
 
+    private void renderEnumEntry(@NotNull EnumEntryDescriptor enumEntry, @NotNull StringBuilder builder) {
+        builder.append("enum entry ");
+        renderName(enumEntry, builder);
+    }
+
     private void renderInitializer(@NotNull VariableDescriptor variable, @NotNull StringBuilder builder) {
         if (includePropertyConstant) {
             CompileTimeConstant<?> initializer = variable.getCompileTimeInitializer();
@@ -1042,8 +1047,8 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
 
         @Override
         public Void visitEnumEntryDescriptor(EnumEntryDescriptor descriptor, StringBuilder builder) {
-            // TODO!
-            throw new UnsupportedOperationException("TODO");
+            renderEnumEntry(descriptor, builder);
+            return null;
         }
 
         @Override

@@ -18,6 +18,7 @@ package org.jetbrains.jet.lang.descriptors.impl;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor;
+import org.jetbrains.jet.lang.descriptors.EnumEntryDescriptor;
 import org.jetbrains.jet.lang.descriptors.PropertyDescriptor;
 import org.jetbrains.jet.lang.descriptors.SimpleFunctionDescriptor;
 
@@ -30,6 +31,8 @@ public interface PackageLikeBuilder {
     void addFunctionDescriptor(@NotNull SimpleFunctionDescriptor functionDescriptor);
 
     void addPropertyDescriptor(@NotNull PropertyDescriptor propertyDescriptor);
+
+    void addEnumEntryDescriptor(@NotNull EnumEntryDescriptor enumEntryDescriptor);
 
     enum ClassObjectStatus {
         OK,

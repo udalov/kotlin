@@ -17,6 +17,7 @@
 package org.jetbrains.jet.lang.descriptors.impl;
 
 import com.google.common.collect.Sets;
+import kotlin.Function0;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.*;
@@ -59,7 +60,14 @@ public class MutableClassDescriptor extends ClassDescriptorBase implements Class
     private final WritableScope scopeForSupertypeResolution;
     private WritableScope scopeForInitializers; //contains members + primary constructor value parameters + map for backing fields
     private JetScope scopeForMemberLookup;
-    private final JetScope staticScope = new StaticScopeForKotlinClass(this);
+
+    private final List<EnumEntryDescriptor> enumEntries = new ArrayList<EnumEntryDescriptor>(0);
+    private final JetScope staticScope = new StaticScopeForKotlinClass(this, new Function0<List<EnumEntryDescriptor>>() {
+        @Override
+        public List<EnumEntryDescriptor> invoke() {
+            return enumEntries;
+        }
+    });
 
     public MutableClassDescriptor(
             @NotNull DeclarationDescriptor containingDeclaration,
@@ -372,6 +380,12 @@ public class MutableClassDescriptor extends ClassDescriptorBase implements Class
                     }
                     allCallableMembers.add(propertyDescriptor);
                     scopeForMemberResolution.addPropertyDescriptor(propertyDescriptor);
+                }
+
+                @Override
+                public void addEnumEntryDescriptor(@NotNull EnumEntryDescriptor enumEntryDescriptor) {
+                    assert getKind() == ClassKind.ENUM_CLASS : "Only enum class can have enum entries: " + MutableClassDescriptor.this;
+                    enumEntries.add(enumEntryDescriptor);
                 }
             };
         }

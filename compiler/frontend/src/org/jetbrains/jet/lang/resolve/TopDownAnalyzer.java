@@ -22,6 +22,7 @@ import com.intellij.openapi.project.Project;
 import com.intellij.psi.PsiElement;
 import kotlin.Function1;
 import kotlin.KotlinPackage;
+import kotlin.Pair;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.context.GlobalContext;
@@ -30,7 +31,9 @@ import org.jetbrains.jet.di.InjectorForLazyResolve;
 import org.jetbrains.jet.di.InjectorForTopDownAnalyzerBasic;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.descriptors.impl.*;
-import org.jetbrains.jet.lang.psi.JetClassOrObject;
+import org.jetbrains.jet.lang.psi.JetClassBody;
+import org.jetbrains.jet.lang.psi.JetDeclaration;
+import org.jetbrains.jet.lang.psi.JetEnumEntry;
 import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.resolve.lazy.ResolveSession;
 import org.jetbrains.jet.lang.resolve.lazy.declarations.FileBasedDeclarationProviderFactory;
@@ -201,7 +204,7 @@ public class TopDownAnalyzer {
             @Nullable final WritableScope scope,
             @NotNull ExpressionTypingContext context,
             @NotNull final DeclarationDescriptor containingDeclaration,
-            @NotNull JetClassOrObject object,
+            @NotNull JetDeclaration object,
             @NotNull AdditionalCheckerProvider additionalCheckerProvider
     ) {
         TopDownAnalysisParameters topDownAnalysisParameters =
@@ -222,11 +225,25 @@ public class TopDownAnalyzer {
         TopDownAnalysisContext c = new TopDownAnalysisContext(topDownAnalysisParameters);
         c.setOuterDataFlowInfo(context.dataFlowInfo);
 
+        List<PsiElement> toAnalyze;
+        if (object instanceof JetEnumEntry) {
+            JetClassBody enumEntryBody = ((JetEnumEntry) object).getBody();
+            assert enumEntryBody != null : "Only non-trivial enum entries should be analyzed: " + object.getName();
+            //noinspection unchecked
+            toAnalyze = (List) enumEntryBody.getDeclarations();
+
+            c.setDeclaringEnumEntry(
+                    new Pair<JetEnumEntry, EnumEntryDescriptor>((JetEnumEntry) object, (EnumEntryDescriptor) containingDeclaration)
+            );
+        }
+        else {
+            toAnalyze = Collections.<PsiElement>singletonList(object);
+        }
+
         injector.getTopDownAnalyzer().doProcess(
                c,
                context.scope,
                new PackageLikeBuilder() {
-
                    @NotNull
                    @Override
                    public DeclarationDescriptor getOwnerForChildren() {
@@ -247,7 +264,11 @@ public class TopDownAnalyzer {
 
                    @Override
                    public void addPropertyDescriptor(@NotNull PropertyDescriptor propertyDescriptor) {
+                   }
 
+                   @Override
+                   public void addEnumEntryDescriptor(@NotNull EnumEntryDescriptor enumEntryDescriptor) {
+                       throw new UnsupportedOperationException();
                    }
 
                    @Override
@@ -255,7 +276,7 @@ public class TopDownAnalyzer {
                        return ClassObjectStatus.NOT_ALLOWED;
                    }
                },
-               Collections.<PsiElement>singletonList(object)
+               toAnalyze
         );
     }
 

@@ -207,7 +207,8 @@ public class LazyTopDownAnalyzer {
 
                         @Override
                         public void visitEnumEntry(@NotNull JetEnumEntry enumEntry) {
-                            visitClassOrObject(enumEntry);
+                            // TODO: ?!
+                            super.visitEnumEntry(enumEntry);
                         }
 
                         @Override

@@ -30,5 +30,7 @@ public class CombinedPackageMemberDeclarationProvider(val providers: Collection<
 
     override fun getPropertyDeclarations(name: Name) = providers.flatMap { it.getPropertyDeclarations(name) }
 
+    override fun getEnumEntryDeclarations(name: Name) = providers.flatMap { it.getEnumEntryDeclarations(name) }
+
     override fun getClassOrObjectDeclarations(name: Name) = providers.flatMap { it.getClassOrObjectDeclarations(name) }
 }

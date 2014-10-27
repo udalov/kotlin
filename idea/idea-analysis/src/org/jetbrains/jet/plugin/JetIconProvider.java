@@ -132,14 +132,7 @@ public class JetIconProvider extends IconProvider {
                 return JetIcons.TRAIT;
             }
 
-            Icon icon = jetClass.isEnum() ? JetIcons.ENUM : JetIcons.CLASS;
-            if (jetClass instanceof JetEnumEntry) {
-                JetEnumEntry enumEntry = (JetEnumEntry) jetClass;
-                if (enumEntry.getPrimaryConstructorParameterList() == null) {
-                    icon = JetIcons.ENUM;
-                }
-            }
-            return icon;
+            return jetClass.isEnum() ? JetIcons.ENUM : JetIcons.CLASS;
         }
         if (psiElement instanceof JetObjectDeclaration || psiElement instanceof JetClassObject) {
             return JetIcons.OBJECT;
@@ -155,6 +148,9 @@ public class JetIconProvider extends IconProvider {
         if (psiElement instanceof JetProperty) {
             JetProperty property = (JetProperty) psiElement;
             return property.isVar() ? JetIcons.FIELD_VAR : JetIcons.FIELD_VAL;
+        }
+        if (psiElement instanceof JetEnumEntry) {
+            return JetIcons.ENUM;
         }
 
         return null;

@@ -147,6 +147,11 @@ public class StubIndexServiceImpl implements StubIndexService {
     }
 
     @Override
+    public void indexEnumEntry(PsiJetEnumEntryStub stub, IndexSink sink) {
+        // TODO!
+    }
+
+    @Override
     public void indexAnnotation(PsiJetAnnotationEntryStub stub, IndexSink sink) {
         sink.occurrence(JetAnnotationsIndex.getInstance().getKey(), stub.getShortName());
     }

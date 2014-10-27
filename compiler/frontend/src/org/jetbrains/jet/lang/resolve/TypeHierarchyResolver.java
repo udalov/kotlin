@@ -375,16 +375,6 @@ public class TypeHierarchyResolver {
         }
 
         @Override
-        public void visitEnumEntry(@NotNull JetEnumEntry declaration) {
-            MutableClassDescriptor descriptor =
-                    createClassDescriptorForSingleton(declaration, JetPsiUtil.safeName(declaration.getName()), ClassKind.ENUM_ENTRY);
-
-            owner.addClassifierDescriptor(descriptor);
-
-            descriptor.getBuilder().setClassObjectDescriptor(createSyntheticClassObjectForSingleton(descriptor));
-        }
-
-        @Override
         public void visitTypedef(@NotNull JetTypedef typedef) {
             trace.report(UNSUPPORTED.on(typedef, "TypeHierarchyResolver"));
         }

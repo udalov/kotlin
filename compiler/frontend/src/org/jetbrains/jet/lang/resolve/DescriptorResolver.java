@@ -1254,13 +1254,31 @@ public class DescriptorResolver {
                                                                 getter.hasBody(), false,
                                                                 CallableMemberDescriptor.Kind.DECLARATION, null, toSourceElement(getter));
             getterDescriptor.initialize(returnType);
-            trace.record(BindingContext.PROPERTY_ACCESSOR, getter, getterDescriptor);
+            trace.record(PROPERTY_ACCESSOR, getter, getterDescriptor);
         }
         else {
             getterDescriptor = DescriptorFactory.createGetter(propertyDescriptor, !property.hasDelegate());
             getterDescriptor.initialize(propertyDescriptor.getType());
         }
         return getterDescriptor;
+    }
+
+    @SuppressWarnings("MethodMayBeStatic") // Should use annotationResolver to resolve annotations
+    @NotNull
+    public EnumEntryDescriptor resolveEnumEntryDescriptor(
+            @NotNull JetEnumEntry declaration,
+            @NotNull ClassDescriptor enumClass,
+            @NotNull BindingTrace trace
+    ) {
+        EnumEntryDescriptorImpl descriptor = new EnumEntryDescriptorImpl(
+                enumClass,
+                Annotations.EMPTY /* TODO */,
+                JetPsiUtil.safeName(declaration.getName()),
+                toSourceElement(declaration)
+        );
+        // TODO: BindingContext.ENUM_ENTRY?
+        trace.record(VARIABLE, declaration, descriptor);
+        return descriptor;
     }
 
     @NotNull

@@ -58,6 +58,11 @@ public class StubBasedPackageMemberDeclarationProvider(
         return JetTopLevelPropertiesFqnNameIndex.getInstance().get(childName(name), project, searchScope)
     }
 
+    override fun getEnumEntryDeclarations(name: Name): Collection<JetEnumEntry> {
+        // TODO!
+        error("Unsupported")
+    }
+
     override fun getAllDeclaredSubPackages(): Collection<FqName> {
         return PackageIndexUtil.getSubPackageFqNames(fqName, searchScope, project)
     }

@@ -27,12 +27,10 @@ import org.jetbrains.jet.lang.descriptors.FunctionDescriptor;
 import org.jetbrains.jet.lang.descriptors.Modality;
 import org.jetbrains.jet.lang.descriptors.PropertyDescriptor;
 import org.jetbrains.jet.lang.psi.*;
-import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.k2js.translate.context.TranslationContext;
 import org.jetbrains.k2js.translate.declaration.propertyTranslator.PropertyTranslatorPackage;
 import org.jetbrains.k2js.translate.general.Translation;
 import org.jetbrains.k2js.translate.general.TranslatorVisitor;
-import org.jetbrains.k2js.translate.initializer.ClassInitializerTranslator;
 import org.jetbrains.k2js.translate.utils.BindingUtils;
 import org.jetbrains.k2js.translate.utils.TranslationUtils;
 
@@ -41,7 +39,6 @@ import java.util.List;
 import static org.jetbrains.k2js.translate.initializer.InitializerUtils.createClassObjectInitializer;
 import static org.jetbrains.k2js.translate.utils.BindingUtils.getClassDescriptor;
 import static org.jetbrains.k2js.translate.utils.BindingUtils.getFunctionDescriptor;
-import static org.jetbrains.k2js.translate.utils.JsDescriptorUtils.getSupertypesWithoutFakes;
 
 public class DeclarationBodyVisitor extends TranslatorVisitor<Void> {
     @KotlinSignature("val result: MutableList<JsPropertyInitializer>")
@@ -70,16 +67,18 @@ public class DeclarationBodyVisitor extends TranslatorVisitor<Void> {
 
     @Override
     public Void visitEnumEntry(@NotNull JetEnumEntry enumEntry, TranslationContext data) {
+        /*
+        // TODO!
         JsExpression jsEnumEntryCreation;
-        ClassDescriptor descriptor = getClassDescriptor(data.bindingContext(), enumEntry);
-        List<JetType> supertypes = getSupertypesWithoutFakes(descriptor);
-        if (enumEntry.getBody() != null || supertypes.size() > 1) {
+        EnumEntryDescriptor descriptor = getEnumEntryDescriptor(data.bindingContext(), enumEntry);
+        ClassDescriptor enumClass = descriptor.getContainingDeclaration();
+        if (enumEntry.getBody() != null) {
             jsEnumEntryCreation = ClassTranslator.generateClassCreation(enumEntry, data);
         } else {
-            assert supertypes.size() == 1 : "Simple Enum entry must have one supertype";
-            jsEnumEntryCreation = new ClassInitializerTranslator(enumEntry, data).generateEnumEntryInstanceCreation(supertypes.get(0));
+            jsEnumEntryCreation = new ClassInitializerTranslator(enumEntry, data).generateEnumEntryInstanceCreation(enumClass);
         }
         enumEntryList.add(new JsPropertyInitializer(data.getNameForDescriptor(descriptor).makeRef(), jsEnumEntryCreation));
+        */
         return null;
     }
 

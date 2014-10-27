@@ -225,17 +225,17 @@ public abstract class AbstractLazyMemberScope<D extends DeclarationDescriptor, D
         List<JetDeclaration> declarations = declarationProvider.getAllDeclarations();
         ArrayList<DeclarationDescriptor> result = new ArrayList<DeclarationDescriptor>(declarations.size());
         for (JetDeclaration declaration : declarations) {
-            if (declaration instanceof JetClassOrObject) {
-                JetClassOrObject classOrObject = (JetClassOrObject) declaration;
-                result.addAll(classDescriptors.invoke(classOrObject.getNameAsSafeName()));
-            }
-            else if (declaration instanceof JetFunction) {
+            if (declaration instanceof JetFunction) {
                 JetFunction function = (JetFunction) declaration;
                 result.addAll(getFunctions(function.getNameAsSafeName()));
             }
             else if (declaration instanceof JetProperty) {
                 JetProperty property = (JetProperty) declaration;
                 result.addAll(getProperties(property.getNameAsSafeName()));
+            }
+            else if (declaration instanceof JetClassOrObject) {
+                JetClassOrObject classOrObject = (JetClassOrObject) declaration;
+                result.addAll(classDescriptors.invoke(classOrObject.getNameAsSafeName()));
             }
             else if (declaration instanceof JetParameter) {
                 JetParameter parameter = (JetParameter) declaration;

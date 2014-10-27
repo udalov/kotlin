@@ -18,6 +18,7 @@ package org.jetbrains.jet.lang.descriptors.impl;
 
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor;
+import org.jetbrains.jet.lang.descriptors.EnumEntryDescriptor;
 import org.jetbrains.jet.lang.descriptors.PropertyDescriptor;
 import org.jetbrains.jet.lang.descriptors.SimpleFunctionDescriptor;
 
@@ -40,6 +41,11 @@ public class PackageLikeBuilderDummy implements PackageLikeBuilder {
 
     @Override
     public void addPropertyDescriptor(@NotNull PropertyDescriptor propertyDescriptor) {
+        throw new IllegalStateException();
+    }
+
+    @Override
+    public void addEnumEntryDescriptor(@NotNull EnumEntryDescriptor enumEntryDescriptor) {
         throw new IllegalStateException();
     }
 

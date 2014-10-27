@@ -88,7 +88,12 @@ public class LazyClassDescriptor extends ClassDescriptorBase implements ClassDes
     private final MemoizedFunctionToNotNull<JetClassObject, ClassDescriptor> extraClassObjectDescriptors;
 
     private final LazyClassMemberScope unsubstitutedMemberScope;
-    private final JetScope staticScope = new StaticScopeForKotlinClass(this);
+    private final JetScope staticScope = new StaticScopeForKotlinClass(this, new Function0<List<EnumEntryDescriptor>>() {
+        @Override
+        public List<EnumEntryDescriptor> invoke() {
+            return computeEnumEntries();
+        }
+    });
 
     private final NotNullLazyValue<JetScope> scopeForClassHeaderResolution;
     private final NotNullLazyValue<JetScope> scopeForMemberDeclarationResolution;
@@ -376,6 +381,22 @@ public class LazyClassDescriptor extends ClassDescriptorBase implements ClassDes
         }
 
         return null;
+    }
+
+    @NotNull
+    private List<EnumEntryDescriptor> computeEnumEntries() {
+        if (getKind() != ClassKind.ENUM_CLASS) return Collections.emptyList();
+
+        List<EnumEntryDescriptor> result = new ArrayList<EnumEntryDescriptor>(0);
+        for (JetDeclaration declaration : declarationProvider.getAllDeclarations()) {
+            if (declaration instanceof JetEnumEntry) {
+                JetEnumEntry enumEntry = (JetEnumEntry) declaration;
+                EnumEntryDescriptor descriptor =
+                        resolveSession.getDescriptorResolver().resolveEnumEntryDescriptor(enumEntry, this, resolveSession.getTrace());
+                result.add(descriptor);
+            }
+        }
+        return result;
     }
 
     @NotNull
