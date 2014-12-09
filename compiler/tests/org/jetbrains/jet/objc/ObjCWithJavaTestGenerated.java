@@ -17,13 +17,11 @@
 package org.jetbrains.jet.objc;
 
 import com.intellij.testFramework.TestDataPath;
-import junit.framework.Test;
-import junit.framework.TestSuite;
-import org.junit.runner.RunWith;
+import org.jetbrains.jet.JUnit3RunnerWithInners;
 import org.jetbrains.jet.JetTestUtils;
 import org.jetbrains.jet.test.InnerTestClasses;
 import org.jetbrains.jet.test.TestMetadata;
-import org.jetbrains.jet.JUnit3RunnerWithInners;
+import org.junit.runner.RunWith;
 
 import java.io.File;
 import java.util.regex.Pattern;
@@ -33,407 +31,397 @@ import java.util.regex.Pattern;
 @TestMetadata("compiler/testData/objc/java")
 @TestDataPath("$PROJECT_ROOT")
 @InnerTestClasses({ObjCWithJavaTestGenerated.Arguments.class, ObjCWithJavaTestGenerated.Callbacks.class, ObjCWithJavaTestGenerated.Categories.class, ObjCWithJavaTestGenerated.Foundation.class, ObjCWithJavaTestGenerated.OtherTypes.class, ObjCWithJavaTestGenerated.Pointers.class, ObjCWithJavaTestGenerated.ReturnType.class})
-@RunWith(org.jetbrains.jet.JUnit3RunnerWithInners.class)
+@RunWith(JUnit3RunnerWithInners.class)
 public class ObjCWithJavaTestGenerated extends AbstractObjCWithJavaTest {
     public void testAllFilesPresentInJava() throws Exception {
         JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), new File("compiler/testData/objc/java"), Pattern.compile("^(.+)\\.kt$"), true);
     }
-    
+
     @TestMetadata("nil.kt")
     public void testNil() throws Exception {
         String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/java/nil.kt");
         doTest(fileName);
     }
-    
+
     @TestMetadata("noFinalizeInJava.kt")
     public void testNoFinalizeInJava() throws Exception {
         String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/java/noFinalizeInJava.kt");
         doTest(fileName);
     }
-    
+
     @TestMetadata("simpleClassObject.kt")
     public void testSimpleClassObject() throws Exception {
         String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/java/simpleClassObject.kt");
         doTest(fileName);
     }
-    
+
     @TestMetadata("compiler/testData/objc/java/arguments")
     @TestDataPath("$PROJECT_ROOT")
-    @RunWith(org.jetbrains.jet.JUnit3RunnerWithInners.class)
+    @RunWith(JUnit3RunnerWithInners.class)
     public static class Arguments extends AbstractObjCWithJavaTest {
         public void testAllFilesPresentInArguments() throws Exception {
             JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), new File("compiler/testData/objc/java/arguments"), Pattern.compile("^(.+)\\.kt$"), true);
         }
-        
+
         @TestMetadata("bool.kt")
         public void testBool() throws Exception {
             String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/java/arguments/bool.kt");
             doTest(fileName);
         }
-        
+
         @TestMetadata("char.kt")
         public void testChar() throws Exception {
             String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/java/arguments/char.kt");
             doTest(fileName);
         }
-        
+
         @TestMetadata("double.kt")
         public void testDouble() throws Exception {
             String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/java/arguments/double.kt");
             doTest(fileName);
         }
-        
+
         @TestMetadata("float.kt")
         public void testFloat() throws Exception {
             String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/java/arguments/float.kt");
             doTest(fileName);
         }
-        
+
         @TestMetadata("int.kt")
         public void testInt() throws Exception {
             String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/java/arguments/int.kt");
             doTest(fileName);
         }
-        
+
         @TestMetadata("long.kt")
         public void testLong() throws Exception {
             String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/java/arguments/long.kt");
             doTest(fileName);
         }
-        
+
         @TestMetadata("manyPrimitives.kt")
         public void testManyPrimitives() throws Exception {
             String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/java/arguments/manyPrimitives.kt");
             doTest(fileName);
         }
-        
+
         @TestMetadata("objcObject.kt")
         public void testObjcObject() throws Exception {
             String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/java/arguments/objcObject.kt");
             doTest(fileName);
         }
-        
+
         @TestMetadata("short.kt")
         public void testShort() throws Exception {
             String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/java/arguments/short.kt");
             doTest(fileName);
         }
-        
     }
-    
+
     @TestMetadata("compiler/testData/objc/java/callbacks")
     @TestDataPath("$PROJECT_ROOT")
     @InnerTestClasses({Callbacks.Arguments.class, Callbacks.ReturnType.class})
-    @RunWith(org.jetbrains.jet.JUnit3RunnerWithInners.class)
+    @RunWith(JUnit3RunnerWithInners.class)
     public static class Callbacks extends AbstractObjCWithJavaTest {
         public void testAllFilesPresentInCallbacks() throws Exception {
             JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), new File("compiler/testData/objc/java/callbacks"), Pattern.compile("^(.+)\\.kt$"), true);
         }
-        
+
         @TestMetadata("simple.kt")
         public void testSimple() throws Exception {
             String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/java/callbacks/simple.kt");
             doTest(fileName);
         }
-        
+
         @TestMetadata("simpleWithClosure.kt")
         public void testSimpleWithClosure() throws Exception {
             String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/java/callbacks/simpleWithClosure.kt");
             doTest(fileName);
         }
-        
+
         @TestMetadata("compiler/testData/objc/java/callbacks/arguments")
         @TestDataPath("$PROJECT_ROOT")
-        @RunWith(org.jetbrains.jet.JUnit3RunnerWithInners.class)
+        @RunWith(JUnit3RunnerWithInners.class)
         public static class Arguments extends AbstractObjCWithJavaTest {
             public void testAllFilesPresentInArguments() throws Exception {
                 JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), new File("compiler/testData/objc/java/callbacks/arguments"), Pattern.compile("^(.+)\\.kt$"), true);
             }
-            
+
             @TestMetadata("bool.kt")
             public void testBool() throws Exception {
                 String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/java/callbacks/arguments/bool.kt");
                 doTest(fileName);
             }
-            
+
             @TestMetadata("char.kt")
             public void testChar() throws Exception {
                 String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/java/callbacks/arguments/char.kt");
                 doTest(fileName);
             }
-            
+
             @TestMetadata("double.kt")
             public void testDouble() throws Exception {
                 String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/java/callbacks/arguments/double.kt");
                 doTest(fileName);
             }
-            
+
             @TestMetadata("float.kt")
             public void testFloat() throws Exception {
                 String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/java/callbacks/arguments/float.kt");
                 doTest(fileName);
             }
-            
+
             @TestMetadata("int.kt")
             public void testInt() throws Exception {
                 String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/java/callbacks/arguments/int.kt");
                 doTest(fileName);
             }
-            
+
             @TestMetadata("long.kt")
             public void testLong() throws Exception {
                 String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/java/callbacks/arguments/long.kt");
                 doTest(fileName);
             }
-            
+
             @TestMetadata("objcObject.kt")
             public void testObjcObject() throws Exception {
                 String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/java/callbacks/arguments/objcObject.kt");
                 doTest(fileName);
             }
-            
+
             @TestMetadata("objcSelector.kt")
             public void testObjcSelector() throws Exception {
                 String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/java/callbacks/arguments/objcSelector.kt");
                 doTest(fileName);
             }
-            
+
             @TestMetadata("pointer.kt")
             public void testPointer() throws Exception {
                 String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/java/callbacks/arguments/pointer.kt");
                 doTest(fileName);
             }
-            
+
             @TestMetadata("short.kt")
             public void testShort() throws Exception {
                 String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/java/callbacks/arguments/short.kt");
                 doTest(fileName);
             }
-            
         }
-        
+
         @TestMetadata("compiler/testData/objc/java/callbacks/returnType")
         @TestDataPath("$PROJECT_ROOT")
-        @RunWith(org.jetbrains.jet.JUnit3RunnerWithInners.class)
+        @RunWith(JUnit3RunnerWithInners.class)
         public static class ReturnType extends AbstractObjCWithJavaTest {
             public void testAllFilesPresentInReturnType() throws Exception {
                 JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), new File("compiler/testData/objc/java/callbacks/returnType"), Pattern.compile("^(.+)\\.kt$"), true);
             }
-            
+
             @TestMetadata("bool.kt")
             public void testBool() throws Exception {
                 String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/java/callbacks/returnType/bool.kt");
                 doTest(fileName);
             }
-            
+
             @TestMetadata("char.kt")
             public void testChar() throws Exception {
                 String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/java/callbacks/returnType/char.kt");
                 doTest(fileName);
             }
-            
+
             @TestMetadata("double.kt")
             public void testDouble() throws Exception {
                 String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/java/callbacks/returnType/double.kt");
                 doTest(fileName);
             }
-            
+
             @TestMetadata("float.kt")
             public void testFloat() throws Exception {
                 String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/java/callbacks/returnType/float.kt");
                 doTest(fileName);
             }
-            
+
             @TestMetadata("int.kt")
             public void testInt() throws Exception {
                 String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/java/callbacks/returnType/int.kt");
                 doTest(fileName);
             }
-            
+
             @TestMetadata("long.kt")
             public void testLong() throws Exception {
                 String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/java/callbacks/returnType/long.kt");
                 doTest(fileName);
             }
-            
+
             @TestMetadata("objcObject.kt")
             public void testObjcObject() throws Exception {
                 String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/java/callbacks/returnType/objcObject.kt");
                 doTest(fileName);
             }
-            
+
             @TestMetadata("short.kt")
             public void testShort() throws Exception {
                 String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/java/callbacks/returnType/short.kt");
                 doTest(fileName);
             }
-            
         }
-        
     }
-    
+
     @TestMetadata("compiler/testData/objc/java/categories")
     @TestDataPath("$PROJECT_ROOT")
-    @RunWith(org.jetbrains.jet.JUnit3RunnerWithInners.class)
+    @RunWith(JUnit3RunnerWithInners.class)
     public static class Categories extends AbstractObjCWithJavaTest {
         public void testAllFilesPresentInCategories() throws Exception {
             JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), new File("compiler/testData/objc/java/categories"), Pattern.compile("^(.+)\\.kt$"), true);
         }
-        
+
         @TestMetadata("callCategoryMetaclassMethod.kt")
         public void testCallCategoryMetaclassMethod() throws Exception {
             String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/java/categories/callCategoryMetaclassMethod.kt");
             doTest(fileName);
         }
-        
+
         @TestMetadata("callCategoryMethod.kt")
         public void testCallCategoryMethod() throws Exception {
             String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/java/categories/callCategoryMethod.kt");
             doTest(fileName);
         }
-        
     }
-    
+
     @TestMetadata("compiler/testData/objc/java/foundation")
     @TestDataPath("$PROJECT_ROOT")
-    @RunWith(org.jetbrains.jet.JUnit3RunnerWithInners.class)
+    @RunWith(JUnit3RunnerWithInners.class)
     public static class Foundation extends AbstractObjCWithJavaTest {
         public void testAllFilesPresentInFoundation() throws Exception {
             JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), new File("compiler/testData/objc/java/foundation"), Pattern.compile("^(.+)\\.kt$"), true);
         }
-        
+
         @TestMetadata("nsstringAsString.kt")
         public void testNsstringAsString() throws Exception {
             String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/java/foundation/nsstringAsString.kt");
             doTest(fileName);
         }
-        
     }
-    
+
     @TestMetadata("compiler/testData/objc/java/otherTypes")
     @TestDataPath("$PROJECT_ROOT")
-    @RunWith(org.jetbrains.jet.JUnit3RunnerWithInners.class)
+    @RunWith(JUnit3RunnerWithInners.class)
     public static class OtherTypes extends AbstractObjCWithJavaTest {
         public void testAllFilesPresentInOtherTypes() throws Exception {
             JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), new File("compiler/testData/objc/java/otherTypes"), Pattern.compile("^(.+)\\.kt$"), true);
         }
-        
+
         @TestMetadata("objcClass.kt")
         public void testObjcClass() throws Exception {
             String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/java/otherTypes/objcClass.kt");
             doTest(fileName);
         }
-        
+
         @TestMetadata("objcSelector.kt")
         public void testObjcSelector() throws Exception {
             String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/java/otherTypes/objcSelector.kt");
             doTest(fileName);
         }
-        
     }
-    
+
     @TestMetadata("compiler/testData/objc/java/pointers")
     @TestDataPath("$PROJECT_ROOT")
-    @RunWith(org.jetbrains.jet.JUnit3RunnerWithInners.class)
+    @RunWith(JUnit3RunnerWithInners.class)
     public static class Pointers extends AbstractObjCWithJavaTest {
         public void testAllFilesPresentInPointers() throws Exception {
             JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), new File("compiler/testData/objc/java/pointers"), Pattern.compile("^(.+)\\.kt$"), true);
         }
-        
+
         @TestMetadata("argNSString.kt")
         public void testArgNSString() throws Exception {
             String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/java/pointers/argNSString.kt");
             doTest(fileName);
         }
-        
+
         @TestMetadata("argString.kt")
         public void testArgString() throws Exception {
             String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/java/pointers/argString.kt");
             doTest(fileName);
         }
-        
+
         @TestMetadata("pointerToChar.kt")
         public void testPointerToChar() throws Exception {
             String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/java/pointers/pointerToChar.kt");
             doTest(fileName);
         }
-        
+
         @TestMetadata("returnString.kt")
         public void testReturnString() throws Exception {
             String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/java/pointers/returnString.kt");
             doTest(fileName);
         }
-        
     }
-    
+
     @TestMetadata("compiler/testData/objc/java/returnType")
     @TestDataPath("$PROJECT_ROOT")
-    @RunWith(org.jetbrains.jet.JUnit3RunnerWithInners.class)
+    @RunWith(JUnit3RunnerWithInners.class)
     public static class ReturnType extends AbstractObjCWithJavaTest {
         public void testAllFilesPresentInReturnType() throws Exception {
             JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), new File("compiler/testData/objc/java/returnType"), Pattern.compile("^(.+)\\.kt$"), true);
         }
-        
+
         @TestMetadata("bool.kt")
         public void testBool() throws Exception {
             String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/java/returnType/bool.kt");
             doTest(fileName);
         }
-        
+
         @TestMetadata("char.kt")
         public void testChar() throws Exception {
             String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/java/returnType/char.kt");
             doTest(fileName);
         }
-        
+
         @TestMetadata("double.kt")
         public void testDouble() throws Exception {
             String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/java/returnType/double.kt");
             doTest(fileName);
         }
-        
+
         @TestMetadata("float.kt")
         public void testFloat() throws Exception {
             String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/java/returnType/float.kt");
             doTest(fileName);
         }
-        
+
         @TestMetadata("int.kt")
         public void testInt() throws Exception {
             String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/java/returnType/int.kt");
             doTest(fileName);
         }
-        
+
         @TestMetadata("long.kt")
         public void testLong() throws Exception {
             String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/java/returnType/long.kt");
             doTest(fileName);
         }
-        
+
         @TestMetadata("nsstring.kt")
         public void testNsstring() throws Exception {
             String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/java/returnType/nsstring.kt");
             doTest(fileName);
         }
-        
+
         @TestMetadata("objcObject.kt")
         public void testObjcObject() throws Exception {
             String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/java/returnType/objcObject.kt");
             doTest(fileName);
         }
-        
+
         @TestMetadata("objcObjectIsCheck.kt")
         public void testObjcObjectIsCheck() throws Exception {
             String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/java/returnType/objcObjectIsCheck.kt");
             doTest(fileName);
         }
-        
+
         @TestMetadata("short.kt")
         public void testShort() throws Exception {
             String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/java/returnType/short.kt");
             doTest(fileName);
         }
-        
     }
-    
 }

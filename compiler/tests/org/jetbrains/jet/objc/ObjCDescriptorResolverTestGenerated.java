@@ -17,13 +17,11 @@
 package org.jetbrains.jet.objc;
 
 import com.intellij.testFramework.TestDataPath;
-import junit.framework.Test;
-import junit.framework.TestSuite;
-import org.junit.runner.RunWith;
+import org.jetbrains.jet.JUnit3RunnerWithInners;
 import org.jetbrains.jet.JetTestUtils;
 import org.jetbrains.jet.test.InnerTestClasses;
 import org.jetbrains.jet.test.TestMetadata;
-import org.jetbrains.jet.JUnit3RunnerWithInners;
+import org.junit.runner.RunWith;
 
 import java.io.File;
 import java.util.regex.Pattern;
@@ -33,199 +31,193 @@ import java.util.regex.Pattern;
 @TestMetadata("compiler/testData/objc/resolve")
 @TestDataPath("$PROJECT_ROOT")
 @InnerTestClasses({ObjCDescriptorResolverTestGenerated.Categories.class, ObjCDescriptorResolverTestGenerated.Hierarchy.class, ObjCDescriptorResolverTestGenerated.Methods.class, ObjCDescriptorResolverTestGenerated.Types.class})
-@RunWith(org.jetbrains.jet.JUnit3RunnerWithInners.class)
+@RunWith(JUnit3RunnerWithInners.class)
 public class ObjCDescriptorResolverTestGenerated extends AbstractObjCDescriptorResolverTest {
     public void testAllFilesPresentInResolve() throws Exception {
         JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), new File("compiler/testData/objc/resolve"), Pattern.compile("^(.+)\\.h$"), true);
     }
-    
+
     @TestMetadata("simpleCategory.h")
     public void testSimpleCategory() throws Exception {
         String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/resolve/simpleCategory.h");
         doTest(fileName);
     }
-    
+
     @TestMetadata("simpleClass.h")
     public void testSimpleClass() throws Exception {
         String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/resolve/simpleClass.h");
         doTest(fileName);
     }
-    
+
     @TestMetadata("simpleProtocol.h")
     public void testSimpleProtocol() throws Exception {
         String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/resolve/simpleProtocol.h");
         doTest(fileName);
     }
-    
+
     @TestMetadata("compiler/testData/objc/resolve/categories")
     @TestDataPath("$PROJECT_ROOT")
-    @RunWith(org.jetbrains.jet.JUnit3RunnerWithInners.class)
+    @RunWith(JUnit3RunnerWithInners.class)
     public static class Categories extends AbstractObjCDescriptorResolverTest {
         public void testAllFilesPresentInCategories() throws Exception {
             JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), new File("compiler/testData/objc/resolve/categories"), Pattern.compile("^(.+)\\.h$"), true);
         }
-        
+
         @TestMetadata("category.h")
         public void testCategory() throws Exception {
             String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/resolve/categories/category.h");
             doTest(fileName);
         }
-        
+
         @TestMetadata("twoCategories.h")
         public void testTwoCategories() throws Exception {
             String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/resolve/categories/twoCategories.h");
             doTest(fileName);
         }
-        
     }
-    
+
     @TestMetadata("compiler/testData/objc/resolve/hierarchy")
     @TestDataPath("$PROJECT_ROOT")
     @InnerTestClasses({Hierarchy.MetaclassInheritance.class})
-    @RunWith(org.jetbrains.jet.JUnit3RunnerWithInners.class)
+    @RunWith(JUnit3RunnerWithInners.class)
     public static class Hierarchy extends AbstractObjCDescriptorResolverTest {
         public void testAllFilesPresentInHierarchy() throws Exception {
             JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), new File("compiler/testData/objc/resolve/hierarchy"), Pattern.compile("^(.+)\\.h$"), true);
         }
-        
+
         @TestMetadata("classAdoptsProtocol.h")
         public void testClassAdoptsProtocol() throws Exception {
             String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/resolve/hierarchy/classAdoptsProtocol.h");
             doTest(fileName);
         }
-        
+
         @TestMetadata("classAdoptsTwoProtocols.h")
         public void testClassAdoptsTwoProtocols() throws Exception {
             String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/resolve/hierarchy/classAdoptsTwoProtocols.h");
             doTest(fileName);
         }
-        
+
         @TestMetadata("superClass.h")
         public void testSuperClass() throws Exception {
             String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/resolve/hierarchy/superClass.h");
             doTest(fileName);
         }
-        
+
         @TestMetadata("superProtocol.h")
         public void testSuperProtocol() throws Exception {
             String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/resolve/hierarchy/superProtocol.h");
             doTest(fileName);
         }
-        
+
         @TestMetadata("superTwoProtocols.h")
         public void testSuperTwoProtocols() throws Exception {
             String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/resolve/hierarchy/superTwoProtocols.h");
             doTest(fileName);
         }
-        
+
         @TestMetadata("compiler/testData/objc/resolve/hierarchy/metaclassInheritance")
         @TestDataPath("$PROJECT_ROOT")
-        @RunWith(org.jetbrains.jet.JUnit3RunnerWithInners.class)
+        @RunWith(JUnit3RunnerWithInners.class)
         public static class MetaclassInheritance extends AbstractObjCDescriptorResolverTest {
             public void testAllFilesPresentInMetaclassInheritance() throws Exception {
                 JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), new File("compiler/testData/objc/resolve/hierarchy/metaclassInheritance"), Pattern.compile("^(.+)\\.h$"), true);
             }
-            
+
             @TestMetadata("classAndProtocol.h")
             public void testClassAndProtocol() throws Exception {
                 String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/resolve/hierarchy/metaclassInheritance/classAndProtocol.h");
                 doTest(fileName);
             }
-            
+
             @TestMetadata("classAndProtocolSameName.h")
             public void testClassAndProtocolSameName() throws Exception {
                 String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/resolve/hierarchy/metaclassInheritance/classAndProtocolSameName.h");
                 doTest(fileName);
             }
-            
+
             @TestMetadata("protocol.h")
             public void testProtocol() throws Exception {
                 String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/resolve/hierarchy/metaclassInheritance/protocol.h");
                 doTest(fileName);
             }
-            
+
             @TestMetadata("simple.h")
             public void testSimple() throws Exception {
                 String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/resolve/hierarchy/metaclassInheritance/simple.h");
                 doTest(fileName);
             }
-            
+
             @TestMetadata("simpleWithMethods.h")
             public void testSimpleWithMethods() throws Exception {
                 String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/resolve/hierarchy/metaclassInheritance/simpleWithMethods.h");
                 doTest(fileName);
             }
-            
         }
-        
     }
-    
+
     @TestMetadata("compiler/testData/objc/resolve/methods")
     @TestDataPath("$PROJECT_ROOT")
-    @RunWith(org.jetbrains.jet.JUnit3RunnerWithInners.class)
+    @RunWith(JUnit3RunnerWithInners.class)
     public static class Methods extends AbstractObjCDescriptorResolverTest {
         public void testAllFilesPresentInMethods() throws Exception {
             JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), new File("compiler/testData/objc/resolve/methods"), Pattern.compile("^(.+)\\.h$"), true);
         }
-        
+
         @TestMetadata("classMethods.h")
         public void testClassMethods() throws Exception {
             String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/resolve/methods/classMethods.h");
             doTest(fileName);
         }
-        
+
         @TestMetadata("instanceMethods.h")
         public void testInstanceMethods() throws Exception {
             String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/resolve/methods/instanceMethods.h");
             doTest(fileName);
         }
-        
+
         @TestMetadata("protocolClassMethod.h")
         public void testProtocolClassMethod() throws Exception {
             String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/resolve/methods/protocolClassMethod.h");
             doTest(fileName);
         }
-        
     }
-    
+
     @TestMetadata("compiler/testData/objc/resolve/types")
     @TestDataPath("$PROJECT_ROOT")
-    @RunWith(org.jetbrains.jet.JUnit3RunnerWithInners.class)
+    @RunWith(JUnit3RunnerWithInners.class)
     public static class Types extends AbstractObjCDescriptorResolverTest {
         public void testAllFilesPresentInTypes() throws Exception {
             JetTestUtils.assertAllTestsPresentByMetadata(this.getClass(), new File("compiler/testData/objc/resolve/types"), Pattern.compile("^(.+)\\.h$"), true);
         }
-        
+
         @TestMetadata("functionTypes.h")
         public void testFunctionTypes() throws Exception {
             String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/resolve/types/functionTypes.h");
             doTest(fileName);
         }
-        
+
         @TestMetadata("objcPointers.h")
         public void testObjcPointers() throws Exception {
             String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/resolve/types/objcPointers.h");
             doTest(fileName);
         }
-        
+
         @TestMetadata("pointers.h")
         public void testPointers() throws Exception {
             String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/resolve/types/pointers.h");
             doTest(fileName);
         }
-        
+
         @TestMetadata("primitives.h")
         public void testPrimitives() throws Exception {
             String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/resolve/types/primitives.h");
             doTest(fileName);
         }
-        
+
         @TestMetadata("typedef.h")
         public void testTypedef() throws Exception {
             String fileName = JetTestUtils.navigationMetadata("compiler/testData/objc/resolve/types/typedef.h");
             doTest(fileName);
         }
-        
     }
-    
 }
