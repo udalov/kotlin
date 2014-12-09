@@ -19,12 +19,14 @@ package org.jetbrains.jet.lang.resolve.objc;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Key;
 import kotlin.Function0;
+import kotlin.Function1;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.lang.descriptors.ModuleDescriptor;
 import org.jetbrains.jet.lang.descriptors.PackageFragmentDescriptor;
 import org.jetbrains.jet.lang.descriptors.PackageFragmentProvider;
 import org.jetbrains.jet.lang.descriptors.impl.MutablePackageFragmentDescriptor;
 import org.jetbrains.jet.lang.resolve.name.FqName;
+import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.resolve.objc.builtins.ObjCBuiltIns;
 import org.jetbrains.jet.storage.LockBasedStorageManager;
 import org.jetbrains.jet.storage.NotNullLazyValue;
@@ -85,7 +87,7 @@ public class ObjCPackageFragmentProvider implements PackageFragmentProvider {
 
     @NotNull
     @Override
-    public Collection<FqName> getSubPackagesOf(@NotNull FqName fqName) {
+    public Collection<FqName> getSubPackagesOf(@NotNull FqName fqName, @NotNull Function1<? super Name, ? extends Boolean> nameFilter) {
         // TODO?
         return Collections.emptySet();
     }

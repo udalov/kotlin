@@ -46,7 +46,7 @@ public class ObjCClassDescriptor extends MutableClassDescriptor {
         setModality(modality);
         setVisibility(Visibilities.PUBLIC);
 
-        WritableScopeImpl scope = new WritableScopeImpl(JetScope.EMPTY, this, RedeclarationHandler.THROW_EXCEPTION, "Obj-C class");
+        WritableScopeImpl scope = new WritableScopeImpl(JetScope.Empty.INSTANCE$, this, RedeclarationHandler.THROW_EXCEPTION, "Obj-C class");
         scope.changeLockLevel(WritableScope.LockLevel.BOTH);
         setScopeForMemberLookup(scope);
         setTypeParameterDescriptors(Collections.<TypeParameterDescriptor>emptyList());

@@ -17,7 +17,7 @@
 package org.jetbrains.jet.objc;
 
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.jet.analyzer.AnalyzeExhaust;
+import org.jetbrains.jet.analyzer.AnalysisResult;
 import org.jetbrains.jet.cli.jvm.compiler.JetCoreEnvironment;
 import org.jetbrains.jet.lang.descriptors.PackageViewDescriptor;
 import org.jetbrains.jet.lang.psi.JetFile;
@@ -27,7 +27,7 @@ import java.io.File;
 import java.util.Collections;
 
 import static org.jetbrains.jet.objc.ObjCTestUtil.createEnvironment;
-import static org.jetbrains.jet.objc.ObjCTestUtil.extractObjCPackageFromAnalyzeExhaust;
+import static org.jetbrains.jet.objc.ObjCTestUtil.extractObjCPackageFromAnalysisResult;
 import static org.jetbrains.jet.test.util.RecursiveDescriptorComparator.DONT_INCLUDE_METHODS_OF_OBJECT;
 import static org.jetbrains.jet.test.util.RecursiveDescriptorComparator.validateAndCompareDescriptorWithFile;
 
@@ -37,8 +37,8 @@ public abstract class AbstractObjCDescriptorResolverTest extends TestCaseWithTmp
         File expected = new File(header.substring(0, header.length() - ".h".length()) + ".txt");
 
         JetCoreEnvironment environment = createEnvironment(getTestRootDisposable());
-        AnalyzeExhaust analyzeExhaust = ObjCTestUtil.analyze(environment.getProject(), Collections.<JetFile>emptyList(), new File(header));
-        PackageViewDescriptor descriptor = extractObjCPackageFromAnalyzeExhaust(analyzeExhaust);
+        AnalysisResult analysisResult = ObjCTestUtil.analyze(environment.getProject(), Collections.<JetFile>emptyList(), new File(header));
+        PackageViewDescriptor descriptor = extractObjCPackageFromAnalysisResult(analysisResult);
 
         // TODO: add a configuration not to show INVISIBLE_FAKE members
 

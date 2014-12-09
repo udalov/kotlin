@@ -20,7 +20,7 @@ import com.google.common.base.Predicates;
 import com.intellij.openapi.project.Project;
 import com.intellij.psi.PsiFile;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.jet.analyzer.AnalyzeExhaust;
+import org.jetbrains.jet.analyzer.AnalysisResult;
 import org.jetbrains.jet.context.ContextPackage;
 import org.jetbrains.jet.context.GlobalContextImpl;
 import org.jetbrains.jet.di.InjectorForTopDownAnalyzerForObjC;
@@ -29,30 +29,30 @@ import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.resolve.*;
 import org.jetbrains.jet.lang.resolve.java.TopDownAnalyzerFacadeForJVM;
 import org.jetbrains.jet.lang.resolve.java.mapping.JavaToKotlinClassMap;
+import org.jetbrains.jet.lang.resolve.lazy.declarations.FileBasedDeclarationProviderFactory;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
+import java.util.*;
 
 public class AnalyzerFacadeForObjC {
     @NotNull
-    public static AnalyzeExhaust analyzeFiles(@NotNull Project project, @NotNull Collection<JetFile> files) {
+    public static AnalysisResult analyzeFiles(@NotNull Project project, @NotNull Collection<JetFile> files) {
         List<ImportPath> imports = new ArrayList<ImportPath>();
         imports.add(new ImportPath("kotlin.jvm.objc.*"));
         imports.addAll(TopDownAnalyzerFacadeForJVM.DEFAULT_IMPORTS);
 
         // TODO: shouldn't depend on Java, create another module for this analyzer facade (ObjC + JVM)
-        ModuleDescriptorImpl module = new ModuleDescriptorImpl(Name.special("<module>"), imports, JavaToKotlinClassMap.getInstance());
+        ModuleDescriptorImpl module = new ModuleDescriptorImpl(Name.special("<module>"), imports, JavaToKotlinClassMap.INSTANCE);
         module.addDependencyOnModule(KotlinBuiltIns.getInstance().getBuiltInsModule());
         module.addDependencyOnModule(module);
 
         GlobalContextImpl global = ContextPackage.GlobalContext();
         BindingTrace trace = new BindingTraceContext();
+        FileBasedDeclarationProviderFactory declarationProviderFactory =
+                new FileBasedDeclarationProviderFactory(global.getStorageManager(), files);
         InjectorForTopDownAnalyzerForObjC injector = new InjectorForTopDownAnalyzerForObjC(
-                project, global, new ObservableBindingTrace(trace), module
+                project, global, new ObservableBindingTrace(trace), module, declarationProviderFactory
         );
 
         TopDownAnalysisParameters topDownAnalysisParameters = TopDownAnalysisParameters.create(
@@ -60,11 +60,11 @@ public class AnalyzerFacadeForObjC {
         );
 
         try {
-            injector.getTopDownAnalyzer().analyzeFiles(topDownAnalysisParameters, files, Arrays.asList(
+            injector.getLazyTopDownAnalyzer().analyzeFiles(topDownAnalysisParameters, files, Arrays.asList(
                     injector.getJavaDescriptorResolver().getPackageFragmentProvider(),
                     injector.getObjCPackageFragmentProvider()
             ));
-            return AnalyzeExhaust.success(trace.getBindingContext(), module);
+            return AnalysisResult.success(trace.getBindingContext(), module);
         }
         finally {
             injector.destroy();

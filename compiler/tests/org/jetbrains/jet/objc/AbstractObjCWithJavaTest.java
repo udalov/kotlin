@@ -21,7 +21,7 @@ import com.intellij.openapi.util.io.FileUtil;
 import com.intellij.testFramework.UsefulTestCase;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.JetTestUtils;
-import org.jetbrains.jet.analyzer.AnalyzeExhaust;
+import org.jetbrains.jet.analyzer.AnalysisResult;
 import org.jetbrains.jet.cli.common.output.outputUtils.OutputUtilsPackage;
 import org.jetbrains.jet.cli.jvm.compiler.JetCoreEnvironment;
 import org.jetbrains.jet.codegen.ClassBuilderFactories;
@@ -105,14 +105,14 @@ public abstract class AbstractObjCWithJavaTest extends UsefulTestCase {
                 createJetFile(kotlinSource),
                 createJetFile(KOTLIN_FOUNDATION_SOURCE_PATH)
         );
-        AnalyzeExhaust analyzeExhaust = analyze(project, files, headerFile);
+        AnalysisResult analysisResult = analyze(project, files, headerFile);
 
-        PackageViewDescriptor objcPackage = extractObjCPackageFromAnalyzeExhaust(analyzeExhaust);
+        PackageViewDescriptor objcPackage = extractObjCPackageFromAnalysisResult(analysisResult);
 
         ObjCDescriptorCodegen codegen = new ObjCDescriptorCodegen();
         codegen.generate(objcPackage, tmpDir, dylib);
 
-        generate(files, analyzeExhaust, codegen.getBindingContext());
+        generate(files, analysisResult, codegen.getBindingContext());
 
         return runCompiledKotlinClass();
     }
@@ -153,11 +153,11 @@ public abstract class AbstractObjCWithJavaTest extends UsefulTestCase {
         runProcess(String.format("clang -ObjC -dynamiclib -framework Foundation %s -o %s", filename, out));
     }
 
-    private void generate(@NotNull List<JetFile> files, @NotNull AnalyzeExhaust analyzeExhaust, @NotNull BindingContext objcBinding) {
-        BindingContext context = CompositeBindingContext.OBJECT$.create(Arrays.asList(analyzeExhaust.getBindingContext(), objcBinding));
+    private void generate(@NotNull List<JetFile> files, @NotNull AnalysisResult analysisResult, @NotNull BindingContext objcBinding) {
+        BindingContext context = CompositeBindingContext.OBJECT$.create(Arrays.asList(analysisResult.getBindingContext(), objcBinding));
 
         GenerationState state =
-                new GenerationState(project, ClassBuilderFactories.TEST, analyzeExhaust.getModuleDescriptor(), context, files);
+                new GenerationState(project, ClassBuilderFactories.TEST, analysisResult.getModuleDescriptor(), context, files);
         KotlinCodegenFacade.compileCorrectFiles(state, CompilationErrorHandler.THROW_EXCEPTION);
 
         OutputUtilsPackage.writeAllTo(state.getFactory(), tmpDir);

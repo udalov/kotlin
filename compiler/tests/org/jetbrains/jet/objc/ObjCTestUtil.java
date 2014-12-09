@@ -23,7 +23,8 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.ConfigurationKind;
 import org.jetbrains.jet.JetTestUtils;
 import org.jetbrains.jet.TestJdkKind;
-import org.jetbrains.jet.analyzer.AnalyzeExhaust;
+import org.jetbrains.jet.analyzer.AnalysisResult;
+import org.jetbrains.jet.cli.jvm.compiler.EnvironmentConfigFiles;
 import org.jetbrains.jet.cli.jvm.compiler.JetCoreEnvironment;
 import org.jetbrains.jet.lang.descriptors.PackageViewDescriptor;
 import org.jetbrains.jet.lang.psi.JetFile;
@@ -41,8 +42,11 @@ public class ObjCTestUtil {
 
     @NotNull
     public static JetCoreEnvironment createEnvironment(@NotNull Disposable disposable) {
-        return JetCoreEnvironment.createForTests(disposable, JetTestUtils
-                .compilerConfigurationForTests(ConfigurationKind.ALL, TestJdkKind.MOCK_JDK, getKotlinObjCRuntimeJarFile()));
+        return JetCoreEnvironment.createForTests(
+                disposable,
+                JetTestUtils.compilerConfigurationForTests(ConfigurationKind.ALL, TestJdkKind.MOCK_JDK, getKotlinObjCRuntimeJarFile()),
+                EnvironmentConfigFiles.JVM_CONFIG_FILES
+        );
     }
 
     @NotNull
@@ -53,21 +57,21 @@ public class ObjCTestUtil {
     }
 
     @NotNull
-    public static AnalyzeExhaust analyze(@NotNull Project project, @NotNull List<JetFile> files, @NotNull File headerFile) {
+    public static AnalysisResult analyze(@NotNull Project project, @NotNull List<JetFile> files, @NotNull File headerFile) {
         project.putUserData(ObjCPackageFragmentProvider.OBJC_PROJECT_HEADER_KEY, headerFile);
 
-        AnalyzeExhaust analyzeExhaust = AnalyzerFacadeForObjC.analyzeFiles(project, files);
-        analyzeExhaust.throwIfError();
-        AnalyzingUtils.throwExceptionOnErrors(analyzeExhaust.getBindingContext());
+        AnalysisResult analysisResult = AnalyzerFacadeForObjC.analyzeFiles(project, files);
+        analysisResult.throwIfError();
+        AnalyzingUtils.throwExceptionOnErrors(analysisResult.getBindingContext());
 
-        return analyzeExhaust;
+        return analysisResult;
     }
 
     @NotNull
-    public static PackageViewDescriptor extractObjCPackageFromAnalyzeExhaust(@NotNull AnalyzeExhaust analyzeExhaust) {
+    public static PackageViewDescriptor extractObjCPackageFromAnalysisResult(@NotNull AnalysisResult analysisResult) {
         PackageViewDescriptor objcPackage =
-                analyzeExhaust.getModuleDescriptor().getPackage(ObjCPackageFragmentProvider.OBJC_PACKAGE_FQ_NAME);
-        assert objcPackage != null : "Obj-C package wasn't resolved: " + analyzeExhaust.getModuleDescriptor();
+                analysisResult.getModuleDescriptor().getPackage(ObjCPackageFragmentProvider.OBJC_PACKAGE_FQ_NAME);
+        assert objcPackage != null : "Obj-C package wasn't resolved: " + analysisResult.getModuleDescriptor();
         return objcPackage;
     }
 

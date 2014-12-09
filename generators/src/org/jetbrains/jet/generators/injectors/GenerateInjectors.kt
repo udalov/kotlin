@@ -140,31 +140,37 @@ private fun generatorForTopDownAnalyzerForJvm() =
 
 private fun generatorForTopDownAnalyzerForObjC() =
         generator("objc/frontend.objc/src", "org.jetbrains.jet.di", "InjectorForTopDownAnalyzerForObjC") {
-            implementInterface(javaClass<InjectorForTopDownAnalyzer>())
-            commonForTopDownAnalyzer()
+            parameter<Project>()
+            parameter<GlobalContext>(useAsContext = true)
+            parameter<BindingTrace>()
+            parameter<ModuleDescriptorImpl>(name = "module", useAsContext = true)
+            parameter<DeclarationProviderFactory>()
 
-            publicField(javaClass<JavaDescriptorResolver>())
-            publicField(javaClass<ObjCPackageFragmentProvider>())
-            publicField(javaClass<ObjCBuiltIns>())
+            publicField<LazyTopDownAnalyzer>()
+            publicField<JavaDescriptorResolver>()
 
-            field(javaClass<AdditionalCheckerProvider>(),
-                  init = GivenExpression(javaClass<AdditionalCheckerProvider.Empty>().getCanonicalName() + ".INSTANCE$"))
+            publicField<ObjCPackageFragmentProvider>()
+            field<ObjCBuiltIns>()
 
-            field(javaClass <GlobalSearchScope>(),
-                  init = GivenExpression(javaClass<GlobalSearchScope>().getName() + ".allScope(project)"))
-            fields(
-                    javaClass<JavaClassFinderImpl>(),
-                    javaClass<TraceBasedExternalSignatureResolver>(),
-                    javaClass<TraceBasedJavaResolverCache>(),
-                    javaClass<TraceBasedErrorReporter>(),
-                    javaClass<PsiBasedMethodSignatureChecker>(),
-                    javaClass<PsiBasedExternalAnnotationResolver>(),
-                    javaClass<MutablePackageFragmentProvider>(),
-                    javaClass<JavaPropertyInitializerEvaluatorImpl>(),
-                    javaClass<JavaSourceElementFactoryImpl>(),
-                    javaClass<SingleModuleClassResolver>()
-            )
-            field(javaClass<VirtualFileFinder>(), init = GivenExpression(javaClass<VirtualFileFinder>().getName() + ".SERVICE.getInstance(project)"))
+            field<JavaDeclarationCheckerProvider>()
+            field<DeserializationComponentsForJava>()
+            field<ResolveSession>()
+
+            field<GlobalSearchScope>(init = GivenExpression(javaClass<GlobalSearchScope>().getName() + ".allScope(project)"))
+            field<JavaClassFinderImpl>()
+            field<TraceBasedExternalSignatureResolver>()
+            field<TraceBasedJavaResolverCache>()
+            field<TraceBasedErrorReporter>()
+            field<PsiBasedMethodSignatureChecker>()
+            field<PsiBasedExternalAnnotationResolver>()
+            field<MutablePackageFragmentProvider>()
+            field<JavaPropertyInitializerEvaluatorImpl>()
+            field<SamConversionResolverImpl>()
+            field<JavaSourceElementFactoryImpl>()
+            field<JavaFlexibleTypeCapabilitiesProvider>()
+            field<SingleModuleClassResolver>()
+
+            field<VirtualFileFinder>(init = GivenExpression(javaClass<VirtualFileFinder>().getName() + ".SERVICE.getInstance(project)"))
         }
 
 private fun generatorForJavaDescriptorResolver() =
