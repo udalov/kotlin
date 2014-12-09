@@ -604,9 +604,10 @@
         <copy file="dependencies/annotations/kotlin-android-sdk-annotations.jar" todir="${kotlin-home}/lib"/>
     </target>
 
-    <target name="objcRuntime">
+    <target name="objc-runtime">
       <cleandir dir="${output}/classes/runtime.objc"/>
-      <javac2 destdir="${output}/classes/runtime.objc" debug="true" debuglevel="lines,vars,source" includeAntRuntime="false" source="${java.target}" target="${java.target}">
+      <javac2 destdir="${output}/classes/runtime.objc" debug="true" debuglevel="lines,vars,source" includeAntRuntime="false"
+              source="${java.target}" target="${java.target}">
           <withKotlin/>
           <src path="${basedir}/objc/runtime.objc/src"/>
           <classpath refid="classpath"/>
@@ -753,12 +754,12 @@
     <target name="runtime" depends="builtins,stdlib,pack-runtime,pack-runtime-sources"/>
 
     <target name="dist"
-            depends="clean,init,prepare-dist,preloader,serialize-builtins,compiler,compiler-sources,ant-tools,jdk-annotations,android-sdk-annotations,runtime,objcRuntime,jslib"
+            depends="clean,init,prepare-dist,preloader,serialize-builtins,compiler,compiler-sources,ant-tools,jdk-annotations,android-sdk-annotations,runtime,objc-runtime,jslib"
             description="Builds redistributables from sources"/>
 
     <!-- builds everything, but classes are reused from project out dir, doesn't run proguard and javadoc -->
     <target name="dist-quick"
-            depends="clean,init,prepare-dist,preloader,serialize-builtins,compiler-quick,ant-tools,jdk-annotations,android-sdk-annotations,runtime,objcRuntime,jslib"/>
+            depends="clean,init,prepare-dist,preloader,serialize-builtins,compiler-quick,ant-tools,jdk-annotations,android-sdk-annotations,runtime,objc-runtime,jslib"/>
 
     <target name="dist-quick-compiler-only"
             depends="init,prepare-dist,preloader,serialize-builtins,compiler-quick"
