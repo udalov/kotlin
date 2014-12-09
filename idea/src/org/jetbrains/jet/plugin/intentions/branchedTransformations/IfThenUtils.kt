@@ -27,7 +27,6 @@ import com.intellij.openapi.editor.Editor
 import org.jetbrains.jet.plugin.refactoring.introduce.introduceVariable.KotlinIntroduceVariableHandler
 import org.jetbrains.jet.lang.psi.JetSafeQualifiedExpression
 import org.jetbrains.jet.lang.resolve.BindingContext
-import org.jetbrains.jet.plugin.project.AnalyzerFacadeWithCache
 import com.intellij.psi.PsiElement
 import org.jetbrains.jet.plugin.refactoring.inline.KotlinInlineValHandler
 import org.jetbrains.jet.lang.psi.JetSimpleNameExpression
@@ -43,6 +42,8 @@ import org.jetbrains.jet.lang.psi.JetCallExpression
 import org.jetbrains.jet.lang.resolve.DescriptorUtils
 import org.jetbrains.jet.lang.psi.JetElement
 import org.jetbrains.jet.lang.resolve.bindingContextUtil.isUsedAsStatement
+import org.jetbrains.jet.lang.psi.JetProperty
+import org.jetbrains.jet.plugin.caches.resolve.analyze
 
 val NULL_PTR_EXCEPTION = "NullPointerException"
 val NULL_PTR_EXCEPTION_FQ = "java.lang.NullPointerException"
@@ -72,7 +73,7 @@ fun JetExpression.extractExpressionIfSingle(): JetExpression? {
     return innerExpression
 }
 
-fun JetExpression.isStatement(): Boolean = isUsedAsStatement(AnalyzerFacadeWithCache.getContextForElement(this))
+fun JetExpression.isStatement(): Boolean = isUsedAsStatement(this.analyze())
 
 fun JetBinaryExpression.getNonNullExpression(): JetExpression? = when {
     this.getLeft()?.isNullExpression() == false ->
@@ -93,7 +94,7 @@ fun JetThrowExpression.throwsNullPointerExceptionWithNoArguments(): Boolean {
     val thrownExpression = this.getThrownExpression()
     if (thrownExpression !is JetCallExpression) return false
 
-    val context = AnalyzerFacadeWithCache.getContextForElement(this)
+    val context = this.analyze()
     val descriptor = context.get(BindingContext.REFERENCE_TARGET, thrownExpression.getCalleeExpression() as JetSimpleNameExpression)
     val declDescriptor = descriptor?.getContainingDeclaration()
     if (declDescriptor == null) return false
@@ -141,6 +142,8 @@ fun JetElement.replace(expressionAsString: String): PsiElement =
 fun JetSimpleNameExpression.inlineIfDeclaredLocallyAndOnlyUsedOnceWithPrompt(editor: Editor) {
     val declaration = this.getReference()?.resolve() as JetDeclaration
 
+    if (declaration !is JetProperty) return
+
     val enclosingElement = JetPsiUtil.getEnclosingElementForLocalDeclaration(declaration)
     val isLocal = enclosingElement != null
     if (!isLocal) return
@@ -166,7 +169,7 @@ fun JetPostfixExpression.inlineBaseExpressionIfApplicableWithPrompt(editor: Edit
 }
 
 fun JetExpression.isStableVariable(): Boolean {
-    val context = AnalyzerFacadeWithCache.getContextForElement(this)
+    val context = this.analyze()
     val descriptor = BindingContextUtils.extractVariableDescriptorIfAny(context, this, false)
     return descriptor is VariableDescriptor && DataFlowValueFactory.isStableVariable(descriptor)
 }

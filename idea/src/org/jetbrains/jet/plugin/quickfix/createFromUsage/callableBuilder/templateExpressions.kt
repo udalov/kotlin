@@ -15,6 +15,16 @@ import java.util.HashSet
 import org.jetbrains.jet.plugin.refactoring.CollectingValidator
 import com.intellij.codeInsight.lookup.LookupElementBuilder
 import org.jetbrains.jet.lang.types.JetType
+import org.jetbrains.jet.lang.psi.JetCallableDeclaration
+import java.util.Collections
+import org.jetbrains.jet.lang.descriptors.TypeParameterDescriptor
+import org.jetbrains.jet.lang.descriptors.FunctionDescriptor
+import org.jetbrains.jet.lang.descriptors.ClassDescriptor
+import org.jetbrains.jet.lang.descriptors.ClassKind
+import org.jetbrains.jet.lang.psi.JetClass
+import org.jetbrains.jet.lang.psi.JetParameterList
+import org.jetbrains.jet.lang.psi.JetNamedDeclaration
+import org.jetbrains.jet.lang.psi.psiUtil.getStrictParentOfType
 
 /**
  * Special <code>Expression</code> for parameter names based on its type.
@@ -44,11 +54,15 @@ private class ParameterNameExpression(
         val editor = context.getEditor()!!
         val file = PsiDocumentManager.getInstance(project).getPsiFile(editor.getDocument()) as JetFile
         val elementAt = file.findElementAt(offset)
-        val func = PsiTreeUtil.getParentOfType(elementAt, javaClass<JetFunction>()) ?: return array<LookupElement>()
-        val parameterList = func.getValueParameterList()!!
+        val declaration = PsiTreeUtil.getParentOfType(elementAt, javaClass<JetFunction>(), javaClass<JetClass>()) ?: return array<LookupElement>()
+        val parameterList = when (declaration) {
+            is JetFunction -> declaration.getValueParameterList()
+            is JetClass -> declaration.getPrimaryConstructorParameterList()
+            else -> throw AssertionError("Unexpected declaration: ${declaration.getText()}")
+        }
 
         // add names based on selected type
-        val parameter = PsiTreeUtil.getParentOfType(elementAt, javaClass<JetParameter>())
+        val parameter = elementAt.getStrictParentOfType<JetParameter>()
         if (parameter != null) {
             val parameterTypeRef = parameter.getTypeReference()
             if (parameterTypeRef != null) {
@@ -76,11 +90,24 @@ private class ParameterNameExpression(
 }
 
 /**
- * An <code>Expression</code> for type references.
+ * An <code>Expression</code> for type references and delegation specifiers.
  */
-private class TypeExpression(public val typeCandidates: List<TypeCandidate>) : Expression() {
-    private val cachedLookupElements: Array<LookupElement> =
-            typeCandidates.map { LookupElementBuilder.create(it, it.renderedType!!) }.copyToArray()
+private abstract class TypeExpression(public val typeCandidates: List<TypeCandidate>) : Expression() {
+    class ForTypeReference(typeCandidates: List<TypeCandidate>) : TypeExpression(typeCandidates) {
+        override val cachedLookupElements: Array<LookupElement> =
+                typeCandidates.map { LookupElementBuilder.create(it, it.renderedType!!) }.copyToArray()
+    }
+
+    class ForDelegationSpecifier(typeCandidates: List<TypeCandidate>) : TypeExpression(typeCandidates) {
+        override val cachedLookupElements: Array<LookupElement> =
+                typeCandidates.map {
+                    val descriptor = it.theType.getConstructor().getDeclarationDescriptor() as ClassDescriptor
+                    val text = it.renderedType!! + if (descriptor.getKind() == ClassKind.TRAIT) "" else "()"
+                    LookupElementBuilder.create(it, text)
+                }.copyToArray()
+    }
+
+    protected abstract val cachedLookupElements: Array<LookupElement>
 
     override fun calculateResult(context: ExpressionContext?): Result {
         val lookupItems = calculateLookupItems(context)
@@ -90,16 +117,18 @@ private class TypeExpression(public val typeCandidates: List<TypeCandidate>) : E
     override fun calculateQuickResult(context: ExpressionContext?) = calculateResult(context)
 
     override fun calculateLookupItems(context: ExpressionContext?) = cachedLookupElements
-
-    public fun getTypeFromSelection(selection: String): JetType? =
-            typeCandidates.firstOrNull { it.renderedType == selection }?.theType
 }
 
 /**
  * A sort-of dummy <code>Expression</code> for parameter lists, to allow us to update the parameter list as the user makes selections.
  */
-private class TypeParameterListExpression(private val typeParameterNamesFromReceiverType: Array<String>,
-                                          private val parameterTypeToTypeParameterNamesMap: Map<String, Array<String>>) : Expression() {
+private class TypeParameterListExpression(private val mandatoryTypeParameters: List<RenderedTypeParameter>,
+                                          private val parameterTypeToTypeParameterNamesMap: Map<String, List<RenderedTypeParameter>>,
+                                          insertLeadingSpace: Boolean) : Expression() {
+    private val prefix = if (insertLeadingSpace) " <" else "<"
+
+    public var currentTypeParameters: List<TypeParameterDescriptor> = Collections.emptyList()
+        private set
 
     override fun calculateResult(context: ExpressionContext?): Result {
         context!!
@@ -110,29 +139,34 @@ private class TypeParameterListExpression(private val typeParameterNamesFromRece
         val editor = context.getEditor()!!
         val file = PsiDocumentManager.getInstance(project).getPsiFile(editor.getDocument()) as JetFile
         val elementAt = file.findElementAt(offset)
-        val func = PsiTreeUtil.getParentOfType(elementAt, javaClass<JetFunction>()) ?: return TextResult("")
-        val parameters = func.getValueParameters()
+        val declaration = elementAt.getStrictParentOfType<JetNamedDeclaration>() ?: return TextResult("")
 
-        val typeParameterNames = LinkedHashSet<String>()
-        typeParameterNames.addAll(typeParameterNamesFromReceiverType)
-        for (parameter in parameters) {
+        val renderedTypeParameters = LinkedHashSet<RenderedTypeParameter>()
+        renderedTypeParameters.addAll(mandatoryTypeParameters)
+        for (parameter in declaration.getValueParameters()) {
             val parameterTypeRef = parameter.getTypeReference()
             if (parameterTypeRef != null) {
                 val typeParameterNamesFromParameter = parameterTypeToTypeParameterNamesMap[parameterTypeRef.getText()]
                 if (typeParameterNamesFromParameter != null) {
-                    typeParameterNames.addAll(typeParameterNamesFromParameter)
+                    renderedTypeParameters.addAll(typeParameterNamesFromParameter)
                 }
             }
         }
-        val returnTypeRef = func.getTypeReference()
+        val returnTypeRef = declaration.getReturnTypeReference()
         if (returnTypeRef != null) {
             val typeParameterNamesFromReturnType = parameterTypeToTypeParameterNamesMap[returnTypeRef.getText()]
             if (typeParameterNamesFromReturnType != null) {
-                typeParameterNames.addAll(typeParameterNamesFromReturnType)
+                renderedTypeParameters.addAll(typeParameterNamesFromReturnType)
             }
         }
 
-        return TextResult(if (typeParameterNames.empty) "" else typeParameterNames.joinToString(", ", " <", ">"))
+
+        val sortedRenderedTypeParameters = renderedTypeParameters.sortBy { if (it.fake) it.typeParameter.getIndex() else -1}
+        currentTypeParameters = sortedRenderedTypeParameters.map { it.typeParameter }
+
+        return TextResult(
+                if (sortedRenderedTypeParameters.empty) "" else sortedRenderedTypeParameters.map { it.text }.joinToString(", ", prefix, ">")
+        )
     }
 
     override fun calculateQuickResult(context: ExpressionContext?): Result = calculateResult(context)

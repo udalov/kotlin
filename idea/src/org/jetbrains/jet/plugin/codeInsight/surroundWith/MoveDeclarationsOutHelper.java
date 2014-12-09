@@ -29,10 +29,10 @@ import org.jetbrains.jet.lang.descriptors.VariableDescriptor;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.types.JetType;
+import org.jetbrains.jet.plugin.caches.resolve.ResolvePackage;
 import org.jetbrains.jet.plugin.codeInsight.CodeInsightUtils;
 import org.jetbrains.jet.plugin.codeInsight.ShortenReferences;
-import org.jetbrains.jet.plugin.project.AnalyzerFacadeWithCache;
-import org.jetbrains.jet.renderer.DescriptorRenderer;
+import org.jetbrains.jet.plugin.util.IdeDescriptorRenderers;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -116,7 +116,7 @@ public class MoveDeclarationsOutHelper {
 
     @NotNull
     private static JetType getPropertyType(@NotNull JetProperty property) {
-        BindingContext expressionBindingContext = AnalyzerFacadeWithCache.getContextForElement(property);
+        BindingContext expressionBindingContext = ResolvePackage.analyze(property);
 
         VariableDescriptor propertyDescriptor = expressionBindingContext.get(BindingContext.VARIABLE, property);
         assert propertyDescriptor != null : "Couldn't resolve property to property descriptor " + property.getText();
@@ -131,7 +131,7 @@ public class MoveDeclarationsOutHelper {
             typeString = typeRef.getText();
         }
         else if (!propertyType.isError()) {
-            typeString = DescriptorRenderer.FQ_NAMES_IN_TYPES.renderType(propertyType);
+            typeString = IdeDescriptorRenderers.SOURCE_CODE.renderType(propertyType);
         }
 
         return JetPsiFactory(property).createProperty(property.getName(), typeString, property.isVar(), initializer);

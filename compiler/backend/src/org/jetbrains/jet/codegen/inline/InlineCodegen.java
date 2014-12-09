@@ -29,9 +29,7 @@ import org.jetbrains.jet.codegen.state.GenerationState;
 import org.jetbrains.jet.codegen.state.JetTypeMapper;
 import org.jetbrains.jet.descriptors.serialization.descriptors.DeserializedSimpleFunctionDescriptor;
 import org.jetbrains.jet.lang.descriptors.*;
-import org.jetbrains.jet.lang.descriptors.impl.AnonymousFunctionDescriptor;
 import org.jetbrains.jet.lang.psi.*;
-import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.DescriptorToSourceUtils;
 import org.jetbrains.jet.lang.resolve.DescriptorUtils;
 import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCall;
@@ -42,25 +40,26 @@ import org.jetbrains.jet.lang.resolve.java.jvmSignature.JvmMethodSignature;
 import org.jetbrains.jet.lang.types.lang.InlineStrategy;
 import org.jetbrains.jet.lang.types.lang.InlineUtil;
 import org.jetbrains.jet.renderer.DescriptorRenderer;
+import org.jetbrains.org.objectweb.asm.Label;
 import org.jetbrains.org.objectweb.asm.MethodVisitor;
 import org.jetbrains.org.objectweb.asm.Opcodes;
 import org.jetbrains.org.objectweb.asm.Type;
 import org.jetbrains.org.objectweb.asm.commons.Method;
+import org.jetbrains.org.objectweb.asm.tree.AbstractInsnNode;
+import org.jetbrains.org.objectweb.asm.tree.LabelNode;
 import org.jetbrains.org.objectweb.asm.tree.MethodNode;
+import org.jetbrains.org.objectweb.asm.tree.TryCatchBlockNode;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.ListIterator;
-import java.util.Map;
+import java.util.*;
 
-import static org.jetbrains.jet.codegen.AsmUtil.*;
+import static org.jetbrains.jet.codegen.AsmUtil.getMethodAsmFlags;
+import static org.jetbrains.jet.codegen.AsmUtil.isPrimitive;
 import static org.jetbrains.jet.codegen.inline.InlineCodegenUtil.addInlineMarker;
 
 public class InlineCodegen implements CallGenerator {
     private final GenerationState state;
     private final JetTypeMapper typeMapper;
-    private final BindingContext bindingContext;
 
     private final SimpleFunctionDescriptor functionDescriptor;
     private final JvmMethodSignature jvmSignature;
@@ -75,13 +74,16 @@ public class InlineCodegen implements CallGenerator {
     protected final ParametersBuilder invocationParamBuilder = ParametersBuilder.newBuilder();
     protected final Map<Integer, LambdaInfo> expressionMap = new HashMap<Integer, LambdaInfo>();
 
+    private final ReifiedTypeInliner reifiedTypeInliner;
+
     private LambdaInfo activeLambda;
 
     public InlineCodegen(
             @NotNull ExpressionCodegen codegen,
             @NotNull GenerationState state,
             @NotNull SimpleFunctionDescriptor functionDescriptor,
-            @NotNull JetElement callElement
+            @NotNull JetElement callElement,
+            @Nullable ReifiedTypeParameterMappings typeParameterMappings
     ) {
         assert functionDescriptor.getInlineStrategy().isInline() : "InlineCodegen could inline only inline function but " + functionDescriptor;
 
@@ -90,7 +92,9 @@ public class InlineCodegen implements CallGenerator {
         this.codegen = codegen;
         this.callElement = callElement;
         this.functionDescriptor = functionDescriptor.getOriginal();
-        bindingContext = codegen.getBindingContext();
+
+        reifiedTypeInliner = new ReifiedTypeInliner(typeParameterMappings);
+
         initialFrameSize = codegen.getFrameMap().getCurrentSize();
 
         context = (MethodContext) getContext(functionDescriptor, state);
@@ -136,6 +140,8 @@ public class InlineCodegen implements CallGenerator {
 
     private void endCall(@NotNull InlineResult result) {
         leaveTemps();
+
+        codegen.propagateChildReifiedTypeParametersUsages(result.getReifiedTypeParametersUsages());
 
         state.getFactory().removeInlinedClasses(result.getClassesToRemove());
     }
@@ -187,11 +193,7 @@ public class InlineCodegen implements CallGenerator {
                 );
             }
             else {
-                FunctionCodegen.generateMethodBody(
-                        maxCalcAdapter, functionDescriptor, methodContext, jvmSignature,
-                        new FunctionGenerationStrategy.FunctionDefault(state, functionDescriptor, (JetDeclarationWithBody) element),
-                        parentCodegen
-                );
+                generateMethodBody(maxCalcAdapter, functionDescriptor, methodContext, (JetDeclarationWithBody) element, jvmSignature);
             }
             maxCalcAdapter.visitMaxs(-1, -1);
             maxCalcAdapter.visitEnd();
@@ -200,6 +202,7 @@ public class InlineCodegen implements CallGenerator {
     }
 
     private InlineResult inlineCall(MethodNode node) {
+        ReifiedTypeParametersUsages reificationResult = reifiedTypeInliner.reifyInstructions(node.instructions);
         generateClosuresBodies();
 
         //through generation captured parameters will be added to invocationParamBuilder
@@ -215,7 +218,7 @@ public class InlineCodegen implements CallGenerator {
                                                                .subGenerator(functionDescriptor.getName().asString()),
                                                        codegen.getContext(),
                                                        callElement,
-                                                       codegen.getParentCodegen().getClassName());
+                                                       codegen.getParentCodegen().getClassName(), reifiedTypeInliner);
 
         MethodInliner inliner = new MethodInliner(node, parameters, info, new FieldRemapper(null, null, parameters), isSameModule, "Method inlining " + callElement.getText()); //with captured
 
@@ -224,6 +227,7 @@ public class InlineCodegen implements CallGenerator {
 
         MethodNode adapter = InlineCodegenUtil.createEmptyMethodNode();
         InlineResult result = inliner.doInline(adapter, remapper, true, LabelOwner.SKIP_ALL);
+        result.getReifiedTypeParametersUsages().mergeAll(reificationResult);
 
         LabelOwner labelOwner = new LabelOwner() {
 
@@ -241,7 +245,7 @@ public class InlineCodegen implements CallGenerator {
                 }
             }
         };
-        List<MethodInliner.ExternalFinallyBlockInfo> infos = MethodInliner.processReturns(adapter, labelOwner, true, null);
+        List<MethodInliner.PointForExternalFinallyBlocks> infos = MethodInliner.processReturns(adapter, labelOwner, true, null);
         generateAndInsertFinallyBlocks(adapter, infos);
 
         adapter.accept(new InliningInstructionAdapter(codegen.v));
@@ -271,13 +275,55 @@ public class InlineCodegen implements CallGenerator {
 
         MethodVisitor adapter = InlineCodegenUtil.wrapWithMaxLocalCalc(methodNode);
 
-        FunctionCodegen.generateMethodBody(adapter, descriptor, context, jvmMethodSignature, new FunctionGenerationStrategy.FunctionDefault(state, descriptor, declaration), codegen.getParentCodegen());
+        generateMethodBody(adapter, descriptor, context, declaration, jvmMethodSignature);
         adapter.visitMaxs(-1, -1);
 
         return methodNode;
     }
 
+    private void generateMethodBody(
+            @NotNull MethodVisitor adapter,
+            @NotNull FunctionDescriptor descriptor,
+            @NotNull MethodContext context,
+            @NotNull JetDeclarationWithBody declaration,
+            @NotNull JvmMethodSignature jvmMethodSignature
+    ) {
+        FunctionCodegen.generateMethodBody(
+            adapter, descriptor, context, jvmMethodSignature,
+            new FunctionGenerationStrategy.FunctionDefault(state, descriptor, declaration),
+            // Wrapping for preventing marking actual parent codegen as containing reifier markers
+            new FakeMemberCodegen(codegen.getParentCodegen())
+        );
+    }
 
+    private static class FakeMemberCodegen extends MemberCodegen {
+        private final MemberCodegen delegate;
+        public FakeMemberCodegen(@NotNull MemberCodegen wrapped) {
+            super(wrapped);
+            delegate = wrapped;
+        }
+
+        @Override
+        protected void generateDeclaration() {
+            throw new IllegalStateException();
+        }
+
+        @Override
+        protected void generateBody() {
+            throw new IllegalStateException();
+        }
+
+        @Override
+        protected void generateKotlinAnnotation() {
+            throw new IllegalStateException();
+        }
+
+        @NotNull
+        @Override
+        public NameGenerator getInlineNameGenerator() {
+            return delegate.getInlineNameGenerator();
+        }
+    }
 
     @Override
     public void afterParameterPut(@NotNull Type type, @Nullable StackValue stackValue, @Nullable ValueParameterDescriptor valueParameterDescriptor) {
@@ -329,16 +375,21 @@ public class InlineCodegen implements CallGenerator {
             return false;
         }
 
-        if (stackValue instanceof StackValue.Composed) {
-            //see: Method.isSpecialStackValue: go through aload 0
-            if (codegen.getContext().isInliningLambda() && codegen.getContext().getContextDescriptor() instanceof AnonymousFunctionDescriptor) {
-                if (descriptor != null && !InlineUtil.hasNoinlineAnnotation(descriptor)) {
-                    //TODO: check type of context
-                    return false;
-                }
-            }
+        //skip direct capturing fields
+        StackValue receiver = null;
+        if (stackValue instanceof StackValue.Field) {
+            receiver = ((StackValue.Field) stackValue).receiver;
         }
-        return true;
+        else if (stackValue instanceof StackValue.FieldForSharedVar) {
+            receiver = ((StackValue.Field) ((StackValue.FieldForSharedVar) stackValue).receiver).receiver;
+        }
+
+        if (!(receiver instanceof StackValue.Local)) {
+            return true;
+        }
+
+        //TODO: check type of context
+        return !(codegen.getContext().isInliningLambda() && descriptor != null && !InlineUtil.hasNoinlineAnnotation(descriptor));
     }
 
     private void putParameterOnStack(ParameterInfo... infos) {
@@ -357,7 +408,7 @@ public class InlineCodegen implements CallGenerator {
             ParameterInfo info = infos[i];
             if (!info.isSkippedOrRemapped()) {
                 Type type = info.type;
-                StackValue.local(index[i], type).store(type, codegen.v);
+                StackValue.local(index[i], type).store(StackValue.onStack(type), codegen.v);
             }
         }
     }
@@ -418,7 +469,7 @@ public class InlineCodegen implements CallGenerator {
     private void putClosureParametersOnStack() {
         for (LambdaInfo next : expressionMap.values()) {
             activeLambda = next;
-            codegen.pushClosureOnStack(next.closure, false, this);
+            codegen.pushClosureOnStack(next.getClassDescriptor(), true, this);
         }
         activeLambda = null;
     }
@@ -483,19 +534,62 @@ public class InlineCodegen implements CallGenerator {
     }
 
 
-    public void generateAndInsertFinallyBlocks(MethodNode intoNode, List<MethodInliner.ExternalFinallyBlockInfo> insertPoints) {
+    public void generateAndInsertFinallyBlocks(MethodNode intoNode, List<MethodInliner.PointForExternalFinallyBlocks> insertPoints) {
         if (!codegen.hasFinallyBlocks()) return;
 
-        for (MethodInliner.ExternalFinallyBlockInfo insertPoint : insertPoints) {
-            MethodNode finallyNode = InlineCodegenUtil.createEmptyMethodNode();
-            ExpressionCodegen finallyCodegen =
-                    new ExpressionCodegen(finallyNode, codegen.getFrameMap(), codegen.getReturnType(),
-                                          codegen.getContext(), codegen.getState(), codegen.getParentCodegen());
-            finallyCodegen.addBlockStackElementsForNonLocalReturns(codegen.getBlockStackElements());
+        Map<AbstractInsnNode, MethodInliner.PointForExternalFinallyBlocks> extensionPoints =
+                new HashMap<AbstractInsnNode, MethodInliner.PointForExternalFinallyBlocks>();
+        for (MethodInliner.PointForExternalFinallyBlocks insertPoint : insertPoints) {
+            extensionPoints.put(insertPoint.beforeIns, insertPoint);
+        }
 
-            finallyCodegen.generateFinallyBlocksIfNeeded(insertPoint.returnType);
+        DefaultProcessor processor = new DefaultProcessor(intoNode);
 
-            InlineCodegenUtil.insertNodeBefore(finallyNode, intoNode, insertPoint.beforeIns);
+        AbstractInsnNode curInstr = intoNode.instructions.getFirst();
+        while (curInstr != null) {
+            processor.updateCoveringTryBlocks(curInstr, true);
+
+            MethodInliner.PointForExternalFinallyBlocks extension = extensionPoints.get(curInstr);
+            if (extension != null) {
+                Label start = new Label();
+                Label end = new Label();
+
+                MethodNode finallyNode = InlineCodegenUtil.createEmptyMethodNode();
+                finallyNode.visitLabel(start);
+
+                ExpressionCodegen finallyCodegen =
+                        new ExpressionCodegen(finallyNode, codegen.getFrameMap(), codegen.getReturnType(),
+                                              codegen.getContext(), codegen.getState(), codegen.getParentCodegen());
+                finallyCodegen.addBlockStackElementsForNonLocalReturns(codegen.getBlockStackElements());
+
+                finallyCodegen.generateFinallyBlocksIfNeeded(extension.returnType);
+                finallyNode.visitLabel(end);
+
+                //Exception table for external try/catch/finally blocks will be generated in original codegen after exiting this method
+                InlineCodegenUtil.insertNodeBefore(finallyNode, intoNode, curInstr);
+
+                List<TryCatchBlockNodeWrapper> blocks = processor.getCoveringFromInnermost();
+                ListIterator<TryCatchBlockNodeWrapper> iterator = blocks.listIterator(blocks.size());
+                while (iterator.hasPrevious()) {
+                    TryCatchBlockNodeWrapper previous = iterator.previous();
+                    LabelNode oldStart = previous.getStartLabel();
+                    TryCatchBlockNode node = previous.getNode();
+                    node.start = (LabelNode) end.info;
+                    processor.remapStartLabel(oldStart, previous);
+
+                    TryCatchBlockNode additionalNode = new TryCatchBlockNode(oldStart, (LabelNode) start.info, node.handler, node.type);
+                    processor.addNode(additionalNode);
+                }
+            }
+
+            curInstr = curInstr.getNext();
+        }
+
+        processor.sortTryCatchBlocks();
+        Iterable<TryCatchBlockNodeWrapper> nodes = processor.getNonEmptyNodes();
+        intoNode.tryCatchBlocks.clear();
+        for (TryCatchBlockNodeWrapper node : nodes) {
+            intoNode.tryCatchBlocks.add(node.getNode());
         }
     }
 

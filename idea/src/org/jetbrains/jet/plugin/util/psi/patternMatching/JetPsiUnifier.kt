@@ -88,6 +88,8 @@ import org.jetbrains.jet.lang.psi.JetProperty
 import org.jetbrains.jet.lang.psi.JetDelegatorToSuperClass
 import org.jetbrains.jet.lang.psi.JetDelegationSpecifier
 import org.jetbrains.jet.plugin.refactoring.getContextForContainingDeclarationBody
+import org.jetbrains.jet.plugin.util.IdeDescriptorRenderers
+import org.jetbrains.jet.lang.psi.JetOperationReferenceExpression
 
 public trait UnificationResult {
     public enum class Status {
@@ -337,7 +339,7 @@ public class JetPsiUnifier(
             if (type1 != null && type2 != null) {
                 if (TypeUtils.equalTypes(type1, type2)) return MATCHED
 
-                if (type1.isNullable() != type2.isNullable()) return UNMATCHED
+                if (type1.isMarkedNullable() != type2.isMarkedNullable()) return UNMATCHED
                 if (!matchDescriptors(
                         type1.getConstructor().getDeclarationDescriptor(),
                         type2.getConstructor().getDeclarationDescriptor())) return UNMATCHED
@@ -365,6 +367,7 @@ public class JetPsiUnifier(
         private fun JetElement.shouldIgnoreResolvedCall(): Boolean {
             return when {
                 this is JetConstantExpression -> true
+                this is JetOperationReferenceExpression -> getReferencedNameElementType() == JetTokens.EXCLEXCL
                 this is JetIfExpression -> true
                 this is JetUnaryExpression -> when (getOperationReference().getReferencedNameElementType()) {
                     JetTokens.EXCLEXCL, JetTokens.PLUSPLUS, JetTokens.MINUSMINUS -> true
@@ -564,7 +567,7 @@ public class JetPsiUnifier(
             fun resolveAndSortDeclarationsByDescriptor(declarations: List<JetDeclaration>): List<Pair<JetDeclaration, DeclarationDescriptor?>> {
                 return declarations
                         .map { it to it.bindingContext[BindingContext.DECLARATION_TO_DESCRIPTOR, it] }
-                        .sortBy { it.second?.let { DescriptorRenderer.SOURCE_CODE.render(it) } ?: "" }
+                        .sortBy { it.second?.let { IdeDescriptorRenderers.SOURCE_CODE.render(it) } ?: "" }
             }
 
             fun sortDeclarationsByElementType(declarations: List<JetDeclaration>): List<JetDeclaration> {

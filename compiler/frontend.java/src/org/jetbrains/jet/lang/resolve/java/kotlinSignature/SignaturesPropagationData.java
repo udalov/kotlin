@@ -30,11 +30,12 @@ import org.jetbrains.jet.lang.descriptors.annotations.Annotations;
 import org.jetbrains.jet.lang.descriptors.impl.TypeParameterDescriptorImpl;
 import org.jetbrains.jet.lang.descriptors.impl.ValueParameterDescriptorImpl;
 import org.jetbrains.jet.lang.resolve.DescriptorUtils;
+import org.jetbrains.jet.lang.resolve.java.JavaPackage;
+import org.jetbrains.jet.lang.resolve.java.JavaResolverUtils;
 import org.jetbrains.jet.lang.resolve.java.descriptor.JavaMethodDescriptor;
 import org.jetbrains.jet.lang.resolve.java.jvmSignature.JvmMethodSignature;
 import org.jetbrains.jet.lang.resolve.java.jvmSignature.JvmSignaturePackage;
 import org.jetbrains.jet.lang.resolve.java.jvmSignature.KotlinToJvmSignatureMapper;
-import org.jetbrains.jet.lang.resolve.java.resolver.DescriptorResolverUtils;
 import org.jetbrains.jet.lang.resolve.java.resolver.TypeUsage;
 import org.jetbrains.jet.lang.resolve.java.structure.JavaMethod;
 import org.jetbrains.jet.lang.resolve.name.FqNameUnsafe;
@@ -57,10 +58,12 @@ public class SignaturesPropagationData {
             KotlinToJvmSignatureMapper.class.getClassLoader()
     ).iterator().next();
 
+    private final JavaMethodDescriptor autoMethodDescriptor;
+
     private final List<TypeParameterDescriptor> modifiedTypeParameters;
     private final ValueParameters modifiedValueParameters;
-    private final JetType modifiedReturnType;
 
+    private final JetType modifiedReturnType;
     private final List<String> signatureErrors = Lists.newArrayList();
     private final List<FunctionDescriptor> superFunctions;
     private final Map<TypeParameterDescriptor, TypeParameterDescriptorImpl> autoTypeParameterToModified;
@@ -76,12 +79,12 @@ public class SignaturesPropagationData {
     ) {
         this.containingClass = containingClass;
 
-        JavaMethodDescriptor autoMethodDescriptor =
+        autoMethodDescriptor =
                 createAutoMethodDescriptor(containingClass, method, autoReturnType, receiverType, autoValueParameters, autoTypeParameters);
 
         superFunctions = getSuperFunctionsForMethod(method, autoMethodDescriptor, containingClass);
 
-        autoTypeParameterToModified = DescriptorResolverUtils.recreateTypeParametersAndReturnMapping(autoTypeParameters, null);
+        autoTypeParameterToModified = JavaResolverUtils.recreateTypeParametersAndReturnMapping(autoTypeParameters, null);
 
         modifiedTypeParameters = modifyTypeParametersAccordingToSuperMethods(autoTypeParameters);
         modifiedReturnType = modifyReturnTypeAccordingToSuperMethods(autoReturnType);
@@ -150,6 +153,8 @@ public class SignaturesPropagationData {
     private JetType modifyReturnTypeAccordingToSuperMethods(
             @NotNull JetType autoType // type built by JavaTypeTransformer
     ) {
+        if (JavaPackage.getPLATFORM_TYPES()) return autoType;
+
         List<TypeAndVariance> typesFromSuperMethods = ContainerUtil.map(superFunctions,
                 new Function<FunctionDescriptor, TypeAndVariance>() {
                     @Override
@@ -162,6 +167,8 @@ public class SignaturesPropagationData {
     }
 
     private List<TypeParameterDescriptor> modifyTypeParametersAccordingToSuperMethods(List<TypeParameterDescriptor> autoTypeParameters) {
+        if (JavaPackage.getPLATFORM_TYPES()) return autoTypeParameters;
+
         List<TypeParameterDescriptor> result = Lists.newArrayList();
 
         for (TypeParameterDescriptor autoParameter : autoTypeParameters) {
@@ -366,7 +373,7 @@ public class SignaturesPropagationData {
 
             assert isArrayType(originalType);
 
-            if (builtIns.isPrimitiveArray(originalType)) {
+            if (KotlinBuiltIns.isPrimitiveArray(originalType)) {
                 // replace IntArray? with IntArray
                 return new VarargCheckResult(TypeUtils.makeNotNullable(originalType), true);
             }
@@ -380,7 +387,7 @@ public class SignaturesPropagationData {
 
             assert isArrayType(originalType);
 
-            if (builtIns.isPrimitiveArray(originalType)) {
+            if (KotlinBuiltIns.isPrimitiveArray(originalType)) {
                 // replace IntArray with IntArray?
                 return new VarargCheckResult(TypeUtils.makeNullable(originalType), false);
             }
@@ -399,9 +406,9 @@ public class SignaturesPropagationData {
             @NotNull List<TypeAndVariance> typesFromSuper,
             @NotNull TypeUsage howThisTypeIsUsed
     ) {
-        if (autoType.isError()) {
-            return autoType;
-        }
+        if (autoType.isError()) return autoType;
+
+        if (JavaPackage.getPLATFORM_TYPES()) return autoType;
 
         boolean resultNullable = typeMustBeNullable(autoType, typesFromSuper, howThisTypeIsUsed);
         ClassifierDescriptor resultClassifier = modifyTypeClassifier(autoType, typesFromSuper);
@@ -430,11 +437,14 @@ public class SignaturesPropagationData {
             @NotNull ClassifierDescriptor classifier,
             @NotNull List<TypeAndVariance> typesFromSuper
     ) {
+        if (typesFromSuper.isEmpty()) return autoType.getArguments();
+
         List<TypeProjection> autoArguments = autoType.getArguments();
 
         if (!(classifier instanceof ClassDescriptor)) {
             assert autoArguments.isEmpty() :
-                    "Unexpected type arguments when type constructor is not ClassDescriptor, type = " + autoType;
+                    "Unexpected type arguments when type constructor is not ClassDescriptor, type = " + autoType +
+                    ", classifier = " + classifier + ", classifier class = " + classifier.getClass();
             return autoArguments;
         }
 
@@ -462,6 +472,8 @@ public class SignaturesPropagationData {
             @NotNull TypeProjection argument,
             @NotNull List<TypeProjectionAndVariance> projectionsFromSuper
     ) {
+        if (projectionsFromSuper.isEmpty()) return argument.getProjectionKind();
+
         Set<Variance> projectionKindsInSuper = Sets.newLinkedHashSet();
         for (TypeProjectionAndVariance projectionAndVariance : projectionsFromSuper) {
             projectionKindsInSuper.add(projectionAndVariance.typeProjection.getProjectionKind());
@@ -575,7 +587,7 @@ public class SignaturesPropagationData {
         boolean someSupersCovariantNullable = false;
         boolean someSupersNotNull = false;
         for (TypeAndVariance typeFromSuper : typesFromSuper) {
-            if (!typeFromSuper.type.isNullable()) {
+            if (!TypeUtils.isNullableType(typeFromSuper.type)) {
                 someSupersNotNull = true;
             }
             else {
@@ -590,23 +602,23 @@ public class SignaturesPropagationData {
 
         if (someSupersNotNull && someSupersNotCovariantNullable) {
             reportError("Incompatible types in superclasses: " + typesFromSuper);
-            return autoType.isNullable();
+            return TypeUtils.isNullableType(autoType);
         }
         else if (someSupersNotNull) {
             return false;
         }
         else if (someSupersNotCovariantNullable || someSupersCovariantNullable) {
-            boolean annotatedAsNotNull = howThisTypeIsUsed != TYPE_ARGUMENT && !autoType.isNullable();
+            boolean annotatedAsNotNull = howThisTypeIsUsed != TYPE_ARGUMENT && !TypeUtils.isNullableType(autoType);
 
             if (annotatedAsNotNull && someSupersNotCovariantNullable) {
-                DescriptorRenderer renderer = DescriptorRenderer.SOURCE_CODE_SHORT_NAMES_IN_TYPES;
+                DescriptorRenderer renderer = DescriptorRenderer.SHORT_NAMES_IN_TYPES;
                 reportError("In superclass type is nullable: " + typesFromSuper + ", in subclass it is not: " + renderer.renderType(autoType));
                 return true;
             }
 
             return !annotatedAsNotNull;
         }
-        return autoType.isNullable();
+        return TypeUtils.isNullableType(autoType);
     }
 
     @NotNull
@@ -616,7 +628,7 @@ public class SignaturesPropagationData {
     ) {
         ClassifierDescriptor classifier = autoType.getConstructor().getDeclarationDescriptor();
         if (!(classifier instanceof ClassDescriptor)) {
-            assert classifier != null : "no declaration descriptor for type " + autoType;
+            assert classifier != null : "no declaration descriptor for type " + autoType + ", auto method descriptor: " + autoMethodDescriptor;
 
             if (classifier instanceof TypeParameterDescriptor && autoTypeParameterToModified.containsKey(classifier)) {
                 return autoTypeParameterToModified.get(classifier);
@@ -670,7 +682,7 @@ public class SignaturesPropagationData {
 
     private static boolean isArrayType(@NotNull JetType type) {
         KotlinBuiltIns builtIns = KotlinBuiltIns.getInstance();
-        return builtIns.isArray(type) || builtIns.isPrimitiveArray(type);
+        return KotlinBuiltIns.isArray(type) || KotlinBuiltIns.isPrimitiveArray(type);
     }
 
     private static class VarargCheckResult {

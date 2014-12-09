@@ -27,7 +27,6 @@ import org.jetbrains.jet.lang.descriptors.annotations.Annotations;
 import org.jetbrains.jet.lang.descriptors.impl.AnonymousFunctionDescriptor;
 import org.jetbrains.jet.lang.descriptors.impl.LocalVariableDescriptor;
 import org.jetbrains.jet.lang.diagnostics.Diagnostic;
-import org.jetbrains.jet.lang.diagnostics.Errors;
 import org.jetbrains.jet.lang.evaluate.ConstantExpressionEvaluator;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.*;
@@ -45,7 +44,6 @@ import org.jetbrains.jet.lang.resolve.calls.results.OverloadResolutionResultsImp
 import org.jetbrains.jet.lang.resolve.calls.results.OverloadResolutionResultsUtil;
 import org.jetbrains.jet.lang.resolve.calls.smartcasts.DataFlowInfo;
 import org.jetbrains.jet.lang.resolve.calls.smartcasts.DataFlowValue;
-import org.jetbrains.jet.lang.resolve.calls.smartcasts.DataFlowValueFactory;
 import org.jetbrains.jet.lang.resolve.calls.smartcasts.Nullability;
 import org.jetbrains.jet.lang.resolve.calls.tasks.ExplicitReceiverKind;
 import org.jetbrains.jet.lang.resolve.calls.tasks.ResolutionCandidate;
@@ -76,6 +74,7 @@ import static org.jetbrains.jet.lang.diagnostics.Errors.*;
 import static org.jetbrains.jet.lang.resolve.BindingContext.*;
 import static org.jetbrains.jet.lang.resolve.DescriptorUtils.getStaticNestedClassesScope;
 import static org.jetbrains.jet.lang.resolve.calls.context.ContextDependency.INDEPENDENT;
+import static org.jetbrains.jet.lang.resolve.calls.smartcasts.DataFlowValueFactory.createDataFlowValue;
 import static org.jetbrains.jet.lang.resolve.scopes.receivers.ReceiverValue.NO_RECEIVER;
 import static org.jetbrains.jet.lang.resolve.source.SourcePackage.toSourceElement;
 import static org.jetbrains.jet.lang.types.TypeUtils.NO_EXPECTED_TYPE;
@@ -128,7 +127,7 @@ public class BasicExpressionTypingVisitor extends ExpressionTypingVisitor {
             boolean hasError = compileTimeConstantChecker.checkConstantExpressionType(value, expression, context.expectedType);
             if (hasError) {
                 IElementType elementType = expression.getNode().getElementType();
-                return JetTypeInfo.create(getDefaultType(elementType), context.dataFlowInfo);
+                return JetTypeInfo.create(components.expressionTypingUtils.getDefaultType(elementType), context.dataFlowInfo);
             }
         }
 
@@ -174,7 +173,7 @@ public class BasicExpressionTypingVisitor extends ExpressionTypingVisitor {
             checkBinaryWithTypeRHS(expression, contextWithNoExpectedType, targetType, subjectType);
             dataFlowInfo = typeInfo.getDataFlowInfo();
             if (operationType == AS_KEYWORD) {
-                DataFlowValue value = DataFlowValueFactory.createDataFlowValue(left, subjectType, context.trace.getBindingContext());
+                DataFlowValue value = createDataFlowValue(left, subjectType, context.trace.getBindingContext());
                 dataFlowInfo = dataFlowInfo.establishSubtyping(value, targetType);
             }
         }
@@ -199,10 +198,10 @@ public class BasicExpressionTypingVisitor extends ExpressionTypingVisitor {
             context.trace.report(UNSUPPORTED.on(operationSign, "binary operation with type RHS"));
             return;
         }
-        checkForCastImpossibility(expression, actualType, targetType, context);
+        checkForCastImpossibilityOrRedundancy(expression, actualType, targetType, context);
     }
 
-    private void checkForCastImpossibility(
+    private void checkForCastImpossibilityOrRedundancy(
             JetBinaryExpressionWithTypeRHS expression,
             JetType actualType,
             JetType targetType,
@@ -210,25 +209,33 @@ public class BasicExpressionTypingVisitor extends ExpressionTypingVisitor {
     ) {
         if (actualType == null || noExpectedType(targetType)) return;
 
+        if (TypesPackage.isDynamic(targetType)) {
+            JetTypeReference right = expression.getRight();
+            assert right != null : "We know target is dynamic, but RHS is missing";
+            context.trace.report(DYNAMIC_NOT_ALLOWED.on(right));
+            return;
+        }
+
         if (!CastDiagnosticsUtil.isCastPossible(actualType, targetType, components.platformToKotlinClassMap)) {
             context.trace.report(CAST_NEVER_SUCCEEDS.on(expression.getOperationReference()));
+            return;
         }
-        else {
-            JetTypeChecker typeChecker = JetTypeChecker.DEFAULT;
-            // Upcast?
-            if (typeChecker.isSubtypeOf(actualType, targetType)) {
-                if (!typeChecker.isSubtypeOf(targetType, actualType)) {
-                    // proper upcast: String as Any
-                    context.trace.report(USELESS_CAST_STATIC_ASSERT_IS_FINE.on(expression.getOperationReference()));
-                }
-                else {
-                    // cast to itself: String as String
-                    context.trace.report(USELESS_CAST.on(expression.getOperationReference()));
-                }
+        JetTypeChecker typeChecker = JetTypeChecker.DEFAULT;
+        if (actualType.equals(targetType)) {
+            // cast to itself: String as String
+            context.trace.report(USELESS_CAST.on(expression));
+            return;
+        }
+        Collection<JetType> possibleTypes = DataFlowUtils.getAllPossibleTypes(
+                expression.getLeft(), context.dataFlowInfo, actualType, context.trace.getBindingContext());
+        for (JetType possibleType : possibleTypes) {
+            if (typeChecker.isSubtypeOf(possibleType, targetType)) {
+                context.trace.report(USELESS_CAST_STATIC_ASSERT_IS_FINE.on(expression));
+                return;
             }
-            else if (CastDiagnosticsUtil.isCastErased(actualType, targetType, typeChecker)) {
-                context.trace.report(Errors.UNCHECKED_CAST.on(expression, actualType, targetType));
-            }
+        }
+        if (CastDiagnosticsUtil.isCastErased(actualType, targetType, typeChecker)) {
+            context.trace.report(UNCHECKED_CAST.on(expression, actualType, targetType));
         }
     }
 
@@ -350,7 +357,7 @@ public class BasicExpressionTypingVisitor extends ExpressionTypingVisitor {
             else {
                 // supertypes may be empty when all the supertypes are error types (are not resolved, for example)
                 JetType type = supertypes.isEmpty()
-                               ? KotlinBuiltIns.getInstance().getAnyType()
+                               ? components.builtIns.getAnyType()
                                : supertypes.iterator().next();
                 result = substitutor.substitute(type, Variance.INVARIANT);
             }
@@ -420,7 +427,7 @@ public class BasicExpressionTypingVisitor extends ExpressionTypingVisitor {
         Call call = CallMaker.makeCall(expression, NO_RECEIVER, null, expression, Collections.<ValueArgument>emptyList());
         ResolutionCandidate<ReceiverParameterDescriptor> resolutionCandidate =
                 ResolutionCandidate.create(
-                        call, descriptor, NO_RECEIVER, NO_RECEIVER, ExplicitReceiverKind.NO_EXPLICIT_RECEIVER, false);
+                        call, descriptor, NO_RECEIVER, NO_RECEIVER, ExplicitReceiverKind.NO_EXPLICIT_RECEIVER);
 
         ResolvedCallImpl<ReceiverParameterDescriptor> resolvedCall =
                 ResolvedCallImpl.create(resolutionCandidate,
@@ -737,8 +744,8 @@ public class BasicExpressionTypingVisitor extends ExpressionTypingVisitor {
         JetType result;
         if (operationType == JetTokens.PLUSPLUS || operationType == JetTokens.MINUSMINUS) {
             assert returnType != null : "returnType is null for " + resolutionResults.getResultingDescriptor();
-            if (KotlinBuiltIns.getInstance().isUnit(returnType)) {
-                result = ErrorUtils.createErrorType(KotlinBuiltIns.getInstance().getUnit().getName().asString());
+            if (KotlinBuiltIns.isUnit(returnType)) {
+                result = ErrorUtils.createErrorType(components.builtIns.getUnit().getName().asString());
                 context.trace.report(INC_DEC_SHOULD_NOT_RETURN_UNIT.on(operationSign));
             }
             else {
@@ -803,7 +810,7 @@ public class BasicExpressionTypingVisitor extends ExpressionTypingVisitor {
             context.trace.report(UNNECESSARY_NOT_NULL_ASSERTION.on(operationSign, baseType));
         }
         else {
-            DataFlowValue value = DataFlowValueFactory.createDataFlowValue(baseExpression, baseType, context.trace.getBindingContext());
+            DataFlowValue value = createDataFlowValue(baseExpression, baseType, context.trace.getBindingContext());
             dataFlowInfo = dataFlowInfo.disequate(value, DataFlowValue.NULL);
         }
         return JetTypeInfo.create(TypeUtils.makeNotNullable(baseType), dataFlowInfo);
@@ -835,7 +842,7 @@ public class BasicExpressionTypingVisitor extends ExpressionTypingVisitor {
     }
 
     private static boolean isKnownToBeNotNull(JetExpression expression, JetType jetType, ExpressionTypingContext context) {
-        DataFlowValue dataFlowValue = DataFlowValueFactory.createDataFlowValue(expression, jetType, context.trace.getBindingContext());
+        DataFlowValue dataFlowValue = createDataFlowValue(expression, jetType, context.trace.getBindingContext());
         return !context.dataFlowInfo.getNullability(dataFlowValue).canBeNull();
     }
 
@@ -909,10 +916,10 @@ public class BasicExpressionTypingVisitor extends ExpressionTypingVisitor {
             result = visitEquality(expression, context, operationSign, left, right);
         }
         else if (OperatorConventions.IDENTITY_EQUALS_OPERATIONS.contains(operationType)) {
-            context.trace.record(REFERENCE_TARGET, operationSign, KotlinBuiltIns.getInstance().getIdentityEquals());
+            context.trace.record(REFERENCE_TARGET, operationSign, components.builtIns.getIdentityEquals());
             ensureNonemptyIntersectionOfOperandTypes(expression, context);
             // TODO : Check comparison pointlessness
-            result = JetTypeInfo.create(KotlinBuiltIns.getInstance().getBooleanType(), context.dataFlowInfo);
+            result = JetTypeInfo.create(components.builtIns.getBooleanType(), context.dataFlowInfo);
         }
         else if (OperatorConventions.IN_OPERATIONS.contains(operationType)) {
             ValueArgument leftArgument = CallMaker.makeValueArgument(left, left != null ? left : operationSign);
@@ -944,7 +951,7 @@ public class BasicExpressionTypingVisitor extends ExpressionTypingVisitor {
         if (right == null || left == null) {
             ExpressionTypingUtils.getTypeInfoOrNullType(right, context, facade);
             ExpressionTypingUtils.getTypeInfoOrNullType(left, context, facade);
-            return JetTypeInfo.create(KotlinBuiltIns.getInstance().getBooleanType(), dataFlowInfo);
+            return JetTypeInfo.create(components.builtIns.getBooleanType(), dataFlowInfo);
         }
         ExpressionReceiver receiver = ExpressionTypingUtils.safeGetExpressionReceiver(facade, left, context);
 
@@ -958,7 +965,7 @@ public class BasicExpressionTypingVisitor extends ExpressionTypingVisitor {
 
         TemporaryBindingTrace traceInterpretingRightAsNullableAny = TemporaryBindingTrace.create(
                 context.trace, "trace to resolve 'equals(Any?)' interpreting as of type Any? an expression:", right);
-        traceInterpretingRightAsNullableAny.record(EXPRESSION_TYPE, right, KotlinBuiltIns.getInstance().getNullableAnyType());
+        traceInterpretingRightAsNullableAny.record(EXPRESSION_TYPE, right, components.builtIns.getNullableAnyType());
 
         Call call = CallMaker.makeCallWithExpressions(expression, receiver, null, operationSign, Collections.singletonList(right));
         ExpressionTypingContext newContext = context.replaceBindingTrace(traceInterpretingRightAsNullableAny);
@@ -982,7 +989,8 @@ public class BasicExpressionTypingVisitor extends ExpressionTypingVisitor {
 
         if (resolutionResults.isSuccess()) {
             FunctionDescriptor equals = resolutionResults.getResultingCall().getResultingDescriptor();
-            if (ensureBooleanResult(operationSign, OperatorConventions.EQUALS, equals.getReturnType(), context)) {
+            if (components.expressionTypingUtils.ensureBooleanResult(operationSign, OperatorConventions.EQUALS, equals.getReturnType(),
+                                                                     context)) {
                 ensureNonemptyIntersectionOfOperandTypes(expression, context);
             }
         }
@@ -994,7 +1002,7 @@ public class BasicExpressionTypingVisitor extends ExpressionTypingVisitor {
                 context.trace.report(EQUALS_MISSING.on(operationSign));
             }
         }
-        return JetTypeInfo.create(KotlinBuiltIns.getInstance().getBooleanType(), dataFlowInfo);
+        return JetTypeInfo.create(components.builtIns.getBooleanType(), dataFlowInfo);
     }
 
     @NotNull
@@ -1008,11 +1016,8 @@ public class BasicExpressionTypingVisitor extends ExpressionTypingVisitor {
         JetType compareToReturnType = typeInfo.getType();
         JetType type = null;
         if (compareToReturnType != null && !compareToReturnType.isError()) {
-            TypeConstructor constructor = compareToReturnType.getConstructor();
-            KotlinBuiltIns builtIns = KotlinBuiltIns.getInstance();
-            TypeConstructor intTypeConstructor = builtIns.getInt().getTypeConstructor();
-            if (constructor.equals(intTypeConstructor)) {
-                type = builtIns.getBooleanType();
+            if (JetTypeChecker.DEFAULT.equalTypes(components.builtIns.getIntType(), compareToReturnType)) {
+                type = components.builtIns.getBooleanType();
             }
             else {
                 context.trace.report(COMPARE_TO_TYPE_MISMATCH.on(operationSign, compareToReturnType));
@@ -1028,7 +1033,7 @@ public class BasicExpressionTypingVisitor extends ExpressionTypingVisitor {
             @Nullable JetExpression right,
             @NotNull ExpressionTypingContext context
     ) {
-        JetType booleanType = KotlinBuiltIns.getInstance().getBooleanType();
+        JetType booleanType = components.builtIns.getBooleanType();
         JetTypeInfo leftTypeInfo = getTypeInfoOrNullType(left, context.replaceExpectedType(booleanType), facade);
         DataFlowInfo dataFlowInfo = leftTypeInfo.getDataFlowInfo();
 
@@ -1074,14 +1079,19 @@ public class BasicExpressionTypingVisitor extends ExpressionTypingVisitor {
         JetType rightType = rightTypeInfo.getType();
 
         DataFlowInfo dataFlowInfo = resolvedCall.getDataFlowInfoForArguments().getResultInfo();
-        if (leftType != null && rightType != null && KotlinBuiltIns.getInstance().isNothingOrNullableNothing(rightType) && !rightType.isNullable()) {
-            DataFlowValue value = DataFlowValueFactory.createDataFlowValue(left, leftType, context.trace.getBindingContext());
+        if (leftType != null && rightType != null && KotlinBuiltIns.isNothingOrNullableNothing(rightType) && !rightType.isMarkedNullable()) {
+            DataFlowValue value = createDataFlowValue(left, leftType, context.trace.getBindingContext());
             dataFlowInfo = dataFlowInfo.disequate(value, DataFlowValue.NULL);
         }
         JetType type = resolvedCall.getResultingDescriptor().getReturnType();
         if (type == null || rightType == null) return JetTypeInfo.create(null, dataFlowInfo);
 
-        return JetTypeInfo.create(TypeUtils.makeNullableAsSpecified(type, rightType.isNullable()), dataFlowInfo);
+        // Sometimes return type for special call for elvis operator might be nullable,
+        // but result is not nullable if the right type is not nullable
+        if (!TypeUtils.isNullableType(rightType) && TypeUtils.isNullableType(type)) {
+            type = TypeUtils.makeNotNullable(type);
+        }
+        return JetTypeInfo.create(type, dataFlowInfo);
     }
 
     @NotNull
@@ -1110,13 +1120,13 @@ public class BasicExpressionTypingVisitor extends ExpressionTypingVisitor {
                 operationSign,
                 OperatorConventions.CONTAINS);
         JetType containsType = OverloadResolutionResultsUtil.getResultingType(resolutionResult, context.contextDependency);
-        ensureBooleanResult(operationSign, OperatorConventions.CONTAINS, containsType, context);
+        components.expressionTypingUtils.ensureBooleanResult(operationSign, OperatorConventions.CONTAINS, containsType, context);
 
         if (left != null) {
             dataFlowInfo = facade.getTypeInfo(left, contextWithDataFlow).getDataFlowInfo().and(dataFlowInfo);
         }
 
-        return JetTypeInfo.create(resolutionResult.isSuccess() ? KotlinBuiltIns.getInstance().getBooleanType() : null, dataFlowInfo);
+        return JetTypeInfo.create(resolutionResult.isSuccess() ? components.builtIns.getBooleanType() : null, dataFlowInfo);
     }
 
     private void ensureNonemptyIntersectionOfOperandTypes(JetBinaryExpression expression, ExpressionTypingContext context) {
@@ -1153,7 +1163,7 @@ public class BasicExpressionTypingVisitor extends ExpressionTypingVisitor {
         JetType type = facade.getTypeInfo(expr, context).getType();
         if (type == null || type.isError()) return;
 
-        DataFlowValue value = DataFlowValueFactory.createDataFlowValue(expr, type, context.trace.getBindingContext());
+        DataFlowValue value = createDataFlowValue(expr, type, context.trace.getBindingContext());
         Nullability nullability = context.dataFlowInfo.getNullability(value);
 
         boolean expressionIsAlways;
@@ -1269,7 +1279,7 @@ public class BasicExpressionTypingVisitor extends ExpressionTypingVisitor {
             });
         }
         ConstantExpressionEvaluator.OBJECT$.evaluate(expression, context.trace, contextWithExpectedType.expectedType);
-        return DataFlowUtils.checkType(KotlinBuiltIns.getInstance().getStringType(), expression, contextWithExpectedType, dataFlowInfo[0]);
+        return DataFlowUtils.checkType(components.builtIns.getStringType(), expression, contextWithExpectedType, dataFlowInfo[0]);
     }
 
     @Override

@@ -9,13 +9,12 @@ import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns
 import org.jetbrains.jet.lang.psi.JetSimpleNameExpression
 import org.jetbrains.jet.lexer.JetTokens
 import org.jetbrains.jet.lang.psi.JetQualifiedExpression
-import org.jetbrains.jet.plugin.project.AnalyzerFacadeWithCache
 import org.jetbrains.jet.lang.resolve.calls.callUtil.getCall
 import org.jetbrains.jet.lang.resolve.scopes.receivers.ReceiverValue
 import org.jetbrains.jet.lang.resolve.scopes.receivers.Qualifier
 import org.jetbrains.jet.plugin.quickfix.createFromUsage.callableBuilder.*
 import org.jetbrains.jet.lang.diagnostics.Errors
-import org.jetbrains.jet.lang.psi.psiUtil.getParentByType
+import org.jetbrains.jet.lang.psi.psiUtil.getNonStrictParentOfType
 import org.jetbrains.jet.lang.psi.JetExpression
 import java.util.Collections
 import org.jetbrains.jet.plugin.refactoring.getExtractionContainers
@@ -23,27 +22,33 @@ import org.jetbrains.jet.lang.psi.JetClassBody
 import org.jetbrains.jet.lang.psi.JetFile
 import org.jetbrains.jet.lang.psi.psiUtil.getAssignmentByLHS
 import org.jetbrains.jet.lang.resolve.BindingContext
+import org.jetbrains.jet.lang.psi.JetTypeReference
+import com.intellij.psi.util.PsiTreeUtil
+import org.jetbrains.jet.lang.psi.JetAnnotationEntry
+import org.jetbrains.jet.plugin.caches.resolve.analyze
 
 object CreateFunctionOrPropertyFromCallActionFactory : JetSingleIntentionActionFactory() {
     override fun createAction(diagnostic: Diagnostic): IntentionAction? {
         val diagElement = diagnostic.getPsiElement()
+        if (PsiTreeUtil.getParentOfType(diagElement, javaClass<JetTypeReference>(), javaClass<JetAnnotationEntry>()) != null) return null
+
         val callExpr = when (diagnostic.getFactory()) {
-            in Errors.UNRESOLVED_REFERENCE_DIAGNOSTICS -> {
-                val parent = diagElement.getParent()
-                if (parent is JetCallExpression && parent.getCalleeExpression() == diagElement) parent else diagElement
-            }
+                           in Errors.UNRESOLVED_REFERENCE_DIAGNOSTICS, Errors.EXPRESSION_EXPECTED_PACKAGE_FOUND -> {
+                               val parent = diagElement.getParent()
+                               if (parent is JetCallExpression && parent.getCalleeExpression() == diagElement) parent else diagElement
+                           }
 
-            Errors.NO_VALUE_FOR_PARAMETER,
-            Errors.TOO_MANY_ARGUMENTS -> diagElement.getParentByType(javaClass<JetCallExpression>())
+                           Errors.NO_VALUE_FOR_PARAMETER,
+                           Errors.TOO_MANY_ARGUMENTS -> diagElement.getNonStrictParentOfType<JetCallExpression>()
 
-            else -> throw AssertionError("Unexpected diagnostic: ${diagnostic.getFactory()}")
-        } as? JetExpression ?: return null
+                           else -> throw AssertionError("Unexpected diagnostic: ${diagnostic.getFactory()}")
+                       } as? JetExpression ?: return null
 
         val calleeExpr = when (callExpr) {
-            is JetCallExpression -> callExpr.getCalleeExpression()
-            is JetSimpleNameExpression -> callExpr
-            else -> null
-        } as? JetSimpleNameExpression ?: return null
+                             is JetCallExpression -> callExpr.getCalleeExpression()
+                             is JetSimpleNameExpression -> callExpr
+                             else -> null
+                         } as? JetSimpleNameExpression ?: return null
 
         if (calleeExpr.getReferencedNameElementType() != JetTokens.IDENTIFIER) return null
 
@@ -51,11 +56,11 @@ object CreateFunctionOrPropertyFromCallActionFactory : JetSingleIntentionActionF
         val fullCallExpr =
                 if (callParent is JetQualifiedExpression && callParent.getSelectorExpression() == callExpr) callParent else callExpr
 
-        val context = AnalyzerFacadeWithCache.getContextForElement(callExpr)
-        val receiver = callExpr.getCall(context)?.getExplicitReceiver() ?: return null
+        val context = calleeExpr.analyze()
+        val receiver = callExpr.getCall(context)?.getExplicitReceiver()
 
         val receiverType = when (receiver) {
-            ReceiverValue.NO_RECEIVER -> TypeInfo.Empty
+            null, ReceiverValue.NO_RECEIVER -> TypeInfo.Empty
             is Qualifier -> {
                 val qualifierType = context[BindingContext.EXPRESSION_TYPE, receiver.expression] ?: return null
                 TypeInfo(qualifierType, Variance.IN_VARIANCE)
@@ -81,8 +86,9 @@ object CreateFunctionOrPropertyFromCallActionFactory : JetSingleIntentionActionF
                             it.getArgumentName()?.getReferenceExpression()?.getReferencedName()
                     )
                 }
+                val typeParameters = callExpr.getTypeArguments().map { TypeInfo(it.getTypeReference(), Variance.INVARIANT) }
                 val returnType = TypeInfo(fullCallExpr, Variance.OUT_VARIANCE)
-                FunctionInfo(calleeExpr.getReferencedName(), receiverType, returnType, possibleContainers, parameters)
+                FunctionInfo(calleeExpr.getReferencedName(), receiverType, returnType, possibleContainers, parameters, typeParameters)
             }
 
             is JetSimpleNameExpression -> {

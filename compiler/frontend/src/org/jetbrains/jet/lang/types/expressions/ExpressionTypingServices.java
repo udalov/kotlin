@@ -19,6 +19,8 @@ package org.jetbrains.jet.lang.types.expressions;
 import com.google.common.base.Function;
 import com.intellij.openapi.project.Project;
 import com.intellij.psi.tree.IElementType;
+import kotlin.Function1;
+import kotlin.KotlinPackage;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.analyzer.AnalyzerPackage;
@@ -59,20 +61,15 @@ public class ExpressionTypingServices {
     @NotNull
     private final ExpressionTypingComponents expressionTypingComponents;
 
-    @NotNull
     private Project project;
-    @NotNull
     private CallResolver callResolver;
-    @NotNull
     private CallExpressionResolver callExpressionResolver;
-    @NotNull
     private DescriptorResolver descriptorResolver;
-    @NotNull
     private TypeResolver typeResolver;
-    @NotNull
     private AnnotationResolver annotationResolver;
-    @NotNull
     private CallResolverExtensionProvider extensionProvider;
+    private PartialBodyResolveProvider partialBodyResolveProvider;
+    private KotlinBuiltIns builtIns;
 
     @NotNull
     public Project getProject() {
@@ -137,6 +134,21 @@ public class ExpressionTypingServices {
     @Inject
     public void setExtensionProvider(@NotNull CallResolverExtensionProvider extensionProvider) {
         this.extensionProvider = extensionProvider;
+    }
+
+    @NotNull
+    private PartialBodyResolveProvider getPartialBodyResolveProvider() {
+        return partialBodyResolveProvider;
+    }
+
+    @Inject
+    public void setPartialBodyResolveProvider(@NotNull PartialBodyResolveProvider partialBodyResolveProvider) {
+        this.partialBodyResolveProvider = partialBodyResolveProvider;
+    }
+
+    @Inject
+    public void setBuiltIns(@NotNull KotlinBuiltIns builtIns) {
+        this.builtIns = builtIns;
     }
 
     public ExpressionTypingServices(@NotNull ExpressionTypingComponents components) {
@@ -206,6 +218,11 @@ public class ExpressionTypingServices {
     ) {
         List<JetElement> block = expression.getStatements();
 
+        Function1<JetElement, Boolean> filter = getPartialBodyResolveProvider().getFilter();
+        if (filter != null && !(expression instanceof JetPsiUtil.JetExpressionWrapper)) {
+            block = KotlinPackage.filter(block, filter);
+        }
+
         // SCRIPT: get code descriptor for script declaration
         DeclarationDescriptor containingDescriptor = context.scope.getContainingDeclaration();
         if (containingDescriptor instanceof ScriptDescriptor) {
@@ -221,7 +238,7 @@ public class ExpressionTypingServices {
 
         JetTypeInfo r;
         if (block.isEmpty()) {
-            r = DataFlowUtils.checkType(KotlinBuiltIns.getInstance().getUnitType(), expression, context, context.dataFlowInfo);
+            r = DataFlowUtils.checkType(builtIns.getUnitType(), expression, context, context.dataFlowInfo);
         }
         else {
             r = getBlockReturnedTypeWithWritableScope(scope, block, coercionStrategyForLastExpression, context, context.trace);
@@ -269,7 +286,7 @@ public class ExpressionTypingServices {
             @NotNull BindingTrace trace
     ) {
         if (block.isEmpty()) {
-            return JetTypeInfo.create(KotlinBuiltIns.getInstance().getUnitType(), context.dataFlowInfo);
+            return JetTypeInfo.create(builtIns.getUnitType(), context.dataFlowInfo);
         }
 
         ExpressionTypingInternals blockLevelVisitor = ExpressionTypingVisitorDispatcher.createForBlock(expressionTypingComponents, scope);
@@ -309,7 +326,7 @@ public class ExpressionTypingServices {
         if (!noExpectedType(context.expectedType) || context.expectedType == UNIT_EXPECTED_TYPE) {
             JetType expectedType;
             if (context.expectedType == UNIT_EXPECTED_TYPE ||//the first check is necessary to avoid invocation 'isUnit(UNIT_EXPECTED_TYPE)'
-                (coercionStrategyForLastExpression == COERCION_TO_UNIT && KotlinBuiltIns.getInstance().isUnit(context.expectedType))) {
+                (coercionStrategyForLastExpression == COERCION_TO_UNIT && KotlinBuiltIns.isUnit(context.expectedType))) {
                 expectedType = UNIT_EXPECTED_TYPE;
             }
             else {
@@ -334,8 +351,8 @@ public class ExpressionTypingServices {
             }
             if (mightBeUnit) {
                 // ExpressionTypingVisitorForStatements should return only null or Unit for declarations and assignments
-                assert result.getType() == null || KotlinBuiltIns.getInstance().isUnit(result.getType());
-                result = JetTypeInfo.create(KotlinBuiltIns.getInstance().getUnitType(), context.dataFlowInfo);
+                assert result.getType() == null || KotlinBuiltIns.isUnit(result.getType());
+                result = JetTypeInfo.create(builtIns.getUnitType(), context.dataFlowInfo);
             }
         }
         return result;
@@ -401,6 +418,6 @@ public class ExpressionTypingServices {
 
     @NotNull
     public CallResolverExtension createExtension(@NotNull JetScope scope, boolean isAnnotationContext) {
-        return extensionProvider.createExtension(scope == JetScope.EMPTY ? null : scope.getContainingDeclaration(), isAnnotationContext);
+        return extensionProvider.createExtension(scope == JetScope.Empty.INSTANCE$ ? null : scope.getContainingDeclaration(), isAnnotationContext);
     }
 }

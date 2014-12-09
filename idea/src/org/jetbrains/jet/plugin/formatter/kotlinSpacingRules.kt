@@ -29,6 +29,7 @@ import com.intellij.formatting.ASTBlock
 import org.jetbrains.jet.plugin.formatter.KotlinSpacingBuilder.CustomSpacingBuilder
 import com.intellij.formatting.SpacingBuilder
 import com.intellij.formatting.SpacingBuilder.RuleBuilder
+import org.jetbrains.jet.lexer.JetTokens
 
 val MODIFIERS_LIST_ENTRIES = TokenSet.orSet(TokenSet.create(ANNOTATION_ENTRY, ANNOTATION), MODIFIER_KEYWORDS)
 
@@ -43,7 +44,34 @@ fun SpacingBuilder.afterInside(element: IElementType, tokenSet: TokenSet, spacin
 fun createSpacingBuilder(settings: CodeStyleSettings): KotlinSpacingBuilder {
     val jetSettings = settings.getCustomSettings(javaClass<JetCodeStyleSettings>())!!
     val jetCommonSettings = settings.getCommonSettings(JetLanguage.INSTANCE)!!
+
     return rules(settings) {
+        val DECLARATIONS = TokenSet.create(PROPERTY, FUN, CLASS, OBJECT_DECLARATION, ENUM_ENTRY)
+
+        custom {
+            inPosition(left = CLASS, right = CLASS).emptyLinesIfLineBreakInLeft(1)
+            inPosition(left = FUN, right = FUN).emptyLinesIfLineBreakInLeft(1)
+            inPosition(left = PROPERTY, right = FUN).emptyLinesIfLineBreakInLeft(1)
+            inPosition(left = FUN, right = PROPERTY).emptyLinesIfLineBreakInLeft(1)
+
+            // Case left for alternative constructors
+            inPosition(left = FUN, right = CLASS).emptyLinesIfLineBreakInLeft(1)
+
+            inPosition(left = ENUM_ENTRY, right = ENUM_ENTRY).emptyLinesIfLineBreakInLeft(
+                    emptyLines = 0, numSpacesOtherwise = 1, numberOfLineFeedsOtherwise = 0)
+
+            val parameterWithDocCommentRule = {
+                (parent: ASTBlock, left: ASTBlock, right: ASTBlock) ->
+                if (right.getNode().getFirstChildNode().getElementType() == JetTokens.DOC_COMMENT) {
+                    Spacing.createSpacing(0, 0, 1, true, settings.KEEP_BLANK_LINES_IN_DECLARATIONS)
+                }
+                else {
+                    null
+                }
+            }
+            inPosition(parent = VALUE_PARAMETER_LIST, right = VALUE_PARAMETER).customRule(parameterWithDocCommentRule)
+        }
+
         simple {
             // ============ Line breaks ==============
             after(PACKAGE_DIRECTIVE).blankLines(1)
@@ -51,10 +79,27 @@ fun createSpacingBuilder(settings: CodeStyleSettings): KotlinSpacingBuilder {
             after(IMPORT_LIST).blankLines(1)
 
             before(DOC_COMMENT).lineBreakInCode()
+            between(PROPERTY, PROPERTY).lineBreakInCode()
+
+            // CLASS - CLASS is exception
+            between(CLASS, DECLARATIONS).blankLines(1)
+
+            // FUN - FUN, FUN - PROPERTY, FUN - CLASS are exceptions
+            between(FUN, DECLARATIONS).blankLines(1)
+
+            // PROPERTY - PROPERTY, PROPERTY - FUN are exceptions
+            between(PROPERTY, DECLARATIONS).blankLines(1)
+
+            between(OBJECT_DECLARATION, DECLARATIONS).blankLines(1)
+
+            // ENUM_ENTRY - ENUM_ENTRY is exception
+            between(ENUM_ENTRY, DECLARATIONS).blankLines(1)
+
             before(FUN).lineBreakInCode()
             before(PROPERTY).lineBreakInCode()
-            between(FUN, FUN).blankLines(1)
-            between(FUN, PROPERTY).blankLines(1)
+
+
+            after(DOC_COMMENT).lineBreakInCode()
 
             // =============== Spacing ================
             betweenInside(LBRACE, RBRACE, CLASS_BODY).spaces(0)
@@ -255,11 +300,12 @@ fun createSpacingBuilder(settings: CodeStyleSettings): KotlinSpacingBuilder {
 
                 Spacing.createSpacing(numSpaces, numSpaces, 0, settings.KEEP_LINE_BREAKS, settings.KEEP_BLANK_LINES_IN_CODE)
             }
+
+            inPosition(parent = CLASS_BODY, right = RBRACE).lineBreakIfLineBreakInParent(numSpacesOtherwise = 1)
         }
 
         simple {
             afterInside(LBRACE, BLOCK).lineBreakInCode()
-            beforeInside(RBRACE, CLASS_BODY).lineBreakInCode()
             beforeInside(RBRACE, BLOCK).lineBreakInCode()
             beforeInside(RBRACE, WHEN).lineBreakInCode()
             between(RPAR, BODY).spaces(1)

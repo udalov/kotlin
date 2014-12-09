@@ -24,7 +24,10 @@ import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.diagnostics.Errors;
 import org.jetbrains.jet.lang.psi.*;
-import org.jetbrains.jet.lang.types.*;
+import org.jetbrains.jet.lang.types.JetType;
+import org.jetbrains.jet.lang.types.SubstitutionUtils;
+import org.jetbrains.jet.lang.types.TypeConstructor;
+import org.jetbrains.jet.lang.types.TypeProjection;
 import org.jetbrains.jet.lang.types.checker.JetTypeChecker;
 import org.jetbrains.jet.lexer.JetModifierKeywordToken;
 import org.jetbrains.jet.lexer.JetTokens;
@@ -39,20 +42,13 @@ import static org.jetbrains.jet.lang.resolve.DescriptorUtils.classCanHaveAbstrac
 import static org.jetbrains.jet.lang.resolve.DescriptorUtils.classCanHaveOpenMembers;
 
 public class DeclarationsChecker {
-    @NotNull
     private BindingTrace trace;
-    @NotNull
     private ModifiersChecker modifiersChecker;
-    @NotNull
     private DescriptorResolver descriptorResolver;
-
-    @NotNull
-    private AdditionalCheckerProvider additionalCheckerProvider;
 
     @Inject
     public void setTrace(@NotNull BindingTrace trace) {
         this.trace = trace;
-        this.modifiersChecker = new ModifiersChecker(trace);
     }
 
     @Inject
@@ -61,8 +57,8 @@ public class DeclarationsChecker {
     }
 
     @Inject
-    public void setAdditionalCheckerProvider(@NotNull AdditionalCheckerProvider additionalCheckerProvider) {
-        this.additionalCheckerProvider = additionalCheckerProvider;
+    public void setModifiersChecker(@NotNull ModifiersChecker modifiersChecker) {
+        this.modifiersChecker = modifiersChecker;
     }
 
     public void process(@NotNull BodiesResolveContext bodiesResolveContext) {
@@ -90,7 +86,6 @@ public class DeclarationsChecker {
             }
 
             modifiersChecker.checkModifiersForDeclaration(classOrObject, classDescriptor);
-            runAnnotationCheckers(classOrObject, classDescriptor);
         }
 
         Map<JetNamedFunction, SimpleFunctionDescriptor> functions = bodiesResolveContext.getFunctions();
@@ -101,7 +96,6 @@ public class DeclarationsChecker {
             if (!bodiesResolveContext.completeAnalysisNeeded(function)) continue;
             checkFunction(function, functionDescriptor);
             modifiersChecker.checkModifiersForDeclaration(function, functionDescriptor);
-            runAnnotationCheckers(function, functionDescriptor);
         }
 
         Map<JetProperty, PropertyDescriptor> properties = bodiesResolveContext.getProperties();
@@ -112,7 +106,6 @@ public class DeclarationsChecker {
             if (!bodiesResolveContext.completeAnalysisNeeded(property)) continue;
             checkProperty(property, propertyDescriptor);
             modifiersChecker.checkModifiersForDeclaration(property, propertyDescriptor);
-            runAnnotationCheckers(property, propertyDescriptor);
         }
 
     }
@@ -202,6 +195,7 @@ public class DeclarationsChecker {
                 switch (typeParameterDescriptor.getVariance()) {
                     case INVARIANT:
                         // Leave conflicting types as is
+                        Filter.REMOVE_IF_EQUAL_TYPE_IN_THE_SET.proceed(conflictingTypes);
                         break;
                     case IN_VARIANCE:
                         // Filter out those who have supertypes in this set (common supertype)
@@ -240,6 +234,12 @@ public class DeclarationsChecker {
             public boolean removeNeeded(JetType subject, JetType other) {
                 return JetTypeChecker.DEFAULT.isSubtypeOf(subject, other);
             }
+        },
+        REMOVE_IF_EQUAL_TYPE_IN_THE_SET {
+            @Override
+            public boolean removeNeeded(JetType subject, JetType other) {
+                return JetTypeChecker.DEFAULT.equalTypes(subject, other);
+            }
         };
 
         private void proceed(Set<JetType> conflictingTypes) {
@@ -267,7 +267,7 @@ public class DeclarationsChecker {
 
     private void checkClass(BodiesResolveContext c, JetClass aClass, ClassDescriptorWithResolutionScopes classDescriptor) {
         checkOpenMembers(classDescriptor);
-        if (c.getTopDownAnalysisParameters().isLazyTopDownAnalysis()) {
+        if (c.getTopDownAnalysisParameters().isLazy()) {
             checkTypeParameters(aClass);
         }
         if (aClass.isTrait()) {
@@ -400,11 +400,6 @@ public class DeclarationsChecker {
         }
 
         if (propertyDescriptor.getModality() == Modality.ABSTRACT) {
-            JetType returnType = propertyDescriptor.getReturnType();
-            if (returnType instanceof DeferredType) {
-                returnType = ((DeferredType) returnType).getDelegate();
-            }
-
             JetExpression initializer = property.getInitializer();
             if (initializer != null) {
                 trace.report(ABSTRACT_PROPERTY_WITH_INITIALIZER.on(initializer));
@@ -573,12 +568,6 @@ public class DeclarationsChecker {
                     }
                 }
             }
-        }
-    }
-
-    private void runAnnotationCheckers(@NotNull JetDeclaration declaration, @NotNull MemberDescriptor descriptor) {
-        for (AnnotationChecker checker : additionalCheckerProvider.getAnnotationCheckers()) {
-            checker.check(declaration, descriptor, trace);
         }
     }
 }

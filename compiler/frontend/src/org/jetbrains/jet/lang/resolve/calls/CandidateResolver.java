@@ -25,6 +25,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.psi.*;
+import org.jetbrains.jet.lang.psi.psiUtil.PsiUtilPackage;
 import org.jetbrains.jet.lang.resolve.*;
 import org.jetbrains.jet.lang.resolve.calls.context.*;
 import org.jetbrains.jet.lang.resolve.calls.inference.ConstraintPosition;
@@ -37,8 +38,8 @@ import org.jetbrains.jet.lang.resolve.calls.smartcasts.DataFlowValue;
 import org.jetbrains.jet.lang.resolve.calls.smartcasts.DataFlowValueFactory;
 import org.jetbrains.jet.lang.resolve.calls.smartcasts.SmartCastUtils;
 import org.jetbrains.jet.lang.resolve.calls.tasks.ResolutionTask;
-import org.jetbrains.jet.lang.resolve.calls.tasks.TaskPrioritizer;
 import org.jetbrains.jet.lang.resolve.calls.util.FakeCallableDescriptorForObject;
+import org.jetbrains.jet.lang.resolve.lazy.ForceResolveUtil;
 import org.jetbrains.jet.lang.resolve.scopes.receivers.ExpressionReceiver;
 import org.jetbrains.jet.lang.resolve.scopes.receivers.ReceiverValue;
 import org.jetbrains.jet.lang.types.*;
@@ -47,13 +48,11 @@ import org.jetbrains.jet.lang.types.expressions.ExpressionTypingUtils;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 
 import javax.inject.Inject;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 import static org.jetbrains.jet.lang.diagnostics.Errors.PROJECTION_ON_NON_CLASS_TYPE_ARGUMENT;
 import static org.jetbrains.jet.lang.diagnostics.Errors.SUPER_IS_NOT_AN_EXPRESSION;
+import static org.jetbrains.jet.lang.resolve.calls.ArgumentTypeResolver.deparenthesizeArgument;
 import static org.jetbrains.jet.lang.resolve.calls.CallResolverUtil.ResolveArgumentsMode.RESOLVE_FUNCTION_ARGUMENTS;
 import static org.jetbrains.jet.lang.resolve.calls.CallResolverUtil.ResolveArgumentsMode.SHAPE_FUNCTION_ARGUMENTS;
 import static org.jetbrains.jet.lang.resolve.calls.CallTransformer.CallForImplicitInvoke;
@@ -92,8 +91,9 @@ public class CandidateResolver {
         }
 
 
+        ReceiverValue receiverValue = ExpressionTypingUtils.normalizeReceiverValueForVisibility(candidateCall.getDispatchReceiver(), context.trace.getBindingContext());
         DeclarationDescriptorWithVisibility invisibleMember =
-                Visibilities.findInvisibleMember(candidate, context.scope.getContainingDeclaration());
+                Visibilities.findInvisibleMember(receiverValue, candidate, context.scope.getContainingDeclaration());
         if (invisibleMember != null) {
             candidateCall.addStatus(OTHER_ERROR);
             context.tracing.invisibleMember(context.trace, invisibleMember);
@@ -104,13 +104,8 @@ public class CandidateResolver {
             ValueArgumentsToParametersMapper.Status argumentMappingStatus = ValueArgumentsToParametersMapper.mapValueArgumentsToParameters(
                     context.call, context.tracing, candidateCall, unmappedArguments);
             if (!argumentMappingStatus.isSuccess()) {
-                //For the expressions like '42.(f)()' where f: () -> Unit we'd like to generate an error 'no receiver admitted',
-                //not to throw away the candidate.
-                if (argumentMappingStatus == ValueArgumentsToParametersMapper.Status.STRONG_ERROR
-                            && !CallResolverUtil.isInvokeCallOnExpressionWithBothReceivers(context.call)) {
+                if (argumentMappingStatus == ValueArgumentsToParametersMapper.Status.STRONG_ERROR) {
                     candidateCall.addStatus(RECEIVER_PRESENCE_ERROR);
-                    checkAllValueArguments(context, SHAPE_FUNCTION_ARGUMENTS);
-                    return;
                 }
                 else {
                     candidateCall.addStatus(OTHER_ERROR);
@@ -122,16 +117,7 @@ public class CandidateResolver {
         }
 
         List<JetTypeProjection> jetTypeArguments = context.call.getTypeArguments();
-        if (jetTypeArguments.isEmpty()) {
-            if (!candidate.getTypeParameters().isEmpty()) {
-                ResolutionStatus status = inferTypeArguments(context);
-                candidateCall.addStatus(status);
-            }
-            else {
-                candidateCall.addStatus(checkAllValueArguments(context, SHAPE_FUNCTION_ARGUMENTS).status);
-            }
-        }
-        else {
+        if (!jetTypeArguments.isEmpty()) {
             // Explicit type arguments passed
 
             List<JetType> typeArguments = new ArrayList<JetType>();
@@ -139,8 +125,12 @@ public class CandidateResolver {
                 if (projection.getProjectionKind() != JetProjectionKind.NONE) {
                     context.trace.report(PROJECTION_ON_NON_CLASS_TYPE_ARGUMENT.on(projection));
                 }
-                typeArguments.add(argumentTypeResolver.resolveTypeRefWithDefault(
-                        projection.getTypeReference(), context.scope, context.trace, ErrorUtils.createErrorType("Star projection in a call")));
+                JetType type = argumentTypeResolver.resolveTypeRefWithDefault(
+                        projection.getTypeReference(), context.scope, context.trace,
+                        ErrorUtils.createErrorType("Star projection in a call")
+                );
+                ForceResolveUtil.forceResolveAllContents(type);
+                typeArguments.add(type);
             }
             int expectedTypeArgumentCount = candidate.getTypeParameters().size();
             for (int index = jetTypeArguments.size(); index < expectedTypeArgumentCount; index++) {
@@ -160,7 +150,12 @@ public class CandidateResolver {
             }
 
             candidateCall.setResultingSubstitutor(substitutor);
+        }
 
+        if (jetTypeArguments.isEmpty() && !candidate.getTypeParameters().isEmpty()) {
+            candidateCall.addStatus(inferTypeArguments(context));
+        }
+        else {
             candidateCall.addStatus(checkAllValueArguments(context, SHAPE_FUNCTION_ARGUMENTS).status);
         }
 
@@ -168,7 +163,7 @@ public class CandidateResolver {
 
         // 'super' cannot be passed as an argument, for receiver arguments expression typer does not track this
         // See TaskPrioritizer for more
-        JetSuperExpression superExpression = TaskPrioritizer.getReceiverSuper(candidateCall.getExtensionReceiver());
+        JetSuperExpression superExpression = getReceiverSuper(candidateCall.getExtensionReceiver());
         if (superExpression != null) {
             context.trace.report(SUPER_IS_NOT_AN_EXPRESSION.on(superExpression, superExpression.getText()));
             candidateCall.addStatus(OTHER_ERROR);
@@ -208,6 +203,18 @@ public class CandidateResolver {
         if (candidateThis == null || candidateThis.getKind().isSingleton()) return true;
 
         return DescriptorResolver.checkHasOuterClassInstance(context.scope, context.trace, context.call.getCallElement(), candidateThis);
+    }
+
+    @Nullable
+    private static JetSuperExpression getReceiverSuper(@NotNull ReceiverValue receiver) {
+        if (receiver instanceof ExpressionReceiver) {
+            ExpressionReceiver expressionReceiver = (ExpressionReceiver) receiver;
+            JetExpression expression = expressionReceiver.getExpression();
+            if (expression instanceof JetSuperExpression) {
+                return (JetSuperExpression) expression;
+            }
+        }
+        return null;
     }
 
     @Nullable
@@ -252,10 +259,10 @@ public class CandidateResolver {
 
         JetType effectiveExpectedType = getEffectiveExpectedType(valueParameterDescriptor, valueArgument);
         JetType expectedType = constraintSystem.getCurrentSubstitutor().substitute(effectiveExpectedType, Variance.INVARIANT);
-        if (expectedType == null || expectedType == DONT_CARE) {
+        if (expectedType == null || TypeUtils.isDontCarePlaceholder(expectedType)) {
             expectedType = argumentTypeResolver.getShapeTypeOfFunctionLiteral(functionLiteralExpression, context.scope, context.trace, false);
         }
-        if (expectedType == null || !KotlinBuiltIns.getInstance().isFunctionOrExtensionFunctionType(expectedType)
+        if (expectedType == null || !KotlinBuiltIns.isFunctionOrExtensionFunctionType(expectedType)
                 || CallResolverUtil.hasUnknownFunctionParameter(expectedType)) {
             return;
         }
@@ -403,10 +410,10 @@ public class CandidateResolver {
             @NotNull DataFlowInfo dataFlowInfoForArgument,
             @NotNull BindingTrace trace
     ) {
-        if (argumentExpression == null || type == null) return type;
+        JetExpression deparenthesizedArgument = deparenthesizeArgument(argumentExpression);
+        if (deparenthesizedArgument == null || type == null) return type;
 
-        DataFlowValue dataFlowValue = DataFlowValueFactory.createDataFlowValue(
-                argumentExpression, type, trace.getBindingContext());
+        DataFlowValue dataFlowValue = DataFlowValueFactory.createDataFlowValue(deparenthesizedArgument, type, trace.getBindingContext());
         if (!dataFlowValue.isStableIdentifier()) return type;
 
         Set<JetType> possibleTypes = dataFlowInfoForArgument.getPossibleTypes(dataFlowValue);
@@ -529,9 +536,8 @@ public class CandidateResolver {
             @NotNull ResolutionContext<?> context
     ) {
         ExpressionReceiver receiverToCast = new ExpressionReceiver(JetPsiUtil.safeDeparenthesize(expression, false), actualType);
-        List<JetType> variants =
-                SmartCastUtils.getSmartCastVariantsExcludingReceiver(context.trace.getBindingContext(), context.dataFlowInfo,
-                                                                     receiverToCast);
+        Collection<JetType> variants = SmartCastUtils.getSmartCastVariantsExcludingReceiver(
+                context.trace.getBindingContext(), context.dataFlowInfo, receiverToCast);
         for (JetType possibleType : variants) {
             if (JetTypeChecker.DEFAULT.isSubtypeOf(possibleType, expectedType)) {
                 return possibleType;
@@ -590,7 +596,7 @@ public class CandidateResolver {
         D candidateDescriptor = candidateCall.getCandidateDescriptor();
         if (TypeUtils.dependsOnTypeParameters(receiverParameter.getType(), candidateDescriptor.getTypeParameters())) return SUCCESS;
 
-        boolean safeAccess = isExplicitReceiver && !implicitInvokeCheck && candidateCall.isSafeCall();
+        boolean safeAccess = isExplicitReceiver && !implicitInvokeCheck && PsiUtilPackage.isExplicitSafeCall(candidateCall.getCall());
         boolean isSubtypeBySmartCast = SmartCastUtils.isSubTypeBySmartCastIgnoringNullability(
                 receiverArgument, receiverParameter.getType(), context);
         if (!isSubtypeBySmartCast) {
@@ -602,9 +608,8 @@ public class CandidateResolver {
         JetType receiverArgumentType = receiverArgument.getType();
 
         BindingContext bindingContext = trace.getBindingContext();
-        if (!safeAccess && !receiverParameter.getType().isNullable() && receiverArgumentType.isNullable()) {
-            if (!SmartCastUtils.isNotNull(receiverArgument, bindingContext, context.dataFlowInfo)) {
-
+        if (!safeAccess && !receiverParameter.getType().isMarkedNullable() && receiverArgumentType.isMarkedNullable()) {
+            if (!SmartCastUtils.canBeSmartCast(receiverParameter, receiverArgument, bindingContext, context.dataFlowInfo)) {
                 context.tracing.unsafeCall(trace, receiverArgumentType, implicitInvokeCheck);
                 return UNSAFE_CALL_ERROR;
             }
@@ -657,7 +662,7 @@ public class CandidateResolver {
             @NotNull BindingTrace trace
     ) {
         List<TypeParameterDescriptor> typeParameters = functionDescriptor.getTypeParameters();
-        for (int i = 0; i < typeParameters.size(); i++) {
+        for (int i = 0; i < Math.min(typeParameters.size(), jetTypeArguments.size()); i++) {
             TypeParameterDescriptor typeParameterDescriptor = typeParameters.get(i);
             JetType typeArgument = typeArguments.get(i);
             JetTypeReference typeReference = jetTypeArguments.get(i).getTypeReference();

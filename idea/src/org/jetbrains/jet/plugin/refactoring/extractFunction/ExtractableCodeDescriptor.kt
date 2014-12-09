@@ -66,6 +66,7 @@ import org.jetbrains.jet.lang.psi.JetCallElement
 import org.jetbrains.jet.lang.psi.psiUtil.getQualifiedElementSelector
 import org.jetbrains.jet.plugin.util.psi.patternMatching.JetPsiRange
 import org.jetbrains.jet.lang.resolve.BindingContext
+import org.jetbrains.jet.plugin.util.isUnit
 
 trait Parameter {
     val argumentText: String
@@ -119,6 +120,11 @@ class AddPrefixReplacement(override val parameter: Parameter): ParameterReplacem
 class FqNameReplacement(val fqName: FqName): Replacement {
     [suppress("PARAMETER_NAME_CHANGED_ON_OVERRIDE")]
     override fun invoke(e: JetElement): JetElement {
+        val thisExpr = e.getParent() as? JetThisExpression
+        if (thisExpr != null) {
+            return thisExpr.replaced(JetPsiFactory(e).createExpression(fqName.asString())).getQualifiedElementSelector()!!
+        }
+
         val newExpr = (e.getReference() as? JetSimpleNameReference)?.bindToFqName(fqName, ShorteningMode.NO_SHORTENING) as JetElement
         return if (newExpr is JetQualifiedExpression) newExpr.getSelectorExpression()!! else newExpr
     }
@@ -284,11 +290,11 @@ data class ControlFlow(
 ) {
     val outputValueBoxer = boxerFactory(outputValues)
 
-    val defaultOutputValue: ExpressionValue? = with(outputValues.filterIsInstance(javaClass<ExpressionValue>())) {
+    val defaultOutputValue: ExpressionValue? = with(outputValues.filterIsInstance<ExpressionValue>()) {
         if (size > 1) throw IllegalArgumentException("Multiple expression values: ${outputValues.joinToString()}") else firstOrNull()
     }
 
-    val jumpOutputValue: Jump? = with(outputValues.filterIsInstance(javaClass<Jump>())) {
+    val jumpOutputValue: Jump? = with(outputValues.filterIsInstance<Jump>()) {
         when {
             isEmpty() ->
                 null
@@ -317,7 +323,8 @@ data class ExtractableCodeDescriptor(
 
 data class ExtractionGeneratorOptions(
         val inTempFile: Boolean = false,
-        val extractAsProperty: Boolean = false
+        val extractAsProperty: Boolean = false,
+        val flexibleTypesAllowed: Boolean = false
 ) {
     class object {
         val DEFAULT = ExtractionGeneratorOptions()
@@ -388,6 +395,7 @@ class ExtractableCodeDescriptorWithConflicts(
 
 fun ExtractableCodeDescriptor.canGenerateProperty(): Boolean {
     if (!parameters.empty) return false
+    if (controlFlow.outputValueBoxer.returnType.isUnit()) return false
 
     val parent = extractionData.targetSibling.getParent()
     return parent is JetFile || parent is JetClassBody

@@ -21,24 +21,24 @@ import com.intellij.codeInsight.lookup.LookupElementBuilder
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns
 import org.jetbrains.jet.plugin.completion.handlers.insertLambdaTemplate
 import com.intellij.openapi.util.TextRange
-import org.jetbrains.jet.plugin.completion.JetCompletionCharFilter
+import org.jetbrains.jet.plugin.completion.KotlinCompletionCharFilter
 import org.jetbrains.jet.plugin.completion.ExpectedInfo
 import org.jetbrains.jet.plugin.completion.handlers.buildLambdaPresentation
 import org.jetbrains.jet.plugin.completion.suppressAutoInsertion
 
 object LambdaItems {
     public fun addToCollection(collection: MutableCollection<LookupElement>, functionExpectedInfos: Collection<ExpectedInfo>) {
-        val distinctTypes = functionExpectedInfos.map { it.`type` }.toSet()
+        val distinctTypes = functionExpectedInfos.map { it.type }.toSet()
 
         val singleType = if (distinctTypes.size == 1) distinctTypes.single() else null
-        val singleSignatureLength = singleType?.let { KotlinBuiltIns.getInstance().getParameterTypeProjectionsFromFunctionType(it).size }
+        val singleSignatureLength = singleType?.let { KotlinBuiltIns.getParameterTypeProjectionsFromFunctionType(it).size }
         val offerNoParametersLambda = singleSignatureLength == 0 || singleSignatureLength == 1
         if (offerNoParametersLambda) {
             val lookupElement = LookupElementBuilder.create("{...}")
                     .withInsertHandler(ArtificialElementInsertHandler("{ ", " }", false))
                     .suppressAutoInsertion()
+                    .assignSmartCompletionPriority(SmartCompletionItemPriority.LAMBDA_NO_PARAMS)
                     .addTailAndNameSimilarity(functionExpectedInfos)
-            lookupElement.putUserData(JetCompletionCharFilter.ACCEPT_OPENING_BRACE, true)
             collection.add(lookupElement)
         }
 
@@ -53,8 +53,8 @@ object LambdaItems {
                                                insertLambdaTemplate(context, TextRange(offset, offset + placeholder.length), functionType)
                                            })
                         .suppressAutoInsertion()
-                        .addTailAndNameSimilarity(functionExpectedInfos.filter { it.`type` == functionType })
-                lookupElement.putUserData(JetCompletionCharFilter.ACCEPT_OPENING_BRACE, true)
+                        .assignSmartCompletionPriority(SmartCompletionItemPriority.LAMBDA)
+                        .addTailAndNameSimilarity(functionExpectedInfos.filter { it.type == functionType })
                 collection.add(lookupElement)
             }
         }

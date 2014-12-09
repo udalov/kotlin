@@ -30,6 +30,8 @@ import com.intellij.util.containers.ContainerUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.kdoc.lexer.KDocTokens;
+import org.jetbrains.jet.lang.psi.JetDeclaration;
+import org.jetbrains.jet.lexer.JetTokens;
 import org.jetbrains.jet.plugin.JetLanguage;
 
 import java.util.ArrayList;
@@ -118,6 +120,7 @@ public class JetBlock extends AbstractBlock {
         List<Block> blocks = new ArrayList<Block>();
 
         NodeAlignmentStrategy childrenAlignmentStrategy = getChildrenAlignmentStrategy();
+        WrappingStrategy wrappingStrategy = getWrappingStrategy();
 
         for (ASTNode child = myNode.getFirstChildNode(); child != null; child = child.getTreeNext()) {
             IElementType childType = child.getElementType();
@@ -128,28 +131,42 @@ public class JetBlock extends AbstractBlock {
                 continue;
             }
 
-            blocks.add(buildSubBlock(child, childrenAlignmentStrategy));
+            blocks.add(buildSubBlock(child, childrenAlignmentStrategy, wrappingStrategy));
         }
 
         return Collections.unmodifiableList(blocks);
     }
 
     @NotNull
-    private Block buildSubBlock(@NotNull ASTNode child, NodeAlignmentStrategy alignmentStrategy) {
+    private Block buildSubBlock(
+            @NotNull ASTNode child,
+            NodeAlignmentStrategy alignmentStrategy,
+            @NotNull WrappingStrategy wrappingStrategy) {
+        Wrap wrap = wrappingStrategy.getWrap(child.getElementType());
+
         // Skip one sub-level for operators, so type of block node is an element type of operator
         if (child.getElementType() == OPERATION_REFERENCE) {
             ASTNode operationNode = child.getFirstChildNode();
             if (operationNode != null) {
-                return new JetBlock(operationNode, alignmentStrategy, createChildIndent(child), null, mySettings, mySpacingBuilder);
+                return new JetBlock(operationNode, alignmentStrategy, createChildIndent(child), wrap, mySettings, mySpacingBuilder);
             }
         }
 
-        return new JetBlock(child, alignmentStrategy, createChildIndent(child), null, mySettings, mySpacingBuilder);
+        return new JetBlock(child, alignmentStrategy, createChildIndent(child), wrap, mySettings, mySpacingBuilder);
     }
 
     private static ASTNode getPrevWithoutWhitespace(ASTNode node) {
         node = node.getTreePrev();
         while (node != null && node.getElementType() == TokenType.WHITE_SPACE) {
+            node = node.getTreePrev();
+        }
+
+        return node;
+    }
+
+    private static ASTNode getPrevWithoutWhitespaceAndComments(ASTNode node) {
+        node = node.getTreePrev();
+        while (node != null && (node.getElementType() == TokenType.WHITE_SPACE || JetTokens.COMMENTS.contains(node.getElementType()))) {
             node = node.getTreePrev();
         }
 
@@ -212,6 +229,36 @@ public class JetBlock extends AbstractBlock {
     @Override
     public boolean isLeaf() {
         return myNode.getFirstChildNode() == null;
+    }
+
+    @NotNull
+    private static WrappingStrategy getWrappingStrategyForItemList(int wrapType, @NotNull final IElementType itemType) {
+        final Wrap itemWrap = Wrap.createWrap(wrapType, false);
+        return new WrappingStrategy() {
+            @Nullable
+            @Override
+            public Wrap getWrap(@NotNull IElementType childElementType) {
+                return childElementType == itemType ? itemWrap : null;
+            }
+        };
+    }
+
+    @NotNull
+    private WrappingStrategy getWrappingStrategy() {
+        CommonCodeStyleSettings commonSettings = mySettings.getCommonSettings(JetLanguage.INSTANCE);
+        IElementType elementType = myNode.getElementType();
+
+        if (elementType == VALUE_ARGUMENT_LIST) {
+            return getWrappingStrategyForItemList(commonSettings.CALL_PARAMETERS_WRAP, VALUE_ARGUMENT);
+        }
+        if (elementType == VALUE_PARAMETER_LIST) {
+            IElementType parentElementType = myNode.getTreeParent().getElementType();
+            if (parentElementType == FUN || parentElementType == CLASS) {
+                return getWrappingStrategyForItemList(commonSettings.METHOD_PARAMETERS_WRAP, VALUE_PARAMETER);
+            }
+        }
+
+        return WrappingStrategy.NoWrapping.INSTANCE$;
     }
 
     private NodeAlignmentStrategy getChildrenAlignmentStrategy() {
@@ -386,6 +433,14 @@ public class JetBlock extends AbstractBlock {
         // SCRIPT: Avoid indenting script top BLOCK contents
         if (childParent != null && childParent.getTreeParent() != null) {
             if (childParent.getElementType() == BLOCK && childParent.getTreeParent().getElementType() == SCRIPT) {
+                return Indent.getNoneIndent();
+            }
+        }
+
+        // do not indent child after heading comments inside declaration
+        if (childParent != null && childParent.getPsi() instanceof JetDeclaration) {
+            ASTNode prev = getPrevWithoutWhitespace(child);
+            if (prev != null && JetTokens.COMMENTS.contains(prev.getElementType()) && getPrevWithoutWhitespaceAndComments(prev) == null) {
                 return Indent.getNoneIndent();
             }
         }

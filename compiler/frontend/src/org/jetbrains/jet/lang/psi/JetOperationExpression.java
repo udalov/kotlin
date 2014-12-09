@@ -18,7 +18,7 @@ package org.jetbrains.jet.lang.psi;
 
 import org.jetbrains.annotations.NotNull;
 
-public interface JetOperationExpression {
+public interface JetOperationExpression extends JetExpression {
     @NotNull
     JetSimpleNameExpression getOperationReference();
 }

@@ -17,15 +17,14 @@
 package org.jetbrains.jet.lang.psi;
 
 import com.intellij.lang.ASTNode;
+import com.intellij.psi.PsiElement;
 import com.intellij.psi.stubs.IStubElementType;
 import com.intellij.psi.stubs.StubElement;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.jet.lexer.JetModifierKeywordToken;
-import org.jetbrains.jet.lang.psi.stubs.elements.JetStubElementTypes;
-
-import java.util.Collections;
-import java.util.List;
+import org.jetbrains.jet.kdoc.psi.api.KDoc;
+import org.jetbrains.jet.lang.psi.findDocComment.FindDocCommentPackage;
+import org.jetbrains.jet.lang.psi.stubs.KotlinClassOrObjectStub;
 
 abstract class JetDeclarationStub<T extends StubElement> extends JetModifierListOwnerStub<T> implements JetDeclaration {
     public JetDeclarationStub(@NotNull T stub, @NotNull IStubElementType nodeType) {
@@ -34,5 +33,21 @@ abstract class JetDeclarationStub<T extends StubElement> extends JetModifierList
 
     public JetDeclarationStub(@NotNull ASTNode node) {
         super(node);
+    }
+
+    @Nullable
+    @Override
+    public KDoc getDocComment() {
+        return FindDocCommentPackage.findDocComment(this);
+    }
+
+    @Override
+    public PsiElement getParent() {
+        T stub = getStub();
+        // we build stubs for local classes/objects too but they have wrong parent
+        if (stub != null && !(stub instanceof KotlinClassOrObjectStub && ((KotlinClassOrObjectStub) stub).isLocal())) {
+            return stub.getParentStub().getPsi();
+        }
+        return super.getParent();
     }
 }

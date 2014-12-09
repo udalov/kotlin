@@ -27,6 +27,7 @@ import org.jetbrains.jet.lang.descriptors.ClassifierDescriptor;
 import org.jetbrains.jet.lang.descriptors.TypeParameterDescriptor;
 import org.jetbrains.jet.lang.types.checker.JetTypeChecker;
 import org.jetbrains.jet.lang.types.checker.TypeCheckingProcedure;
+import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -42,10 +43,11 @@ public class CastDiagnosticsUtil {
             @NotNull JetType rhsType,
             @NotNull PlatformToKotlinClassMap platformToKotlinClassMap
     ) {
+        if (KotlinBuiltIns.isNullableNothing(lhsType) && !TypeUtils.isNullableType(rhsType)) return false;
         if (isRelated(lhsType, rhsType, platformToKotlinClassMap)) return true;
         // This is an oversimplification (which does not render the method incomplete):
         // we consider any type parameter capable of taking any value, which may be made more precise if we considered bounds
-        if (isTypeParameter(lhsType) || isTypeParameter(rhsType)) return true;
+        if (TypeUtils.isTypeParameter(lhsType) || TypeUtils.isTypeParameter(rhsType)) return true;
         if (isFinal(lhsType) || isFinal(rhsType)) return false;
         if (isTrait(lhsType) || isTrait(rhsType)) return true;
         return false;
@@ -61,8 +63,8 @@ public class CastDiagnosticsUtil {
      * (i.e. java.lang.String -> kotlin.String) and ignore mappings that go the other way.
      */
     private static boolean isRelated(@NotNull JetType a, @NotNull JetType b, @NotNull PlatformToKotlinClassMap platformToKotlinClassMap) {
-        List<JetType> aTypes = mapToPlatformIndependentTypes(a, platformToKotlinClassMap);
-        List<JetType> bTypes = mapToPlatformIndependentTypes(b, platformToKotlinClassMap);
+        List<JetType> aTypes = mapToPlatformIndependentTypes(TypeUtils.makeNotNullable(a), platformToKotlinClassMap);
+        List<JetType> bTypes = mapToPlatformIndependentTypes(TypeUtils.makeNotNullable(b), platformToKotlinClassMap);
 
         for (JetType aType : aTypes) {
             for (JetType bType : bTypes) {
@@ -95,10 +97,6 @@ public class CastDiagnosticsUtil {
         return result;
     }
 
-    private static boolean isTypeParameter(@NotNull JetType type) {
-        return type.getConstructor().getDeclarationDescriptor() instanceof TypeParameterDescriptor;
-    }
-
     private static boolean isFinal(@NotNull JetType type) {
         return !TypeUtils.canHaveSubtypes(JetTypeChecker.DEFAULT, type);
     }
@@ -114,15 +112,15 @@ public class CastDiagnosticsUtil {
      */
     public static boolean isCastErased(@NotNull JetType supertype, @NotNull JetType subtype, @NotNull JetTypeChecker typeChecker) {
         // cast between T and T? is always OK
-        if (supertype.isNullable() || subtype.isNullable()) {
+        if (supertype.isMarkedNullable() || subtype.isMarkedNullable()) {
             return isCastErased(TypeUtils.makeNotNullable(supertype), TypeUtils.makeNotNullable(subtype), typeChecker);
         }
 
         // if it is a upcast, it's never erased
         if (typeChecker.isSubtypeOf(supertype, subtype)) return false;
 
-        // downcasting to a type parameter is always erased
-        if (isTypeParameter(subtype)) return true;
+        // downcasting to a non-reified type parameter is always erased
+        if (TypeUtils.isNonReifiedTypeParemeter(subtype)) return true;
 
         // Check that we are actually casting to a generic type
         // NOTE: this does not account for 'as Array<List<T>>'
@@ -156,7 +154,7 @@ public class CastDiagnosticsUtil {
      *  result = List<*>, some arguments were not inferred, replaced with '*'
      */
     public static TypeReconstructionResult findStaticallyKnownSubtype(@NotNull JetType supertype, @NotNull TypeConstructor subtypeConstructor) {
-        assert !supertype.isNullable() : "This method only makes sense for non-nullable types";
+        assert !supertype.isMarkedNullable() : "This method only makes sense for non-nullable types";
 
         // Assume we are casting an expression of type Collection<Foo> to List<Bar>
         // First, let's make List<T>, where T is a type variable

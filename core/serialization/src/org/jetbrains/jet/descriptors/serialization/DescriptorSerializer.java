@@ -20,56 +20,59 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.descriptors.annotations.Annotated;
 import org.jetbrains.jet.lang.resolve.DescriptorFactory;
-import org.jetbrains.jet.lang.types.JetType;
-import org.jetbrains.jet.lang.types.TypeConstructor;
-import org.jetbrains.jet.lang.types.TypeProjection;
-import org.jetbrains.jet.lang.types.Variance;
+import org.jetbrains.jet.lang.resolve.MemberComparator;
+import org.jetbrains.jet.lang.types.*;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
-import org.jetbrains.jet.renderer.DescriptorRenderer;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 
 import static org.jetbrains.jet.lang.resolve.DescriptorUtils.*;
 
 public class DescriptorSerializer {
 
-    private static final DescriptorRenderer RENDERER = DescriptorRenderer.STARTS_FROM_NAME;
-    private static final Comparator<DeclarationDescriptor> DESCRIPTOR_COMPARATOR = new Comparator<DeclarationDescriptor>() {
-        @Override
-        public int compare(@NotNull DeclarationDescriptor o1, @NotNull DeclarationDescriptor o2) {
-            int names = o1.getName().compareTo(o2.getName());
-            if (names != 0) return names;
-
-            String o1String = RENDERER.render(o1);
-            String o2String = RENDERER.render(o2);
-            return o1String.compareTo(o2String);
-        }
-    };
-    private final NameTable nameTable;
+    private final StringTable stringTable;
     private final Interner<TypeParameterDescriptor> typeParameters;
     private final SerializerExtension extension;
 
-    public DescriptorSerializer() {
-        this(SerializerExtension.DEFAULT);
-    }
-
-    public DescriptorSerializer(@NotNull SerializerExtension extension) {
-        this(new NameTable(), new Interner<TypeParameterDescriptor>(), extension);
-    }
-
-    private DescriptorSerializer(NameTable nameTable, Interner<TypeParameterDescriptor> typeParameters, SerializerExtension extension) {
-        this.nameTable = nameTable;
+    private DescriptorSerializer(StringTable stringTable, Interner<TypeParameterDescriptor> typeParameters, SerializerExtension extension) {
+        this.stringTable = stringTable;
         this.typeParameters = typeParameters;
         this.extension = extension;
     }
 
-    private DescriptorSerializer createChildSerializer() {
-        return new DescriptorSerializer(nameTable, new Interner<TypeParameterDescriptor>(typeParameters), extension);
+    @NotNull
+    public static DescriptorSerializer createTopLevel(@NotNull SerializerExtension extension) {
+        return new DescriptorSerializer(new StringTable(), new Interner<TypeParameterDescriptor>(), extension);
     }
 
     @NotNull
-    public NameTable getNameTable() {
-        return nameTable;
+    public static DescriptorSerializer create(@NotNull ClassDescriptor descriptor, @NotNull SerializerExtension extension) {
+        DeclarationDescriptor container = descriptor.getContainingDeclaration();
+        DescriptorSerializer parentSerializer =
+                container instanceof ClassDescriptor
+                ? create((ClassDescriptor) container, extension)
+                : createTopLevel(extension);
+
+        // Calculate type parameter ids for the outer class beforehand, as it would've had happened if we were always
+        // serializing outer classes before nested classes.
+        // Otherwise our interner can get wrong ids because we may serialize classes in any order.
+        DescriptorSerializer serializer = parentSerializer.createChildSerializer();
+        for (TypeParameterDescriptor typeParameter : descriptor.getTypeConstructor().getParameters()) {
+            serializer.typeParameters.intern(typeParameter);
+        }
+        return serializer;
+    }
+
+    private DescriptorSerializer createChildSerializer() {
+        return new DescriptorSerializer(stringTable, new Interner<TypeParameterDescriptor>(typeParameters), extension);
+    }
+
+    @NotNull
+    public StringTable getStringTable() {
+        return stringTable;
     }
 
     @NotNull
@@ -84,16 +87,14 @@ public class DescriptorSerializer {
 
         builder.setFqName(getClassId(classDescriptor));
 
-        DescriptorSerializer local = createChildSerializer();
-
         for (TypeParameterDescriptor typeParameterDescriptor : classDescriptor.getTypeConstructor().getParameters()) {
-            builder.addTypeParameter(local.typeParameter(typeParameterDescriptor));
+            builder.addTypeParameter(typeParameter(typeParameterDescriptor));
         }
 
-        if (extension.hasSupertypes(classDescriptor)) {
+        if (!KotlinBuiltIns.isSpecialClassWithNoSupertypes(classDescriptor)) {
             // Special classes (Any, Nothing) have no supertypes
             for (JetType supertype : classDescriptor.getTypeConstructor().getSupertypes()) {
-                builder.addSupertype(local.type(supertype));
+                builder.addSupertype(type(supertype));
             }
         }
 
@@ -104,7 +105,7 @@ public class DescriptorSerializer {
             }
             else {
                 ProtoBuf.Class.PrimaryConstructor.Builder constructorBuilder = ProtoBuf.Class.PrimaryConstructor.newBuilder();
-                constructorBuilder.setData(local.callableProto(primaryConstructor));
+                constructorBuilder.setData(callableProto(primaryConstructor));
                 builder.setPrimaryConstructor(constructorBuilder);
             }
         }
@@ -115,14 +116,17 @@ public class DescriptorSerializer {
             if (descriptor instanceof CallableMemberDescriptor) {
                 CallableMemberDescriptor member = (CallableMemberDescriptor) descriptor;
                 if (member.getKind() == CallableMemberDescriptor.Kind.FAKE_OVERRIDE) continue;
-                builder.addMember(local.callableProto(member));
+                builder.addMember(callableProto(member));
             }
         }
 
-        Collection<DeclarationDescriptor> nestedClasses = classDescriptor.getUnsubstitutedInnerClassesScope().getAllDescriptors();
-        for (DeclarationDescriptor descriptor : sort(nestedClasses)) {
-            if (!isEnumEntry(descriptor)) {
-                builder.addNestedClassName(nameTable.getSimpleNameIndex(descriptor.getName()));
+        for (DeclarationDescriptor descriptor : sort(classDescriptor.getUnsubstitutedInnerClassesScope().getAllDescriptors())) {
+            int name = stringTable.getSimpleNameIndex(descriptor.getName());
+            if (isEnumEntry(descriptor)) {
+                builder.addEnumEntry(name);
+            }
+            else {
+                builder.addNestedClassName(name);
             }
         }
 
@@ -131,14 +135,7 @@ public class DescriptorSerializer {
             builder.setClassObject(classObjectProto(classObject));
         }
 
-        if (classDescriptor.getKind() == ClassKind.ENUM_CLASS) {
-            // Not calling sort() here, because the order of enum entries matters
-            for (DeclarationDescriptor descriptor : nestedClasses) {
-                if (isEnumEntry(descriptor)) {
-                    builder.addEnumEntry(nameTable.getSimpleNameIndex(descriptor.getName()));
-                }
-            }
-        }
+        extension.serializeClass(classDescriptor, builder, stringTable);
 
         return builder;
     }
@@ -219,7 +216,7 @@ public class DescriptorSerializer {
             builder.setReceiverType(local.type(receiverParameter.getType()));
         }
 
-        builder.setName(nameTable.getSimpleNameIndex(descriptor.getName()));
+        builder.setName(stringTable.getSimpleNameIndex(descriptor.getName()));
 
         for (ValueParameterDescriptor valueParameterDescriptor : descriptor.getValueParameters()) {
             builder.addValueParameter(local.valueParameter(valueParameterDescriptor));
@@ -227,7 +224,7 @@ public class DescriptorSerializer {
 
         builder.setReturnType(local.type(getSerializableReturnType(descriptor.getReturnType())));
 
-        extension.serializeCallable(descriptor, builder, nameTable);
+        extension.serializeCallable(descriptor, builder, stringTable);
 
         return builder;
     }
@@ -288,7 +285,7 @@ public class DescriptorSerializer {
 
         builder.setFlags(Flags.getValueParameterFlags(hasAnnotations(descriptor), descriptor.declaresDefaultValue()));
 
-        builder.setName(nameTable.getSimpleNameIndex(descriptor.getName()));
+        builder.setName(stringTable.getSimpleNameIndex(descriptor.getName()));
 
         builder.setType(type(descriptor.getType()));
 
@@ -297,7 +294,7 @@ public class DescriptorSerializer {
             builder.setVarargElementType(type(varargElementType));
         }
 
-        extension.serializeValueParameter(descriptor, builder, nameTable);
+        extension.serializeValueParameter(descriptor, builder, stringTable);
 
         return builder;
     }
@@ -307,7 +304,7 @@ public class DescriptorSerializer {
 
         builder.setId(getTypeParameterId(typeParameter));
 
-        builder.setName(nameTable.getSimpleNameIndex(typeParameter.getName()));
+        builder.setName(stringTable.getSimpleNameIndex(typeParameter.getName()));
 
         // to avoid storing a default
         if (typeParameter.isReified()) {
@@ -343,6 +340,8 @@ public class DescriptorSerializer {
     public ProtoBuf.Type.Builder type(@NotNull JetType type) {
         assert !type.isError() : "Can't serialize error types: " + type; // TODO
 
+        if (TypesPackage.isFlexible(type)) return flexibleType(type);
+
         ProtoBuf.Type.Builder builder = ProtoBuf.Type.newBuilder();
 
         builder.setConstructor(typeConstructor(type.getConstructor()));
@@ -352,9 +351,21 @@ public class DescriptorSerializer {
         }
 
         // to avoid storing a default
-        if (type.isNullable()) {
+        if (type.isMarkedNullable()) {
             builder.setNullable(true);
         }
+
+        return builder;
+    }
+
+    private ProtoBuf.Type.Builder flexibleType(@NotNull JetType type) {
+        Flexibility flexibility = TypesPackage.flexibility(type);
+
+        ProtoBuf.Type.Builder builder = type(flexibility.getLowerBound());
+
+        builder.setFlexibleTypeCapabilitiesId(stringTable.getStringIndex(flexibility.getExtraCapabilities().getId()));
+
+        builder.setFlexibleUpperBound(type(flexibility.getUpperBound()));
 
         return builder;
     }
@@ -409,6 +420,8 @@ public class DescriptorSerializer {
             }
         }
 
+        extension.serializePackage(fragments, builder, stringTable);
+
         return builder;
     }
 
@@ -426,7 +439,7 @@ public class DescriptorSerializer {
     }
 
     private int getClassId(@NotNull ClassDescriptor descriptor) {
-        return nameTable.getFqNameIndex(descriptor);
+        return stringTable.getFqNameIndex(descriptor);
     }
 
     private int getTypeParameterId(@NotNull TypeParameterDescriptor descriptor) {
@@ -440,7 +453,8 @@ public class DescriptorSerializer {
     @NotNull
     public static <T extends DeclarationDescriptor> List<T> sort(@NotNull Collection<T> descriptors) {
         List<T> result = new ArrayList<T>(descriptors);
-        Collections.sort(result, DESCRIPTOR_COMPARATOR);
+        //NOTE: the exact comparator does matter here
+        Collections.sort(result, MemberComparator.INSTANCE);
         return result;
 
     }

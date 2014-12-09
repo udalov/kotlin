@@ -64,9 +64,9 @@ class PropagationHeuristics {
                         JetTypeImpl betterTypeInSuper = new JetTypeImpl(
                                 arrayTypeFromSuper.getAnnotations(),
                                 arrayTypeFromSuper.getConstructor(),
-                                arrayTypeFromSuper.isNullable(),
+                                arrayTypeFromSuper.isMarkedNullable(),
                                 Arrays.asList(new TypeProjectionImpl(Variance.OUT_VARIANCE, elementTypeInSuper)),
-                                JetScope.EMPTY);
+                                JetScope.Empty.INSTANCE$);
 
                         data.reportError("Return type is not a subtype of overridden method. " +
                                          "To fix it, add annotation with Kotlin signature to super method with type "

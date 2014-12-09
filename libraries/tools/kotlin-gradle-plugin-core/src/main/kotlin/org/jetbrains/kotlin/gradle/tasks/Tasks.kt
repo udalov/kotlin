@@ -1,13 +1,11 @@
 package org.jetbrains.kotlin.gradle.tasks
 
 import org.gradle.api.tasks.compile.AbstractCompile
-import org.jetbrains.kotlin.gradle.plugin.KSpec
 import java.io.File
 import org.gradle.api.GradleException
 import org.jetbrains.jet.cli.common.ExitCode
 import org.gradle.api.tasks.SourceTask
 import org.jetbrains.kotlin.doc.KDocArguments
-import java.util.HashMap
 import java.util.HashSet
 import org.jetbrains.kotlin.doc.KDocCompiler
 import org.gradle.api.tasks.TaskAction
@@ -15,38 +13,35 @@ import org.gradle.api.file.SourceDirectorySet
 import java.util.ArrayList
 import org.apache.commons.io.FilenameUtils
 import org.jetbrains.jet.cli.jvm.K2JVMCompiler
-import org.jetbrains.jet.cli.common.arguments.K2JVMCompilerArguments;
+import org.jetbrains.jet.cli.common.arguments.K2JVMCompilerArguments
 import org.jetbrains.jet.cli.common.messages.MessageCollector
 import org.jetbrains.jet.cli.common.messages.CompilerMessageSeverity
 import org.jetbrains.jet.cli.common.messages.CompilerMessageLocation
 import org.gradle.api.logging.Logger
 import org.gradle.api.logging.Logging
 import org.apache.commons.lang.StringUtils
-import org.gradle.api.initialization.dsl.ScriptHandler
 import org.apache.commons.io.FileUtils
 import org.jetbrains.kotlin.gradle.plugin.*
-import org.jetbrains.kotlin.doc.KDocConfig
-import java.util.concurrent.Callable
 import org.gradle.api.Project
 import org.jetbrains.jet.config.Services
 
 public open class KotlinCompile(): AbstractCompile() {
 
-    val srcDirsRoots = HashSet<File>()
+    val srcDirsSources = HashSet<SourceDirectorySet>()
     val compiler = K2JVMCompiler()
 
     private val logger = Logging.getLogger(this.javaClass)
     override fun getLogger() = logger
 
-    public var kotlinOptions: K2JVMCompilerArguments = K2JVMCompilerArguments();
+    public var kotlinOptions: K2JVMCompilerArguments = K2JVMCompilerArguments()
 
     public var kotlinDestinationDir : File? = getDestinationDir()
 
     // override setSource to track source directory sets
     override fun setSource(source: Any?) {
-        srcDirsRoots.clear()
+        srcDirsSources.clear()
         if (source is SourceDirectorySet) {
-            srcDirsRoots.addAll(source.getSrcDirs())
+            srcDirsSources.add(source)
         }
         super.setSource(source)
     }
@@ -55,7 +50,7 @@ public open class KotlinCompile(): AbstractCompile() {
     override fun source(vararg sources: Any?): SourceTask? {
         for (source in sources) {
             if (source is SourceDirectorySet) {
-                srcDirsRoots.addAll(source.getSrcDirs())
+                srcDirsSources.add(source)
             }
         }
         return super.source(sources)
@@ -63,10 +58,12 @@ public open class KotlinCompile(): AbstractCompile() {
 
     fun findSrcDirRoot(file: File): File? {
         val absPath = file.getAbsolutePath()
-        for (root in srcDirsRoots) {
-            val rootAbsPath = root.getAbsolutePath()
-            if (FilenameUtils.directoryContains(rootAbsPath, absPath)) {
-                return root
+        for (source in srcDirsSources) {
+            for (root in source.getSrcDirs()) {
+                val rootAbsPath = root.getAbsolutePath()
+                if (FilenameUtils.directoryContains(rootAbsPath, absPath)) {
+                    return root
+                }
             }
         }
         return null
@@ -99,10 +96,14 @@ public open class KotlinCompile(): AbstractCompile() {
             return
         }
 
+        args.suppressWarnings = kotlinOptions.suppressWarnings
+        args.version = kotlinOptions.version
+        args.verbose = logger.isDebugEnabled()
+
         args.freeArgs = sources.map { it.getAbsolutePath() }
 
         if (StringUtils.isEmpty(kotlinOptions.classpath)) {
-            val existingClasspathEntries =  getClasspath().filter(KSpec<File?>({ it != null && it.exists() }))
+            val existingClasspathEntries = getClasspath().filter({ it != null && it.exists() })
             val effectiveClassPath = (javaSrcRoots + existingClasspathEntries).makeString(File.pathSeparator)
             args.classpath = effectiveClassPath
         }
@@ -147,7 +148,7 @@ public open class KDoc(): SourceTask() {
 
     public var kdocArgs: KDocArguments = KDocArguments()
 
-    public var destinationDir: File? = null;
+    public var destinationDir: File? = null
 
     {
         // by default, output dir is not defined in options
@@ -189,7 +190,7 @@ public open class KDoc(): SourceTask() {
         val compiler = KDocCompiler()
 
         val messageCollector = GradleMessageCollector(getLogger())
-        val exitCode = compiler.exec(messageCollector, Services.EMPTY, args);
+        val exitCode = compiler.exec(messageCollector, Services.EMPTY, args)
 
         when (exitCode) {
             ExitCode.COMPILATION_ERROR -> throw GradleException("Failed to generate kdoc. See log for more details")

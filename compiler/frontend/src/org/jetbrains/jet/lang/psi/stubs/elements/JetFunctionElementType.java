@@ -23,34 +23,35 @@ import com.intellij.psi.stubs.StubOutputStream;
 import com.intellij.util.io.StringRef;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.jet.lang.psi.JetFile;
-import org.jetbrains.jet.lang.psi.JetNamedFunction;
-import org.jetbrains.jet.lang.psi.stubs.PsiJetFunctionStub;
-import org.jetbrains.jet.lang.psi.stubs.impl.PsiJetFunctionStubImpl;
+import org.jetbrains.jet.lang.psi.*;
+import org.jetbrains.jet.lang.psi.psiUtil.PsiUtilPackage;
+import org.jetbrains.jet.lang.psi.stubs.KotlinFunctionStub;
+import org.jetbrains.jet.lang.psi.stubs.impl.KotlinFunctionStubImpl;
 import org.jetbrains.jet.lang.resolve.lazy.ResolveSessionUtils;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 
 import java.io.IOException;
 
-public class JetFunctionElementType extends JetStubElementType<PsiJetFunctionStub, JetNamedFunction> {
+public class JetFunctionElementType extends JetStubElementType<KotlinFunctionStub, JetNamedFunction> {
 
     public JetFunctionElementType(@NotNull @NonNls String debugName) {
-        super(debugName, JetNamedFunction.class, PsiJetFunctionStub.class);
+        super(debugName, JetNamedFunction.class, KotlinFunctionStub.class);
     }
 
     @Override
-    public PsiJetFunctionStub createStub(@NotNull JetNamedFunction psi, @NotNull StubElement parentStub) {
+    public KotlinFunctionStub createStub(@NotNull JetNamedFunction psi, @NotNull StubElement parentStub) {
         boolean isTopLevel = psi.getParent() instanceof JetFile;
         boolean isExtension = psi.getReceiverTypeReference() != null;
         FqName fqName = ResolveSessionUtils.safeFqNameForLazyResolve(psi);
         boolean hasBlockBody = psi.hasBlockBody();
         boolean hasBody = psi.hasBody();
-        return new PsiJetFunctionStubImpl(parentStub, StringRef.fromString(psi.getName()), isTopLevel, fqName,
-                                          isExtension, hasBlockBody, hasBody, psi.hasTypeParameterListBeforeFunctionName());
+        return new KotlinFunctionStubImpl(parentStub, StringRef.fromString(psi.getName()), isTopLevel, fqName,
+                                          isExtension, hasBlockBody, hasBody, psi.hasTypeParameterListBeforeFunctionName(),
+                                          PsiUtilPackage.isProbablyNothing(psi.getTypeReference()));
     }
 
     @Override
-    public void serialize(@NotNull PsiJetFunctionStub stub, @NotNull StubOutputStream dataStream) throws IOException {
+    public void serialize(@NotNull KotlinFunctionStub stub, @NotNull StubOutputStream dataStream) throws IOException {
         dataStream.writeName(stub.getName());
         dataStream.writeBoolean(stub.isTopLevel());
 
@@ -61,11 +62,12 @@ public class JetFunctionElementType extends JetStubElementType<PsiJetFunctionStu
         dataStream.writeBoolean(stub.hasBlockBody());
         dataStream.writeBoolean(stub.hasBody());
         dataStream.writeBoolean(stub.hasTypeParameterListBeforeFunctionName());
+        dataStream.writeBoolean(stub.isProbablyNothingType());
     }
 
     @NotNull
     @Override
-    public PsiJetFunctionStub deserialize(@NotNull StubInputStream dataStream, StubElement parentStub) throws IOException {
+    public KotlinFunctionStub deserialize(@NotNull StubInputStream dataStream, StubElement parentStub) throws IOException {
         StringRef name = dataStream.readName();
         boolean isTopLevel = dataStream.readBoolean();
 
@@ -76,13 +78,14 @@ public class JetFunctionElementType extends JetStubElementType<PsiJetFunctionStu
         boolean hasBlockBody = dataStream.readBoolean();
         boolean hasBody = dataStream.readBoolean();
         boolean hasTypeParameterListBeforeFunctionName = dataStream.readBoolean();
+        boolean probablyNothingType = dataStream.readBoolean();
 
-        return new PsiJetFunctionStubImpl(parentStub, name, isTopLevel, fqName, isExtension, hasBlockBody, hasBody,
-                                          hasTypeParameterListBeforeFunctionName);
+        return new KotlinFunctionStubImpl(parentStub, name, isTopLevel, fqName, isExtension, hasBlockBody, hasBody,
+                                          hasTypeParameterListBeforeFunctionName, probablyNothingType);
     }
 
     @Override
-    public void indexStub(@NotNull PsiJetFunctionStub stub, @NotNull IndexSink sink) {
+    public void indexStub(@NotNull KotlinFunctionStub stub, @NotNull IndexSink sink) {
         StubIndexServiceFactory.getInstance().indexFunction(stub, sink);
     }
 }

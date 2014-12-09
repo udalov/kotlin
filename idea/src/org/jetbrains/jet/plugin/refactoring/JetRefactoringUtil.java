@@ -45,16 +45,17 @@ import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.psi.psiUtil.PsiUtilPackage;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.DescriptorToSourceUtils;
-import org.jetbrains.jet.lang.resolve.OverrideResolver;
+import org.jetbrains.jet.lang.resolve.DescriptorUtils;
 import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 import org.jetbrains.jet.lexer.JetModifierKeywordToken;
 import org.jetbrains.jet.lexer.JetTokens;
 import org.jetbrains.jet.plugin.JetBundle;
+import org.jetbrains.jet.plugin.caches.resolve.ResolvePackage;
 import org.jetbrains.jet.plugin.codeInsight.CodeInsightUtils;
 import org.jetbrains.jet.plugin.codeInsight.DescriptorToDeclarationUtil;
-import org.jetbrains.jet.plugin.project.AnalyzerFacadeWithCache;
-import org.jetbrains.jet.plugin.util.UtilPackage;
+import org.jetbrains.jet.plugin.util.IdeDescriptorRenderers;
+import org.jetbrains.jet.plugin.util.string.StringPackage;
 import org.jetbrains.jet.renderer.DescriptorRenderer;
 
 import javax.swing.*;
@@ -80,7 +81,7 @@ public class JetRefactoringUtil {
         else if (visibility == Visibilities.INTERNAL) {
             return JetTokens.INTERNAL_KEYWORD;
         }
-        else if (visibility == Visibilities.PRIVATE) {
+        else if (Visibilities.isPrivate(visibility)) {
             return JetTokens.PRIVATE_KEYWORD;
         }
 
@@ -94,7 +95,7 @@ public class JetRefactoringUtil {
 
     @NotNull
     public static String formatClassDescriptor(@NotNull DeclarationDescriptor classDescriptor) {
-        return DescriptorRenderer.SOURCE_CODE_SHORT_NAMES_IN_TYPES.render(classDescriptor);
+        return IdeDescriptorRenderers.SOURCE_CODE_SHORT_NAMES_IN_TYPES.render(classDescriptor);
     }
 
     @NotNull
@@ -126,7 +127,7 @@ public class JetRefactoringUtil {
             @Nullable Collection<PsiElement> ignore,
             @NotNull String actionStringKey
     ) {
-        BindingContext bindingContext = AnalyzerFacadeWithCache.getContextForElement(declaration);
+        BindingContext bindingContext = ResolvePackage.analyze(declaration);
 
         CallableDescriptor declarationDescriptor =
                 (CallableDescriptor)bindingContext.get(BindingContext.DECLARATION_TO_DESCRIPTOR, declaration);
@@ -137,7 +138,7 @@ public class JetRefactoringUtil {
 
         Project project = declaration.getProject();
         Map<PsiElement, CallableDescriptor> overriddenElementsToDescriptor = new HashMap<PsiElement, CallableDescriptor>();
-        for (CallableDescriptor overriddenDescriptor : OverrideResolver.getAllOverriddenDescriptors(declarationDescriptor)) {
+        for (CallableDescriptor overriddenDescriptor : DescriptorUtils.getAllOverriddenDescriptors(declarationDescriptor)) {
             PsiElement overriddenDeclaration = DescriptorToDeclarationUtil.INSTANCE$.getDeclaration(project, overriddenDescriptor);
             if (PsiTreeUtil.instanceOf(overriddenDeclaration, JetNamedFunction.class, JetProperty.class, PsiMethod.class)) {
                 overriddenElementsToDescriptor.put(overriddenDeclaration, overriddenDescriptor);
@@ -169,7 +170,7 @@ public class JetRefactoringUtil {
         String message = JetBundle.message(
                 "x.overrides.y.in.class.list",
                 DescriptorRenderer.COMPACT.render(declarationDescriptor),
-                DescriptorRenderer.SOURCE_CODE_SHORT_NAMES_IN_TYPES.render(declarationDescriptor.getContainingDeclaration()),
+                IdeDescriptorRenderers.SOURCE_CODE_SHORT_NAMES_IN_TYPES.render(declarationDescriptor.getContainingDeclaration()),
                 superClassesStr,
                 JetBundle.message(actionStringKey)
         );
@@ -261,7 +262,7 @@ public class JetRefactoringUtil {
         PsiElement originalDeclaration = AsJavaPackage.getUnwrapped(method);
         if (originalDeclaration instanceof JetDeclaration) {
             JetDeclaration jetDeclaration = (JetDeclaration) originalDeclaration;
-            BindingContext bindingContext = AnalyzerFacadeWithCache.getContextForElement(jetDeclaration);
+            BindingContext bindingContext = ResolvePackage.analyze(jetDeclaration);
             DeclarationDescriptor descriptor = bindingContext.get(BindingContext.DECLARATION_TO_DESCRIPTOR, jetDeclaration);
 
             if (descriptor != null) return formatFunctionDescriptor(descriptor);
@@ -271,7 +272,7 @@ public class JetRefactoringUtil {
 
     @NotNull
     public static String formatClass(@NotNull JetClassOrObject classOrObject) {
-        BindingContext bindingContext = AnalyzerFacadeWithCache.getContextForElement(classOrObject);
+        BindingContext bindingContext = ResolvePackage.analyze(classOrObject);
         DeclarationDescriptor descriptor = bindingContext.get(BindingContext.DECLARATION_TO_DESCRIPTOR, classOrObject);
 
         if (descriptor instanceof ClassDescriptor) return formatClassDescriptor(descriptor);
@@ -424,9 +425,9 @@ public class JetRefactoringUtil {
                 }
                 if (addExpression) {
                     JetExpression expression = (JetExpression)element;
-                    BindingContext bindingContext = AnalyzerFacadeWithCache.getContextForElement(expression);
+                    BindingContext bindingContext = ResolvePackage.analyze(expression);
                     JetType expressionType = bindingContext.get(BindingContext.EXPRESSION_TYPE, expression);
-                    if (expressionType == null || !KotlinBuiltIns.getInstance().isUnit(expressionType)) {
+                    if (expressionType == null || !KotlinBuiltIns.isUnit(expressionType)) {
                         expressions.add(expression);
                     }
                 }
@@ -502,7 +503,7 @@ public class JetRefactoringUtil {
     }
 
     public static String getExpressionShortText(@NotNull JetElement element) { //todo: write appropriate implementation
-        return UtilPackage.collapseSpaces(StringUtil.shortenTextWithEllipsis(element.getText(), 53, 0));
+        return StringPackage.collapseSpaces(StringUtil.shortenTextWithEllipsis(element.getText(), 53, 0));
     }
 
     @Nullable

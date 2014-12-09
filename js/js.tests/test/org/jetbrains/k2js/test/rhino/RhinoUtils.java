@@ -33,8 +33,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.jetbrains.jet.utils.UtilsPackage.rethrow;
-import static org.jetbrains.k2js.config.LibrarySourcesConfig.STDLIB_JS_FILE_NAME;
-import static org.jetbrains.k2js.config.LibrarySourcesConfig.STDLIB_JS_MODULE_NAME;
+import static org.jetbrains.k2js.config.LibrarySourcesConfig.*;
 import static org.jetbrains.k2js.test.BasicTest.DIST_DIR_PATH;
 import static org.jetbrains.k2js.test.BasicTest.TEST_DATA_DIR_PATH;
 
@@ -140,6 +139,9 @@ public final class RhinoUtils {
         try {
             ScriptableObject scope = getScope(ecmaVersion, context, jsLibraries);
             putGlobalVariablesIntoScope(scope, variables);
+
+            context.evaluateString(scope, "Kotlin.out = new Kotlin.BufferedOutput();", "setup Kotlin.out", 0, null);
+
             for (String filename : fileNames) {
                 runFileWithRhino(filename, context, scope);
                 //String problems = lintIt(context, filename, scope);
@@ -175,9 +177,11 @@ public final class RhinoUtils {
             NativeObject modules = (NativeObject) kotlin.get("modules");
             assert modules != null;
             NativeObject stdlibModule = (NativeObject) modules.get(STDLIB_JS_MODULE_NAME);
+            NativeObject builtinsModule = (NativeObject) modules.get(BUILTINS_JS_MODULE_NAME);
 
             NativeObject newModules = new NativeObject();
             newModules.put(STDLIB_JS_MODULE_NAME, newModules, stdlibModule);
+            newModules.put(BUILTINS_JS_MODULE_NAME, newModules, builtinsModule);
 
             kotlin.put("modules", kotlin, newModules);
         }
@@ -193,6 +197,7 @@ public final class RhinoUtils {
             runFileWithRhino(TEST_DATA_DIR_PATH + "maps.js", context, scope);
             runFileWithRhino(TEST_DATA_DIR_PATH + "long.js", context, scope);
             runFileWithRhino(DIST_DIR_PATH + STDLIB_JS_FILE_NAME, context, scope);
+            runFileWithRhino(DIST_DIR_PATH + BUILTINS_JS_FILE_NAME, context, scope);
             //runFileWithRhino(pathToTestFilesRoot() + "jshint.js", context, scope);
             for (String jsLibrary : jsLibraries) {
                 runFileWithRhino(jsLibrary, context, scope);

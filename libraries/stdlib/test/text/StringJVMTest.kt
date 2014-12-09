@@ -6,13 +6,6 @@ import kotlin.test.*
 import org.junit.Test as test
 
 class StringJVMTest {
-    test fun stringIterator() {
-        var sum = 0
-        for(c in "239")
-            sum += (c.toInt() - '0'.toInt())
-        assertTrue(sum == 14)
-    }
-
     test fun stringBuilderIterator() {
         var sum = 0
         val sb = StringBuilder()
@@ -286,54 +279,6 @@ class StringJVMTest {
         assertEquals("1,234,567.890", "%,.3f".format(Locale.ENGLISH, 1234567.890))
         assertEquals("1.234.567,890", "%,.3f".format(Locale.GERMAN, 1234567.890))
         assertEquals("1 234 567,890", "%,.3f".format(Locale("fr"), 1234567.890))
-    }
-
-    test fun trimLeading() {
-        assertEquals("", "".trimLeading())
-        assertEquals("a", "a".trimLeading())
-        assertEquals("a", " a".trimLeading())
-        assertEquals("a", "  a".trimLeading())
-        assertEquals("a  ", "  a  ".trimLeading())
-        assertEquals("a b", "  a b".trimLeading())
-        assertEquals("a b ", "  a b ".trimLeading())
-
-        assertEquals("a", "\ta".trimLeading())
-        assertEquals("a", "\t\ta".trimLeading())
-        assertEquals("a", "\ra".trimLeading())
-        assertEquals("a", "\na".trimLeading())
-    }
-
-    test fun trimTrailing() {
-        assertEquals("", "".trimTrailing())
-        assertEquals("a", "a".trimTrailing())
-        assertEquals("a", "a ".trimTrailing())
-        assertEquals("a", "a  ".trimTrailing())
-        assertEquals("  a", "  a  ".trimTrailing())
-        assertEquals("a b", "a b  ".trimTrailing())
-        assertEquals(" a b", " a b  ".trimTrailing())
-
-        assertEquals("a", "a\t".trimTrailing())
-        assertEquals("a", "a\t\t".trimTrailing())
-        assertEquals("a", "a\r".trimTrailing())
-        assertEquals("a", "a\n".trimTrailing())
-    }
-
-    test fun trimTrailingAndLeading() {
-        val examples = array(
-                "a",
-                " a ",
-                "  a  ",
-                "  a b  ",
-                "\ta\tb\t",
-                "\t\ta\t\t",
-                "\ra\r",
-                "\na\n"
-        )
-
-        for (example in examples) {
-            assertEquals(example.trim(), example.trimTrailing().trimLeading())
-            assertEquals(example.trim(), example.trimLeading().trimTrailing())
-        }
     }
 
     test fun toByteArrayEncodings() {

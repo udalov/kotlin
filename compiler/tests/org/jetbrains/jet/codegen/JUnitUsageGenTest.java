@@ -19,6 +19,7 @@ package org.jetbrains.jet.codegen;
 import org.jetbrains.jet.ConfigurationKind;
 import org.jetbrains.jet.JetTestUtils;
 import org.jetbrains.jet.TestJdkKind;
+import org.jetbrains.jet.cli.jvm.compiler.EnvironmentConfigFiles;
 import org.jetbrains.jet.cli.jvm.compiler.JetCoreEnvironment;
 import org.junit.Test;
 
@@ -30,14 +31,16 @@ public class JUnitUsageGenTest extends CodegenTestCase {
     @Override
     protected void setUp() throws Exception {
         super.setUp();
-        File junitJar = new File("libraries/lib/junit-4.9.jar");
+        File junitJar = new File("libraries/lib/junit-4.11.jar");
 
         if (!junitJar.exists()) {
             throw new AssertionError("JUnit jar wasn't found");
         }
 
-        myEnvironment = JetCoreEnvironment.createForTests(getTestRootDisposable(), JetTestUtils.compilerConfigurationForTests(
-                ConfigurationKind.ALL, TestJdkKind.MOCK_JDK, junitJar));
+        myEnvironment = JetCoreEnvironment.createForTests(
+                getTestRootDisposable(),
+                JetTestUtils.compilerConfigurationForTests(ConfigurationKind.ALL, TestJdkKind.MOCK_JDK, junitJar),
+                EnvironmentConfigFiles.JVM_CONFIG_FILES);
     }
 
     public void testKt2344() throws Exception {

@@ -64,10 +64,10 @@ public class ControlStructureTypingVisitor extends ExpressionTypingVisitor {
     private DataFlowInfo checkCondition(@NotNull JetScope scope, @Nullable JetExpression condition, ExpressionTypingContext context) {
         if (condition != null) {
             JetTypeInfo typeInfo = facade.getTypeInfo(condition, context.replaceScope(scope)
-                    .replaceExpectedType(KotlinBuiltIns.getInstance().getBooleanType()).replaceContextDependency(INDEPENDENT));
+                    .replaceExpectedType(components.builtIns.getBooleanType()).replaceContextDependency(INDEPENDENT));
             JetType conditionType = typeInfo.getType();
 
-            if (conditionType != null && !isBoolean(conditionType)) {
+            if (conditionType != null && !components.builtIns.isBooleanOrSubtype(conditionType)) {
                 context.trace.report(TYPE_MISMATCH_IN_CONDITION.on(condition, conditionType));
             }
 
@@ -102,7 +102,7 @@ public class ControlStructureTypingVisitor extends ExpressionTypingVisitor {
                 return getTypeInfoWhenOnlyOneBranchIsPresent(
                         thenBranch, thenScope, thenInfo, elseInfo, contextWithExpectedType, ifExpression, isStatement);
             }
-            return DataFlowUtils.checkImplicitCast(KotlinBuiltIns.getInstance().getUnitType(), ifExpression, contextWithExpectedType,
+            return DataFlowUtils.checkImplicitCast(components.builtIns.getUnitType(), ifExpression, contextWithExpectedType,
                                                    isStatement, thenInfo.or(elseInfo));
         }
         if (thenBranch == null) {
@@ -130,24 +130,25 @@ public class ControlStructureTypingVisitor extends ExpressionTypingVisitor {
         DataFlowInfo thenDataFlowInfo = thenTypeInfo.getDataFlowInfo();
         DataFlowInfo elseDataFlowInfo = elseTypeInfo.getDataFlowInfo();
 
-        boolean jumpInThen = thenType != null && KotlinBuiltIns.getInstance().isNothing(thenType);
-        boolean jumpInElse = elseType != null && KotlinBuiltIns.getInstance().isNothing(elseType);
+        boolean jumpInThen = thenType != null && KotlinBuiltIns.isNothing(thenType);
+        boolean jumpInElse = elseType != null && KotlinBuiltIns.isNothing(elseType);
 
-        JetTypeInfo result;
+        DataFlowInfo resultDataFlowInfo;
         if (thenType == null && elseType == null) {
-            result = JetTypeInfo.create(null, thenDataFlowInfo.or(elseDataFlowInfo));
+            resultDataFlowInfo = thenDataFlowInfo.or(elseDataFlowInfo);
         }
         else if (thenType == null || (jumpInThen && !jumpInElse)) {
-            result = elseTypeInfo;
+            resultDataFlowInfo = elseDataFlowInfo;
         }
         else if (elseType == null || (jumpInElse && !jumpInThen)) {
-            result = thenTypeInfo;
+            resultDataFlowInfo = thenDataFlowInfo;
         }
         else {
-            result = JetTypeInfo.create(resolvedCall.getResultingDescriptor().getReturnType(), thenDataFlowInfo.or(elseDataFlowInfo));
+            resultDataFlowInfo = thenDataFlowInfo.or(elseDataFlowInfo);
         }
 
-        return DataFlowUtils.checkImplicitCast(result.getType(), ifExpression, contextWithExpectedType, isStatement, result.getDataFlowInfo());
+        JetType resultType = resolvedCall.getResultingDescriptor().getReturnType();
+        return DataFlowUtils.checkImplicitCast(resultType, ifExpression, contextWithExpectedType, isStatement, resultDataFlowInfo);
     }
 
     @NotNull
@@ -166,12 +167,12 @@ public class ControlStructureTypingVisitor extends ExpressionTypingVisitor {
                 presentScope, Collections.singletonList(presentBranch), CoercionStrategy.NO_COERCION, newContext, context.trace);
         JetType type = typeInfo.getType();
         DataFlowInfo dataFlowInfo;
-        if (type != null && KotlinBuiltIns.getInstance().isNothing(type)) {
+        if (type != null && KotlinBuiltIns.isNothing(type)) {
             dataFlowInfo = otherInfo;
         } else {
             dataFlowInfo = typeInfo.getDataFlowInfo().or(otherInfo);
         }
-        JetType typeForIfExpression = DataFlowUtils.checkType(KotlinBuiltIns.getInstance().getUnitType(), ifExpression, context);
+        JetType typeForIfExpression = DataFlowUtils.checkType(components.builtIns.getUnitType(), ifExpression, context);
         return DataFlowUtils.checkImplicitCast(typeForIfExpression, ifExpression, context, isStatement, dataFlowInfo);
     }
 
@@ -200,7 +201,7 @@ public class ControlStructureTypingVisitor extends ExpressionTypingVisitor {
         if (!containsJumpOutOfLoop(expression, context)) {
             dataFlowInfo = DataFlowUtils.extractDataFlowInfoFromCondition(condition, false, context).and(dataFlowInfo);
         }
-        return DataFlowUtils.checkType(KotlinBuiltIns.getInstance().getUnitType(), expression, contextWithExpectedType, dataFlowInfo);
+        return DataFlowUtils.checkType(components.builtIns.getUnitType(), expression, contextWithExpectedType, dataFlowInfo);
     }
 
     private boolean containsJumpOutOfLoop(final JetLoopExpression loopExpression, final ExpressionTypingContext context) {
@@ -287,7 +288,7 @@ public class ControlStructureTypingVisitor extends ExpressionTypingVisitor {
         else {
             dataFlowInfo = context.dataFlowInfo;
         }
-        return DataFlowUtils.checkType(KotlinBuiltIns.getInstance().getUnitType(), expression, contextWithExpectedType, dataFlowInfo);
+        return DataFlowUtils.checkType(components.builtIns.getUnitType(), expression, contextWithExpectedType, dataFlowInfo);
     }
 
     @Override
@@ -335,7 +336,7 @@ public class ControlStructureTypingVisitor extends ExpressionTypingVisitor {
                     CoercionStrategy.NO_COERCION, context.replaceDataFlowInfo(dataFlowInfo), context.trace);
         }
 
-        return DataFlowUtils.checkType(KotlinBuiltIns.getInstance().getUnitType(), expression, contextWithExpectedType, dataFlowInfo);
+        return DataFlowUtils.checkType(components.builtIns.getUnitType(), expression, contextWithExpectedType, dataFlowInfo);
     }
 
     private VariableDescriptor createLoopParameterDescriptor(
@@ -390,7 +391,7 @@ public class ControlStructureTypingVisitor extends ExpressionTypingVisitor {
 
                 VariableDescriptor variableDescriptor = components.expressionTypingServices.getDescriptorResolver().resolveLocalVariableDescriptor(
                         context.scope, catchParameter, context.trace);
-                JetType throwableType = KotlinBuiltIns.getInstance().getThrowable().getDefaultType();
+                JetType throwableType = components.builtIns.getThrowable().getDefaultType();
                 DataFlowUtils.checkType(variableDescriptor.getType(), catchParameter, context.replaceExpectedType(throwableType));
                 if (catchBody != null) {
                     WritableScope catchScope = newWritableScopeImpl(context, "Catch scope");
@@ -425,11 +426,11 @@ public class ControlStructureTypingVisitor extends ExpressionTypingVisitor {
     public JetTypeInfo visitThrowExpression(@NotNull JetThrowExpression expression, ExpressionTypingContext context) {
         JetExpression thrownExpression = expression.getThrownExpression();
         if (thrownExpression != null) {
-            JetType throwableType = KotlinBuiltIns.getInstance().getThrowable().getDefaultType();
+            JetType throwableType = components.builtIns.getThrowable().getDefaultType();
             facade.getTypeInfo(thrownExpression, context
                     .replaceExpectedType(throwableType).replaceScope(context.scope).replaceContextDependency(INDEPENDENT));
         }
-        return DataFlowUtils.checkType(KotlinBuiltIns.getInstance().getNothingType(), expression, context, context.dataFlowInfo);
+        return DataFlowUtils.checkType(components.builtIns.getNothingType(), expression, context, context.dataFlowInfo);
     }
 
     @Override
@@ -439,7 +440,7 @@ public class ControlStructureTypingVisitor extends ExpressionTypingVisitor {
         JetExpression returnedExpression = expression.getReturnedExpression();
 
         JetType expectedType = NO_EXPECTED_TYPE;
-        JetType resultType = KotlinBuiltIns.getInstance().getNothingType();
+        JetType resultType = components.builtIns.getNothingType();
         JetDeclaration parentDeclaration = PsiTreeUtil.getParentOfType(expression, JetDeclaration.class);
 
         if (parentDeclaration instanceof JetParameter) {
@@ -494,7 +495,7 @@ public class ControlStructureTypingVisitor extends ExpressionTypingVisitor {
                     .replaceContextDependency(INDEPENDENT));
         }
         else {
-            if (expectedType != null && !noExpectedType(expectedType) && !KotlinBuiltIns.getInstance().isUnit(expectedType)) {
+            if (expectedType != null && !noExpectedType(expectedType) && !KotlinBuiltIns.isUnit(expectedType)) {
                 context.trace.report(RETURN_TYPE_MISMATCH.on(expression, expectedType));
             }
         }
@@ -504,13 +505,13 @@ public class ControlStructureTypingVisitor extends ExpressionTypingVisitor {
     @Override
     public JetTypeInfo visitBreakExpression(@NotNull JetBreakExpression expression, ExpressionTypingContext context) {
         LabelResolver.INSTANCE.resolveControlLabel(expression, context);
-        return DataFlowUtils.checkType(KotlinBuiltIns.getInstance().getNothingType(), expression, context, context.dataFlowInfo);
+        return DataFlowUtils.checkType(components.builtIns.getNothingType(), expression, context, context.dataFlowInfo);
     }
 
     @Override
     public JetTypeInfo visitContinueExpression(@NotNull JetContinueExpression expression, ExpressionTypingContext context) {
         LabelResolver.INSTANCE.resolveControlLabel(expression, context);
-        return DataFlowUtils.checkType(KotlinBuiltIns.getInstance().getNothingType(), expression, context, context.dataFlowInfo);
+        return DataFlowUtils.checkType(components.builtIns.getNothingType(), expression, context, context.dataFlowInfo);
     }
 
     @NotNull

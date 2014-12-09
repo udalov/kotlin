@@ -20,11 +20,14 @@ import com.google.common.base.Function;
 import com.google.common.collect.Collections2;
 import com.google.common.collect.ImmutableList;
 import com.google.gson.JsonElement;
+import com.google.gson.JsonNull;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.intellij.codeInsight.lookup.LookupElement;
 import com.intellij.codeInsight.lookup.LookupElementPresentation;
+import com.intellij.codeInsight.lookup.impl.LookupCellRenderer;
 import com.intellij.openapi.util.text.StringUtil;
+import com.intellij.ui.JBColor;
 import com.intellij.util.ArrayUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -33,7 +36,9 @@ import org.jetbrains.jet.plugin.project.TargetPlatform;
 import org.jetbrains.jet.plugin.stubs.AstAccessControl;
 import org.junit.Assert;
 
+import java.awt.*;
 import java.util.*;
+import java.util.List;
 
 /**
  * Extract a number of statements about completion from the given text. Those statements
@@ -48,8 +53,10 @@ public class ExpectedCompletionUtils {
         public static final String PRESENTATION_ITEM_TEXT = "itemText";
         public static final String PRESENTATION_TYPE_TEXT = "typeText";
         public static final String PRESENTATION_TAIL_TEXT = "tailText";
+        public static final String PRESENTATION_TEXT_ATTRIBUTES = "attributes";
         public static final Set<String> validKeys = new HashSet<String>(
-                Arrays.asList(LOOKUP_STRING, PRESENTATION_ITEM_TEXT, PRESENTATION_TYPE_TEXT, PRESENTATION_TAIL_TEXT)
+                Arrays.asList(LOOKUP_STRING, PRESENTATION_ITEM_TEXT, PRESENTATION_TYPE_TEXT, PRESENTATION_TAIL_TEXT,
+                              PRESENTATION_TEXT_ATTRIBUTES)
         );
 
         private final Map<String, String> map;
@@ -75,7 +82,10 @@ public class ExpectedCompletionUtils {
                 if (!validKeys.contains(key)) {
                     throw new RuntimeException("Invalid json property '" + key + "'");
                 }
-                map.put(key, entry.getValue().getAsString());
+                JsonElement value = entry.getValue();
+                if (!(value instanceof JsonNull)) {
+                    map.put(key, value.getAsString());
+                }
             }
         }
 
@@ -115,6 +125,9 @@ public class ExpectedCompletionUtils {
 
     private static final String INVOCATION_COUNT_PREFIX = "INVOCATION_COUNT:";
     private static final String WITH_ORDER_PREFIX = "WITH_ORDER:";
+    private static final String AUTOCOMPLETE_SETTING_PREFIX = "AUTOCOMPLETE_SETTING:";
+
+    public static final String RUNTIME_TYPE = "RUNTIME_TYPE:";
 
     public static final List<String> KNOWN_PREFIXES = ImmutableList.of(
             EXIST_LINE_PREFIX,
@@ -128,6 +141,8 @@ public class ExpectedCompletionUtils {
             NUMBER_JAVA_LINE_PREFIX,
             INVOCATION_COUNT_PREFIX,
             WITH_ORDER_PREFIX,
+            AUTOCOMPLETE_SETTING_PREFIX,
+            RUNTIME_TYPE,
             AstAccessControl.INSTANCE$.getALLOW_AST_ACCESS_DIRECTIVE());
 
     @NotNull
@@ -202,6 +217,11 @@ public class ExpectedCompletionUtils {
     @Nullable
     public static Integer getInvocationCount(String fileText) {
         return InTextDirectivesUtils.getPrefixedInt(fileText, INVOCATION_COUNT_PREFIX);
+    }
+
+    @Nullable
+    public static Boolean getAutocompleteSetting(String fileText) {
+        return InTextDirectivesUtils.getPrefixedBoolean(fileText, AUTOCOMPLETE_SETTING_PREFIX);
     }
 
     public static boolean isWithOrder(String fileText) {
@@ -281,6 +301,7 @@ public class ExpectedCompletionUtils {
                 map.put(CompletionProposal.LOOKUP_STRING, item.getLookupString());
                 if (presentation.getItemText() != null){
                     map.put(CompletionProposal.PRESENTATION_ITEM_TEXT, presentation.getItemText());
+                    map.put(CompletionProposal.PRESENTATION_TEXT_ATTRIBUTES, textAttributes(presentation));
                 }
                 if (presentation.getTypeText() != null){
                     map.put(CompletionProposal.PRESENTATION_TYPE_TEXT, presentation.getTypeText());
@@ -293,6 +314,28 @@ public class ExpectedCompletionUtils {
         }
 
         return result;
+    }
+
+    private static String textAttributes(LookupElementPresentation presentation) {
+        StringBuilder builder = new StringBuilder();
+        if (presentation.isItemTextBold()) {
+            builder.append("bold");
+        }
+        if (presentation.isItemTextUnderlined()) {
+            if (builder.length() > 0) builder.append(" ");
+            builder.append("underlined");
+        }
+        Color foreground = presentation.getItemTextForeground();
+        if (!foreground.equals(JBColor.foreground())) {
+            assert foreground.equals(LookupCellRenderer.getGrayedForeground(false));
+            if (builder.length() > 0) builder.append(" ");
+            builder.append("grayed");
+        }
+        if (presentation.isStrikeout()) {
+            if (builder.length() > 0) builder.append(" ");
+            builder.append("strikeout");
+        }
+        return builder.toString();
     }
 
     public static String listToString(Collection<CompletionProposal> items) {

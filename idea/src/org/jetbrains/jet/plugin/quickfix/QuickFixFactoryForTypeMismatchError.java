@@ -36,17 +36,17 @@ import java.util.LinkedList;
 import java.util.List;
 
 //TODO: should use change signature to deal with cases of multiple overridden descriptors
-public class QuickFixFactoryForTypeMismatchError implements JetIntentionActionsFactory {
+public class QuickFixFactoryForTypeMismatchError extends JetIntentionActionsFactory {
     @NotNull
     @Override
-    public List<IntentionAction> createActions(@NotNull Diagnostic diagnostic) {
+    protected List<IntentionAction> doCreateActions(@NotNull Diagnostic diagnostic) {
         List<IntentionAction> actions = new LinkedList<IntentionAction>();
 
         DiagnosticWithParameters2<JetExpression, JetType, JetType> diagnosticWithParameters = Errors.TYPE_MISMATCH.cast(diagnostic);
         JetExpression expression = diagnosticWithParameters.getPsiElement();
         JetType expectedType = diagnosticWithParameters.getA();
         JetType expressionType = diagnosticWithParameters.getB();
-        BindingContext context = ResolvePackage.getBindingContext((JetFile) diagnostic.getPsiFile());
+        BindingContext context = ResolvePackage.analyzeFully((JetFile) diagnostic.getPsiFile());
 
         // We don't want to cast a cast or type-asserted expression:
         if (!(expression instanceof JetBinaryExpressionWithTypeRHS) && !(expression.getParent() instanceof  JetBinaryExpressionWithTypeRHS)) {
@@ -86,7 +86,7 @@ public class QuickFixFactoryForTypeMismatchError implements JetIntentionActionsF
                 if (resolvedCall != null) {
                     JetFunction declaration = getFunctionDeclaration(resolvedCall);
                     if (declaration != null) {
-                        JetParameter binaryOperatorParameter = declaration.getValueParameterList().getParameters().get(0);
+                        JetParameter binaryOperatorParameter = declaration.getValueParameters().get(0);
                         actions.add(new ChangeParameterTypeFix(binaryOperatorParameter, expressionType));
                     }
                 }

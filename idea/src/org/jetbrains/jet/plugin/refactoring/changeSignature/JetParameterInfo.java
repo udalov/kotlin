@@ -17,21 +17,20 @@
 package org.jetbrains.jet.plugin.refactoring.changeSignature;
 
 import com.intellij.lang.ASTNode;
-import com.intellij.psi.PsiElement;
 import com.intellij.refactoring.changeSignature.ParameterInfo;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.jet.lang.descriptors.FunctionDescriptor;
+import org.jetbrains.jet.lang.descriptors.ValueParameterDescriptor;
+import org.jetbrains.jet.lang.descriptors.impl.AnonymousFunctionDescriptor;
 import org.jetbrains.jet.lang.psi.JetExpression;
-import org.jetbrains.jet.lang.psi.JetFile;
-import org.jetbrains.jet.lang.psi.JetFunction;
 import org.jetbrains.jet.lang.psi.JetParameter;
-import org.jetbrains.jet.lang.resolve.BindingContext;
-import org.jetbrains.jet.lang.resolve.name.Name;
-import org.jetbrains.jet.lang.resolve.scopes.JetScope;
+import org.jetbrains.jet.lang.resolve.DescriptorToSourceUtils;
 import org.jetbrains.jet.lang.types.JetType;
+import org.jetbrains.jet.lang.types.TypeSubstitutor;
 import org.jetbrains.jet.lexer.JetTokens;
-import org.jetbrains.jet.plugin.project.AnalyzerFacadeWithCache;
-import org.jetbrains.jet.renderer.DescriptorRenderer;
+import org.jetbrains.jet.plugin.refactoring.changeSignature.usages.JetFunctionDefinitionUsage;
+import org.jetbrains.jet.plugin.util.IdeDescriptorRenderers;
 
 import java.util.List;
 
@@ -76,31 +75,36 @@ public class JetParameterInfo implements ParameterInfo {
         return name;
     }
 
-    public String getInheritedName(boolean isInherited, @Nullable PsiElement inheritedFunction, @NotNull JetMethodDescriptor baseFunction) {
-        if (!(inheritedFunction instanceof JetFunction))
-            return name;
+    public String renderType(int parameterIndex, @NotNull JetFunctionDefinitionUsage inheritedFunction) {
+        TypeSubstitutor typeSubstitutor = inheritedFunction.getOrCreateTypeSubstitutor();
+        if (typeSubstitutor == null) return typeText;
 
-        JetFunction inheritedJetFunction = (JetFunction) inheritedFunction;
-        List<JetParameter> inheritedParameters = inheritedJetFunction.getValueParameters();
+        FunctionDescriptor currentBaseFunction = inheritedFunction.getBaseFunction().getCurrentFunctionDescriptor();
+        if (currentBaseFunction == null) return typeText;
 
-        if (!isInherited || oldIndex < 0 || oldIndex >= baseFunction.getParametersCount() || oldIndex >= inheritedParameters.size())
-            return name;
+        JetType parameterType = currentBaseFunction.getValueParameters().get(parameterIndex).getType();
 
-        JetParameterInfo oldParam = baseFunction.getParameters().get(oldIndex);
-        JetParameter inheritedParam = inheritedParameters.get(oldIndex);
-        String inheritedParamName = inheritedParam.getName();
+        return ChangeSignaturePackage.renderTypeWithSubstitution(parameterType, typeSubstitutor, typeText, true);
+    }
 
-        if (oldParam.getName().equals(inheritedParamName)) {
-            BindingContext bindingContext = AnalyzerFacadeWithCache.getContextForElement(inheritedJetFunction);
-            JetScope parametersScope = JetChangeSignatureUsageProcessor.getFunctionBodyScope(inheritedJetFunction, bindingContext);
+    public String getInheritedName(@NotNull JetFunctionDefinitionUsage inheritedFunction) {
+        if (!inheritedFunction.isInherited()) return name;
 
-            if (parametersScope != null && parametersScope.getLocalVariable(Name.identifier(name)) == null)
-                return name;
-            else
-                return inheritedParamName;
-        }
-        else
-            return inheritedParamName;
+        JetFunctionDefinitionUsage baseFunction = inheritedFunction.getBaseFunction();
+        FunctionDescriptor baseFunctionDescriptor = baseFunction.getOriginalFunctionDescriptor();
+
+        FunctionDescriptor inheritedFunctionDescriptor = inheritedFunction.getOriginalFunctionDescriptor();
+        List<ValueParameterDescriptor> inheritedParameterDescriptors = inheritedFunctionDescriptor.getValueParameters();
+        if (oldIndex < 0
+            || oldIndex >= baseFunctionDescriptor.getValueParameters().size()
+            || oldIndex >= inheritedParameterDescriptors.size()) return name;
+
+        String inheritedParamName = inheritedParameterDescriptors.get(oldIndex).getName().asString();
+        String oldParamName = baseFunctionDescriptor.getValueParameters().get(oldIndex).getName().asString();
+
+        return oldParamName.equals(inheritedParamName) && !(inheritedFunctionDescriptor instanceof AnonymousFunctionDescriptor)
+               ? name
+               : inheritedParamName;
     }
 
     @Override
@@ -134,7 +138,7 @@ public class JetParameterInfo implements ParameterInfo {
     }
 
     private String getOldTypeText() {
-        return DescriptorRenderer.SHORT_NAMES_IN_TYPES.renderType(type);
+        return IdeDescriptorRenderers.SOURCE_CODE.renderType(type);
     }
 
     @Override
@@ -166,18 +170,40 @@ public class JetParameterInfo implements ParameterInfo {
         this.valOrVar = valOrVar;
     }
 
-    public String getDeclarationSignature(boolean isInherited, PsiElement inheritedFunction, JetMethodDescriptor baseFunction) {
+    public JetType getType() {
+        return type;
+    }
+
+    public boolean requiresExplicitType(@NotNull JetFunctionDefinitionUsage inheritedFunction) {
+        FunctionDescriptor inheritedFunctionDescriptor = inheritedFunction.getOriginalFunctionDescriptor();
+        if (!(inheritedFunctionDescriptor instanceof AnonymousFunctionDescriptor)) return true;
+
+        if (oldIndex < 0) return !inheritedFunction.hasExpectedType();
+
+        ValueParameterDescriptor inheritedParameterDescriptor = inheritedFunctionDescriptor.getValueParameters().get(oldIndex);
+        JetParameter parameter = (JetParameter) DescriptorToSourceUtils.descriptorToDeclaration(inheritedParameterDescriptor);
+        if (parameter == null) return false;
+
+        return parameter.getTypeReference() != null;
+    }
+
+    public String getDeclarationSignature(int parameterIndex, @NotNull JetFunctionDefinitionUsage inheritedFunction) {
         StringBuilder buffer = new StringBuilder();
         JetValVar valVar = getValOrVar();
 
-        if (valVar != JetValVar.None)
+        if (valVar != JetValVar.None) {
             buffer.append(valVar.toString()).append(' ');
+        }
 
-        buffer.append(getInheritedName(isInherited, inheritedFunction, baseFunction));
-        buffer.append(": ").append(getTypeText());
+        buffer.append(getInheritedName(inheritedFunction));
 
-        if (defaultValue != null)
+        if (requiresExplicitType(inheritedFunction)) {
+            buffer.append(": ").append(renderType(parameterIndex, inheritedFunction));
+        }
+
+        if (defaultValue != null && !inheritedFunction.isInherited()) {
             buffer.append(" = ").append(defaultValue.getText());
+        }
 
         return buffer.toString();
     }

@@ -37,6 +37,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.JetTestCaseBuilder;
 import org.jetbrains.jet.JetTestUtils;
 import org.jetbrains.jet.MockLibraryUtil;
+import org.jetbrains.jet.asJava.FakeLightClassForFileOfPackage;
 import org.jetbrains.jet.asJava.KotlinLightClassForPackage;
 import org.jetbrains.jet.codegen.forTestCompile.ForTestCompileRuntime;
 import org.jetbrains.jet.lang.psi.JetFile;
@@ -44,13 +45,12 @@ import org.jetbrains.jet.lang.resolve.java.PackageClassUtils;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.plugin.PluginTestCaseBase;
 import org.jetbrains.jet.plugin.ProjectDescriptorWithStdlibSources;
-import org.jetbrains.jet.plugin.framework.JavaRuntimeLibraryDescription;
 import org.jetbrains.jet.testing.ConfigLibraryUtil;
-import org.jetbrains.jet.utils.PathUtil;
 
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 
 public abstract class KotlinDebuggerTestCase extends DescriptorTestCase {
@@ -58,7 +58,7 @@ public abstract class KotlinDebuggerTestCase extends DescriptorTestCase {
     private static boolean IS_TINY_APP_COMPILED = false;
 
     private static File CUSTOM_LIBRARY_JAR;
-    private final File CUSTOM_LIBRARY_SOURCES = new File(getTestAppPath() + "/customLibrary");
+    private final File CUSTOM_LIBRARY_SOURCES = new File(PluginTestCaseBase.getTestDataPathBase() + "/debugger/customLibraryForTinyApp");
 
     private final ProjectDescriptorWithStdlibSources projectDescriptor = ProjectDescriptorWithStdlibSources.INSTANCE;
 
@@ -90,9 +90,7 @@ public abstract class KotlinDebuggerTestCase extends DescriptorTestCase {
 
                         VirtualFile customLibrarySources = VfsUtil.findFileByIoFile(CUSTOM_LIBRARY_SOURCES, false);
                         assert customLibrarySources != null : "VirtualFile for customLibrary sources should be found";
-                        model.getContentEntries()[0].addExcludeFolder(customLibrarySources);
-
-                        configureCustomLibrary(model);
+                        configureCustomLibrary(model, customLibrarySources);
 
                         model.commit();
                     }
@@ -101,13 +99,13 @@ public abstract class KotlinDebuggerTestCase extends DescriptorTestCase {
         });
     }
 
-    private static void configureCustomLibrary(@NotNull ModifiableRootModel model) {
+    private static void configureCustomLibrary(@NotNull ModifiableRootModel model, @NotNull VirtualFile customLibrarySources) {
         NewLibraryEditor customLibEditor = new NewLibraryEditor();
         customLibEditor.setName("CustomLibrary");
 
         String customLibraryRoot = VfsUtil.getUrlForLibraryRoot(CUSTOM_LIBRARY_JAR);
         customLibEditor.addRoot(customLibraryRoot, OrderRootType.CLASSES);
-        customLibEditor.addRoot(customLibraryRoot + "/src", OrderRootType.SOURCES);
+        customLibEditor.addRoot(customLibrarySources, OrderRootType.SOURCES);
 
         ConfigLibraryUtil.addLibrary(customLibEditor, model);
     }
@@ -124,7 +122,7 @@ public abstract class KotlinDebuggerTestCase extends DescriptorTestCase {
         if (!IS_TINY_APP_COMPILED) {
             String modulePath = getTestAppPath();
 
-            CUSTOM_LIBRARY_JAR = MockLibraryUtil.compileLibraryToJar(CUSTOM_LIBRARY_SOURCES.getPath(), "debuggerCustomLibrary", true);
+            CUSTOM_LIBRARY_JAR = MockLibraryUtil.compileLibraryToJar(CUSTOM_LIBRARY_SOURCES.getPath(), "debuggerCustomLibrary", false);
 
             String outputDir = modulePath + File.separator + "classes";
             String sourcesDir = modulePath + File.separator + "src";
@@ -183,22 +181,27 @@ public abstract class KotlinDebuggerTestCase extends DescriptorTestCase {
 
     @Override
     protected void createBreakpoints(final String className) {
-        PsiClass psiClass = ApplicationManager.getApplication().runReadAction(new Computable<PsiClass>() {
+        PsiClass[] psiClasses = ApplicationManager.getApplication().runReadAction(new Computable<PsiClass[]>() {
             @Override
-            public PsiClass compute() {
-                return JavaPsiFacade.getInstance(myProject).findClass(className, GlobalSearchScope.allScope(myProject));
+            public PsiClass[] compute() {
+                return JavaPsiFacade.getInstance(myProject).findClasses(className, GlobalSearchScope.allScope(myProject));
             }
         });
 
-        if (psiClass instanceof KotlinLightClassForPackage) {
-            PsiElement element = psiClass.getNavigationElement();
-            if (element instanceof JetFile) {
-                createBreakpoints((JetFile) element);
-                return;
+        for (PsiClass psiClass : psiClasses) {
+            if (psiClass instanceof KotlinLightClassForPackage) {
+                Collection<JetFile> files = ((KotlinLightClassForPackage) psiClass).getFiles();
+                for (JetFile jetFile : files) {
+                    createBreakpoints(jetFile);
+                }
+            }
+            else if (psiClass instanceof FakeLightClassForFileOfPackage) {
+                // skip, because we already create breakpoints using KotlinLightClassForPackage
+            }
+            else {
+                createBreakpoints(psiClass.getContainingFile());
             }
         }
-
-        createBreakpoints(psiClass.getContainingFile());
     }
 
     @SuppressWarnings("MethodMayBeStatic")

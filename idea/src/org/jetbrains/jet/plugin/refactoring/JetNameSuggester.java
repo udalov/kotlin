@@ -22,6 +22,7 @@ import com.intellij.util.ArrayUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.ClassDescriptor;
+import org.jetbrains.jet.lang.descriptors.ClassifierDescriptor;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.name.Name;
@@ -32,7 +33,7 @@ import org.jetbrains.jet.lang.types.checker.JetTypeChecker;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 import org.jetbrains.jet.lexer.JetLexer;
 import org.jetbrains.jet.lexer.JetTokens;
-import org.jetbrains.jet.plugin.project.AnalyzerFacadeWithCache;
+import org.jetbrains.jet.plugin.caches.resolve.ResolvePackage;
 
 import java.util.ArrayList;
 import java.util.regex.Matcher;
@@ -66,7 +67,7 @@ public class JetNameSuggester {
     public static @NotNull String[] suggestNames(@NotNull JetExpression expression, @NotNull JetNameValidator validator, @Nullable String defaultName) {
         ArrayList<String> result = new ArrayList<String>();
 
-        BindingContext bindingContext = AnalyzerFacadeWithCache.getContextForElement(expression);
+        BindingContext bindingContext = ResolvePackage.analyze(expression);
         JetType jetType = bindingContext.get(BindingContext.EXPRESSION_TYPE, expression);
         if (jetType != null) {
             addNamesForType(result, jetType, validator);
@@ -93,6 +94,16 @@ public class JetNameSuggester {
     public static @NotNull String[] suggestNamesForExpression(@NotNull JetExpression expression, @NotNull JetNameValidator validator) {
         ArrayList<String> result = new ArrayList<String>();
         addNamesForExpression(result, expression, validator);
+        return ArrayUtil.toStringArray(result);
+    }
+
+    private static final String[] COMMON_TYPE_PARAMETER_NAMES = {"T", "U", "V", "W", "X", "Y", "Z"};
+
+    public static @NotNull String[] suggestNamesForTypeParameters(int count, @NotNull JetNameValidator validator) {
+        ArrayList<String> result = new ArrayList<String>();
+        for (int i = 0; i < count; i++) {
+            result.add(validator.validateNameWithVariants(COMMON_TYPE_PARAMETER_NAMES));
+        }
         return ArrayUtil.toStringArray(result);
     }
 
@@ -180,9 +191,9 @@ public class JetNameSuggester {
     }
 
     private static void addForClassType(ArrayList<String> result, JetType jetType, JetNameValidator validator) {
-        ClassDescriptor classDescriptor = TypeUtils.getClassDescriptor(jetType);
-        if (classDescriptor != null) {
-            Name className = classDescriptor.getName();
+        ClassifierDescriptor descriptor = jetType.getConstructor().getDeclarationDescriptor();
+        if (descriptor != null) {
+            Name className = descriptor.getName();
             if (!className.isSpecial()) {
                 addCamelNames(result, className.asString(), validator);
             }

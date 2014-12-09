@@ -13,7 +13,7 @@ import com.intellij.debugger.ui.tree.FieldDescriptor
 import com.sun.jdi.ObjectReference
 
 class DelegatedPropertyFieldDescriptor(
-        val project: Project,
+        project: Project,
         val computedValueFromGetter: Value,
         val objectRef: ObjectReference,
         val delegate: Field
@@ -31,7 +31,7 @@ class DelegatedPropertyFieldDescriptor(
             append(getName())
             if (classRenderer.SHOW_DECLARED_TYPE) {
                 append(": ")
-                append(classRenderer.renderTypeName(getValue()?.`type`()?.name()))
+                append(classRenderer.renderTypeName(getValue()?.type()?.name()))
             }
             toString()
         }

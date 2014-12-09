@@ -43,9 +43,9 @@ public class JetParsing extends AbstractJetParsing {
         }
     }
 
-    private static final TokenSet TOPLEVEL_OBJECT_FIRST = TokenSet.create(TYPE_KEYWORD, TRAIT_KEYWORD, CLASS_KEYWORD,
+    private static final TokenSet TOPLEVEL_OBJECT_FIRST = TokenSet.create(TYPE_ALIAS_KEYWORD, TRAIT_KEYWORD, CLASS_KEYWORD,
                 FUN_KEYWORD, VAL_KEYWORD, PACKAGE_KEYWORD);
-    private static final TokenSet ENUM_MEMBER_FIRST = TokenSet.create(TYPE_KEYWORD, TRAIT_KEYWORD, CLASS_KEYWORD,
+    private static final TokenSet ENUM_MEMBER_FIRST = TokenSet.create(TYPE_ALIAS_KEYWORD, TRAIT_KEYWORD, CLASS_KEYWORD,
                 FUN_KEYWORD, VAL_KEYWORD, IDENTIFIER);
 
     private static final TokenSet CLASS_NAME_RECOVERY_SET = TokenSet.orSet(TokenSet.create(LT, LPAR, COLON, LBRACE), TOPLEVEL_OBJECT_FIRST);
@@ -53,7 +53,7 @@ public class JetParsing extends AbstractJetParsing {
     private static final TokenSet PARAMETER_NAME_RECOVERY_SET = TokenSet.create(COLON, EQ, COMMA, RPAR);
     private static final TokenSet PACKAGE_NAME_RECOVERY_SET = TokenSet.create(DOT, EOL_OR_SEMICOLON);
     private static final TokenSet IMPORT_RECOVERY_SET = TokenSet.create(AS_KEYWORD, DOT, EOL_OR_SEMICOLON);
-    /*package*/ static final TokenSet TYPE_REF_FIRST = TokenSet.create(LBRACKET, IDENTIFIER, LPAR, CAPITALIZED_THIS_KEYWORD, HASH);
+    /*package*/ static final TokenSet TYPE_REF_FIRST = TokenSet.create(LBRACKET, IDENTIFIER, LPAR, CAPITALIZED_THIS_KEYWORD, HASH, DYNAMIC_KEYWORD);
     private static final TokenSet RECEIVER_TYPE_TERMINATORS = TokenSet.create(DOT, SAFE_ACCESS);
     private static final TokenSet VALUE_PARAMETER_FIRST =
             TokenSet.orSet(TokenSet.create(IDENTIFIER, LBRACKET, VAL_KEYWORD, VAR_KEYWORD), MODIFIER_KEYWORDS);
@@ -199,6 +199,8 @@ public class JetParsing extends AbstractJetParsing {
             firstEntry.drop();
 
             consumeIf(SEMICOLON);
+
+            packageDirective.done(PACKAGE_DIRECTIVE);
         }
         else {
             // When package directive is omitted we should not report error on non-file annotations at the beginning of the file.
@@ -207,8 +209,10 @@ public class JetParsing extends AbstractJetParsing {
 
             parseFileAnnotationList(FILE_ANNOTATIONS_WHEN_PACKAGE_OMITTED);
             packageDirective = mark();
+            packageDirective.done(PACKAGE_DIRECTIVE);
+            // this is necessary to allow comments at the start of the file to be bound to the first declaration:
+            packageDirective.setCustomEdgeTokenBinders(PrecedingCommentsBinder.INSTANCE$, null);
         }
-        packageDirective.done(PACKAGE_DIRECTIVE);
 
         parseImportDirectives();
     }
@@ -314,6 +318,7 @@ public class JetParsing extends AbstractJetParsing {
         }
         consumeIf(SEMICOLON);
         importDirective.done(IMPORT_DIRECTIVE);
+        importDirective.setCustomEdgeTokenBinders(null, TrailingCommentsBinder.INSTANCE$);
     }
 
     private boolean closeImportWithErrorIfNewline(PsiBuilder.Marker importDirective, String errorMessage) {
@@ -342,7 +347,7 @@ public class JetParsing extends AbstractJetParsing {
      *   : extension
      *   : function
      *   : property
-     *   : typedef
+     *   : typeAlias
      *   : object
      *   ;
      */
@@ -367,8 +372,8 @@ public class JetParsing extends AbstractJetParsing {
         else if (keywordToken == VAL_KEYWORD || keywordToken == VAR_KEYWORD) {
             declType = parseProperty();
         }
-        else if (keywordToken == TYPE_KEYWORD) {
-            declType = parseTypeDef();
+        else if (keywordToken == TYPE_ALIAS_KEYWORD) {
+            declType = parseTypeAlias();
         }
         else if (keywordToken == OBJECT_KEYWORD) {
             parseObject(true, true);
@@ -376,11 +381,11 @@ public class JetParsing extends AbstractJetParsing {
         }
 
         if (declType == null) {
-            errorAndAdvance("Expecting package directive or top level declaration");
+            errorAndAdvance("Expecting a top level declaration");
             decl.drop();
         }
         else {
-            decl.done(declType);
+            closeDeclarationWithCommentBinders(decl, declType, true);
         }
     }
 
@@ -508,7 +513,7 @@ public class JetParsing extends AbstractJetParsing {
                 }
             }
 
-            expect(RBRACKET, "Expecting ']' to close an list of annotation");
+            expect(RBRACKET, "Expecting ']' to close the annotation list");
             myBuilder.restoreNewlinesState();
 
             annotation.done(ANNOTATION);
@@ -555,21 +560,45 @@ public class JetParsing extends AbstractJetParsing {
      *       typeConstraints
      *       (classBody? | enumClassBody)
      *   ;
+     *
+     * object
+     *   : "object" SimpleName? ":" delegationSpecifier{","}? classBody?
+     *   ;
      */
-    IElementType parseClass(boolean enumClass) {
-        assert _atSet(CLASS_KEYWORD, TRAIT_KEYWORD);
-        advance(); // CLASS_KEYWORD or TRAIT_KEYWORD
+    IElementType parseClassOrObject(final boolean object, boolean named, boolean optionalBody, boolean enumClass) {
+        if (object) {
+            assert _at(OBJECT_KEYWORD);
+        }
+        else {
+            assert _atSet(CLASS_KEYWORD, TRAIT_KEYWORD);
+        }
+        advance(); // CLASS_KEYWORD, TRAIT_KEYWORD or OBJECT_KEYWORD
 
-        expect(IDENTIFIER, "Class name expected", CLASS_NAME_RECOVERY_SET);
+        if (named) {
+            OptionalMarker marker = new OptionalMarker(object);
+            expect(IDENTIFIER, "Name expected", CLASS_NAME_RECOVERY_SET);
+            marker.done(OBJECT_DECLARATION_NAME);
+        }
+        else {
+            if (at(IDENTIFIER)) {
+                assert object : "Must be an object to be nameless";
+                errorAndAdvance("An object expression cannot bind a name");
+            }
+        }
+
+        OptionalMarker typeParamsMarker = new OptionalMarker(object);
         boolean typeParametersDeclared = parseTypeParameterList(TYPE_PARAMETER_GT_RECOVERY_SET);
+        typeParamsMarker.error("Type parameters are not allowed for objects");
 
+        OptionalMarker constructorModifiersMarker = new OptionalMarker(object);
         PsiBuilder.Marker beforeConstructorModifiers = mark();
         boolean hasConstructorModifiers = parseModifierList(PRIMARY_CONSTRUCTOR_MODIFIER_LIST, REGULAR_ANNOTATIONS_ONLY_WITH_BRACKETS);
 
         // Some modifiers found, but no parentheses following: class has already ended, and we are looking at something else
         if (hasConstructorModifiers && !atSet(LPAR, LBRACE, COLON) ) {
             beforeConstructorModifiers.rollbackTo();
-            return CLASS;
+            constructorModifiersMarker.drop();
+            return object ? OBJECT_DECLARATION : CLASS;
         }
 
         // We are still inside a class declaration
@@ -585,13 +614,16 @@ public class JetParsing extends AbstractJetParsing {
             //    class A private {
             error("Expecting primary constructor parameter list");
         }
+        constructorModifiersMarker.error("Constructors are not allowed for objects");
 
-        if (at(COLON)) {
+        if (at(COLON) ) {
             advance(); // COLON
             parseDelegationSpecifierList();
         }
 
+        OptionalMarker whereMarker = new OptionalMarker(object);
         parseTypeConstraintsGuarded(typeParametersDeclared);
+        whereMarker.error("Where clause is not allowed for objects");
 
         if (at(LBRACE)) {
             if (enumClass) {
@@ -601,8 +633,21 @@ public class JetParsing extends AbstractJetParsing {
                 parseClassBody();
             }
         }
+        else if (!optionalBody) {
+            PsiBuilder.Marker fakeBody = mark();
+            error("Expecting a class body");
+            fakeBody.done(CLASS_BODY);
+        }
 
-        return CLASS;
+        return object ? OBJECT_DECLARATION : CLASS;
+    }
+
+    IElementType parseClass(boolean enumClass) {
+        return parseClassOrObject(false, true, true, enumClass);
+    }
+
+    void parseObject(boolean named, boolean optionalBody) {
+        parseClassOrObject(true, named, optionalBody, false);
     }
 
     /*
@@ -640,7 +685,7 @@ public class JetParsing extends AbstractJetParsing {
                 entryOrMember.drop();
             }
             else {
-                entryOrMember.done(type);
+                closeDeclarationWithCommentBinders(entryOrMember, type, true);
             }
         }
 
@@ -712,7 +757,7 @@ public class JetParsing extends AbstractJetParsing {
      *   : property
      *   : class
      *   : extension
-     *   : typedef
+     *   : typeAlias
      *   : anonymousInitializer
      *   : object
      *   ;
@@ -730,7 +775,7 @@ public class JetParsing extends AbstractJetParsing {
             decl.drop();
         }
         else {
-            decl.done(declType);
+            closeDeclarationWithCommentBinders(decl, declType, true);
         }
     }
 
@@ -754,8 +799,8 @@ public class JetParsing extends AbstractJetParsing {
         else if (keywordToken == VAL_KEYWORD || keywordToken == VAR_KEYWORD) {
             declType = parseProperty();
         }
-        else if (keywordToken == TYPE_KEYWORD) {
-            declType = parseTypeDef();
+        else if (keywordToken == TYPE_ALIAS_KEYWORD) {
+            declType = parseTypeAlias();
         }
         else if (keywordToken == OBJECT_KEYWORD) {
             parseObject(true, true);
@@ -766,48 +811,6 @@ public class JetParsing extends AbstractJetParsing {
             declType = ANONYMOUS_INITIALIZER;
         }
         return declType;
-    }
-
-    /*
-     * object
-     *   : "object" SimpleName? ":" delegationSpecifier{","}? classBody?
-     *   ;
-     */
-    void parseObject(boolean named, boolean optionalBody) {
-        assert _at(OBJECT_KEYWORD);
-
-        advance(); // OBJECT_KEYWORD
-
-        if (named) {
-            PsiBuilder.Marker propertyDeclaration = mark();
-            expect(IDENTIFIER, "Expecting object name", TokenSet.create(LBRACE));
-            propertyDeclaration.done(OBJECT_DECLARATION_NAME);
-        }
-        else {
-            if (at(IDENTIFIER)) {
-                error("An object expression cannot bind a name");
-            }
-        }
-
-        if (optionalBody) {
-            if (at(COLON)) {
-                advance(); // COLON
-                parseDelegationSpecifierList();
-            }
-            if (at(LBRACE)) {
-                parseClassBody();
-            }
-        }
-        else {
-            if (at(LBRACE)) {
-                parseClassBody();
-            }
-            else {
-                expect(COLON, "Expecting ':'", TokenSet.create(IDENTIFIER, PACKAGE_KEYWORD));
-                parseDelegationSpecifierList();
-                parseClassBody();
-            }
-        }
     }
 
     /*
@@ -870,20 +873,19 @@ public class JetParsing extends AbstractJetParsing {
 
         PsiBuilder.Marker objectDeclaration = mark();
         parseObject(false, true);
-        objectDeclaration.done(OBJECT_DECLARATION);
-
+        closeDeclarationWithCommentBinders(objectDeclaration, OBJECT_DECLARATION, true);
         return CLASS_OBJECT;
     }
 
     /*
-     * typedef
-     *   : modifiers "type" SimpleName (typeParameters typeConstraints)? "=" type
+     * typeAlias
+     *   : modifiers "typealias" SimpleName (typeParameters typeConstraints)? "=" type
      *   ;
      */
-    JetNodeType parseTypeDef() {
-        assert _at(TYPE_KEYWORD);
+    JetNodeType parseTypeAlias() {
+        assert _at(TYPE_ALIAS_KEYWORD);
 
-        advance(); // TYPE_KEYWORD
+        advance(); // TYPE_ALIAS_KEYWORD
 
         expect(IDENTIFIER, "Type name expected", TokenSet.orSet(TokenSet.create(LT, EQ, SEMICOLON), TOPLEVEL_OBJECT_FIRST));
 
@@ -932,26 +934,10 @@ public class JetParsing extends AbstractJetParsing {
 
         myBuilder.disableJoiningComplexTokens();
 
-        // TODO: extract constant
-        int lastDot = matchTokenStreamPredicate(new LastBefore(
-                new AtSet(DOT, SAFE_ACCESS),
-                new AbstractTokenStreamPredicate() {
-                    @Override
-                    public boolean matching(boolean topLevel) {
-                        if (topLevel && (at(EQ) || at(COLON))) return true;
-                        if (topLevel && at(IDENTIFIER)) {
-                            IElementType lookahead = lookahead(1);
-                            return lookahead != LT && lookahead != DOT && lookahead != SAFE_ACCESS && lookahead != QUEST;
-                        }
-                        return false;
-                    }
-                }));
-
         PsiBuilder.Marker receiver = mark();
-        parseReceiverType("property", propertyNameFollow, lastDot);
+        boolean receiverTypeDeclared = parseReceiverType("property", propertyNameFollow);
 
         boolean multiDeclaration = at(LPAR);
-        boolean receiverTypeDeclared = lastDot != -1;
 
         errorIf(receiver, multiDeclaration && receiverTypeDeclared, "Receiver type is not allowed on a multi-declaration");
 
@@ -1092,7 +1078,7 @@ public class JetParsing extends AbstractJetParsing {
                 errorUntil("Accessor body expected", TokenSet.orSet(ACCESSOR_FIRST_OR_PROPERTY_END, TokenSet.create(LBRACE, LPAR, EQ)));
             }
             else {
-                getterOrSetter.done(PROPERTY_ACCESSOR);
+                closeDeclarationWithCommentBinders(getterOrSetter, PROPERTY_ACCESSOR, false);
                 return true;
             }
         }
@@ -1124,7 +1110,7 @@ public class JetParsing extends AbstractJetParsing {
 
         parseFunctionBody();
 
-        getterOrSetter.done(PROPERTY_ACCESSOR);
+        closeDeclarationWithCommentBinders(getterOrSetter, PROPERTY_ACCESSOR, false);
 
         return true;
     }
@@ -1157,12 +1143,11 @@ public class JetParsing extends AbstractJetParsing {
         }
 
         myBuilder.disableJoiningComplexTokens();
-        int lastDot = findLastBefore(RECEIVER_TYPE_TERMINATORS, TokenSet.create(LPAR), true);
 
         TokenSet functionNameFollow = TokenSet.create(LT, LPAR, COLON, EQ);
-        parseReceiverType("function", functionNameFollow, lastDot);
+        boolean receiverFound = parseReceiverType("function", functionNameFollow);
 
-        parseFunctionOrPropertyName(lastDot != -1, "function", functionNameFollow);
+        parseFunctionOrPropertyName(receiverFound, "function", functionNameFollow);
 
         myBuilder.restoreJoiningComplexTokensState();
 
@@ -1203,20 +1188,72 @@ public class JetParsing extends AbstractJetParsing {
     /*
      *   (type "." | annotations)?
      */
-    private void parseReceiverType(String title, TokenSet nameFollow, int lastDot) {
-        if (lastDot == -1) { // There's no explicit receiver type specified
-            parseAnnotations(REGULAR_ANNOTATIONS_ONLY_WITH_BRACKETS);
-        }
-        else {
-            createTruncatedBuilder(lastDot).parseTypeRef();
-
-            if (atSet(RECEIVER_TYPE_TERMINATORS)) {
-                advance(); // expectation
+    private boolean parseReceiverType(String title, TokenSet nameFollow) {
+        PsiBuilder.Marker annotations = mark();
+        boolean annotationsPresent = parseAnnotations(REGULAR_ANNOTATIONS_ONLY_WITH_BRACKETS);
+        int lastDot = lastDotAfterReceiver();
+        boolean receiverPresent = lastDot != -1;
+        if (annotationsPresent) {
+            if (receiverPresent) {
+                annotations.rollbackTo();
             }
             else {
-                errorWithRecovery("Expecting '.' before a " + title + " name", nameFollow);
+                annotations.error("Annotations are not allowed in this position");
             }
         }
+        else {
+            annotations.drop();
+        }
+
+        if (!receiverPresent) return false;
+
+        createTruncatedBuilder(lastDot).parseTypeRef();
+
+        if (atSet(RECEIVER_TYPE_TERMINATORS)) {
+            advance(); // expectation
+        }
+        else {
+            errorWithRecovery("Expecting '.' before a " + title + " name", nameFollow);
+        }
+        return true;
+    }
+
+    private int lastDotAfterReceiver() {
+        if (at(LPAR)) {
+            return matchTokenStreamPredicate(
+                    new FirstBefore(
+                            new AtSet(RECEIVER_TYPE_TERMINATORS),
+                            new AbstractTokenStreamPredicate() {
+                                @Override
+                                public boolean matching(boolean topLevel) {
+                                    if (topLevel && definitelyOutOfReceiver()) {
+                                        return true;
+                                    }
+                                    return topLevel && !at(QUEST) && !at(LPAR) && !at(RPAR);
+                                }
+                            }
+                    ));
+        }
+        else {
+            return matchTokenStreamPredicate(
+                    new LastBefore(
+                            new AtSet(RECEIVER_TYPE_TERMINATORS),
+                            new AbstractTokenStreamPredicate() {
+                                @Override
+                                public boolean matching(boolean topLevel) {
+                                    if (topLevel && (definitelyOutOfReceiver() || at(LPAR))) return true;
+                                    if (topLevel && at(IDENTIFIER)) {
+                                        IElementType lookahead = lookahead(1);
+                                        return lookahead != LT && lookahead != DOT && lookahead != SAFE_ACCESS && lookahead != QUEST;
+                                    }
+                                    return false;
+                                }
+                            }));
+        }
+    }
+
+    private boolean definitelyOutOfReceiver() {
+        return atSet(EQ, COLON, LBRACE, BY_KEYWORD) || atSet(TOPLEVEL_OBJECT_FIRST);
     }
 
     /*
@@ -1264,7 +1301,7 @@ public class JetParsing extends AbstractJetParsing {
 
         myExpressionParsing.parseStatements();
 
-        expect(RBRACE, "Expecting '}");
+        expect(RBRACE, "Expecting '}'");
         myBuilder.restoreNewlinesState();
 
         block.done(BLOCK);
@@ -1464,6 +1501,7 @@ public class JetParsing extends AbstractJetParsing {
      *   : userType
      *   : tupleType
      *   : nullableType
+     *   : "dynamic"
      *   ;
      *
      * nullableType
@@ -1488,7 +1526,14 @@ public class JetParsing extends AbstractJetParsing {
         PsiBuilder.Marker typeRefMarker = mark();
         parseAnnotations(REGULAR_ANNOTATIONS_ONLY_WITH_BRACKETS);
 
-        if (at(IDENTIFIER) || at(PACKAGE_KEYWORD)) {
+        IElementType lookahead = lookahead(1);
+        IElementType lookahead2 = lookahead(2);
+        if (at(IDENTIFIER) && !(lookahead == DOT && lookahead2 == IDENTIFIER) && lookahead != LT && at(DYNAMIC_KEYWORD)) {
+            PsiBuilder.Marker dynamicType = mark();
+            advance(); // DYNAMIC_KEYWORD
+            dynamicType.done(DYNAMIC_TYPE);
+        }
+        else if (at(IDENTIFIER) || at(PACKAGE_KEYWORD) || atParenthesizedMutableForPlatformTypes(0)) {
             parseUserType();
         }
         else if (at(HASH)) {
@@ -1577,6 +1622,11 @@ public class JetParsing extends AbstractJetParsing {
      * userType
      *   : ("package" ".")? simpleUserType{"."}
      *   ;
+     *
+     *   recovers on platform types:
+     *    - Foo!
+     *    - (Mutable)List<Foo>!
+     *    - Array<(out) Foo>!
      */
     void parseUserType() {
         PsiBuilder.Marker userType = mark();
@@ -1588,6 +1638,8 @@ public class JetParsing extends AbstractJetParsing {
 
         PsiBuilder.Marker reference = mark();
         while (true) {
+            recoverOnParenthesizedWordForPlatformTypes(0, "Mutable", true);
+
             if (expect(IDENTIFIER, "Expecting type name",
                        TokenSet.orSet(JetExpressionParsing.EXPRESSION_FIRST, JetExpressionParsing.EXPRESSION_FOLLOW))) {
                 reference.done(REFERENCE_EXPRESSION);
@@ -1598,10 +1650,13 @@ public class JetParsing extends AbstractJetParsing {
             }
 
             parseTypeArgumentList();
+
+            recoverOnPlatformTypeSuffix();
+
             if (!at(DOT)) {
                 break;
             }
-            if (lookahead(1) == LPAR) {
+            if (lookahead(1) == LPAR && !atParenthesizedMutableForPlatformTypes(1)) {
                 // This may be a receiver for a function type
                 //   Int.(Int) -> Int
                 break;
@@ -1616,6 +1671,49 @@ public class JetParsing extends AbstractJetParsing {
         }
 
         userType.done(USER_TYPE);
+    }
+
+    private boolean atParenthesizedMutableForPlatformTypes(int offset) {
+        return recoverOnParenthesizedWordForPlatformTypes(offset, "Mutable", false);
+    }
+
+    private boolean recoverOnParenthesizedWordForPlatformTypes(int offset, String word, boolean consume) {
+        // Array<(out) Foo>! or (Mutable)List<Bar>!
+        if (lookahead(offset) == LPAR && lookahead(offset + 1) == IDENTIFIER && lookahead(offset + 2) == RPAR && lookahead(offset + 3) == IDENTIFIER) {
+            PsiBuilder.Marker error = mark();
+
+            advance(offset);
+
+            advance(); // LPAR
+            if (!word.equals(myBuilder.getTokenText())) {
+                // something other than "out" / "Mutable"
+                error.rollbackTo();
+                return false;
+            }
+            else {
+                advance(); // IDENTIFIER('out')
+                advance(); // RPAR
+
+                if (consume) {
+                    error.error("Unexpected tokens");
+                }
+                else {
+                    error.rollbackTo();
+                }
+
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void recoverOnPlatformTypeSuffix() {
+        // Recovery for platform types
+        if (at(EXCL)) {
+            PsiBuilder.Marker error = mark();
+            advance(); // EXCL
+            error.error("Unexpected token");
+        }
     }
 
     /*
@@ -1651,6 +1749,8 @@ public class JetParsing extends AbstractJetParsing {
 
         while (true) {
             PsiBuilder.Marker projection = mark();
+
+            recoverOnParenthesizedWordForPlatformTypes(0, "out", true);
 
 //            TokenSet lookFor = TokenSet.create(IDENTIFIER);
 //            TokenSet stopAt = TokenSet.create(COMMA, COLON, GT);
@@ -1743,25 +1843,12 @@ public class JetParsing extends AbstractJetParsing {
         assert _at(LPAR) : tt();
         PsiBuilder.Marker functionType = mark();
 
-//        advance(); // LPAR
-//
-//        int lastLPar = findLastBefore(TokenSet.create(LPAR), TokenSet.create(COLON), false);
-//        if (lastLPar >= 0 && lastLPar > myBuilder.getCurrentOffset()) {
-//            TODO : -1 is a hack?
-//            createTruncatedBuilder(lastLPar - 1).parseTypeRef();
-//            advance(); // DOT
-//        }
-
         parseValueParameterList(true, TokenSet.EMPTY);
-
-//        if (at(COLON)) {
-//            advance(); // COLON // expect(COLON, "Expecting ':' followed by a return type", TYPE_REF_FIRST);
 
         expect(ARROW, "Expecting '->' to specify return type of a function type", TYPE_REF_FIRST);
         parseTypeRef();
-//        }
 
-        return functionType;//.done(FUNCTION_TYPE);
+        return functionType;
     }
 
     /*
@@ -1799,7 +1886,7 @@ public class JetParsing extends AbstractJetParsing {
                         PsiBuilder.Marker valueParameter = mark();
                         parseModifierList(MODIFIER_LIST, REGULAR_ANNOTATIONS_ONLY_WITH_BRACKETS); // lazy, out, ref
                         parseTypeRef();
-                        valueParameter.done(VALUE_PARAMETER);
+                        closeDeclarationWithCommentBinders(valueParameter, VALUE_PARAMETER, false);
                     }
                 }
                 else {
@@ -1849,7 +1936,7 @@ public class JetParsing extends AbstractJetParsing {
             return false;
         }
 
-        parameter.done(VALUE_PARAMETER);
+        closeDeclarationWithCommentBinders(parameter, VALUE_PARAMETER, false);
         return true;
     }
 

@@ -54,6 +54,8 @@ import org.jetbrains.jet.lang.resolve.java.jvmSignature.JvmMethodSignature;
 import org.jetbrains.jet.lang.resolve.kotlin.PackagePartClassUtils;
 import org.jetbrains.jet.lang.resolve.kotlin.incremental.IncrementalPackageFragmentProvider;
 import org.jetbrains.jet.lang.resolve.name.FqName;
+import org.jetbrains.jet.lang.resolve.scopes.DescriptorKindFilter;
+import org.jetbrains.jet.lang.resolve.scopes.JetScope;
 import org.jetbrains.org.objectweb.asm.AnnotationVisitor;
 import org.jetbrains.org.objectweb.asm.MethodVisitor;
 import org.jetbrains.org.objectweb.asm.Type;
@@ -150,7 +152,7 @@ public class PackageCodegen {
             return Collections.emptyList();
         }
         List<DeserializedCallableMemberDescriptor> callables = Lists.newArrayList();
-        for (DeclarationDescriptor member : packageFragment.getMemberScope().getAllDescriptors()) {
+        for (DeclarationDescriptor member : packageFragment.getMemberScope().getDescriptors(DescriptorKindFilter.CALLABLES, JetScope.ALL_NAME_FILTER)) {
             if (member instanceof DeserializedCallableMemberDescriptor) {
                 callables.add((DeserializedCallableMemberDescriptor) member);
             }
@@ -270,7 +272,7 @@ public class PackageCodegen {
             if (file.isScript()) return;
         }
 
-        DescriptorSerializer serializer = new DescriptorSerializer(new JavaSerializerExtension(bindings));
+        DescriptorSerializer serializer = DescriptorSerializer.createTopLevel(new JavaSerializerExtension(bindings));
         Collection<PackageFragmentDescriptor> packageFragments = Lists.newArrayList();
         ContainerUtil.addIfNotNull(packageFragments, packageFragment);
         ContainerUtil.addIfNotNull(packageFragments, compiledPackageFragment);
@@ -278,7 +280,7 @@ public class PackageCodegen {
 
         if (packageProto.getMemberCount() == 0) return;
 
-        PackageData data = new PackageData(createNameResolver(serializer.getNameTable()), packageProto);
+        PackageData data = new PackageData(createNameResolver(serializer.getStringTable()), packageProto);
 
         AnnotationVisitor av = v.newAnnotation(asmDescByFqNameWithoutInnerClasses(JvmAnnotationNames.KOTLIN_PACKAGE), true);
         av.visit(JvmAnnotationNames.ABI_VERSION_FIELD_NAME, JvmAbi.VERSION);

@@ -19,13 +19,12 @@ package org.jetbrains.jet.plugin.refactoring.extractFunction
 import com.intellij.psi.PsiElement
 import org.jetbrains.jet.lang.types.*
 import org.jetbrains.jet.lang.psi.*
-import org.jetbrains.jet.renderer.DescriptorRenderer
 import org.jetbrains.jet.lang.descriptors.*
 import org.jetbrains.jet.plugin.refactoring.JetRefactoringBundle
 import org.jetbrains.jet.lang.psi.psiUtil.isInsideOf
 import java.util.*
 import org.jetbrains.jet.plugin.refactoring.createTempCopy
-import org.jetbrains.jet.lang.psi.psiUtil.getParentByType
+import org.jetbrains.jet.lang.psi.psiUtil.getNonStrictParentOfType
 import org.jetbrains.jet.plugin.refactoring.JetNameSuggester
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns
 import com.intellij.psi.util.PsiTreeUtil
@@ -41,10 +40,8 @@ import com.intellij.psi.PsiNamedElement
 import org.jetbrains.jet.lang.descriptors.impl.LocalVariableDescriptor
 import org.jetbrains.jet.utils.DFS
 import org.jetbrains.jet.utils.DFS.*
-import org.jetbrains.jet.plugin.caches.resolve.getLazyResolveSession
 import com.intellij.refactoring.util.RefactoringUIUtil
 import com.intellij.util.containers.MultiMap
-import org.jetbrains.jet.plugin.project.AnalyzerFacadeWithCache
 import org.jetbrains.jet.lang.diagnostics.Errors
 import org.jetbrains.jet.plugin.refactoring.extractFunction.AnalysisResult.Status
 import org.jetbrains.jet.plugin.refactoring.extractFunction.AnalysisResult.ErrorMessage
@@ -67,25 +64,30 @@ import org.jetbrains.jet.plugin.refactoring.extractFunction.OutputValue.Jump
 import org.jetbrains.jet.lang.cfg.pseudocodeTraverser.traverseFollowingInstructions
 import org.jetbrains.jet.plugin.refactoring.extractFunction.OutputValueBoxer.AsList
 import org.jetbrains.jet.plugin.refactoring.getContextForContainingDeclarationBody
+import org.jetbrains.jet.plugin.util.IdeDescriptorRenderers
+import org.jetbrains.jet.plugin.caches.resolve.findModuleDescriptor
+import org.jetbrains.jet.plugin.caches.resolve.analyze
+import org.jetbrains.jet.lang.psi.psiUtil.getStrictParentOfType
+import org.jetbrains.jet.plugin.refactoring.comparePossiblyOverridingDescriptors
 
 private val DEFAULT_FUNCTION_NAME = "myFun"
 private val DEFAULT_RETURN_TYPE = KotlinBuiltIns.getInstance().getUnitType()
 private val DEFAULT_PARAMETER_TYPE = KotlinBuiltIns.getInstance().getNullableAnyType()
 
 private fun DeclarationDescriptor.renderForMessage(): String =
-        DescriptorRenderer.SOURCE_CODE_SHORT_NAMES_IN_TYPES.render(this)
+        IdeDescriptorRenderers.SOURCE_CODE_SHORT_NAMES_IN_TYPES.render(this)
 
 private fun JetType.renderForMessage(): String =
-        DescriptorRenderer.SOURCE_CODE.renderType(this)
+        IdeDescriptorRenderers.SOURCE_CODE.renderType(this)
 
 private fun JetDeclaration.renderForMessage(bindingContext: BindingContext): String? =
     bindingContext[BindingContext.DECLARATION_TO_DESCRIPTOR, this]?.renderForMessage()
 
-private fun JetType.isDefault(): Boolean = KotlinBuiltIns.getInstance().isUnit(this)
+private fun JetType.isDefault(): Boolean = KotlinBuiltIns.isUnit(this)
 
 private fun List<Instruction>.getModifiedVarDescriptors(bindingContext: BindingContext): Map<VariableDescriptor, List<JetExpression>> {
     val result = HashMap<VariableDescriptor, MutableList<JetExpression>>()
-    for (instruction in filterIsInstance(javaClass<WriteValueInstruction>())) {
+    for (instruction in filterIsInstance<WriteValueInstruction>()) {
         val expression = instruction.element as? JetExpression
         val descriptor = PseudocodeUtil.extractVariableDescriptorIfAny(instruction, false, bindingContext)
         if (expression != null && descriptor != null) {
@@ -156,7 +158,7 @@ private fun List<AbstractJumpInstruction>.checkEquivalence(checkPsi: Boolean): B
 }
 
 private fun JetType.isMeaningful(): Boolean {
-    return KotlinBuiltIns.getInstance().let { builtins -> !builtins.isUnit(this) && !builtins.isNothing(this) }
+    return !KotlinBuiltIns.isUnit(this) && !KotlinBuiltIns.isNothing(this)
 }
 
 private fun ExtractionData.getLocalDeclarationsWithNonLocalUsages(
@@ -214,7 +216,7 @@ private fun ExtractionData.analyzeControlFlow(
             is ReturnValueInstruction -> {
                 val returnExpression = insn.returnExpressionIfAny
                 if (returnExpression == null) {
-                    val containingDeclaration = insn.returnedValue.element?.getParentByType(javaClass<JetDeclarationWithBody>())
+                    val containingDeclaration = insn.returnedValue.element?.getNonStrictParentOfType<JetDeclarationWithBody>()
                     if (containingDeclaration == pseudocode.getCorrespondingElement()) {
                         defaultExits.add(insn)
                     }
@@ -355,7 +357,7 @@ fun ExtractionData.createTemporaryDeclaration(functionText: String): JetNamedDec
     val tmpFile = originalFile.createTempCopy { text ->
         StringBuilder(text).insert(insertPosition, insertText).toString()
     }
-    return tmpFile.findElementAt(lookupPosition)?.getParentByType(javaClass<JetNamedDeclaration>())!!
+    return tmpFile.findElementAt(lookupPosition)?.getNonStrictParentOfType<JetNamedDeclaration>()!!
 }
 
 private fun ExtractionData.createTemporaryCodeBlock(): JetBlockExpression =
@@ -378,7 +380,7 @@ private fun JetType.collectReferencedTypes(processTypeArguments: Boolean): List<
 }
 
 fun JetTypeParameter.collectRelevantConstraints(): List<JetTypeConstraint> {
-    val typeConstraints = getParentByType(javaClass<JetTypeParameterListOwner>())?.getTypeConstraints()
+    val typeConstraints = getNonStrictParentOfType<JetTypeParameterListOwner>()?.getTypeConstraints()
     if (typeConstraints == null) return Collections.emptyList()
     return typeConstraints.filter { it.getSubjectTypeParameterName()?.getReference()?.resolve() == this}
 }
@@ -393,6 +395,17 @@ fun TypeParameter.collectReferencedTypes(bindingContext: BindingContext): List<J
     return typeRefs
             .map { bindingContext[BindingContext.TYPE, it] }
             .filterNotNull()
+}
+
+private fun JetType.isExtractable(): Boolean {
+    return collectReferencedTypes(true).fold(true) { (extractable, typeToCheck) ->
+        val parameterTypeDescriptor = typeToCheck.getConstructor().getDeclarationDescriptor() as? TypeParameterDescriptor
+        val typeParameter = parameterTypeDescriptor?.let {
+            DescriptorToSourceUtils.descriptorToDeclaration(it)
+        } as? JetTypeParameter
+
+        extractable && (typeParameter != null || typeToCheck.canBeReferencedViaImport())
+    }
 }
 
 private fun JetType.processTypeIfExtractable(
@@ -429,8 +442,6 @@ private fun JetType.processTypeIfExtractable(
 private class MutableParameter(
         override val argumentText: String,
         override val originalDescriptor: DeclarationDescriptor,
-        override val name: String,
-        override val mirrorVarName: String?,
         override val receiverCandidate: Boolean
 ): Parameter {
     // All modifications happen in the same thread
@@ -441,24 +452,32 @@ private class MutableParameter(
     var refCount: Int = 0
 
     fun addDefaultType(jetType: JetType) {
-        assert(writable, "Can't add type to non-writable parameter $name")
+        assert(writable, "Can't add type to non-writable parameter $currentName")
         defaultTypes.add(jetType)
     }
 
     fun addTypePredicate(predicate: TypePredicate) {
-        assert(writable, "Can't add type predicate to non-writable parameter $name")
+        assert(writable, "Can't add type predicate to non-writable parameter $currentName")
         typePredicates.add(predicate)
+    }
+
+    var currentName: String? = null
+    override val name: String get() = currentName!!
+
+    override var mirrorVarName: String? = null
+
+    private val defaultType: JetType by Delegates.lazy {
+        writable = false
+        CommonSupertypes.commonSupertype(defaultTypes)
     }
 
     override val parameterTypeCandidates: List<JetType> by Delegates.lazy {
         writable = false
-        listOf(parameterType) + TypeUtils.getAllSupertypes(parameterType).filter(and(typePredicates))
+        val superTypes = TypeUtils.getAllSupertypes(defaultType).filter(and(typePredicates))
+        (Collections.singletonList(defaultType) + superTypes).filter { it.isExtractable() }
     }
 
-    override val parameterType: JetType by Delegates.lazy {
-        writable = false
-        CommonSupertypes.commonSupertype(defaultTypes)
-    }
+    override val parameterType: JetType by Delegates.lazy { parameterTypeCandidates.firstOrNull() ?: defaultType }
 
     override fun copy(name: String, parameterType: JetType): Parameter = DelegatingParameter(this, name, parameterType)
 }
@@ -487,12 +506,6 @@ private fun ExtractionData.inferParametersInfo(
         modifiedVarDescriptors: Set<VariableDescriptor>
 ): ParametersInfo {
     val info = ParametersInfo()
-
-    val varNameValidator = JetNameValidatorImpl(
-            commonParent.getParentByType(javaClass<JetExpression>()),
-            originalElements.first,
-            JetNameValidatorImpl.Target.PROPERTIES
-    )
 
     val extractedDescriptorToParameter = HashMap<DeclarationDescriptor, MutableParameter>()
 
@@ -523,7 +536,7 @@ private fun ExtractionData.inferParametersInfo(
                     when(it.getKind()) {
                         ClassKind.OBJECT, ClassKind.ENUM_CLASS -> it as ClassDescriptor
                         ClassKind.CLASS_OBJECT, ClassKind.ENUM_ENTRY -> it.getContainingDeclaration() as? ClassDescriptor
-                        else -> if (ref.getParentByType(javaClass<JetTypeReference>()) != null) it as ClassDescriptor else null
+                        else -> if (ref.getNonStrictParentOfType<JetTypeReference>() != null) it as ClassDescriptor else null
                     }
 
                 is ConstructorDescriptor -> it.getContainingDeclaration()
@@ -557,28 +570,21 @@ private fun ExtractionData.inferParametersInfo(
                             ?: DEFAULT_PARAMETER_TYPE
                 }
 
-                if (!parameterType.processTypeIfExtractable(info.typeParameters, info.nonDenotableTypes)) continue
-
                 val parameterTypePredicate =
                         and(pseudocode.getElementValuesRecursively(originalRef).map { getExpectedTypePredicate(it, bindingContext) })
 
                 val parameter = extractedDescriptorToParameter.getOrPut(descriptorToExtract) {
-                    val parameterName =
-                            if (extractThis) {
-                                JetNameSuggester.suggestNames(parameterType, varNameValidator, null).first()
-                            }
-                            else originalDeclaration.getName()!!
-
-                    val mirrorVarName =
-                            if (descriptorToExtract in modifiedVarDescriptors) varNameValidator.validateName(parameterName)!! else null
-
                     val argumentText =
                             if (hasThisReceiver && extractThis)
                                 "this@${parameterType.getConstructor().getDeclarationDescriptor()!!.getName().asString()}"
                             else
                                 (thisExpr ?: ref).getText() ?: throw AssertionError("'this' reference shouldn't be empty: code fragment = ${getCodeFragmentText()}")
 
-                    MutableParameter(argumentText, descriptorToExtract, parameterName, mirrorVarName, extractThis)
+                    MutableParameter(argumentText, descriptorToExtract, extractThis)
+                }
+
+                if (!extractThis) {
+                    parameter.currentName = originalDeclaration.getName()
                 }
 
                 parameter.refCount++
@@ -593,11 +599,28 @@ private fun ExtractionData.inferParametersInfo(
         }
     }
 
+    val varNameValidator = JetNameValidatorImpl(
+            commonParent.getNonStrictParentOfType<JetExpression>(),
+            originalElements.first,
+            JetNameValidatorImpl.Target.PROPERTIES
+    )
+
+    for ((descriptorToExtract, parameter) in extractedDescriptorToParameter) {
+        if (!parameter.parameterType.processTypeIfExtractable(info.typeParameters, info.nonDenotableTypes)) continue
+
+        with (parameter) {
+            if (currentName == null) {
+                currentName = JetNameSuggester.suggestNames(parameterType, varNameValidator, null).first()
+            }
+            mirrorVarName = if (descriptorToExtract in modifiedVarDescriptors) varNameValidator.validateName(name) else null
+            info.parameters.add(this)
+        }
+    }
+
     for (typeToCheck in info.typeParameters.flatMapTo(HashSet<JetType>()) { it.collectReferencedTypes(bindingContext) }) {
         typeToCheck.processTypeIfExtractable(info.typeParameters, info.nonDenotableTypes)
     }
 
-    info.parameters.addAll(extractedDescriptorToParameter.values())
 
     return info
 }
@@ -614,7 +637,7 @@ private fun ExtractionData.checkDeclarationsMovingOutOfScope(
                     val target = expression.getReference()?.resolve()
                     if (target is JetNamedDeclaration
                         && target.isInsideOf(originalElements)
-                        && target.getParentByType(javaClass<JetDeclaration>(), true) == enclosingDeclaration) {
+                        && target.getStrictParentOfType<JetDeclaration>() == enclosingDeclaration) {
                         declarationsOutOfScope.add(target)
                     }
                 }
@@ -660,7 +683,7 @@ fun ExtractionData.performAnalysis(): AnalysisResult {
 
     val pseudocodeDeclaration = PsiTreeUtil.getParentOfType(
             commonParent, javaClass<JetDeclarationWithBody>(), javaClass<JetClassOrObject>()
-    ) ?: commonParent.getParentByType(javaClass<JetProperty>())
+    ) ?: commonParent.getNonStrictParentOfType<JetProperty>()
     ?: return noContainerError
     val pseudocode = PseudocodeUtil.generatePseudocode(pseudocodeDeclaration, bindingContext)
     val localInstructions = getLocalInstructions(pseudocode)
@@ -680,7 +703,7 @@ fun ExtractionData.performAnalysis(): AnalysisResult {
             analyzeControlFlow(
                     localInstructions,
                     pseudocode,
-                    originalFile.getLazyResolveSession().getModuleDescriptor(),
+                    originalFile.findModuleDescriptor(),
                     bindingContext,
                     modifiedVarDescriptorsForControlFlow,
                     options,
@@ -699,7 +722,7 @@ fun ExtractionData.performAnalysis(): AnalysisResult {
         )
     }
 
-    val enclosingDeclaration = commonParent.getParentByType(javaClass<JetDeclaration>(), true)!!
+    val enclosingDeclaration = commonParent.getStrictParentOfType<JetDeclaration>()!!
     checkDeclarationsMovingOutOfScope(enclosingDeclaration, controlFlow, bindingContext)?.let { messages.add(it) }
 
     val functionNameValidator =
@@ -755,7 +778,7 @@ fun ExtractableCodeDescriptor.validate(): ExtractableCodeDescriptorWithConflicts
     val result = generateDeclaration(ExtractionGeneratorOptions(inTempFile = true))
 
     val valueParameterList = (result.declaration as? JetNamedFunction)?.getValueParameterList()
-    val bindingContext = AnalyzerFacadeWithCache.getContextForElement(result.declaration.getGeneratedBlockBody())
+    val bindingContext = result.declaration.getGeneratedBlockBody().analyze()
 
     for ((originalOffset, resolveResult) in extractionData.refOffsetToDeclaration) {
         if (resolveResult.declaration.isInsideOf(extractionData.originalElements)) continue
@@ -808,14 +831,5 @@ fun ExtractableCodeDescriptor.validate(): ExtractableCodeDescriptorWithConflicts
     }
 
     return ExtractableCodeDescriptorWithConflicts(this, conflicts)
-}
-
-private fun comparePossiblyOverridingDescriptors(currentDescriptor: DeclarationDescriptor?, originalDescriptor: DeclarationDescriptor?): Boolean {
-    if (compareDescriptors(currentDescriptor, originalDescriptor)) return true
-    if (originalDescriptor is CallableDescriptor) {
-        if (!OverridingUtil.traverseOverridenDescriptors(originalDescriptor) { !compareDescriptors(currentDescriptor, it) }) return true
-    }
-
-    return false
 }
 

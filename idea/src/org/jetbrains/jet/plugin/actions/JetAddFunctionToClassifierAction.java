@@ -42,7 +42,7 @@ import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 import org.jetbrains.jet.plugin.JetBundle;
 import org.jetbrains.jet.plugin.codeInsight.DescriptorToDeclarationUtil;
 import org.jetbrains.jet.plugin.codeInsight.ShortenReferences;
-import org.jetbrains.jet.renderer.DescriptorRenderer;
+import org.jetbrains.jet.plugin.util.IdeDescriptorRenderers;
 
 import javax.swing.*;
 import java.util.ArrayList;
@@ -74,7 +74,7 @@ public class JetAddFunctionToClassifierAction implements QuestionAction {
             @NotNull final ClassDescriptor typeDescriptor,
             @NotNull final FunctionDescriptor functionDescriptor
     ) {
-        final String signatureString = DescriptorRenderer.SOURCE_CODE.render(functionDescriptor);
+        final String signatureString = IdeDescriptorRenderers.SOURCE_CODE.render(functionDescriptor);
 
         PsiDocumentManager.getInstance(project).commitAllDocuments();
 
@@ -97,7 +97,7 @@ public class JetAddFunctionToClassifierAction implements QuestionAction {
                         if (typeDescriptor.getKind() != ClassKind.TRAIT && functionDescriptor.getModality() != Modality.ABSTRACT) {
                             functionBody = "{}";
                             JetType returnType = functionDescriptor.getReturnType();
-                            if (returnType == null || !KotlinBuiltIns.getInstance().isUnit(returnType)) {
+                            if (returnType == null || !KotlinBuiltIns.isUnit(returnType)) {
                                 functionBody = "{ throw UnsupportedOperationException() }";
                             }
                         }
@@ -158,7 +158,7 @@ public class JetAddFunctionToClassifierAction implements QuestionAction {
             public String getTextFor(FunctionDescriptor functionDescriptor) {
                 ClassDescriptor type = (ClassDescriptor) functionDescriptor.getContainingDeclaration();
                 return JetBundle.message("add.function.to.type.action.single",
-                                         DescriptorRenderer.SOURCE_CODE_SHORT_NAMES_IN_TYPES.render(functionDescriptor),
+                                         IdeDescriptorRenderers.SOURCE_CODE_SHORT_NAMES_IN_TYPES.render(functionDescriptor),
                                          type.getName().toString());
             }
         };

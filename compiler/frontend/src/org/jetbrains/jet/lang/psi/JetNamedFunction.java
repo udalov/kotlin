@@ -20,11 +20,12 @@ import com.intellij.lang.ASTNode;
 import com.intellij.navigation.ItemPresentation;
 import com.intellij.navigation.ItemPresentationProviders;
 import com.intellij.psi.PsiElement;
+import com.intellij.psi.PsiModifiableCodeBlock;
 import com.intellij.psi.tree.IElementType;
 import com.intellij.psi.util.PsiTreeUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.jet.lang.psi.stubs.PsiJetFunctionStub;
+import org.jetbrains.jet.lang.psi.stubs.KotlinFunctionStub;
 import org.jetbrains.jet.lang.psi.stubs.elements.JetStubElementTypes;
 import org.jetbrains.jet.lang.psi.typeRefHelpers.TypeRefHelpersPackage;
 import org.jetbrains.jet.lexer.JetTokens;
@@ -32,12 +33,13 @@ import org.jetbrains.jet.lexer.JetTokens;
 import java.util.Collections;
 import java.util.List;
 
-public class JetNamedFunction extends JetTypeParameterListOwnerStub<PsiJetFunctionStub> implements JetFunction, JetWithExpressionInitializer {
+public class JetNamedFunction extends JetTypeParameterListOwnerStub<KotlinFunctionStub>
+        implements JetFunction, JetWithExpressionInitializer, PsiModifiableCodeBlock {
     public JetNamedFunction(@NotNull ASTNode node) {
         super(node);
     }
 
-    public JetNamedFunction(@NotNull PsiJetFunctionStub stub) {
+    public JetNamedFunction(@NotNull KotlinFunctionStub stub) {
         super(stub, JetStubElementTypes.FUNCTION);
     }
 
@@ -47,7 +49,7 @@ public class JetNamedFunction extends JetTypeParameterListOwnerStub<PsiJetFuncti
     }
 
     public boolean hasTypeParameterListBeforeFunctionName() {
-        PsiJetFunctionStub stub = getStub();
+        KotlinFunctionStub stub = getStub();
         if (stub != null) {
             return stub.hasTypeParameterListBeforeFunctionName();
         }
@@ -68,7 +70,7 @@ public class JetNamedFunction extends JetTypeParameterListOwnerStub<PsiJetFuncti
 
     @Override
     public boolean hasBlockBody() {
-        PsiJetFunctionStub stub = getStub();
+        KotlinFunctionStub stub = getStub();
         if (stub != null) {
             return stub.hasBlockBody();
         }
@@ -117,7 +119,7 @@ public class JetNamedFunction extends JetTypeParameterListOwnerStub<PsiJetFuncti
 
     @Override
     public boolean hasBody() {
-        PsiJetFunctionStub stub = getStub();
+        KotlinFunctionStub stub = getStub();
         if (stub != null) {
             return stub.hasBody();
         }
@@ -132,7 +134,7 @@ public class JetNamedFunction extends JetTypeParameterListOwnerStub<PsiJetFuncti
     @Override
     @Nullable
     public JetTypeReference getReceiverTypeReference() {
-        PsiJetFunctionStub stub = getStub();
+        KotlinFunctionStub stub = getStub();
         if (stub != null) {
             if (!stub.isExtension()) {
                 return null;
@@ -166,7 +168,7 @@ public class JetNamedFunction extends JetTypeParameterListOwnerStub<PsiJetFuncti
     @Override
     @Nullable
     public JetTypeReference getTypeReference() {
-        PsiJetFunctionStub stub = getStub();
+        KotlinFunctionStub stub = getStub();
         if (stub != null) {
             List<JetTypeReference> typeReferences = getStubOrPsiChildrenAsList(JetStubElementTypes.TYPE_REFERENCE);
             int returnTypeIndex = stub.isExtension() ? 1 : 0;
@@ -184,9 +186,21 @@ public class JetNamedFunction extends JetTypeParameterListOwnerStub<PsiJetFuncti
         return TypeRefHelpersPackage.setTypeReference(this, getValueParameterList(), typeRef);
     }
 
+    @Nullable
+    @Override
+    public PsiElement getColon() {
+        return findChildByType(JetTokens.COLON);
+    }
+
     @Override
     public boolean isLocal() {
         PsiElement parent = getParent();
         return !(parent instanceof JetFile || parent instanceof JetClassBody);
+    }
+
+    @Override
+    public boolean shouldChangeModificationCount(PsiElement place) {
+        // Suppress Java check for out-of-block
+        return false;
     }
 }

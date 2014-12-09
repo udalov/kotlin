@@ -20,6 +20,7 @@ import com.intellij.lang.PsiBuilder;
 import com.intellij.psi.tree.IElementType;
 import com.intellij.psi.tree.TokenSet;
 import com.intellij.util.containers.Stack;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.lexer.JetKeywordToken;
 import org.jetbrains.jet.lexer.JetToken;
 import org.jetbrains.jet.lexer.JetTokens;
@@ -113,9 +114,7 @@ import static org.jetbrains.jet.lexer.JetTokens.*;
 
     protected boolean errorAndAdvance(String message, int advanceTokenCount) {
         PsiBuilder.Marker err = mark();
-        for (int i = 0; i < advanceTokenCount; i++) {
-            advance(); // erroneous token
-        }
+        advance(advanceTokenCount);
         err.error(message);
         return false;
     }
@@ -127,6 +126,12 @@ import static org.jetbrains.jet.lexer.JetTokens.*;
     protected void advance() {
         // TODO: how to report errors on bad characters? (Other than highlighting)
         myBuilder.advanceLexer();
+    }
+
+    protected void advance(int advanceTokenCount) {
+        for (int i = 0; i < advanceTokenCount; i++) {
+            advance(); // erroneous token
+        }
     }
 
     protected void advanceAt(IElementType current) {
@@ -272,6 +277,36 @@ import static org.jetbrains.jet.lexer.JetTokens.*;
         }
     }
 
+    protected class OptionalMarker {
+        private final PsiBuilder.Marker marker;
+        private final int offset;
+
+        public OptionalMarker(boolean actuallyMark) {
+            marker = actuallyMark ? mark() : null;
+            offset = myBuilder.getCurrentOffset();
+        }
+
+        public void done(IElementType elementType) {
+            if (marker == null) return;
+            marker.done(elementType);
+        }
+
+        public void error(String message) {
+            if (marker == null) return;
+            if (offset == myBuilder.getCurrentOffset()) {
+                marker.drop(); // no empty errors
+            }
+            else {
+                marker.error(message);
+            }
+        }
+
+        public void drop() {
+            if (marker == null) return;
+            marker.drop();
+        }
+    }
+
     protected int matchTokenStreamPredicate(TokenStreamPattern pattern) {
         PsiBuilder.Marker currentPosition = mark();
         Stack<IElementType> opens = new Stack<IElementType>();
@@ -341,6 +376,12 @@ import static org.jetbrains.jet.lexer.JetTokens.*;
 
     protected boolean eol() {
         return myBuilder.newlineBeforeCurrentToken() || eof();
+    }
+
+    protected static void closeDeclarationWithCommentBinders(@NotNull PsiBuilder.Marker marker, @NotNull IElementType elementType, boolean precedingNonDocComments) {
+        marker.done(elementType);
+        marker.setCustomEdgeTokenBinders(precedingNonDocComments ? PrecedingCommentsBinder.INSTANCE$ : PrecedingDocCommentsBinder.INSTANCE$,
+                                         TrailingCommentsBinder.INSTANCE$);
     }
 
     protected abstract JetParsing create(SemanticWhitespaceAwarePsiBuilder builder);

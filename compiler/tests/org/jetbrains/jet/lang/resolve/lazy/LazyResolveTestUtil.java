@@ -18,20 +18,18 @@ package org.jetbrains.jet.lang.resolve.lazy;
 
 import com.google.common.base.Predicates;
 import com.google.common.collect.Sets;
-import com.intellij.openapi.project.Project;
 import com.intellij.psi.PsiFile;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.jet.JetTestUtils;
 import org.jetbrains.jet.cli.jvm.compiler.CliLightClassGenerationSupport;
 import org.jetbrains.jet.cli.jvm.compiler.JetCoreEnvironment;
 import org.jetbrains.jet.context.ContextPackage;
 import org.jetbrains.jet.context.GlobalContextImpl;
-import org.jetbrains.jet.di.InjectorForTopDownAnalyzerForJvm;
 import org.jetbrains.jet.lang.descriptors.ModuleDescriptor;
 import org.jetbrains.jet.lang.descriptors.impl.ModuleDescriptorImpl;
 import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.resolve.BindingTrace;
 import org.jetbrains.jet.lang.resolve.TopDownAnalysisParameters;
+import org.jetbrains.jet.lang.resolve.java.TopDownAnalyzerFacadeForJVM;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.resolve.name.SpecialNames;
 
@@ -44,20 +42,27 @@ public class LazyResolveTestUtil {
     private LazyResolveTestUtil() {
     }
 
-    public static ModuleDescriptor resolveEagerly(List<JetFile> files, JetCoreEnvironment environment) {
-        JetTestUtils.newTrace(environment);
+    public static ModuleDescriptor resolve(List<JetFile> files, JetCoreEnvironment environment) {
+        return doResolve(files, environment);
+    }
 
+    private static ModuleDescriptor doResolve(List<JetFile> files, JetCoreEnvironment environment) {
         GlobalContextImpl globalContext = ContextPackage.GlobalContext();
         TopDownAnalysisParameters params = TopDownAnalysisParameters.create(
-                globalContext.getStorageManager(), globalContext.getExceptionTracker(), Predicates.<PsiFile>alwaysTrue(), false, false);
-        CliLightClassGenerationSupport support = CliLightClassGenerationSupport.getInstanceForCli(environment.getProject());
-        BindingTrace sharedTrace = support.getTrace();
-        ModuleDescriptorImpl sharedModule = support.newModule();
+                globalContext.getStorageManager(),
+                globalContext.getExceptionTracker(),
+                Predicates.<PsiFile>alwaysTrue(),
+                false, false);
+        BindingTrace trace = new CliLightClassGenerationSupport.NoScopeRecordCliBindingTrace();
+        ModuleDescriptorImpl sharedModule = TopDownAnalyzerFacadeForJVM.createSealedJavaModule();
 
-        InjectorForTopDownAnalyzerForJvm injector =
-                new InjectorForTopDownAnalyzerForJvm(environment.getProject(), params, sharedTrace, sharedModule);
-        injector.getTopDownAnalyzer().analyzeFiles(params, files, injector.getJavaDescriptorResolver().getPackageFragmentProvider());
-        return injector.getModuleDescriptor();
+        TopDownAnalyzerFacadeForJVM.analyzeFilesWithJavaIntegrationNoIncremental(
+                environment.getProject(),
+                files,
+                trace,
+                params, sharedModule);
+
+        return sharedModule;
     }
 
     @NotNull
@@ -66,14 +71,7 @@ public class LazyResolveTestUtil {
             @NotNull JetCoreEnvironment environment,
             boolean addBuiltIns
     ) {
-        JetTestUtils.newTrace(environment);
-
-        Project project = environment.getProject();
-        CliLightClassGenerationSupport support = CliLightClassGenerationSupport.getInstanceForCli(project);
-        ResolveSession lazyResolveSession = createResolveSessionForFiles(project, files, addBuiltIns);
-        support.setModule((ModuleDescriptorImpl) lazyResolveSession.getModuleDescriptor());
-
-        return lazyResolveSession;
+        return createResolveSessionForFiles(environment.getProject(), files, addBuiltIns);
     }
 
     public static ModuleDescriptor resolveLazily(List<JetFile> files, JetCoreEnvironment environment) {

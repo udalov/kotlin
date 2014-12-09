@@ -148,7 +148,7 @@ public class SamWrapperCodegen {
 
         FunctionDescriptor invokeFunction = functionJetType.getMemberScope()
                 .getFunctions(Name.identifier("invoke")).iterator().next().getOriginal();
-        StackValue functionField = StackValue.field(functionType, ownerType, FUNCTION_FIELD_NAME, false);
+        StackValue functionField = StackValue.field(functionType, ownerType, FUNCTION_FIELD_NAME, false, StackValue.none());
         codegen.genDelegate(erasedInterfaceFunction, invokeFunction, functionField);
 
         // generate sam bridges
@@ -171,11 +171,14 @@ public class SamWrapperCodegen {
     private FqName getWrapperName(@NotNull JetFile containingFile) {
         FqName packageClassFqName = PackageClassUtils.getPackageClassFqName(containingFile.getPackageFqName());
         JavaClassDescriptor descriptor = samType.getJavaClassDescriptor();
-        String shortName = packageClassFqName.shortName().asString() + "$sam$" + descriptor.getName().asString() + "$" +
-                   Integer.toHexString(
-                           PackagePartClassUtils.getPathHashCode(containingFile.getVirtualFile()) * 31 +
-                           DescriptorUtils.getFqNameSafe(descriptor).hashCode()
-                   );
+        int hash = PackagePartClassUtils.getPathHashCode(containingFile.getVirtualFile()) * 31 +
+                DescriptorUtils.getFqNameSafe(descriptor).hashCode();
+        String shortName = String.format(
+                "%s$sam$%s$%08x",
+                packageClassFqName.shortName().asString(),
+                descriptor.getName().asString(),
+                hash
+        );
         return packageClassFqName.parent().child(Name.identifier(shortName));
     }
 }

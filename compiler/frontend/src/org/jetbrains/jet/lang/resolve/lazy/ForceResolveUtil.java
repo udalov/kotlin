@@ -19,14 +19,14 @@ package org.jetbrains.jet.lang.resolve.lazy;
 import com.intellij.openapi.diagnostic.Logger;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.jet.lang.descriptors.CallableDescriptor;
-import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor;
+import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.descriptors.annotations.AnnotationDescriptor;
 import org.jetbrains.jet.lang.descriptors.annotations.Annotations;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
 import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.lang.types.TypeConstructor;
 import org.jetbrains.jet.lang.types.TypeProjection;
+import org.jetbrains.jet.lang.types.TypesPackage;
 
 import java.util.Collection;
 
@@ -36,9 +36,7 @@ public class ForceResolveUtil {
     private ForceResolveUtil() {}
 
     public static <T extends DeclarationDescriptor> T forceResolveAllContents(@NotNull T descriptor) {
-        LOG.debug("descriptor: " + descriptor);
         doForceResolveAllContents(descriptor);
-        LOG.debug("<<< " + descriptor);
         return descriptor;
     }
 
@@ -59,9 +57,7 @@ public class ForceResolveUtil {
     }
 
     public static void forceResolveAllContents(@NotNull TypeConstructor typeConstructor) {
-        LOG.debug("descriptor: " + typeConstructor);
         doForceResolveAllContents(typeConstructor);
-        LOG.debug("<<< " + typeConstructor);
     }
 
     public static void forceResolveAllContents(@NotNull Annotations annotations) {
@@ -78,16 +74,34 @@ public class ForceResolveUtil {
         }
         else if (object instanceof CallableDescriptor) {
             CallableDescriptor callableDescriptor = (CallableDescriptor) object;
+            ReceiverParameterDescriptor parameter = callableDescriptor.getExtensionReceiverParameter();
+            if (parameter != null) {
+                forceResolveAllContents(parameter.getType());
+            }
+            for (ValueParameterDescriptor parameterDescriptor : callableDescriptor.getValueParameters()) {
+                forceResolveAllContents(parameterDescriptor);
+            }
+            for (TypeParameterDescriptor typeParameterDescriptor : callableDescriptor.getTypeParameters()) {
+                forceResolveAllContents(typeParameterDescriptor.getUpperBounds());
+            }
             forceResolveAllContents(callableDescriptor.getReturnType());
         }
     }
 
-    public static void forceResolveAllContents(@Nullable JetType type) {
-        if (type == null) return;
+    @Nullable
+    public static JetType forceResolveAllContents(@Nullable JetType type) {
+        if (type == null) return null;
 
-        forceResolveAllContents(type.getConstructor());
-        for (TypeProjection projection : type.getArguments()) {
-            forceResolveAllContents(projection.getType());
+        if (TypesPackage.isFlexible(type)) {
+            forceResolveAllContents(TypesPackage.flexibility(type).getLowerBound());
+            forceResolveAllContents(TypesPackage.flexibility(type).getUpperBound());
         }
+        else {
+            forceResolveAllContents(type.getConstructor());
+            for (TypeProjection projection : type.getArguments()) {
+                forceResolveAllContents(projection.getType());
+            }
+        }
+        return type;
     }
 }

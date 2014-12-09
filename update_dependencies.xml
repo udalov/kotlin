@@ -1,6 +1,6 @@
 <project name="Update Dependencies" default="update">
-    <property name="jb.buildserver.build.id" value="4899218"/>
-    <property name="public.buildserver.build.id" value="171952"/>
+    <property name="jb.buildserver.build.id" value="5355113"/>
+    <property name="public.buildserver.build.id" value="351755"/>
 
     <condition property="os.tag" value="win.zip">
         <os family="windows"/>
@@ -19,36 +19,22 @@
         </and>
     </condition>
 
-    <property name="idea.build.number" value="139.SNAPSHOT"/>
-
-    <property name="idea.archive.name" value="ideaIC-${idea.build.number}.${os.tag}"/>
-
     <property name="idea.sdk.fetch.needed" value="true"/>
 
-    <property name="continuous.idea.version" value=".lastSuccessful"/>
-
     <target name="update" depends="fetch-third-party,fetch-annotations" description="Update dependencies from public server">
-        <execute_update
-            base.url="http://teamcity.jetbrains.com/guestAuth/repository/download/bt410/${public.buildserver.build.id}:id"
-            build.zip="${idea.archive.name}"/>
+        <execute_update base.url="https://teamcity.jetbrains.com/guestAuth/app/rest/builds/id:${public.buildserver.build.id}"/>
     </target>
 
     <target name="jb_update" depends="fetch-third-party,fetch-annotations" description="Update dependencies from internal server">
-        <execute_update
-            base.url="http://buildserver.labs.intellij.net/guestAuth/repository/download/bt3498/${jb.buildserver.build.id}:id"
-            build.zip="${idea.archive.name}"/>
+        <execute_update base.url="http://buildserver.labs.intellij.net/guestAuth/app/rest/builds/id:${jb.buildserver.build.id}"/>
     </target>
 
-    <target name="jb_update_continuous_local" depends="fetch-third-party,fetch-annotations">
-        <execute_update
-            base.url="http://buildserver.labs.intellij.net/guestAuth/repository/download/IDEA_Trunk_Installers/${continuous.idea.version}"
-            build.zip="ideaIC-{build.number}.win.zip"/>
+    <target name="jb_update_continuous_139" depends="fetch-third-party,fetch-annotations">
+        <execute_update base.url="http://buildserver.labs.intellij.net/guestAuth/app/rest/builds/buildType:ijplatform_IjPlatformMaster_IdeaTrunk_CommunityDist,status:SUCCESS"/>
     </target>
 
-    <target name="jb_update_continuous" depends="fetch-third-party,fetch-annotations">
-        <execute_update
-            base.url="file:///${basedir}/idea_artifacts"
-            build.zip="${idea.archive.name}"/>
+    <target name="jb_update_continuous_140" depends="fetch-third-party,fetch-annotations">
+        <execute_update base.url="http://buildserver.labs.intellij.net/guestAuth/app/rest/builds/buildType:bt662,status:SUCCESS"/>
     </target>
 
     <macrodef name="get-maven-library">
@@ -105,13 +91,13 @@
         <mkdir dir="dependencies/download"/>
 
         <!-- ProGuard -->
-        <get src="http://heanet.dl.sourceforge.net/project/proguard/proguard%20beta/4.8beta/proguard4.8beta1.zip"
-             dest="dependencies/download/proguard4.8beta1.zip" usetimestamp="true"/>
+        <get src="http://downloads.sourceforge.net/project/proguard/proguard/5.1/proguard5.1.zip"
+             dest="dependencies/download/proguard5.1.zip" usetimestamp="true"/>
 
         <delete file="dependencies/proguard.jar" failonerror="false"/>
-        <unzip src="dependencies/download/proguard4.8beta1.zip" dest="dependencies">
+        <unzip src="dependencies/download/proguard5.1.zip" dest="dependencies">
             <patternset>
-                <include name="proguard4.8beta1/lib/proguard.jar"/>
+                <include name="proguard5.1/lib/proguard.jar"/>
             </patternset>
             <mapper type="flatten"/>
         </unzip>
@@ -196,7 +182,7 @@
         </unzip>
 
         <!-- Bootstrap compiler -->
-        <get src="http://teamcity.jetbrains.com/guestAuth/repository/download/bt345/bootstrap.tcbuildtag/kotlin-plugin-{build.number}.zip"
+        <get src="https://teamcity.jetbrains.com/guestAuth/repository/download/bt345/bootstrap.tcbuildtag/kotlin-plugin-{build.number}.zip"
              dest="dependencies/download/bootstrap-compiler.zip" usetimestamp="true"/>
         <delete dir="dependencies/bootstrap-compiler" failonerror="false"/>
         <unzip src="dependencies/download/bootstrap-compiler.zip" dest="dependencies/bootstrap-compiler"/>
@@ -241,12 +227,29 @@
     </macrodef>
 
     <macrodef name="execute_update">
-        <attribute name="base.url" default="http://teamcity.example.com/guestAuth/repository/download/btXXX/XXXX:id"/>
-        <attribute name="base.url.for.core" default="@{base.url}"/>
-        <attribute name="build.zip" default="ideaIC-XXX.SNAPSHOT.win.zip"/>
+        <attribute name="base.url"/>
 
         <sequential>
             <taskdef resource="net/sf/antcontrib/antcontrib.properties" classpath="${basedir}/dependencies/ant-contrib.jar"/>
+
+            <loadresource property="idea.build.number">
+                <url url="@{base.url}/artifacts/children"/>
+                <filterchain>
+                    <tokenfilter>
+                        <filetokenizer/>
+
+                        <replaceregex pattern="^(.*)ideaIC-([\w\.]+)\.win\.zip(.*)$" replace="\2" flags="s"/>
+                    </tokenfilter>
+                </filterchain>
+            </loadresource>
+
+            <property name="idea.archive.name" value="ideaIC-${idea.build.number}.${os.tag}"/>
+
+            <echo message="IDEA build number: ${idea.build.number}"/>
+            <echo message="IDEA archive file: ${idea.archive.name}"/>
+
+            <property name="content.base.url" value="@{base.url}/artifacts/content"/>
+
             <property name="core" value="ideaSDK/core"/>
             <property name="core-analysis" value="ideaSDK/core-analysis"/>
             <property name="jps" value="ideaSDK/jps"/>
@@ -265,16 +268,16 @@
                     <mkdir dir="${core-analysis}"/>
                     <mkdir dir="${jps}"/>
                     <mkdir dir="${jps-test}"/>
-                    <get src="@{base.url.for.core}/core/intellij-core.jar" dest="${core}/intellij-core.jar" usetimestamp="true"/>
-                    <get src="@{base.url.for.core}/core/intellij-core-analysis.jar" dest="${core-analysis}/intellij-core-analysis.jar"
+                    <get src="${content.base.url}/core/intellij-core.jar" dest="${core}/intellij-core.jar" usetimestamp="true"/>
+                    <get src="${content.base.url}/core/intellij-core-analysis.jar" dest="${core-analysis}/intellij-core-analysis.jar"
                          usetimestamp="true"/>
-                    <get src="@{base.url}/core/annotations.jar" dest="${core}/annotations.jar" usetimestamp="true"/>
-                    <get src="@{base.url}/core/guava-17.0.jar" dest="${core}/guava-17.0.jar" usetimestamp="true"/>
-                    <get src="@{base.url}/core/picocontainer.jar" dest="${core}/picocontainer.jar" usetimestamp="true"/>
-                    <get src="@{base.url}/core/trove4j.jar" dest="${core}/trove4j.jar" usetimestamp="true"/>
-                    <!--<get src="@{base.url}/core/snappy-java-1.0.5.jar" dest="${core}/snappy-java-1.0.5.jar" usetimestamp="true"/>-->
+                    <get src="${content.base.url}/core/annotations.jar" dest="${core}/annotations.jar" usetimestamp="true"/>
+                    <get src="${content.base.url}/core/guava-17.0.jar" dest="${core}/guava-17.0.jar" usetimestamp="true"/>
+                    <get src="${content.base.url}/core/picocontainer.jar" dest="${core}/picocontainer.jar" usetimestamp="true"/>
+                    <get src="${content.base.url}/core/trove4j.jar" dest="${core}/trove4j.jar" usetimestamp="true"/>
+                    <!--<get src="${content.base.url}/core/snappy-java-1.0.5.jar" dest="${core}/snappy-java-1.0.5.jar" usetimestamp="true"/>-->
 
-                    <get src="@{base.url}/jps/standalone-jps-IC-${idea.build.number}.zip"
+                    <get src="${content.base.url}/jps/standalone-jps-IC-${idea.build.number}.zip"
                          dest="dependencies/download/standalone-jps.zip"
                          usetimestamp="true"/>
 
@@ -299,25 +302,25 @@
                         </resources>
                     </copy>
 
-                    <get src="@{base.url}/jps/jps-build-test-IC-${idea.build.number}.jar" dest="${jps-test}/jps-build-test.jar"
+                    <get src="${content.base.url}/jps/jps-build-test-IC-${idea.build.number}.jar" dest="${jps-test}/jps-build-test.jar"
                          usetimestamp="true"/>
 
-                    <get src="@{base.url}/@{build.zip}" dest="dependencies/download/@{build.zip}" usetimestamp="true"/>
+                    <get src="${content.base.url}/${idea.archive.name}" dest="dependencies/download/${idea.archive.name}" usetimestamp="true"/>
 
                     <delete file="dependencies/download/idea-sdk-sources.zip" failonerror="false"/>
-                    <get src="@{base.url}/sources.zip" dest="dependencies/download/idea-sdk-sources.zip" usetimestamp="true"/>
+                    <get src="${content.base.url}/sources.zip" dest="dependencies/download/idea-sdk-sources.zip" usetimestamp="true"/>
                 </then>
             </if>
 
             <if>
-                <matches pattern=".+\.win\.zip" string="@{build.zip}"/>
+                <matches pattern=".+\.win\.zip" string="${idea.archive.name}"/>
                 <then>
-                    <unzip src="dependencies/download/@{build.zip}" dest="ideaSDK"/>
+                    <unzip src="dependencies/download/${idea.archive.name}" dest="ideaSDK"/>
                 </then>
                 <elseif>
-                    <matches pattern=".+\.mac\.zip" string="@{build.zip}"/>
+                    <matches pattern=".+\.mac\.zip" string="${idea.archive.name}"/>
                     <then>
-                        <unzip src="dependencies/download/@{build.zip}" dest="ideaSDK">
+                        <unzip src="dependencies/download/${idea.archive.name}" dest="ideaSDK">
                             <cutdirsmapper dirs="2"/>
                         </unzip>
                         <!-- Java can't manipulate permissions -->
@@ -331,7 +334,7 @@
                     </then>
                 </elseif>
                 <else>
-                    <untar src="dependencies/download/@{build.zip}" dest="ideaSDK" compression="gzip">
+                    <untar src="dependencies/download/${idea.archive.name}" dest="ideaSDK" compression="gzip">
                         <cutdirsmapper dirs="1"/>
                     </untar>
                     <!-- Java can't manipulate permissions -->
@@ -371,10 +374,10 @@
     <target name="fetch-annotations">
         <mkdir dir="dependencies/annotations"/>
         <get
-            src="http://teamcity.jetbrains.com/guestAuth/repository/download/Kotlin_KAnnotator_InferJdkAnnotations/shipWithKotlin.tcbuildtag/kotlin-jdk-annotations.jar"
+            src="https://teamcity.jetbrains.com/guestAuth/repository/download/Kotlin_KAnnotator_InferJdkAnnotations/shipWithKotlin.tcbuildtag/kotlin-jdk-annotations.jar"
             dest="dependencies/annotations/kotlin-jdk-annotations.jar" usetimestamp="true"/>
         <get
-            src="http://teamcity.jetbrains.com/guestAuth/repository/download/Kotlin_KAnnotator_InferJdkAnnotations/shipWithKotlin.tcbuildtag/kotlin-android-sdk-annotations.jar"
+            src="https://teamcity.jetbrains.com/guestAuth/repository/download/Kotlin_KAnnotator_InferJdkAnnotations/shipWithKotlin.tcbuildtag/kotlin-android-sdk-annotations.jar"
             dest="dependencies/annotations/kotlin-android-sdk-annotations.jar" usetimestamp="true"/>
     </target>
 
@@ -412,7 +415,7 @@
                         <tokenfilter>
                             <filetokenizer/>
                             <replaceregex
-                                pattern="^(.*)http://dl\.google\.com/dl/android/studio/ide-zips/([\d\.]+)/android-studio-ide(.*)$"
+                                pattern="^(.*)https?://dl\.google\.com/dl/android/studio/ide-zips/([\d\.]+)/android-studio-ide(.*)$"
                                 replace="\2" flags="s"/>
                         </tokenfilter>
                     </filterchain>
@@ -423,7 +426,7 @@
                         <tokenfilter>
                             <filetokenizer/>
                             <replaceregex
-                                pattern="^(.*)http://dl\.google\.com/dl/android/studio/ide-zips/[\d\.]+/android-studio-ide-([\d\.]+)-(.*)$"
+                                pattern="^(.*)https?://dl\.google\.com/dl/android/studio/ide-zips/[\d\.]+/android-studio-ide-([\d\.]+)-(.*)$"
                                 replace="\2" flags="s"/>
                         </tokenfilter>
                     </filterchain>

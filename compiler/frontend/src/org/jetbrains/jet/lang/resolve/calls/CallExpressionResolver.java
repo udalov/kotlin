@@ -56,7 +56,8 @@ import java.util.Collections;
 
 import static org.jetbrains.jet.lang.diagnostics.Errors.*;
 import static org.jetbrains.jet.lang.resolve.calls.context.ContextDependency.INDEPENDENT;
-import static org.jetbrains.jet.lang.resolve.scopes.receivers.ReceiversPackage.*;
+import static org.jetbrains.jet.lang.resolve.scopes.receivers.ReceiversPackage.createQualifier;
+import static org.jetbrains.jet.lang.resolve.scopes.receivers.ReceiversPackage.resolveAsStandaloneExpression;
 import static org.jetbrains.jet.lang.types.TypeUtils.NO_EXPECTED_TYPE;
 
 public class CallExpressionResolver {
@@ -211,9 +212,10 @@ public class CallExpressionResolver {
                     context, "trace to resolve as variable with 'invoke' call", callExpression);
             JetType type = getVariableType((JetSimpleNameExpression) calleeExpression, receiver, callOperationNode,
                                            context.replaceTraceAndCache(temporaryForVariable), result);
-            if (result[0]) {
+            Qualifier qualifier = temporaryForVariable.trace.get(BindingContext.QUALIFIER, calleeExpression);
+            if (result[0] && (qualifier == null || qualifier.getPackageView() == null)) {
                 temporaryForVariable.commit();
-                context.trace.report(FUNCTION_EXPECTED.on((JetReferenceExpression) calleeExpression, calleeExpression,
+                context.trace.report(FUNCTION_EXPECTED.on(calleeExpression, calleeExpression,
                                                           type != null ? type : ErrorUtils.createErrorType("")));
                 return JetTypeInfo.create(null, context.dataFlowInfo);
             }
@@ -223,7 +225,8 @@ public class CallExpressionResolver {
     }
 
     private static boolean canInstantiateAnnotationClass(@NotNull JetCallExpression expression) {
-        PsiElement parent = expression.getParent();
+        //noinspection unchecked
+        PsiElement parent = PsiTreeUtil.getParentOfType(expression, JetValueArgument.class, JetParameter.class);
         if (parent instanceof JetValueArgument) {
             return PsiTreeUtil.getParentOfType(parent, JetAnnotationEntry.class) != null;
         }
@@ -299,8 +302,8 @@ public class CallExpressionResolver {
 
         //TODO move further
         if (expression.getOperationSign() == JetTokens.SAFE_ACCESS) {
-            if (selectorReturnType != null && !KotlinBuiltIns.getInstance().isUnit(selectorReturnType)) {
-                if (receiverType.isNullable()) {
+            if (selectorReturnType != null && !KotlinBuiltIns.isUnit(selectorReturnType)) {
+                if (TypeUtils.isNullableType(receiverType)) {
                     selectorReturnType = TypeUtils.makeNullable(selectorReturnType);
                 }
             }

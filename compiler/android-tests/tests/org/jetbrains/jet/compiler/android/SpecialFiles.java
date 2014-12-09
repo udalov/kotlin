@@ -54,6 +54,7 @@ public class SpecialFiles {
         filesCompiledWithoutStdLib.add("realStringRepeat.kt"); // OVERLOAD_RESOLUTION_AMBIGUITY
         filesCompiledWithoutStdLib.add("kt2395.kt"); // With MOCK_JDK
         filesCompiledWithoutStdLib.add("useAnonymousObjectAsIterator.kt"); // OVERLOAD_RESOLUTION_AMBIGUITY
+        filesCompiledWithoutStdLib.add("kt581.kt"); // OVERLOAD_RESOLUTION_AMBIGUITY
     }
 
     private static void fillExcludedFiles() {
@@ -73,6 +74,8 @@ public class SpecialFiles {
         excludedFiles.add("invokeOnClassObjectOfNestedClass2.kt"); // Cannot change package name
         excludedFiles.add("invokeOnImportedEnum1.kt"); // Cannot change package name
         excludedFiles.add("invokeOnImportedEnum2.kt"); // Cannot change package name
+        excludedFiles.add("sortEnumEntries.kt"); // Cannot change package name
+        excludedFiles.add("assertionStackTrace.kt"); // Cannot change package name
 
         excludedFiles.add("kt326.kt"); // Commented
         excludedFiles.add("kt1213.kt"); // Commented

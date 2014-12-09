@@ -52,10 +52,9 @@ import static org.jetbrains.jet.lang.types.TypeUtils.*;
 
 public class ArgumentTypeResolver {
 
-    @NotNull
     private TypeResolver typeResolver;
-    @NotNull
     private ExpressionTypingServices expressionTypingServices;
+    private KotlinBuiltIns builtIns;
 
     @Inject
     public void setTypeResolver(@NotNull TypeResolver typeResolver) {
@@ -67,18 +66,23 @@ public class ArgumentTypeResolver {
         this.expressionTypingServices = expressionTypingServices;
     }
 
+    @Inject
+    public void setBuiltIns(@NotNull KotlinBuiltIns builtIns) {
+        this.builtIns = builtIns;
+    }
+
     public static boolean isSubtypeOfForArgumentType(
             @NotNull JetType actualType,
             @NotNull JetType expectedType
     ) {
         if (actualType == PLACEHOLDER_FUNCTION_TYPE) {
-            return isFunctionOrErrorType(expectedType) || KotlinBuiltIns.getInstance().isAnyOrNullableAny(expectedType); //todo function type extends
+            return isFunctionOrErrorType(expectedType) || KotlinBuiltIns.isAnyOrNullableAny(expectedType); //todo function type extends
         }
         return JetTypeChecker.DEFAULT.isSubtypeOf(actualType, expectedType);
     }
 
     private static boolean isFunctionOrErrorType(@NotNull JetType supertype) {
-        return KotlinBuiltIns.getInstance().isFunctionOrExtensionFunctionType(supertype) || supertype.isError();
+        return KotlinBuiltIns.isFunctionOrExtensionFunctionType(supertype) || supertype.isError();
     }
 
     public void checkTypesWithNoCallee(@NotNull CallResolutionContext<?> context) {
@@ -139,6 +143,15 @@ public class ArgumentTypeResolver {
 
     @Nullable
     private static JetFunctionLiteralExpression getFunctionLiteralArgumentIfAny(@NotNull JetExpression expression) {
+        JetExpression deparenthesizedExpression = deparenthesizeArgument(expression);
+        if (deparenthesizedExpression instanceof JetFunctionLiteralExpression) {
+            return (JetFunctionLiteralExpression) deparenthesizedExpression;
+        }
+        return null;
+    }
+
+    @Nullable
+    public static JetExpression deparenthesizeArgument(@Nullable JetExpression expression) {
         JetExpression deparenthesizedExpression = JetPsiUtil.deparenthesize(expression, false);
         if (deparenthesizedExpression instanceof JetBlockExpression) {
             // todo
@@ -147,13 +160,10 @@ public class ArgumentTypeResolver {
             // (no arguments and no receiver) and therefore analyze them straight away (not in the 'complete' phase).
             JetElement lastStatementInABlock = JetPsiUtil.getLastStatementInABlock((JetBlockExpression) deparenthesizedExpression);
             if (lastStatementInABlock instanceof JetExpression) {
-                deparenthesizedExpression = JetPsiUtil.deparenthesize((JetExpression) lastStatementInABlock, false);
+                return deparenthesizeArgument((JetExpression) lastStatementInABlock);
             }
         }
-        if (deparenthesizedExpression instanceof JetFunctionLiteralExpression) {
-            return (JetFunctionLiteralExpression) deparenthesizedExpression;
-        }
-        return null;
+        return deparenthesizedExpression;
     }
 
     @NotNull
@@ -199,7 +209,7 @@ public class ArgumentTypeResolver {
             boolean expectedTypeIsUnknown
     ) {
         if (expression.getFunctionLiteral().getValueParameterList() == null) {
-            return expectedTypeIsUnknown ? PLACEHOLDER_FUNCTION_TYPE : KotlinBuiltIns.getInstance().getFunctionType(
+            return expectedTypeIsUnknown ? PLACEHOLDER_FUNCTION_TYPE : builtIns.getFunctionType(
                     Annotations.EMPTY, null, Collections.<JetType>emptyList(), DONT_CARE);
         }
         List<JetParameter> valueParameters = expression.getValueParameters();
@@ -213,7 +223,7 @@ public class ArgumentTypeResolver {
         JetType returnType = resolveTypeRefWithDefault(functionLiteral.getTypeReference(), scope, temporaryTrace, DONT_CARE);
         assert returnType != null;
         JetType receiverType = resolveTypeRefWithDefault(functionLiteral.getReceiverTypeReference(), scope, temporaryTrace, null);
-        return KotlinBuiltIns.getInstance().getFunctionType(Annotations.EMPTY, receiverType, parameterTypes,
+        return builtIns.getFunctionType(Annotations.EMPTY, receiverType, parameterTypes,
                                                             returnType);
     }
 
@@ -263,7 +273,7 @@ public class ArgumentTypeResolver {
         return type;
     }
 
-    public static <D extends CallableDescriptor> void updateNumberType(
+    public static void updateNumberType(
             @NotNull JetType numberType,
             @Nullable JetExpression expression,
             @NotNull BindingTrace trace
@@ -272,15 +282,9 @@ public class ArgumentTypeResolver {
         BindingContextUtils.updateRecordedType(numberType, expression, trace, false);
 
         if (!(expression instanceof JetConstantExpression)) {
-            JetExpression deparenthesized = JetPsiUtil.deparenthesize(expression, false);
+            JetExpression deparenthesized = deparenthesizeArgument(expression);
             if (deparenthesized != expression) {
                 updateNumberType(numberType, deparenthesized, trace);
-            }
-            if (deparenthesized instanceof JetBlockExpression) {
-                JetElement lastStatement = JetPsiUtil.getLastStatementInABlock((JetBlockExpression) deparenthesized);
-                if (lastStatement instanceof JetExpression) {
-                    updateNumberType(numberType, (JetExpression) lastStatement, trace);
-                }
             }
             return;
         }

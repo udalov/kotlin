@@ -117,8 +117,9 @@ public class ResolveSession implements KotlinCodeAnalyzer {
             @NotNull DeclarationProviderFactory declarationProviderFactory,
             @NotNull BindingTrace delegationTrace
     ) {
-        LockBasedLazyResolveStorageManager lockBasedLazyResolveStorageManager = new LockBasedLazyResolveStorageManager(
-                (LockBasedStorageManager) globalContext.getStorageManager());
+        LockBasedLazyResolveStorageManager lockBasedLazyResolveStorageManager =
+                new LockBasedLazyResolveStorageManager(globalContext.getStorageManager());
+
         this.storageManager = lockBasedLazyResolveStorageManager;
         this.exceptionTracker = globalContext.getExceptionTracker();
         this.trace = lockBasedLazyResolveStorageManager.createSafeTrace(delegationTrace);
@@ -143,7 +144,8 @@ public class ResolveSession implements KotlinCodeAnalyzer {
 
             @NotNull
             @Override
-            public Collection<FqName> getSubPackagesOf(@NotNull FqName fqName) {
+            public Collection<FqName> getSubPackagesOf(
+                    @NotNull FqName fqName, @NotNull Function1<? super Name, ? extends Boolean> nameFilter) {
                 LazyPackageDescriptor packageDescriptor = getPackageFragment(fqName);
                 if (packageDescriptor == null) {
                     return Collections.emptyList();
@@ -176,6 +178,7 @@ public class ResolveSession implements KotlinCodeAnalyzer {
         });
     }
 
+    @Override
     @NotNull
     public PackageFragmentProvider getPackageFragmentProvider() {
         return packageFragmentProvider;
@@ -407,7 +410,15 @@ public class ResolveSession implements KotlinCodeAnalyzer {
                         return getBindingContext().get(BindingContext.VALUE_PARAMETER, parameter);
                     }
                 }
-                return super.visitParameter(parameter, data);
+                else if (grandFather instanceof JetNamedFunction) {
+                    FunctionDescriptor function = (FunctionDescriptor) visitNamedFunction((JetNamedFunction) grandFather, data);
+                    function.getValueParameters();
+                    return getBindingContext().get(BindingContext.VALUE_PARAMETER, parameter);
+                }
+                else {
+                    //TODO: support parameters in accessors and other places(?)
+                    return super.visitParameter(parameter, data);
+                }
             }
 
             @Override
@@ -449,7 +460,7 @@ public class ResolveSession implements KotlinCodeAnalyzer {
             @NotNull LazyPackageDescriptor current
     ) {
         result.add(current);
-        for (FqName subPackage : packageFragmentProvider.getSubPackagesOf(current.getFqName())) {
+        for (FqName subPackage : packageFragmentProvider.getSubPackagesOf(current.getFqName(), JetScope.ALL_NAME_FILTER)) {
             LazyPackageDescriptor fragment = getPackageFragment(subPackage);
             assert fragment != null : "Couldn't find fragment for " + subPackage;
             collectAllPackages(result, fragment);

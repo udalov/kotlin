@@ -22,9 +22,9 @@ import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.types.JetType;
+import org.jetbrains.jet.plugin.caches.resolve.ResolvePackage;
 import org.jetbrains.jet.plugin.codeInsight.ShortenReferences;
-import org.jetbrains.jet.plugin.project.AnalyzerFacadeWithCache;
-import org.jetbrains.jet.renderer.DescriptorRenderer;
+import org.jetbrains.jet.plugin.util.IdeDescriptorRenderers;
 
 import static org.jetbrains.jet.lang.psi.PsiPackage.JetPsiFactory;
 
@@ -44,7 +44,7 @@ public class DeclarationUtils {
     private static JetType getPropertyTypeIfNeeded(@NotNull JetProperty property) {
         if (property.getTypeReference() != null) return null;
 
-        JetType type = AnalyzerFacadeWithCache.getContextForElement(property).get(
+        JetType type = ResolvePackage.analyze(property).get(
                 BindingContext.EXPRESSION_TYPE, property.getInitializer()
         );
         return type == null || type.isError() ? null : type;
@@ -73,7 +73,7 @@ public class DeclarationUtils {
         JetType inferredType = getPropertyTypeIfNeeded(property);
 
         String typeStr = inferredType != null
-                         ? DescriptorRenderer.FQ_NAMES_IN_TYPES.renderType(inferredType)
+                         ? IdeDescriptorRenderers.SOURCE_CODE.renderType(inferredType)
                          : JetPsiUtil.getNullableText(property.getTypeReference());
 
         //noinspection ConstantConditions

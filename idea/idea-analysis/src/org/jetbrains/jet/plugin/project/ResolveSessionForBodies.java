@@ -20,10 +20,7 @@ import com.intellij.openapi.project.Project;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.ReadOnly;
-import org.jetbrains.jet.lang.descriptors.ClassDescriptor;
-import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor;
-import org.jetbrains.jet.lang.descriptors.ModuleDescriptor;
-import org.jetbrains.jet.lang.descriptors.ScriptDescriptor;
+import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.BindingContextUtils;
@@ -54,7 +51,11 @@ public class ResolveSessionForBodies implements KotlinCodeAnalyzer {
 
     @NotNull
     public BindingContext resolveToElement(JetElement element) {
-        return resolveElementCache.resolveToElement(element);
+        return resolveElementCache.resolveToElement(element, false);
+    }
+
+    public BindingContext resolveToElementWithPartialBodyResolve(JetElement element) {
+        return resolveElementCache.resolveToElement(element, true);
     }
 
     @NotNull
@@ -132,5 +133,11 @@ public class ResolveSessionForBodies implements KotlinCodeAnalyzer {
     @NotNull
     public ExceptionTracker getExceptionTracker() {
         return resolveSession.getExceptionTracker();
+    }
+
+    @NotNull
+    @Override
+    public PackageFragmentProvider getPackageFragmentProvider() {
+        return resolveSession.getPackageFragmentProvider();
     }
 }

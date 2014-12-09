@@ -24,9 +24,10 @@ import org.jetbrains.jet.ConfigurationKind;
 import org.jetbrains.jet.JetTestUtils;
 import org.jetbrains.jet.MockLibraryUtil;
 import org.jetbrains.jet.TestJdkKind;
-import org.jetbrains.jet.analyzer.AnalyzeExhaust;
+import org.jetbrains.jet.analyzer.AnalysisResult;
 import org.jetbrains.jet.cli.common.messages.AnalyzerWithCompilerReport;
 import org.jetbrains.jet.cli.common.messages.MessageCollectorPlainTextToStream;
+import org.jetbrains.jet.cli.jvm.compiler.EnvironmentConfigFiles;
 import org.jetbrains.jet.cli.jvm.compiler.JetCoreEnvironment;
 import org.jetbrains.jet.config.CompilerConfiguration;
 import org.jetbrains.jet.lang.descriptors.ClassDescriptor;
@@ -74,7 +75,7 @@ public class CompileKotlinAgainstCustomBinariesTest extends TestCaseWithTmpdir {
 
         RecursiveDescriptorComparator.Configuration comparator =
                 RecursiveDescriptorComparator.DONT_INCLUDE_METHODS_OF_OBJECT.withValidationStrategy(
-                        DescriptorValidator.ValidationVisitor.ALLOW_ERROR_TYPES);
+                        DescriptorValidator.ValidationVisitor.errorTypesAllowed());
         validateAndCompareDescriptorWithFile(packageView, comparator, getTestDataFileWithExtension("txt"));
     }
 
@@ -82,11 +83,11 @@ public class CompileKotlinAgainstCustomBinariesTest extends TestCaseWithTmpdir {
     private PackageViewDescriptor analyzeFileToPackageView(@NotNull File... extraClassPath) throws IOException {
         Project project = createEnvironment(Arrays.asList(extraClassPath)).getProject();
 
-        AnalyzeExhaust exhaust = JvmResolveUtil.analyzeOneFileWithJavaIntegrationAndCheckForErrors(
+        AnalysisResult result = JvmResolveUtil.analyzeOneFileWithJavaIntegrationAndCheckForErrors(
                 JetTestUtils.loadJetFile(project, getTestDataFileWithExtension("kt"))
         );
 
-        PackageViewDescriptor packageView = exhaust.getModuleDescriptor().getPackage(LoadDescriptorUtil.TEST_PACKAGE_FQNAME);
+        PackageViewDescriptor packageView = result.getModuleDescriptor().getPackage(LoadDescriptorUtil.TEST_PACKAGE_FQNAME);
         assertNotNull("Failed to find package: " + LoadDescriptorUtil.TEST_PACKAGE_FQNAME, packageView);
         return packageView;
     }
@@ -99,7 +100,7 @@ public class CompileKotlinAgainstCustomBinariesTest extends TestCaseWithTmpdir {
 
         CompilerConfiguration configuration = JetTestUtils.compilerConfigurationForTests(
                 ConfigurationKind.ALL, TestJdkKind.MOCK_JDK, extras.toArray(new File[extras.size()]));
-        return JetCoreEnvironment.createForTests(getTestRootDisposable(), configuration);
+        return JetCoreEnvironment.createForTests(getTestRootDisposable(), configuration, EnvironmentConfigFiles.JVM_CONFIG_FILES);
     }
 
     @NotNull
@@ -174,12 +175,12 @@ public class CompileKotlinAgainstCustomBinariesTest extends TestCaseWithTmpdir {
 
         Project project = createEnvironment(Collections.singletonList(tmpdir)).getProject();
 
-        AnalyzeExhaust exhaust = JvmResolveUtil.analyzeOneFileWithJavaIntegration(
+        AnalysisResult result = JvmResolveUtil.analyzeOneFileWithJavaIntegration(
                 JetTestUtils.loadJetFile(project, getTestDataFileWithExtension("kt"))
         );
-        exhaust.throwIfError();
+        result.throwIfError();
 
-        BindingContext bindingContext = exhaust.getBindingContext();
+        BindingContext bindingContext = result.getBindingContext();
         AnalyzerWithCompilerReport.reportDiagnostics(bindingContext.getDiagnostics(), MessageCollectorPlainTextToStream.PLAIN_TEXT_TO_SYSTEM_ERR);
 
         assertEquals("There should be no diagnostics", 0, Iterables.size(bindingContext.getDiagnostics()));

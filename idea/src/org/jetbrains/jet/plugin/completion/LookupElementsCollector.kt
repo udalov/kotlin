@@ -21,55 +21,79 @@ import com.intellij.codeInsight.lookup.LookupElement
 import com.intellij.codeInsight.lookup.LookupElementDecorator
 import com.intellij.codeInsight.lookup.LookupElementPresentation
 import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor
-import org.jetbrains.jet.lang.descriptors.FunctionDescriptor
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns
 import org.jetbrains.jet.plugin.completion.handlers.*
-import org.jetbrains.jet.plugin.project.ResolveSessionForBodies
 import com.intellij.codeInsight.completion.PrefixMatcher
 import java.util.ArrayList
 import com.intellij.codeInsight.completion.CompletionResultSet
+import org.jetbrains.jet.lang.descriptors.FunctionDescriptor
+import com.intellij.openapi.util.TextRange
+import com.intellij.codeInsight.completion.CompletionParameters
+import org.jetbrains.jet.plugin.caches.resolve.ResolutionFacade
 
-class LookupElementsCollector(private val prefixMatcher: PrefixMatcher,
-                              private val resolveSession: ResolveSessionForBodies,
-                              private val descriptorFilter: (DeclarationDescriptor) -> Boolean) {
+class LookupElementsCollector(
+        private val prefixMatcher: PrefixMatcher,
+        private val completionParameters: CompletionParameters,
+        private val resolutionFacade: ResolutionFacade,
+        private val lookupElementFactory: LookupElementFactory
+) {
     private val elements = ArrayList<LookupElement>()
 
     public fun flushToResultSet(resultSet: CompletionResultSet) {
-        resultSet.addAllElements(elements)
-        elements.clear()
-    }
-
-    public val isEmpty: Boolean
-        get() = elements.isEmpty()
-
-    public fun addDescriptorElements(descriptors: Iterable<DeclarationDescriptor>) {
-        for (descriptor in descriptors) {
-            addDescriptorElements(descriptor)
+        if (!elements.isEmpty()) {
+            resultSet.addAllElements(elements)
+            elements.clear()
+            isResultEmpty = false
         }
     }
 
-    public fun addDescriptorElements(descriptor: DeclarationDescriptor) {
-        if (!descriptorFilter(descriptor)) return
+    public var isResultEmpty: Boolean = true
+        private set
 
-        addElement(DescriptorLookupConverter.createLookupElement(resolveSession, descriptor))
+    public fun addDescriptorElements(descriptors: Iterable<DeclarationDescriptor>,
+                                     suppressAutoInsertion: Boolean, // auto-insertion suppression is used for elements that require adding an import
+                                     shouldCastToRuntimeType: Boolean = false
+    ) {
+        for (descriptor in descriptors) {
+            addDescriptorElements(descriptor, suppressAutoInsertion, shouldCastToRuntimeType)
+        }
+    }
+
+    public fun addDescriptorElements(descriptor: DeclarationDescriptor, suppressAutoInsertion: Boolean, shouldCastToRuntimeType: Boolean) {
+        run {
+            var lookupElement = lookupElementFactory.createLookupElement(resolutionFacade, descriptor, true)
+            if (shouldCastToRuntimeType) {
+                lookupElement = lookupElement.shouldCastReceiver()
+            }
+            if (suppressAutoInsertion) {
+                addElementWithAutoInsertionSuppressed(lookupElement)
+            }
+            else {
+                addElement(lookupElement)
+            }
+        }
 
         // add special item for function with one argument of function type with more than one parameter
         if (descriptor is FunctionDescriptor) {
             val parameters = descriptor.getValueParameters()
             if (parameters.size() == 1) {
                 val parameterType = parameters.get(0).getType()
-                if (KotlinBuiltIns.getInstance().isFunctionOrExtensionFunctionType(parameterType)) {
-                    val parameterCount = KotlinBuiltIns.getInstance().getParameterTypeProjectionsFromFunctionType(parameterType).size()
+                if (KotlinBuiltIns.isFunctionOrExtensionFunctionType(parameterType)) {
+                    val parameterCount = KotlinBuiltIns.getParameterTypeProjectionsFromFunctionType(parameterType).size()
                     if (parameterCount > 1) {
-                        val lookupElement = DescriptorLookupConverter.createLookupElement(resolveSession, descriptor)
+                        val lookupElement = lookupElementFactory.createLookupElement(resolutionFacade, descriptor, true)
                         addElement(object : LookupElementDecorator<LookupElement>(lookupElement) {
                             override fun renderElement(presentation: LookupElementPresentation) {
                                 super.renderElement(presentation)
-                                presentation.setItemText(getLookupString() + " " + buildLambdaPresentation(parameterType))
+
+                                val tails = presentation.getTailFragments()
+                                presentation.clearTail()
+                                presentation.appendTailText(" " + buildLambdaPresentation(parameterType), false)
+                                tails.drop(1)/*drop old function signature*/.forEach { presentation.appendTailText(it.text, it.isGrayed()) }
                             }
 
                             override fun handleInsert(context: InsertionContext) {
-                                JetFunctionInsertHandler(CaretPosition.IN_BRACKETS, GenerateLambdaInfo(parameterType, true)).handleInsert(context, this)
+                                KotlinFunctionInsertHandler(CaretPosition.IN_BRACKETS, GenerateLambdaInfo(parameterType, true)).handleInsert(context, this)
                             }
                         })
                     }
@@ -80,11 +104,44 @@ class LookupElementsCollector(private val prefixMatcher: PrefixMatcher,
 
     public fun addElement(element: LookupElement) {
         if (prefixMatcher.prefixMatches(element)) {
-            elements.add(element)
+            elements.add(object: LookupElementDecorator<LookupElement>(element) {
+                override fun handleInsert(context: InsertionContext) {
+                    getDelegate().handleInsert(context)
+
+                    if (context.shouldAddCompletionChar() && !isJustTyping(context, this)) {
+                        val handler = when (context.getCompletionChar()) {
+                            ',' -> WithTailInsertHandler.commaTail()
+                            '=' -> WithTailInsertHandler.eqTail()
+                            else -> null
+                        }
+                        handler?.postHandleInsert(context, getDelegate())
+                    }
+                }
+            })
+        }
+    }
+
+    // used to avoid insertion of spaces before/after ',', '=' on just typing
+    private fun isJustTyping(context: InsertionContext, element: LookupElement): Boolean {
+        if (!completionParameters.isAutoPopup()) return false
+        val insertedText = context.getDocument().getText(TextRange(context.getStartOffset(), context.getTailOffset()))
+        return insertedText == element.getUserData(KotlinCompletionCharFilter.JUST_TYPING_PREFIX)
+    }
+
+    public fun addElementWithAutoInsertionSuppressed(element: LookupElement) {
+        if (isResultEmpty && elements.isEmpty()) { /* without these checks we may get duplicated items */
+            addElement(element.suppressAutoInsertion())
+        }
+        else {
+            addElement(element)
         }
     }
 
     public fun addElements(elements: Iterable<LookupElement>) {
         elements.forEach { addElement(it) }
+    }
+
+    public fun addElementsWithReceiverCast(elements: Iterable<LookupElement>) {
+        elements.forEach { addElement(it.shouldCastReceiver()) }
     }
 }

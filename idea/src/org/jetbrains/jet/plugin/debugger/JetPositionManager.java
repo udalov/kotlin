@@ -16,16 +16,16 @@
 
 package org.jetbrains.jet.plugin.debugger;
 
-import com.google.common.base.Predicate;
-import com.google.common.collect.Collections2;
 import com.intellij.debugger.NoDataException;
 import com.intellij.debugger.PositionManager;
 import com.intellij.debugger.SourcePosition;
 import com.intellij.debugger.engine.DebugProcess;
 import com.intellij.debugger.requests.ClassPrepareRequestor;
 import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.project.DumbService;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.roots.libraries.LibraryUtil;
+import com.intellij.openapi.util.Pair;
 import com.intellij.openapi.util.Ref;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
@@ -38,12 +38,15 @@ import com.sun.jdi.request.ClassPrepareRequest;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.TestOnly;
-import org.jetbrains.jet.analyzer.AnalyzeExhaust;
+import org.jetbrains.jet.analyzer.AnalysisResult;
 import org.jetbrains.jet.codegen.AsmUtil;
 import org.jetbrains.jet.codegen.ClassBuilderFactories;
 import org.jetbrains.jet.codegen.state.GenerationState;
 import org.jetbrains.jet.codegen.state.JetTypeMapper;
-import org.jetbrains.jet.lang.descriptors.*;
+import org.jetbrains.jet.lang.descriptors.ClassDescriptor;
+import org.jetbrains.jet.lang.descriptors.PropertyDescriptor;
+import org.jetbrains.jet.lang.descriptors.ValueParameterDescriptor;
+import org.jetbrains.jet.lang.descriptors.VariableDescriptor;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.calls.callUtil.CallUtilPackage;
@@ -55,9 +58,10 @@ import org.jetbrains.jet.lang.resolve.kotlin.PackagePartClassUtils;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.types.lang.InlineStrategy;
 import org.jetbrains.jet.lang.types.lang.InlineUtil;
+import org.jetbrains.jet.plugin.caches.resolve.IdeaModuleInfo;
+import org.jetbrains.jet.plugin.caches.resolve.KotlinCacheService;
 import org.jetbrains.jet.plugin.caches.resolve.ResolvePackage;
 import org.jetbrains.jet.plugin.codeInsight.CodeInsightUtils;
-import org.jetbrains.jet.plugin.project.ResolveSessionForBodies;
 import org.jetbrains.jet.plugin.util.DebuggerUtils;
 import org.jetbrains.org.objectweb.asm.Type;
 
@@ -68,7 +72,7 @@ import static org.jetbrains.jet.plugin.stubindex.PackageIndexUtil.findFilesWithE
 
 public class JetPositionManager implements PositionManager {
     private final DebugProcess myDebugProcess;
-    private final WeakHashMap<FqName, CachedValue<JetTypeMapper>> myTypeMappers = new WeakHashMap<FqName, CachedValue<JetTypeMapper>>();
+    private final WeakHashMap<Pair<FqName, IdeaModuleInfo>, CachedValue<JetTypeMapper>> myTypeMappers = new WeakHashMap<Pair<FqName, IdeaModuleInfo>, CachedValue<JetTypeMapper>>();
 
     public JetPositionManager(DebugProcess debugProcess) {
         myDebugProcess = debugProcess;
@@ -152,6 +156,9 @@ public class JetPositionManager implements PositionManager {
         JvmClassName className = JvmClassName.byInternalName(referenceInternalName);
 
         Project project = myDebugProcess.getProject();
+
+        if (DumbService.getInstance(project).isDumb()) return null;
+
         return DebuggerUtils.findSourceFileForClass(project, GlobalSearchScope.allScope(project), className, sourceName, location.lineNumber() - 1);
     }
 
@@ -296,11 +303,11 @@ public class JetPositionManager implements PositionManager {
 
     private static JetTypeMapper createTypeMapperForLibraryFile(@Nullable PsiElement notPositionedElement, @NotNull JetFile file) {
         JetElement element = getElementToCreateTypeMapperForLibraryFile(notPositionedElement);
-        ResolveSessionForBodies resolveSession = ResolvePackage.getLazyResolveSession(element);
+        AnalysisResult analysisResult = ResolvePackage.analyzeAndGetResult(element);
 
         GenerationState state = new GenerationState(file.getProject(), ClassBuilderFactories.THROW_EXCEPTION,
-                                                    resolveSession.getModuleDescriptor(),
-                                                    resolveSession.resolveToElement(element),
+                                                    analysisResult.getModuleDescriptor(),
+                                                    analysisResult.getBindingContext(),
                                                     Collections.singletonList(file)
         );
         state.beforeCompile();
@@ -308,27 +315,30 @@ public class JetPositionManager implements PositionManager {
     }
 
     private JetTypeMapper prepareTypeMapper(final JetFile file) {
-        final FqName fqName = file.getPackageFqName();
-        CachedValue<JetTypeMapper> value = myTypeMappers.get(fqName);
+        final Pair<FqName, IdeaModuleInfo> key = createKeyForTypeMapper(file);
+
+        CachedValue<JetTypeMapper> value = myTypeMappers.get(key);
         if(value == null) {
             value = CachedValuesManager.getManager(file.getProject()).createCachedValue(new CachedValueProvider<JetTypeMapper>() {
                 @Override
                 public Result<JetTypeMapper> compute() {
                     Project project = file.getProject();
-                    Collection<JetFile> packageFiles = findFilesWithExactPackage(fqName, GlobalSearchScope.allScope(project), project);
+                    GlobalSearchScope packageFacadeScope = key.second.contentScope();
+                    Collection<JetFile> packageFiles = findFilesWithExactPackage(key.first, packageFacadeScope, project);
 
-                    AnalyzeExhaust analyzeExhaust = ResolvePackage.getAnalysisResultsForElements(packageFiles);
-                    analyzeExhaust.throwIfError();
+                    AnalysisResult analysisResult = KotlinCacheService.OBJECT$.getInstance(project).getAnalysisResults(packageFiles);
+                    analysisResult.throwIfError();
 
                     GenerationState state = new GenerationState(project, ClassBuilderFactories.THROW_EXCEPTION,
-                                                                analyzeExhaust.getModuleDescriptor(), analyzeExhaust.getBindingContext(),
+                                                                analysisResult.getModuleDescriptor(), analysisResult.getBindingContext(),
                                                                 new ArrayList<JetFile>(packageFiles)
                     );
                     state.beforeCompile();
                     return new Result<JetTypeMapper>(state.getTypeMapper(), PsiModificationTracker.MODIFICATION_COUNT);
                 }
             }, false);
-            myTypeMappers.put(fqName, value);
+
+            myTypeMappers.put(key, value);
         }
 
         return value.getValue();
@@ -368,14 +378,15 @@ public class JetPositionManager implements PositionManager {
 
     @TestOnly
     public void addTypeMapper(JetFile file, final JetTypeMapper typeMapper) {
-        FqName fqName = file.getPackageFqName();
         CachedValue<JetTypeMapper> value = CachedValuesManager.getManager(file.getProject()).createCachedValue(new CachedValueProvider<JetTypeMapper>() {
             @Override
             public Result<JetTypeMapper> compute() {
                 return new Result<JetTypeMapper>(typeMapper, PsiModificationTracker.MODIFICATION_COUNT);
             }
         }, false);
-        myTypeMappers.put(fqName, value);
+
+        Pair<FqName, IdeaModuleInfo> key = createKeyForTypeMapper(file);
+        myTypeMappers.put(key, value);
     }
 
 
@@ -421,6 +432,10 @@ public class JetPositionManager implements PositionManager {
             }
         }
         return false;
+    }
+
+    private static Pair<FqName, IdeaModuleInfo> createKeyForTypeMapper(@NotNull JetFile file) {
+        return new Pair<FqName, IdeaModuleInfo>(file.getPackageFqName(), ResolvePackage.getModuleInfo(file));
     }
 
 }

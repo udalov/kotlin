@@ -20,11 +20,14 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Sets;
 import com.intellij.openapi.util.Pair;
 import com.intellij.psi.tree.IElementType;
+import kotlin.Function1;
+import kotlin.Unit;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.codegen.binding.CalculatedClosure;
 import org.jetbrains.jet.codegen.binding.CodegenBinding;
 import org.jetbrains.jet.codegen.context.CodegenContext;
+import org.jetbrains.jet.codegen.intrinsics.IntrinsicMethods;
 import org.jetbrains.jet.codegen.state.GenerationState;
 import org.jetbrains.jet.codegen.state.JetTypeMapper;
 import org.jetbrains.jet.lang.descriptors.*;
@@ -35,9 +38,12 @@ import org.jetbrains.jet.lang.resolve.annotations.AnnotationsPackage;
 import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCall;
 import org.jetbrains.jet.lang.resolve.java.*;
 import org.jetbrains.jet.lang.resolve.java.descriptor.JavaCallableMemberDescriptor;
+import org.jetbrains.jet.lang.resolve.java.diagnostics.JvmDeclarationOrigin;
 import org.jetbrains.jet.lang.resolve.kotlin.PackagePartClassUtils;
 import org.jetbrains.jet.lang.resolve.name.FqName;
+import org.jetbrains.jet.lang.types.Approximation;
 import org.jetbrains.jet.lang.types.JetType;
+import org.jetbrains.jet.lang.types.TypesPackage;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 import org.jetbrains.jet.lexer.JetTokens;
 import org.jetbrains.org.objectweb.asm.*;
@@ -55,7 +61,6 @@ import static org.jetbrains.jet.lang.resolve.java.AsmTypeConstants.JAVA_STRING_T
 import static org.jetbrains.jet.lang.resolve.java.AsmTypeConstants.getType;
 import static org.jetbrains.jet.lang.resolve.java.JvmAnnotationNames.ABI_VERSION_FIELD_NAME;
 import static org.jetbrains.jet.lang.resolve.java.JvmAnnotationNames.KotlinSyntheticClass;
-import static org.jetbrains.jet.lang.resolve.java.diagnostics.JvmDeclarationOrigin.NO_ORIGIN;
 import static org.jetbrains.jet.lang.resolve.java.mapping.PrimitiveTypesUtil.asmTypeForPrimitive;
 import static org.jetbrains.jet.lang.types.TypeUtils.isNullableType;
 import static org.jetbrains.org.objectweb.asm.Opcodes.*;
@@ -83,6 +88,7 @@ public class AsmUtil {
     @NotNull
     private static final Map<Visibility, Integer> visibilityToAccessFlag = ImmutableMap.<Visibility, Integer>builder()
             .put(Visibilities.PRIVATE, ACC_PRIVATE)
+            .put(Visibilities.PRIVATE_TO_THIS, ACC_PRIVATE)
             .put(Visibilities.PROTECTED, ACC_PROTECTED)
             .put(JavaVisibilities.PROTECTED_STATIC_VISIBILITY, ACC_PROTECTED)
             .put(JavaVisibilities.PROTECTED_AND_PACKAGE, ACC_PROTECTED)
@@ -284,11 +290,11 @@ public class AsmUtil {
 
     public static int getDeprecatedAccessFlag(@NotNull MemberDescriptor descriptor) {
         if (descriptor instanceof PropertyAccessorDescriptor) {
-            return KotlinBuiltIns.getInstance().isDeprecated(descriptor)
+            return KotlinBuiltIns.isDeprecated(descriptor)
                    ? ACC_DEPRECATED
                    : getDeprecatedAccessFlag(((PropertyAccessorDescriptor) descriptor).getCorrespondingProperty());
         }
-        else if (KotlinBuiltIns.getInstance().isDeprecated(descriptor)) {
+        else if (KotlinBuiltIns.isDeprecated(descriptor)) {
             return ACC_DEPRECATED;
         }
         return 0;
@@ -319,7 +325,7 @@ public class AsmUtil {
         if (memberDescriptor instanceof ConstructorDescriptor && isAnonymousObject(memberDescriptor.getContainingDeclaration())) {
             return NO_FLAG_PACKAGE_PRIVATE;
         }
-        if (memberVisibility != Visibilities.PRIVATE) {
+        if (!Visibilities.isPrivate(memberVisibility)) {
             return null;
         }
         // the following code is only for PRIVATE visibility of member
@@ -395,7 +401,7 @@ public class AsmUtil {
         //noinspection PointlessBitwiseExpression
         int access = NO_FLAG_PACKAGE_PRIVATE | ACC_SYNTHETIC | ACC_FINAL;
         for (Pair<String, Type> field : allFields) {
-            builder.newField(NO_ORIGIN, access, field.first, field.second.getDescriptor(), null, null);
+            builder.newField(JvmDeclarationOrigin.NO_ORIGIN, access, field.first, field.second.getDescriptor(), null, null);
         }
     }
 
@@ -428,11 +434,16 @@ public class AsmUtil {
         v.invokevirtual("java/lang/StringBuilder", "append", "(" + type.getDescriptor() + ")Ljava/lang/StringBuilder;", false);
     }
 
-    public static StackValue genToString(InstructionAdapter v, StackValue receiver, Type receiverType) {
-        Type type = stringValueOfType(receiverType);
-        receiver.put(type, v);
-        v.invokestatic("java/lang/String", "valueOf", "(" + type.getDescriptor() + ")Ljava/lang/String;", false);
-        return StackValue.onStack(JAVA_STRING_TYPE);
+    public static StackValue genToString(final StackValue receiver, final Type receiverType) {
+        return StackValue.operation(JAVA_STRING_TYPE, new Function1<InstructionAdapter, Unit>() {
+            @Override
+            public Unit invoke(InstructionAdapter v) {
+                Type type = stringValueOfType(receiverType);
+                receiver.put(type, v);
+                v.invokestatic("java/lang/String", "valueOf", "(" + type.getDescriptor() + ")Ljava/lang/String;", false);
+                return null;
+            }
+        });
     }
 
     static void genHashCode(MethodVisitor mv, InstructionAdapter iv, Type type) {
@@ -484,29 +495,35 @@ public class AsmUtil {
         v.xor(Type.INT_TYPE);
     }
 
+    @NotNull
     public static StackValue genEqualsForExpressionsOnStack(
-            InstructionAdapter v,
-            IElementType opToken,
-            Type leftType,
-            Type rightType
+            final @NotNull IElementType opToken,
+            final @NotNull StackValue left,
+            final @NotNull StackValue right
     ) {
-        if ((isNumberPrimitive(leftType) || leftType.getSort() == Type.BOOLEAN) && leftType == rightType) {
-            return StackValue.cmp(opToken, leftType);
+        final Type leftType = left.type;
+        final Type rightType = right.type;
+        if (isPrimitive(leftType) && leftType == rightType) {
+            return StackValue.cmp(opToken, leftType, left, right);
         }
-        else {
-            if (opToken == JetTokens.EQEQEQ || opToken == JetTokens.EXCLEQEQEQ) {
-                return StackValue.cmp(opToken, leftType);
-            }
-            else {
-                v.invokestatic("kotlin/jvm/internal/Intrinsics", "areEqual", "(Ljava/lang/Object;Ljava/lang/Object;)Z", false);
+
+        if (opToken == JetTokens.EQEQEQ || opToken == JetTokens.EXCLEQEQEQ) {
+            return StackValue.cmp(opToken, leftType, left, right);
+        }
+
+        return StackValue.operation(Type.BOOLEAN_TYPE, new Function1<InstructionAdapter, Unit>() {
+            @Override
+            public Unit invoke(InstructionAdapter v) {
+                left.put(leftType, v);
+                right.put(rightType, v);
+                v.invokestatic(IntrinsicMethods.INTRINSICS_CLASS_NAME, "areEqual", "(Ljava/lang/Object;Ljava/lang/Object;)Z", false);
 
                 if (opToken == JetTokens.EXCLEQ || opToken == JetTokens.EXCLEQEQEQ) {
                     genInvertBoolean(v);
                 }
-
-                return StackValue.onStack(Type.BOOLEAN_TYPE);
+                return Unit.INSTANCE$;
             }
-        }
+        });
     }
 
     public static void genIncrement(Type expectedType, int myDelta, InstructionAdapter v) {
@@ -526,14 +543,6 @@ public class AsmUtil {
             return;
         }
         v.add(expectedType);
-    }
-
-    public static Type genNegate(Type expectedType, InstructionAdapter v) {
-        if (expectedType == Type.BYTE_TYPE || expectedType == Type.SHORT_TYPE || expectedType == Type.CHAR_TYPE) {
-            expectedType = Type.INT_TYPE;
-        }
-        v.neg(expectedType);
-        return expectedType;
     }
 
     public static void swap(InstructionAdapter v, Type stackTop, Type afterTop) {
@@ -577,7 +586,7 @@ public class AsmUtil {
             if (asmType.getSort() == Type.OBJECT || asmType.getSort() == Type.ARRAY) {
                 v.load(index, asmType);
                 v.visitLdcInsn(parameter.getName().asString());
-                v.invokestatic("kotlin/jvm/internal/Intrinsics", "checkParameterIsNotNull",
+                v.invokestatic(IntrinsicMethods.INTRINSICS_CLASS_NAME, "checkParameterIsNotNull",
                                "(Ljava/lang/Object;Ljava/lang/String;)V", false);
             }
         }
@@ -608,21 +617,48 @@ public class AsmUtil {
             @NotNull CallableDescriptor descriptor,
             @NotNull String assertMethodToCall
     ) {
+        // Assertions are generated elsewhere for platform types
+        if (JavaPackage.getPLATFORM_TYPES()) return;
+
         if (!state.isCallAssertionsEnabled()) return;
 
         if (!isDeclaredInJava(descriptor)) return;
 
         JetType type = descriptor.getReturnType();
-        if (type == null || isNullableType(type)) return;
+        if (type == null || isNullableType(TypesPackage.lowerIfFlexible(type))) return;
 
         Type asmType = state.getTypeMapper().mapReturnType(descriptor);
         if (asmType.getSort() == Type.OBJECT || asmType.getSort() == Type.ARRAY) {
             v.dup();
             v.visitLdcInsn(descriptor.getContainingDeclaration().getName().asString());
             v.visitLdcInsn(descriptor.getName().asString());
-            v.invokestatic("kotlin/jvm/internal/Intrinsics", assertMethodToCall,
+            v.invokestatic(IntrinsicMethods.INTRINSICS_CLASS_NAME, assertMethodToCall,
                            "(Ljava/lang/Object;Ljava/lang/String;Ljava/lang/String;)V", false);
         }
+    }
+
+    @NotNull
+    public static StackValue genNotNullAssertions(
+            @NotNull GenerationState state,
+            @NotNull final StackValue stackValue,
+            @Nullable final Approximation.Info approximationInfo
+    ) {
+        if (!state.isCallAssertionsEnabled()) return stackValue;
+        if (approximationInfo == null || !TypesPackage.assertNotNull(approximationInfo)) return stackValue;
+
+        return new StackValue(stackValue.type) {
+
+            @Override
+            public void putSelector(@NotNull Type type, @NotNull InstructionAdapter v) {
+                stackValue.put(type, v);
+                if (type.getSort() == Type.OBJECT || type.getSort() == Type.ARRAY) {
+                    v.dup();
+                    v.visitLdcInsn(approximationInfo.getMessage());
+                    v.invokestatic("kotlin/jvm/internal/Intrinsics", "checkExpressionValueIsNotNull",
+                                   "(Ljava/lang/Object;Ljava/lang/String;)V", false);
+                }
+            }
+        };
     }
 
     private static boolean isDeclaredInJava(@NotNull CallableDescriptor callableDescriptor) {
@@ -662,8 +698,17 @@ public class AsmUtil {
         }
     }
 
+    public static boolean isInstancePropertyWithStaticBackingField(@NotNull PropertyDescriptor propertyDescriptor) {
+        if (propertyDescriptor.getKind() == CallableMemberDescriptor.Kind.FAKE_OVERRIDE) {
+            return false;
+        }
+
+        return isObject(propertyDescriptor.getContainingDeclaration()) || isPropertyWithBackingFieldInOuterClass(propertyDescriptor);
+    }
+
     public static boolean isPropertyWithBackingFieldInOuterClass(@NotNull PropertyDescriptor propertyDescriptor) {
-        return isClassObjectWithBackingFieldsInOuter(propertyDescriptor.getContainingDeclaration());
+        return propertyDescriptor.getKind() != CallableMemberDescriptor.Kind.FAKE_OVERRIDE &&
+               isClassObjectWithBackingFieldsInOuter(propertyDescriptor.getContainingDeclaration());
     }
 
     public static int getVisibilityForSpecialPropertyBackingField(@NotNull PropertyDescriptor propertyDescriptor, boolean isDelegate) {
@@ -720,7 +765,7 @@ public class AsmUtil {
 
     @NotNull
     public static Type numberFunctionOperandType(@NotNull Type expectedType) {
-        if (expectedType == Type.SHORT_TYPE || expectedType == Type.BYTE_TYPE) {
+        if (expectedType == Type.SHORT_TYPE || expectedType == Type.BYTE_TYPE || expectedType == Type.CHAR_TYPE) {
             return Type.INT_TYPE;
         }
         return expectedType;
@@ -736,11 +781,15 @@ public class AsmUtil {
     }
 
     public static void dup(@NotNull InstructionAdapter v, @NotNull Type type) {
-        if (type.getSize() == 2) {
+        int size = type.getSize();
+        if (size == 2) {
             v.dup2();
         }
-        else {
+        else if (size == 1) {
             v.dup();
+        }
+        else {
+            throw new UnsupportedOperationException();
         }
     }
 

@@ -29,6 +29,7 @@ import com.intellij.psi.PsiFile;
 import com.intellij.psi.PsiNamedElement;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.jet.analyzer.AnalysisResult;
 import org.jetbrains.jet.di.InjectorForMacros;
 import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor;
 import org.jetbrains.jet.lang.descriptors.VariableDescriptor;
@@ -36,11 +37,11 @@ import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.DescriptorToSourceUtils;
 import org.jetbrains.jet.lang.resolve.calls.smartcasts.DataFlowInfo;
+import org.jetbrains.jet.lang.resolve.scopes.DescriptorKindFilter;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
 import org.jetbrains.jet.lang.types.expressions.ExpressionTypingComponents;
 import org.jetbrains.jet.plugin.caches.resolve.ResolvePackage;
-import org.jetbrains.jet.plugin.codeInsight.TipsManager;
-import org.jetbrains.jet.plugin.project.ResolveSessionForBodies;
+import org.jetbrains.jet.plugin.util.UtilPackage;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -63,31 +64,39 @@ public abstract class BaseJetVariableMacro extends Macro {
         JetExpression contextExpression = findContextExpression(psiFile, context.getStartOffset());
         if (contextExpression == null) return null;
 
-        ResolveSessionForBodies resolveSession = ResolvePackage.getLazyResolveSession((JetFile) psiFile);
+        AnalysisResult analysisResult = ResolvePackage.analyzeAndGetResult(contextExpression);
 
-        BindingContext bindingContext = resolveSession.resolveToElement(contextExpression);
+        BindingContext bindingContext = analysisResult.getBindingContext();
         JetScope scope = bindingContext.get(BindingContext.RESOLUTION_SCOPE, contextExpression);
         if (scope == null) {
             return null;
         }
 
         ExpressionTypingComponents components =
-                new InjectorForMacros(project, resolveSession.getModuleDescriptor()).getExpressionTypingComponents();
+                new InjectorForMacros(project, analysisResult.getModuleDescriptor()).getExpressionTypingComponents();
+
+        DataFlowInfo dataFlowInfo = getDataFlowInfo(bindingContext, contextExpression);
 
         List<VariableDescriptor> filteredDescriptors = new ArrayList<VariableDescriptor>();
-        for (DeclarationDescriptor declarationDescriptor : scope.getAllDescriptors()) {
+        for (DeclarationDescriptor declarationDescriptor : scope.getDescriptors(DescriptorKindFilter.VARIABLES, JetScope.ALL_NAME_FILTER)) {
             if (declarationDescriptor instanceof VariableDescriptor) {
                 VariableDescriptor variableDescriptor = (VariableDescriptor) declarationDescriptor;
+
+                if (variableDescriptor.getExtensionReceiverParameter() != null
+                    && UtilPackage.substituteExtensionIfCallableWithImplicitReceiver(
+                        variableDescriptor, scope, bindingContext, dataFlowInfo).isEmpty()) {
+                    continue;
+                }
+
                 if (isSuitable(variableDescriptor, scope, project, components)) {
                     filteredDescriptors.add(variableDescriptor);
                 }
             }
         }
 
-        DataFlowInfo dataFlowInfo = getDataFlowInfo(bindingContext, contextExpression);
 
         List<JetNamedDeclaration> declarations = new ArrayList<JetNamedDeclaration>();
-        for (DeclarationDescriptor declarationDescriptor : TipsManager.INSTANCE$.excludeNotCallableExtensions(filteredDescriptors, scope, bindingContext, dataFlowInfo)) {
+        for (DeclarationDescriptor declarationDescriptor : filteredDescriptors) {
             PsiElement declaration = DescriptorToSourceUtils.descriptorToDeclaration(declarationDescriptor);
             assert declaration == null || declaration instanceof PsiNamedElement;
 

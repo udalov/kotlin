@@ -28,24 +28,23 @@ import com.intellij.psi.PsiComment
 import com.intellij.refactoring.BaseRefactoringProcessor.ConflictsInTestsException
 import org.jetbrains.jet.JetTestUtils
 import com.intellij.testFramework.fixtures.JavaCodeInsightTestFixture
-import com.intellij.psi.util.PsiTreeUtil
-import com.intellij.psi.PsiWhiteSpace
-import org.jetbrains.jet.lang.psi.JetPackageDirective
 import org.jetbrains.jet.InTextDirectivesUtils
 import org.jetbrains.jet.renderer.DescriptorRenderer
-import java.util.ArrayList
-import com.intellij.util.containers.ContainerUtil
 import kotlin.test.assertEquals
 import org.jetbrains.jet.plugin.JetLightCodeInsightFixtureTestCase
 import com.intellij.testFramework.fixtures.LightCodeInsightFixtureTestCase
 import org.jetbrains.jet.plugin.refactoring.extractFunction.ExtractKotlinFunctionHandlerHelper
 import org.jetbrains.jet.plugin.refactoring.extractFunction.ExtractionGeneratorOptions
 import org.jetbrains.jet.plugin.refactoring.extractFunction.ExtractableCodeDescriptor
-import com.intellij.testFramework.LightPlatformTestCase
 import org.jetbrains.jet.testing.ConfigLibraryUtil
 import org.jetbrains.jet.plugin.PluginTestCaseBase
 import org.jetbrains.jet.plugin.refactoring.extractFunction.ExtractionData
 import org.jetbrains.jet.plugin.refactoring.extractFunction.ExtractionOptions
+import org.jetbrains.jet.lang.psi.JetDeclaration
+import com.intellij.psi.util.PsiTreeUtil
+import com.intellij.psi.PsiWhiteSpace
+import org.jetbrains.jet.lang.psi.JetPackageDirective
+import org.jetbrains.jet.utils.emptyOrSingletonList
 
 public abstract class AbstractJetExtractionTest() : JetLightCodeInsightFixtureTestCase() {
     override fun getProjectDescriptor() = LightCodeInsightFixtureTestCase.JAVA_LATEST
@@ -70,12 +69,18 @@ public abstract class AbstractJetExtractionTest() : JetLightCodeInsightFixtureTe
                     object: JetTreeVisitorVoid() {
                         override fun visitComment(comment: PsiComment) {
                             if (comment.getText() == "// SIBLING:") {
-                                explicitPreviousSibling = PsiTreeUtil.skipSiblingsForward(
-                                        comment,
-                                        javaClass<PsiWhiteSpace>(),
-                                        javaClass<PsiComment>(),
-                                        javaClass<JetPackageDirective>()
-                                )
+                                val parent = comment.getParent()
+                                if (parent is JetDeclaration) {
+                                    explicitPreviousSibling = parent
+                                }
+                                else {
+                                    explicitPreviousSibling = PsiTreeUtil.skipSiblingsForward(
+                                            comment,
+                                            javaClass<PsiWhiteSpace>(),
+                                            javaClass<PsiComment>(),
+                                            javaClass<JetPackageDirective>()
+                                    )
+                                }
                             }
                         }
                     }
@@ -111,7 +116,7 @@ public abstract class AbstractJetExtractionTest() : JetLightCodeInsightFixtureTe
                             }
 
                             override fun adjustDescriptor(descriptor: ExtractableCodeDescriptor): ExtractableCodeDescriptor {
-                                val allParameters = ContainerUtil.createMaybeSingletonList(descriptor.receiverParameter) + descriptor.parameters
+                                val allParameters = emptyOrSingletonList(descriptor.receiverParameter) + descriptor.parameters
                                 val actualDescriptors = allParameters.map { renderer.render(it.originalDescriptor) }.joinToString()
                                 val actualTypes = allParameters.map {
                                     it.parameterTypeCandidates.map { renderer.renderType(it) }.joinToString(", ", "[", "]")

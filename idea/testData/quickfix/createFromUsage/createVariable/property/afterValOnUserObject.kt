@@ -1,9 +1,8 @@
-// "Create property 'foo' from usage" "true"
+// "Create property 'foo'" "true"
 // ERROR: Property must be initialized or be abstract
 
 object A {
     val foo: Int
-
 }
 
 fun test() {

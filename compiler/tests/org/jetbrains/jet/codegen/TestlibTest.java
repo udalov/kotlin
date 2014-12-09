@@ -28,6 +28,7 @@ import org.jetbrains.jet.TestJdkKind;
 import org.jetbrains.jet.cli.common.CLIConfigurationKeys;
 import org.jetbrains.jet.cli.common.messages.MessageCollectorPlainTextToStream;
 import org.jetbrains.jet.cli.jvm.JVMConfigurationKeys;
+import org.jetbrains.jet.cli.jvm.compiler.EnvironmentConfigFiles;
 import org.jetbrains.jet.cli.jvm.compiler.JetCoreEnvironment;
 import org.jetbrains.jet.cli.jvm.compiler.KotlinToJVMBytecodeCompiler;
 import org.jetbrains.jet.codegen.forTestCompile.ForTestCompileRuntime;
@@ -86,7 +87,7 @@ public class TestlibTest extends UsefulTestCase {
         CompilerConfiguration configuration = JetTestUtils.compilerConfigurationForTests(ConfigurationKind.ALL, TestJdkKind.FULL_JDK);
         configuration.add(JVMConfigurationKeys.CLASSPATH_KEY, JetTestUtils.getAnnotationsJar());
 
-        junitJar = new File("libraries/lib/junit-4.9.jar");
+        junitJar = new File("libraries/lib/junit-4.11.jar");
         assertTrue(junitJar.exists());
         configuration.add(JVMConfigurationKeys.CLASSPATH_KEY, junitJar);
 
@@ -95,7 +96,7 @@ public class TestlibTest extends UsefulTestCase {
         configuration.put(CLIConfigurationKeys.MESSAGE_COLLECTOR_KEY,
                           new MessageCollectorPlainTextToStream(System.out, MessageCollectorPlainTextToStream.NON_VERBOSE));
 
-        myEnvironment = JetCoreEnvironment.createForTests(getTestRootDisposable(), configuration);
+        myEnvironment = JetCoreEnvironment.createForTests(getTestRootDisposable(), configuration, EnvironmentConfigFiles.JVM_CONFIG_FILES);
 
         generationState = KotlinToJVMBytecodeCompiler.analyzeAndGenerate(myEnvironment);
         if (generationState == null) {

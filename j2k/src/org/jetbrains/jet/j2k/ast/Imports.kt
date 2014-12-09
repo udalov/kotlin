@@ -30,7 +30,7 @@ class Import(val name: String) : Element() {
     }
 }
 
-class ImportList(public val imports: List<Import>) : Element() {
+class ImportList(public var imports: List<Import>) : Element() {
     override val isEmpty: Boolean
         get() = imports.isEmpty()
 
@@ -68,7 +68,7 @@ private fun Converter.filterImport(name: String, ref: PsiJavaCodeReferenceElemen
     if (name in annotationConverter.annotationsToRemove) return null
 
     // If imported class has a kotlin analog, drop the import
-    if (!JavaToKotlinClassMap.getInstance().mapPlatformClass(FqName(name)).isEmpty()) return null
+    if (!JavaToKotlinClassMap.INSTANCE.mapPlatformClass(FqName(name)).isEmpty()) return null
 
     val target = ref.resolve()
     if (target is KotlinLightClassForPackage) {

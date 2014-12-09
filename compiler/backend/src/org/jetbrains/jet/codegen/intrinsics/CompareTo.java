@@ -37,11 +37,10 @@ public class CompareTo extends IntrinsicMethod {
             @NotNull InstructionAdapter v,
             @NotNull Type returnType,
             @Nullable PsiElement element,
-            @Nullable List<JetExpression> arguments,
-            StackValue receiver
+            @NotNull List<JetExpression> arguments,
+            @NotNull StackValue receiver
     ) {
         JetExpression argument;
-        assert arguments != null;
         if (arguments.size() == 1) {
             argument = arguments.get(0);
         }
@@ -58,10 +57,10 @@ public class CompareTo extends IntrinsicMethod {
         codegen.gen(argument, type);
 
         if (type == Type.INT_TYPE) {
-            v.invokestatic("kotlin/jvm/internal/Intrinsics", "compare", "(II)I", false);
+            v.invokestatic(IntrinsicMethods.INTRINSICS_CLASS_NAME, "compare", "(II)I", false);
         }
         else if (type == Type.LONG_TYPE) {
-            v.invokestatic("kotlin/jvm/internal/Intrinsics", "compare", "(JJ)I", false);
+            v.invokestatic(IntrinsicMethods.INTRINSICS_CLASS_NAME, "compare", "(JJ)I", false);
         }
         else if (type == Type.FLOAT_TYPE) {
             v.invokestatic("java/lang/Float", "compare", "(FF)I", false);

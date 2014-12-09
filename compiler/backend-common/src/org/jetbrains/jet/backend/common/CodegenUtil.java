@@ -16,6 +16,9 @@
 
 package org.jetbrains.jet.backend.common;
 
+import com.intellij.openapi.editor.Document;
+import com.intellij.openapi.util.TextRange;
+import com.intellij.psi.PsiElement;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.codegen.bridges.BridgesPackage;
@@ -126,26 +129,6 @@ public class CodegenUtil {
                Boolean.TRUE.equals(bindingContext.get(BindingContext.BACKING_FIELD_REQUIRED, propertyDescriptor));
     }
 
-    public static Map<CallableMemberDescriptor, CallableMemberDescriptor> getDelegates(ClassDescriptor descriptor, ClassDescriptor toClass) {
-        Map<CallableMemberDescriptor, CallableMemberDescriptor> result = new LinkedHashMap<CallableMemberDescriptor, CallableMemberDescriptor>();
-        for (DeclarationDescriptor declaration : descriptor.getDefaultType().getMemberScope().getAllDescriptors()) {
-            if (declaration instanceof CallableMemberDescriptor) {
-                CallableMemberDescriptor callableMemberDescriptor = (CallableMemberDescriptor) declaration;
-                if (callableMemberDescriptor.getKind() == CallableMemberDescriptor.Kind.DELEGATION) {
-                    Set<? extends CallableMemberDescriptor> overriddenDescriptors = callableMemberDescriptor.getOverriddenDescriptors();
-                    for (CallableMemberDescriptor overriddenDescriptor : overriddenDescriptors) {
-                        if (overriddenDescriptor.getContainingDeclaration() == toClass) {
-                            assert !result.containsKey(callableMemberDescriptor) :
-                                    "overridden is already set for " + callableMemberDescriptor;
-                            result.put(callableMemberDescriptor, overriddenDescriptor);
-                        }
-                    }
-                }
-            }
-        }
-        return result;
-    }
-
     @NotNull
     public static Map<FunctionDescriptor, FunctionDescriptor> getTraitMethods(ClassDescriptor descriptor) {
         Map<FunctionDescriptor, FunctionDescriptor> result = new LinkedHashMap<FunctionDescriptor, FunctionDescriptor>();
@@ -221,5 +204,12 @@ public class CodegenUtil {
         List<ValueParameterDescriptor> methodTypeParameters = functionDescriptor.getValueParameters();
         return DescriptorUtils.ENUM_VALUES.equals(functionDescriptor.getName())
                && methodTypeParameters.isEmpty();
+    }
+
+    @Nullable
+    public static Integer getLineNumberForElement(@NotNull PsiElement statement, boolean markEndOffset) {
+        Document document = statement.getContainingFile().getViewProvider().getDocument();
+        TextRange textRange = statement.getTextRange();
+        return document != null ? document.getLineNumber(markEndOffset ? textRange.getEndOffset() : textRange.getStartOffset()) + 1 : null;
     }
 }

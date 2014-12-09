@@ -9,7 +9,7 @@ import org.jetbrains.jet.lang.psi.JetForExpression
 import org.jetbrains.jet.lang.psi.JetExpression
 import org.jetbrains.jet.lang.types.Variance
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns
-import org.jetbrains.jet.plugin.caches.resolve.getBindingContext
+import org.jetbrains.jet.plugin.caches.resolve.analyzeFully
 import org.jetbrains.jet.lang.types.TypeProjectionImpl
 import java.util.Collections
 import org.jetbrains.jet.lang.types.JetTypeImpl
@@ -24,13 +24,13 @@ object CreateIteratorFunctionActionFactory : JetSingleIntentionActionFactory() {
         val iterableType = TypeInfo(iterableExpr, Variance.IN_VARIANCE)
         val returnJetType = KotlinBuiltIns.getInstance().getIterator().getDefaultType()
 
-        val context = file.getBindingContext()
-        val returnJetTypeParameterTypes = variableExpr.guessTypes(context)
+        val context = file.analyzeFully()
+        val returnJetTypeParameterTypes = variableExpr.guessTypes(context, null)
         if (returnJetTypeParameterTypes.size != 1) return null
 
         val returnJetTypeParameterType = TypeProjectionImpl(returnJetTypeParameterTypes[0])
         val returnJetTypeArguments = Collections.singletonList(returnJetTypeParameterType)
-        val newReturnJetType = JetTypeImpl(returnJetType.getAnnotations(), returnJetType.getConstructor(), returnJetType.isNullable(), returnJetTypeArguments, returnJetType.getMemberScope())
+        val newReturnJetType = JetTypeImpl(returnJetType.getAnnotations(), returnJetType.getConstructor(), returnJetType.isMarkedNullable(), returnJetTypeArguments, returnJetType.getMemberScope())
         val returnType = TypeInfo(newReturnJetType, Variance.OUT_VARIANCE)
         return CreateCallableFromUsageFix(forExpr, FunctionInfo("iterator", iterableType, returnType))
     }

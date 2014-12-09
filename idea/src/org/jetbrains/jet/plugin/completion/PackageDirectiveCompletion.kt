@@ -18,14 +18,11 @@ package org.jetbrains.jet.plugin.completion
 
 import com.intellij.codeInsight.completion.*
 import com.intellij.openapi.progress.ProcessCanceledException
-import com.intellij.patterns.ElementPattern
 import com.intellij.patterns.PlatformPatterns
-import com.intellij.psi.PsiElement
-import com.intellij.util.ProcessingContext
 import org.jetbrains.jet.lang.psi.JetFile
 import org.jetbrains.jet.lang.psi.JetPackageDirective
 import org.jetbrains.jet.plugin.caches.resolve.*
-import org.jetbrains.jet.plugin.codeInsight.TipsManager
+import org.jetbrains.jet.plugin.codeInsight.ReferenceVariantsHelper
 import org.jetbrains.jet.plugin.references.JetSimpleNameReference
 
 /**
@@ -47,14 +44,15 @@ object PackageDirectiveCompletion {
 
         try {
             val prefixLength = parameters.getOffset() - ref.expression.getTextOffset()
-            var result = result.withPrefixMatcher(PlainPrefixMatcher(name.substring(0, prefixLength)))
+            val prefixMatcher = PlainPrefixMatcher(name.substring(0, prefixLength))
+            val result = result.withPrefixMatcher(prefixMatcher)
 
-            val resolveSession = ref.expression.getLazyResolveSession()
-            val bindingContext = resolveSession.resolveToElement(ref.expression)
+            val resolutionFacade = ref.expression.getResolutionFacade()
+            val bindingContext = resolutionFacade.analyze(ref.expression)
 
-            val variants = TipsManager.getPackageReferenceVariants(ref.expression, bindingContext)
+            val variants = ReferenceVariantsHelper(bindingContext, { true }).getPackageReferenceVariants(ref.expression, prefixMatcher.asNameFilter())
             for (variant in variants) {
-                val lookupElement = DescriptorLookupConverter.createLookupElement(resolveSession, variant)
+                val lookupElement = LookupElementFactory(listOf()).createLookupElement(resolutionFacade, variant, false)
                 if (!lookupElement.getLookupString().contains(DUMMY_IDENTIFIER)) {
                     result.addElement(lookupElement)
                 }

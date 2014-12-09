@@ -30,7 +30,8 @@ import com.intellij.psi.PsiElement;
 import com.intellij.psi.util.PsiTreeUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.jet.lang.descriptors.*;
+import org.jetbrains.jet.lang.descriptors.CallableDescriptor;
+import org.jetbrains.jet.lang.descriptors.ClassifierDescriptor;
 import org.jetbrains.jet.lang.diagnostics.Diagnostic;
 import org.jetbrains.jet.lang.diagnostics.Errors;
 import org.jetbrains.jet.lang.psi.*;
@@ -42,7 +43,7 @@ import org.jetbrains.jet.lang.types.TypeUtils;
 import org.jetbrains.jet.plugin.JetBundle;
 import org.jetbrains.jet.plugin.caches.resolve.ResolvePackage;
 import org.jetbrains.jet.plugin.codeInsight.ShortenReferences;
-import org.jetbrains.jet.renderer.DescriptorRenderer;
+import org.jetbrains.jet.plugin.util.IdeDescriptorRenderers;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -121,7 +122,7 @@ public class SpecifyTypeExplicitlyAction extends PsiElementBaseIntentionAction {
 
 
     private static boolean hasPublicMemberDiagnostic(@NotNull JetNamedDeclaration declaration) {
-        BindingContext bindingContext = ResolvePackage.getBindingContext(declaration.getContainingJetFile());
+        BindingContext bindingContext = ResolvePackage.analyzeFully(declaration.getContainingJetFile());
         for (Diagnostic diagnostic : bindingContext.getDiagnostics()) {
             //noinspection ConstantConditions
             if (Errors.PUBLIC_MEMBER_SHOULD_SPECIFY_TYPE == diagnostic.getFactory() && declaration == diagnostic.getPsiElement()) {
@@ -133,10 +134,10 @@ public class SpecifyTypeExplicitlyAction extends PsiElementBaseIntentionAction {
 
     @NotNull
     public static JetType getTypeForDeclaration(@NotNull JetCallableDeclaration declaration) {
-        BindingContext bindingContext = ResolvePackage.getBindingContext(declaration.getContainingJetFile());
+        BindingContext bindingContext = ResolvePackage.analyzeFully(declaration.getContainingJetFile());
         CallableDescriptor descriptor = (CallableDescriptor) bindingContext.get(BindingContext.DECLARATION_TO_DESCRIPTOR, declaration);
 
-        JetType type = descriptor.getReturnType();
+        JetType type = descriptor != null ? descriptor.getReturnType() : null;
         return type == null ? ErrorUtils.createErrorType("null type") : type;
     }
 
@@ -172,12 +173,12 @@ public class SpecifyTypeExplicitlyAction extends PsiElementBaseIntentionAction {
         ) {
             @Override
             protected String getLookupString(JetType element) {
-                return DescriptorRenderer.SHORT_NAMES_IN_TYPES.renderType(element);
+                return IdeDescriptorRenderers.SOURCE_CODE_SHORT_NAMES_IN_TYPES.renderType(element);
             }
 
             @Override
             protected String getResult(JetType element) {
-                return DescriptorRenderer.FQ_NAMES_IN_TYPES.renderType(element);
+                return IdeDescriptorRenderers.SOURCE_CODE.renderType(element);
             }
         };
 

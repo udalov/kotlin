@@ -36,7 +36,7 @@ import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 import org.jetbrains.jet.plugin.JetBundle;
 import org.jetbrains.jet.plugin.actions.JetAddFunctionToClassifierAction;
 import org.jetbrains.jet.plugin.caches.resolve.ResolvePackage;
-import org.jetbrains.jet.renderer.DescriptorRenderer;
+import org.jetbrains.jet.plugin.util.IdeDescriptorRenderers;
 
 import java.util.Collections;
 import java.util.Comparator;
@@ -51,8 +51,7 @@ public class AddFunctionToSupertypeFix extends JetHintAction<JetNamedFunction> {
     }
 
     private static List<FunctionDescriptor> generateFunctionsToAdd(JetNamedFunction functionElement) {
-        FunctionDescriptor functionDescriptor =
-                (FunctionDescriptor) ResolvePackage.getLazyResolveSession(functionElement).resolveToDescriptor(functionElement);
+        FunctionDescriptor functionDescriptor = (FunctionDescriptor) ResolvePackage.resolveToDescriptor(functionElement);
 
         DeclarationDescriptor containingDeclaration = functionDescriptor.getContainingDeclaration();
         if (!(containingDeclaration instanceof ClassDescriptor)) return Collections.emptyList();
@@ -61,7 +60,7 @@ public class AddFunctionToSupertypeFix extends JetHintAction<JetNamedFunction> {
         ClassDescriptor classDescriptor = (ClassDescriptor) containingDeclaration;
         // TODO: filter out impossible supertypes (for example when argument's type isn't visible in a superclass).
         for (ClassDescriptor supertypeDescriptor : getSupertypes(classDescriptor)) {
-            if (KotlinBuiltIns.getInstance().isAnyOrNullableAny(supertypeDescriptor.getDefaultType())) continue;
+            if (KotlinBuiltIns.isAnyOrNullableAny(supertypeDescriptor.getDefaultType())) continue;
             functions.add(generateFunctionSignatureForType(functionDescriptor, supertypeDescriptor));
         }
         return functions;
@@ -125,7 +124,7 @@ public class AddFunctionToSupertypeFix extends JetHintAction<JetNamedFunction> {
             FunctionDescriptor newFunction = functionsToAdd.get(0);
             ClassDescriptor supertype = (ClassDescriptor) newFunction.getContainingDeclaration();
             return JetBundle.message("add.function.to.type.action.single",
-                                     DescriptorRenderer.SOURCE_CODE_SHORT_NAMES_IN_TYPES.render(newFunction),
+                                     IdeDescriptorRenderers.SOURCE_CODE_SHORT_NAMES_IN_TYPES.render(newFunction),
                                      supertype.getName().toString());
         }
         else {

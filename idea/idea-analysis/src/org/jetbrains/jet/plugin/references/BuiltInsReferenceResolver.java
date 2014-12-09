@@ -32,19 +32,21 @@ import com.intellij.psi.PsiManager;
 import com.intellij.util.Function;
 import com.intellij.util.PathUtil;
 import com.intellij.util.containers.ContainerUtil;
+import kotlin.KotlinPackage;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.TestOnly;
 import org.jetbrains.jet.asJava.LightClassUtil;
 import org.jetbrains.jet.context.ContextPackage;
 import org.jetbrains.jet.context.GlobalContextImpl;
-import org.jetbrains.jet.di.InjectorForTopDownAnalyzerBasic;
+import org.jetbrains.jet.di.InjectorForLazyTopDownAnalyzerBasic;
 import org.jetbrains.jet.lang.PlatformToKotlinClassMap;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.descriptors.impl.ModuleDescriptorImpl;
 import org.jetbrains.jet.lang.descriptors.impl.MutablePackageFragmentDescriptor;
 import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.resolve.*;
+import org.jetbrains.jet.lang.resolve.lazy.declarations.FileBasedDeclarationProviderFactory;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
@@ -54,10 +56,7 @@ import org.jetbrains.jet.utils.UtilsPackage;
 import java.io.File;
 import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 
 import static org.jetbrains.jet.lang.resolve.DescriptorUtils.unwrapFakeOverride;
 
@@ -67,7 +66,7 @@ public class BuiltInsReferenceResolver extends AbstractProjectComponent {
 
     private volatile BindingContext bindingContext;
     private volatile Set<JetFile> builtInsSources;
-    private volatile MutablePackageFragmentDescriptor builtinsPackageFragment;
+    private volatile PackageFragmentDescriptor builtinsPackageFragment;
 
     public BuiltInsReferenceResolver(Project project) {
         super(project);
@@ -97,6 +96,8 @@ public class BuiltInsReferenceResolver extends AbstractProjectComponent {
             @Override
             public void run() {
                 GlobalContextImpl globalContext = ContextPackage.GlobalContext();
+
+                // TODO built-ins and lazy resolve
                 TopDownAnalysisParameters topDownAnalysisParameters = TopDownAnalysisParameters.create(
                         globalContext.getStorageManager(),
                         globalContext.getExceptionTracker(),
@@ -106,13 +107,20 @@ public class BuiltInsReferenceResolver extends AbstractProjectComponent {
                 module.addDependencyOnModule(module);
                 module.seal();
                 BindingTraceContext trace = new BindingTraceContext();
-                InjectorForTopDownAnalyzerBasic injector = new InjectorForTopDownAnalyzerBasic(
-                        myProject, topDownAnalysisParameters, trace, module, AdditionalCheckerProvider.Empty.INSTANCE$);
 
-                TopDownAnalyzer analyzer = injector.getTopDownAnalyzer();
-                analyzer.analyzeFiles(topDownAnalysisParameters, jetBuiltInsFiles);
+                FileBasedDeclarationProviderFactory declarationFactory =
+                        new FileBasedDeclarationProviderFactory(topDownAnalysisParameters.getStorageManager(), jetBuiltInsFiles);
 
-                builtinsPackageFragment = analyzer.getPackageFragmentProvider().getOrCreateFragment(KotlinBuiltIns.BUILT_INS_PACKAGE_FQ_NAME);
+                LazyTopDownAnalyzer analyzer = new InjectorForLazyTopDownAnalyzerBasic(
+                        myProject, topDownAnalysisParameters, trace, module, declarationFactory).getLazyTopDownAnalyzer();
+
+                analyzer.analyzeFiles(topDownAnalysisParameters, jetBuiltInsFiles, Collections.<PackageFragmentProvider>emptyList());
+
+                List<PackageFragmentDescriptor> fragments =
+                        module.getPackageFragmentProvider().getPackageFragments(KotlinBuiltIns.BUILT_INS_PACKAGE_FQ_NAME);
+
+                builtinsPackageFragment = KotlinPackage.single(fragments);
+
                 builtInsSources = Sets.newHashSet(jetBuiltInsFiles);
                 bindingContext = trace.getBindingContext();
             }

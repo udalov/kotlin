@@ -61,7 +61,7 @@ public class DataFlowValueFactory {
         if (receiverValue instanceof TransientReceiver || receiverValue instanceof ScriptReceiver) {
             // SCRIPT: smartcasts data flow
             JetType type = receiverValue.getType();
-            boolean nullable = type.isNullable() || TypeUtils.hasNullableSuperType(type);
+            boolean nullable = type.isMarkedNullable() || TypeUtils.hasNullableSuperType(type);
             return new DataFlowValue(receiverValue, type, nullable, Nullability.NOT_NULL);
         }
         else if (receiverValue instanceof ClassReceiver || receiverValue instanceof ExtensionReceiver) {
@@ -80,7 +80,7 @@ public class DataFlowValueFactory {
 
     @NotNull
     private static Nullability getImmanentNullability(@NotNull JetType type) {
-        return type.isNullable() || TypeUtils.hasNullableSuperType(type) ? Nullability.UNKNOWN : Nullability.NOT_NULL;
+        return TypeUtils.isNullableType(type) ? Nullability.UNKNOWN : Nullability.NOT_NULL;
     }
 
     private static class IdentifierInfo {

@@ -2,379 +2,262 @@ JetFile: FunctionTypesWithFunctionReceivers.kt
   PACKAGE_DIRECTIVE
     <empty list>
   TYPEDEF
-    PsiElement(type)('type')
+    PsiElement(typealias)('typealias')
     PsiWhiteSpace(' ')
     PsiElement(IDENTIFIER)('f')
     PsiWhiteSpace(' ')
     PsiElement(EQ)('=')
     PsiWhiteSpace(' ')
     TYPE_REFERENCE
-      PsiErrorElement:Type expected
-        <empty list>
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LBRACE)('{')
-  MODIFIER_LIST
-    ANNOTATION_ENTRY
-      CONSTRUCTOR_CALLEE
-        TYPE_REFERENCE
-          USER_TYPE
-            USER_TYPE
-              REFERENCE_EXPRESSION
-                PsiElement(IDENTIFIER)('T')
-              TYPE_ARGUMENT_LIST
-                PsiElement(LT)('<')
-                TYPE_PROJECTION
-                  TYPE_REFERENCE
-                    USER_TYPE
-                      REFERENCE_EXPRESSION
-                        PsiElement(IDENTIFIER)('A')
-                PsiElement(COMMA)(',')
-                PsiWhiteSpace(' ')
-                TYPE_PROJECTION
-                  TYPE_REFERENCE
-                    USER_TYPE
-                      REFERENCE_EXPRESSION
-                        PsiElement(IDENTIFIER)('B')
-                PsiElement(GT)('>')
-            PsiElement(DOT)('.')
-            REFERENCE_EXPRESSION
-              PsiElement(IDENTIFIER)('T')
-            TYPE_ARGUMENT_LIST
-              PsiElement(LT)('<')
-              TYPE_PROJECTION
+      PsiElement(LPAR)('(')
+      FUNCTION_TYPE
+        FUNCTION_TYPE_RECEIVER
+          TYPE_REFERENCE
+            PsiElement(LPAR)('(')
+            FUNCTION_TYPE
+              FUNCTION_TYPE_RECEIVER
                 TYPE_REFERENCE
+                  PsiElement(LPAR)('(')
                   USER_TYPE
                     REFERENCE_EXPRESSION
-                      PsiElement(IDENTIFIER)('x')
-              PsiElement(GT)('>')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(DOT)('.')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LPAR)('(')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RPAR)(')')
-  PsiWhiteSpace(' ')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(COLON)(':')
-  PsiWhiteSpace(' ')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LPAR)('(')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RPAR)(')')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RBRACE)('}')
-  PsiWhiteSpace('\n')
-  TYPEDEF
-    PsiElement(type)('type')
-    PsiWhiteSpace(' ')
-    PsiElement(IDENTIFIER)('f')
-    PsiWhiteSpace(' ')
-    PsiElement(EQ)('=')
-    PsiWhiteSpace(' ')
-    TYPE_REFERENCE
-      PsiErrorElement:Type expected
-        <empty list>
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LBRACE)('{')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LBRACE)('{')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LPAR)('(')
-  MODIFIER_LIST
-    ANNOTATION_ENTRY
-      CONSTRUCTOR_CALLEE
+                      PsiElement(IDENTIFIER)('S')
+                  PsiElement(RPAR)(')')
+              PsiElement(DOT)('.')
+              VALUE_PARAMETER_LIST
+                PsiElement(LPAR)('(')
+                PsiElement(RPAR)(')')
+              PsiWhiteSpace(' ')
+              PsiElement(ARROW)('->')
+              PsiWhiteSpace(' ')
+              TYPE_REFERENCE
+                USER_TYPE
+                  REFERENCE_EXPRESSION
+                    PsiElement(IDENTIFIER)('S')
+            PsiElement(RPAR)(')')
+        PsiElement(DOT)('.')
+        VALUE_PARAMETER_LIST
+          PsiElement(LPAR)('(')
+          PsiElement(RPAR)(')')
+        PsiWhiteSpace(' ')
+        PsiElement(ARROW)('->')
+        PsiWhiteSpace(' ')
         TYPE_REFERENCE
           USER_TYPE
             REFERENCE_EXPRESSION
               PsiElement(IDENTIFIER)('S')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RPAR)(')')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(DOT)('.')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LPAR)('(')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RPAR)(')')
-  PsiWhiteSpace(' ')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(COLON)(':')
-  PsiWhiteSpace(' ')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LPAR)('(')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RPAR)(')')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RBRACE)('}')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(DOT)('.')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LPAR)('(')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RPAR)(')')
-  PsiWhiteSpace(' ')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(COLON)(':')
-  PsiWhiteSpace(' ')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LPAR)('(')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RPAR)(')')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RBRACE)('}')
+      PsiElement(RPAR)(')')
   PsiWhiteSpace('\n')
   TYPEDEF
-    PsiElement(type)('type')
+    PsiElement(typealias)('typealias')
     PsiWhiteSpace(' ')
     PsiElement(IDENTIFIER)('f')
     PsiWhiteSpace(' ')
     PsiElement(EQ)('=')
     PsiWhiteSpace(' ')
     TYPE_REFERENCE
-      PsiErrorElement:Type expected
-        <empty list>
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LBRACE)('{')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LBRACE)('{')
-  MODIFIER_LIST
-    ANNOTATION_ENTRY
-      CONSTRUCTOR_CALLEE
-        TYPE_REFERENCE
-          USER_TYPE
-            REFERENCE_EXPRESSION
-              PsiElement(IDENTIFIER)('T')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(DOT)('.')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LPAR)('(')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RPAR)(')')
-  PsiWhiteSpace(' ')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(COLON)(':')
-  PsiWhiteSpace(' ')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LPAR)('(')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RPAR)(')')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RBRACE)('}')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(DOT)('.')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LPAR)('(')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RPAR)(')')
-  PsiWhiteSpace(' ')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(COLON)(':')
-  PsiWhiteSpace(' ')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LPAR)('(')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RPAR)(')')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RBRACE)('}')
-  PsiWhiteSpace('\n')
-  TYPEDEF
-    PsiElement(type)('type')
-    PsiWhiteSpace(' ')
-    PsiElement(IDENTIFIER)('f')
-    PsiWhiteSpace(' ')
-    PsiElement(EQ)('=')
-    PsiWhiteSpace(' ')
-    TYPE_REFERENCE
-      PsiErrorElement:Type expected
-        <empty list>
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LBRACE)('{')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LBRACE)('{')
-  MODIFIER_LIST
-    ANNOTATION_ENTRY
-      CONSTRUCTOR_CALLEE
-        TYPE_REFERENCE
-          USER_TYPE
-            USER_TYPE
-              REFERENCE_EXPRESSION
-                PsiElement(IDENTIFIER)('T')
-            PsiElement(DOT)('.')
-            REFERENCE_EXPRESSION
-              PsiElement(IDENTIFIER)('T')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(DOT)('.')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LPAR)('(')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RPAR)(')')
-  PsiWhiteSpace(' ')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(COLON)(':')
-  PsiWhiteSpace(' ')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LPAR)('(')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RPAR)(')')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RBRACE)('}')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(DOT)('.')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LPAR)('(')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RPAR)(')')
-  PsiWhiteSpace(' ')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(COLON)(':')
-  PsiWhiteSpace(' ')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LPAR)('(')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RPAR)(')')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RBRACE)('}')
-  PsiWhiteSpace('\n')
-  TYPEDEF
-    PsiElement(type)('type')
-    PsiWhiteSpace(' ')
-    PsiElement(IDENTIFIER)('f')
-    PsiWhiteSpace(' ')
-    PsiElement(EQ)('=')
-    PsiWhiteSpace(' ')
-    TYPE_REFERENCE
-      PsiErrorElement:Type expected
-        <empty list>
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LBRACE)('{')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LBRACE)('{')
-  MODIFIER_LIST
-    ANNOTATION_ENTRY
-      CONSTRUCTOR_CALLEE
-        TYPE_REFERENCE
-          USER_TYPE
-            USER_TYPE
-              REFERENCE_EXPRESSION
-                PsiElement(IDENTIFIER)('T')
-              TYPE_ARGUMENT_LIST
-                PsiElement(LT)('<')
-                TYPE_PROJECTION
-                  TYPE_REFERENCE
-                    USER_TYPE
-                      REFERENCE_EXPRESSION
-                        PsiElement(IDENTIFIER)('A')
-                PsiElement(COMMA)(',')
-                PsiWhiteSpace(' ')
-                TYPE_PROJECTION
-                  TYPE_REFERENCE
-                    USER_TYPE
-                      REFERENCE_EXPRESSION
-                        PsiElement(IDENTIFIER)('B')
-                PsiElement(GT)('>')
-            PsiElement(DOT)('.')
-            REFERENCE_EXPRESSION
-              PsiElement(IDENTIFIER)('T')
-            TYPE_ARGUMENT_LIST
-              PsiElement(LT)('<')
-              TYPE_PROJECTION
+      PsiElement(LPAR)('(')
+      FUNCTION_TYPE
+        FUNCTION_TYPE_RECEIVER
+          TYPE_REFERENCE
+            PsiElement(LPAR)('(')
+            FUNCTION_TYPE
+              FUNCTION_TYPE_RECEIVER
                 TYPE_REFERENCE
                   USER_TYPE
                     REFERENCE_EXPRESSION
-                      PsiElement(IDENTIFIER)('x')
-              PsiElement(GT)('>')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(DOT)('.')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LPAR)('(')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RPAR)(')')
-  PsiWhiteSpace(' ')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(COLON)(':')
-  PsiWhiteSpace(' ')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LPAR)('(')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RPAR)(')')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RBRACE)('}')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(DOT)('.')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LPAR)('(')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RPAR)(')')
-  PsiWhiteSpace(' ')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(COLON)(':')
-  PsiWhiteSpace(' ')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LPAR)('(')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RPAR)(')')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RBRACE)('}')
-  PsiWhiteSpace('\n')
-  TYPEDEF
-    PsiElement(type)('type')
-    PsiWhiteSpace(' ')
-    PsiElement(IDENTIFIER)('f')
-    PsiWhiteSpace(' ')
-    PsiElement(EQ)('=')
-    PsiWhiteSpace(' ')
-    TYPE_REFERENCE
-      PsiErrorElement:Type expected
-        <empty list>
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LBRACE)('{')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LBRACE)('{')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LPAR)('(')
-  MODIFIER_LIST
-    ANNOTATION_ENTRY
-      CONSTRUCTOR_CALLEE
+                      PsiElement(IDENTIFIER)('T')
+              PsiElement(DOT)('.')
+              VALUE_PARAMETER_LIST
+                PsiElement(LPAR)('(')
+                PsiElement(RPAR)(')')
+              PsiWhiteSpace(' ')
+              PsiElement(ARROW)('->')
+              PsiWhiteSpace(' ')
+              TYPE_REFERENCE
+                USER_TYPE
+                  REFERENCE_EXPRESSION
+                    PsiElement(IDENTIFIER)('S')
+            PsiElement(RPAR)(')')
+        PsiElement(DOT)('.')
+        VALUE_PARAMETER_LIST
+          PsiElement(LPAR)('(')
+          PsiElement(RPAR)(')')
+        PsiWhiteSpace(' ')
+        PsiElement(ARROW)('->')
+        PsiWhiteSpace(' ')
         TYPE_REFERENCE
           USER_TYPE
             REFERENCE_EXPRESSION
               PsiElement(IDENTIFIER)('S')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RPAR)(')')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(DOT)('.')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LPAR)('(')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RPAR)(')')
-  PsiWhiteSpace(' ')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(COLON)(':')
-  PsiWhiteSpace(' ')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LPAR)('(')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RPAR)(')')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RBRACE)('}')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(DOT)('.')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LPAR)('(')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RPAR)(')')
-  PsiWhiteSpace(' ')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(COLON)(':')
-  PsiWhiteSpace(' ')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LPAR)('(')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RPAR)(')')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RBRACE)('}')
+      PsiElement(RPAR)(')')
+  PsiWhiteSpace('\n')
+  TYPEDEF
+    PsiElement(typealias)('typealias')
+    PsiWhiteSpace(' ')
+    PsiElement(IDENTIFIER)('f')
+    PsiWhiteSpace(' ')
+    PsiElement(EQ)('=')
+    PsiWhiteSpace(' ')
+    TYPE_REFERENCE
+      PsiElement(LPAR)('(')
+      FUNCTION_TYPE
+        FUNCTION_TYPE_RECEIVER
+          TYPE_REFERENCE
+            PsiElement(LPAR)('(')
+            FUNCTION_TYPE
+              FUNCTION_TYPE_RECEIVER
+                TYPE_REFERENCE
+                  USER_TYPE
+                    USER_TYPE
+                      REFERENCE_EXPRESSION
+                        PsiElement(IDENTIFIER)('T')
+                    PsiElement(DOT)('.')
+                    REFERENCE_EXPRESSION
+                      PsiElement(IDENTIFIER)('T')
+              PsiElement(DOT)('.')
+              VALUE_PARAMETER_LIST
+                PsiElement(LPAR)('(')
+                PsiElement(RPAR)(')')
+              PsiWhiteSpace(' ')
+              PsiElement(ARROW)('->')
+              PsiWhiteSpace(' ')
+              TYPE_REFERENCE
+                USER_TYPE
+                  REFERENCE_EXPRESSION
+                    PsiElement(IDENTIFIER)('S')
+            PsiElement(RPAR)(')')
+        PsiElement(DOT)('.')
+        VALUE_PARAMETER_LIST
+          PsiElement(LPAR)('(')
+          PsiElement(RPAR)(')')
+        PsiWhiteSpace(' ')
+        PsiElement(ARROW)('->')
+        PsiWhiteSpace(' ')
+        TYPE_REFERENCE
+          USER_TYPE
+            REFERENCE_EXPRESSION
+              PsiElement(IDENTIFIER)('S')
+      PsiElement(RPAR)(')')
+  PsiWhiteSpace('\n')
+  TYPEDEF
+    PsiElement(typealias)('typealias')
+    PsiWhiteSpace(' ')
+    PsiElement(IDENTIFIER)('f')
+    PsiWhiteSpace(' ')
+    PsiElement(EQ)('=')
+    PsiWhiteSpace(' ')
+    TYPE_REFERENCE
+      PsiElement(LPAR)('(')
+      FUNCTION_TYPE
+        FUNCTION_TYPE_RECEIVER
+          TYPE_REFERENCE
+            PsiElement(LPAR)('(')
+            FUNCTION_TYPE
+              FUNCTION_TYPE_RECEIVER
+                TYPE_REFERENCE
+                  USER_TYPE
+                    USER_TYPE
+                      REFERENCE_EXPRESSION
+                        PsiElement(IDENTIFIER)('T')
+                      TYPE_ARGUMENT_LIST
+                        PsiElement(LT)('<')
+                        TYPE_PROJECTION
+                          TYPE_REFERENCE
+                            USER_TYPE
+                              REFERENCE_EXPRESSION
+                                PsiElement(IDENTIFIER)('A')
+                        PsiElement(COMMA)(',')
+                        PsiWhiteSpace(' ')
+                        TYPE_PROJECTION
+                          TYPE_REFERENCE
+                            USER_TYPE
+                              REFERENCE_EXPRESSION
+                                PsiElement(IDENTIFIER)('B')
+                        PsiElement(GT)('>')
+                    PsiElement(DOT)('.')
+                    REFERENCE_EXPRESSION
+                      PsiElement(IDENTIFIER)('T')
+                    TYPE_ARGUMENT_LIST
+                      PsiElement(LT)('<')
+                      TYPE_PROJECTION
+                        TYPE_REFERENCE
+                          USER_TYPE
+                            REFERENCE_EXPRESSION
+                              PsiElement(IDENTIFIER)('x')
+                      PsiElement(GT)('>')
+              PsiElement(DOT)('.')
+              VALUE_PARAMETER_LIST
+                PsiElement(LPAR)('(')
+                PsiElement(RPAR)(')')
+              PsiWhiteSpace(' ')
+              PsiElement(ARROW)('->')
+              PsiWhiteSpace(' ')
+              TYPE_REFERENCE
+                USER_TYPE
+                  REFERENCE_EXPRESSION
+                    PsiElement(IDENTIFIER)('S')
+            PsiElement(RPAR)(')')
+        PsiElement(DOT)('.')
+        VALUE_PARAMETER_LIST
+          PsiElement(LPAR)('(')
+          PsiElement(RPAR)(')')
+        PsiWhiteSpace(' ')
+        PsiElement(ARROW)('->')
+        PsiWhiteSpace(' ')
+        TYPE_REFERENCE
+          USER_TYPE
+            REFERENCE_EXPRESSION
+              PsiElement(IDENTIFIER)('S')
+      PsiElement(RPAR)(')')
+  PsiWhiteSpace('\n')
+  TYPEDEF
+    PsiElement(typealias)('typealias')
+    PsiWhiteSpace(' ')
+    PsiElement(IDENTIFIER)('f')
+    PsiWhiteSpace(' ')
+    PsiElement(EQ)('=')
+    PsiWhiteSpace(' ')
+    TYPE_REFERENCE
+      PsiElement(LPAR)('(')
+      FUNCTION_TYPE
+        FUNCTION_TYPE_RECEIVER
+          TYPE_REFERENCE
+            PsiElement(LPAR)('(')
+            FUNCTION_TYPE
+              FUNCTION_TYPE_RECEIVER
+                TYPE_REFERENCE
+                  PsiElement(LPAR)('(')
+                  USER_TYPE
+                    REFERENCE_EXPRESSION
+                      PsiElement(IDENTIFIER)('S')
+                  PsiElement(RPAR)(')')
+              PsiElement(DOT)('.')
+              VALUE_PARAMETER_LIST
+                PsiElement(LPAR)('(')
+                PsiElement(RPAR)(')')
+              PsiWhiteSpace(' ')
+              PsiElement(ARROW)('->')
+              PsiWhiteSpace(' ')
+              TYPE_REFERENCE
+                USER_TYPE
+                  REFERENCE_EXPRESSION
+                    PsiElement(IDENTIFIER)('S')
+            PsiElement(RPAR)(')')
+        PsiElement(DOT)('.')
+        VALUE_PARAMETER_LIST
+          PsiElement(LPAR)('(')
+          PsiElement(RPAR)(')')
+        PsiWhiteSpace(' ')
+        PsiElement(ARROW)('->')
+        PsiWhiteSpace(' ')
+        TYPE_REFERENCE
+          USER_TYPE
+            REFERENCE_EXPRESSION
+              PsiElement(IDENTIFIER)('S')
+      PsiElement(RPAR)(')')
   PsiWhiteSpace('\n\n')
   TYPEDEF
-    PsiElement(type)('type')
+    PsiElement(typealias)('typealias')
     PsiWhiteSpace(' ')
     PsiElement(IDENTIFIER)('f')
     PsiWhiteSpace(' ')
@@ -390,70 +273,57 @@ JetFile: FunctionTypesWithFunctionReceivers.kt
                 REFERENCE_EXPRESSION
                   PsiElement(IDENTIFIER)('a')
         PsiElement(RBRACKET)(']')
-      PsiErrorElement:Type expected
-        <empty list>
-  PsiWhiteSpace(' ')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LBRACE)('{')
-  MODIFIER_LIST
-    ANNOTATION
-      PsiElement(LBRACKET)('[')
-      ANNOTATION_ENTRY
-        CONSTRUCTOR_CALLEE
+      PsiWhiteSpace(' ')
+      PsiElement(LPAR)('(')
+      FUNCTION_TYPE
+        FUNCTION_TYPE_RECEIVER
           TYPE_REFERENCE
-            USER_TYPE
-              REFERENCE_EXPRESSION
-                PsiElement(IDENTIFIER)('a')
-      PsiElement(RBRACKET)(']')
-  PsiWhiteSpace(' ')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LBRACE)('{')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LPAR)('(')
-  MODIFIER_LIST
-    ANNOTATION_ENTRY
-      CONSTRUCTOR_CALLEE
+            ANNOTATION
+              PsiElement(LBRACKET)('[')
+              ANNOTATION_ENTRY
+                CONSTRUCTOR_CALLEE
+                  TYPE_REFERENCE
+                    USER_TYPE
+                      REFERENCE_EXPRESSION
+                        PsiElement(IDENTIFIER)('a')
+              PsiElement(RBRACKET)(']')
+            PsiWhiteSpace(' ')
+            PsiElement(LPAR)('(')
+            FUNCTION_TYPE
+              FUNCTION_TYPE_RECEIVER
+                TYPE_REFERENCE
+                  PsiElement(LPAR)('(')
+                  USER_TYPE
+                    REFERENCE_EXPRESSION
+                      PsiElement(IDENTIFIER)('S')
+                  PsiElement(RPAR)(')')
+              PsiElement(DOT)('.')
+              VALUE_PARAMETER_LIST
+                PsiElement(LPAR)('(')
+                PsiElement(RPAR)(')')
+              PsiWhiteSpace(' ')
+              PsiElement(ARROW)('->')
+              PsiWhiteSpace(' ')
+              TYPE_REFERENCE
+                USER_TYPE
+                  REFERENCE_EXPRESSION
+                    PsiElement(IDENTIFIER)('S')
+            PsiElement(RPAR)(')')
+        PsiElement(DOT)('.')
+        VALUE_PARAMETER_LIST
+          PsiElement(LPAR)('(')
+          PsiElement(RPAR)(')')
+        PsiWhiteSpace(' ')
+        PsiElement(ARROW)('->')
+        PsiWhiteSpace(' ')
         TYPE_REFERENCE
           USER_TYPE
             REFERENCE_EXPRESSION
               PsiElement(IDENTIFIER)('S')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RPAR)(')')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(DOT)('.')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LPAR)('(')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RPAR)(')')
-  PsiWhiteSpace(' ')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(COLON)(':')
-  PsiWhiteSpace(' ')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LPAR)('(')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RPAR)(')')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RBRACE)('}')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(DOT)('.')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LPAR)('(')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RPAR)(')')
-  PsiWhiteSpace(' ')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(COLON)(':')
-  PsiWhiteSpace(' ')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LPAR)('(')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RPAR)(')')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RBRACE)('}')
+      PsiElement(RPAR)(')')
   PsiWhiteSpace('\n')
   TYPEDEF
-    PsiElement(type)('type')
+    PsiElement(typealias)('typealias')
     PsiWhiteSpace(' ')
     PsiElement(IDENTIFIER)('f')
     PsiWhiteSpace(' ')
@@ -469,247 +339,55 @@ JetFile: FunctionTypesWithFunctionReceivers.kt
                 REFERENCE_EXPRESSION
                   PsiElement(IDENTIFIER)('a')
         PsiElement(RBRACKET)(']')
-      PsiErrorElement:Type expected
-        <empty list>
-  PsiWhiteSpace(' ')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LBRACE)('{')
-  MODIFIER_LIST
-    ANNOTATION
-      PsiElement(LBRACKET)('[')
-      ANNOTATION_ENTRY
-        CONSTRUCTOR_CALLEE
+      PsiWhiteSpace(' ')
+      PsiElement(LPAR)('(')
+      FUNCTION_TYPE
+        FUNCTION_TYPE_RECEIVER
           TYPE_REFERENCE
-            USER_TYPE
-              REFERENCE_EXPRESSION
-                PsiElement(IDENTIFIER)('a')
-      PsiElement(RBRACKET)(']')
-  PsiWhiteSpace(' ')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LBRACE)('{')
-  MODIFIER_LIST
-    ANNOTATION_ENTRY
-      CONSTRUCTOR_CALLEE
-        TYPE_REFERENCE
-          USER_TYPE
-            REFERENCE_EXPRESSION
-              PsiElement(IDENTIFIER)('T')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(DOT)('.')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LPAR)('(')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RPAR)(')')
-  PsiWhiteSpace(' ')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(COLON)(':')
-  PsiWhiteSpace(' ')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LPAR)('(')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RPAR)(')')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RBRACE)('}')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(DOT)('.')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LPAR)('(')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RPAR)(')')
-  PsiWhiteSpace(' ')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(COLON)(':')
-  PsiWhiteSpace(' ')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LPAR)('(')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RPAR)(')')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RBRACE)('}')
-  PsiWhiteSpace('\n')
-  TYPEDEF
-    PsiElement(type)('type')
-    PsiWhiteSpace(' ')
-    PsiElement(IDENTIFIER)('f')
-    PsiWhiteSpace(' ')
-    PsiElement(EQ)('=')
-    PsiWhiteSpace(' ')
-    TYPE_REFERENCE
-      ANNOTATION
-        PsiElement(LBRACKET)('[')
-        ANNOTATION_ENTRY
-          CONSTRUCTOR_CALLEE
-            TYPE_REFERENCE
-              USER_TYPE
-                REFERENCE_EXPRESSION
-                  PsiElement(IDENTIFIER)('a')
-        PsiElement(RBRACKET)(']')
-      PsiErrorElement:Type expected
-        <empty list>
-  PsiWhiteSpace(' ')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LBRACE)('{')
-  MODIFIER_LIST
-    ANNOTATION
-      PsiElement(LBRACKET)('[')
-      ANNOTATION_ENTRY
-        CONSTRUCTOR_CALLEE
-          TYPE_REFERENCE
-            USER_TYPE
-              REFERENCE_EXPRESSION
-                PsiElement(IDENTIFIER)('a')
-      PsiElement(RBRACKET)(']')
-  PsiWhiteSpace(' ')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LBRACE)('{')
-  MODIFIER_LIST
-    ANNOTATION_ENTRY
-      CONSTRUCTOR_CALLEE
-        TYPE_REFERENCE
-          USER_TYPE
-            USER_TYPE
-              REFERENCE_EXPRESSION
-                PsiElement(IDENTIFIER)('T')
-            PsiElement(DOT)('.')
-            REFERENCE_EXPRESSION
-              PsiElement(IDENTIFIER)('T')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(DOT)('.')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LPAR)('(')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RPAR)(')')
-  PsiWhiteSpace(' ')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(COLON)(':')
-  PsiWhiteSpace(' ')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LPAR)('(')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RPAR)(')')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RBRACE)('}')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(DOT)('.')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LPAR)('(')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RPAR)(')')
-  PsiWhiteSpace(' ')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(COLON)(':')
-  PsiWhiteSpace(' ')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LPAR)('(')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RPAR)(')')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RBRACE)('}')
-  PsiWhiteSpace('\n')
-  TYPEDEF
-    PsiElement(type)('type')
-    PsiWhiteSpace(' ')
-    PsiElement(IDENTIFIER)('f')
-    PsiWhiteSpace(' ')
-    PsiElement(EQ)('=')
-    PsiWhiteSpace(' ')
-    TYPE_REFERENCE
-      ANNOTATION
-        PsiElement(LBRACKET)('[')
-        ANNOTATION_ENTRY
-          CONSTRUCTOR_CALLEE
-            TYPE_REFERENCE
-              USER_TYPE
-                REFERENCE_EXPRESSION
-                  PsiElement(IDENTIFIER)('a')
-        PsiElement(RBRACKET)(']')
-      PsiErrorElement:Type expected
-        <empty list>
-  PsiWhiteSpace(' ')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LBRACE)('{')
-  MODIFIER_LIST
-    ANNOTATION
-      PsiElement(LBRACKET)('[')
-      ANNOTATION_ENTRY
-        CONSTRUCTOR_CALLEE
-          TYPE_REFERENCE
-            USER_TYPE
-              REFERENCE_EXPRESSION
-                PsiElement(IDENTIFIER)('a')
-      PsiElement(RBRACKET)(']')
-  PsiWhiteSpace(' ')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LBRACE)('{')
-  MODIFIER_LIST
-    ANNOTATION_ENTRY
-      CONSTRUCTOR_CALLEE
-        TYPE_REFERENCE
-          USER_TYPE
-            USER_TYPE
-              REFERENCE_EXPRESSION
-                PsiElement(IDENTIFIER)('T')
-              TYPE_ARGUMENT_LIST
-                PsiElement(LT)('<')
-                TYPE_PROJECTION
+            ANNOTATION
+              PsiElement(LBRACKET)('[')
+              ANNOTATION_ENTRY
+                CONSTRUCTOR_CALLEE
                   TYPE_REFERENCE
                     USER_TYPE
                       REFERENCE_EXPRESSION
-                        PsiElement(IDENTIFIER)('A')
-                PsiElement(COMMA)(',')
-                PsiWhiteSpace(' ')
-                TYPE_PROJECTION
-                  TYPE_REFERENCE
-                    USER_TYPE
-                      REFERENCE_EXPRESSION
-                        PsiElement(IDENTIFIER)('B')
-                PsiElement(GT)('>')
-            PsiElement(DOT)('.')
-            REFERENCE_EXPRESSION
-              PsiElement(IDENTIFIER)('T')
-            TYPE_ARGUMENT_LIST
-              PsiElement(LT)('<')
-              TYPE_PROJECTION
+                        PsiElement(IDENTIFIER)('a')
+              PsiElement(RBRACKET)(']')
+            PsiWhiteSpace(' ')
+            PsiElement(LPAR)('(')
+            FUNCTION_TYPE
+              FUNCTION_TYPE_RECEIVER
                 TYPE_REFERENCE
                   USER_TYPE
                     REFERENCE_EXPRESSION
-                      PsiElement(IDENTIFIER)('x')
-              PsiElement(GT)('>')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(DOT)('.')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LPAR)('(')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RPAR)(')')
-  PsiWhiteSpace(' ')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(COLON)(':')
-  PsiWhiteSpace(' ')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LPAR)('(')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RPAR)(')')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RBRACE)('}')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(DOT)('.')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LPAR)('(')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RPAR)(')')
-  PsiWhiteSpace(' ')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(COLON)(':')
-  PsiWhiteSpace(' ')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LPAR)('(')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RPAR)(')')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RBRACE)('}')
+                      PsiElement(IDENTIFIER)('T')
+              PsiElement(DOT)('.')
+              VALUE_PARAMETER_LIST
+                PsiElement(LPAR)('(')
+                PsiElement(RPAR)(')')
+              PsiWhiteSpace(' ')
+              PsiElement(ARROW)('->')
+              PsiWhiteSpace(' ')
+              TYPE_REFERENCE
+                USER_TYPE
+                  REFERENCE_EXPRESSION
+                    PsiElement(IDENTIFIER)('S')
+            PsiElement(RPAR)(')')
+        PsiElement(DOT)('.')
+        VALUE_PARAMETER_LIST
+          PsiElement(LPAR)('(')
+          PsiElement(RPAR)(')')
+        PsiWhiteSpace(' ')
+        PsiElement(ARROW)('->')
+        PsiWhiteSpace(' ')
+        TYPE_REFERENCE
+          USER_TYPE
+            REFERENCE_EXPRESSION
+              PsiElement(IDENTIFIER)('S')
+      PsiElement(RPAR)(')')
   PsiWhiteSpace('\n')
   TYPEDEF
-    PsiElement(type)('type')
+    PsiElement(typealias)('typealias')
     PsiWhiteSpace(' ')
     PsiElement(IDENTIFIER)('f')
     PsiWhiteSpace(' ')
@@ -725,64 +403,130 @@ JetFile: FunctionTypesWithFunctionReceivers.kt
                 REFERENCE_EXPRESSION
                   PsiElement(IDENTIFIER)('a')
         PsiElement(RBRACKET)(']')
-      PsiErrorElement:Type expected
-        <empty list>
-  PsiWhiteSpace(' ')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LBRACE)('{')
-  MODIFIER_LIST
-    ANNOTATION
-      PsiElement(LBRACKET)('[')
-      ANNOTATION_ENTRY
-        CONSTRUCTOR_CALLEE
+      PsiWhiteSpace(' ')
+      PsiElement(LPAR)('(')
+      FUNCTION_TYPE
+        FUNCTION_TYPE_RECEIVER
           TYPE_REFERENCE
-            USER_TYPE
-              REFERENCE_EXPRESSION
-                PsiElement(IDENTIFIER)('a')
-      PsiElement(RBRACKET)(']')
-  PsiWhiteSpace(' ')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LBRACE)('{')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LPAR)('(')
-  MODIFIER_LIST
-    ANNOTATION_ENTRY
-      CONSTRUCTOR_CALLEE
+            ANNOTATION
+              PsiElement(LBRACKET)('[')
+              ANNOTATION_ENTRY
+                CONSTRUCTOR_CALLEE
+                  TYPE_REFERENCE
+                    USER_TYPE
+                      REFERENCE_EXPRESSION
+                        PsiElement(IDENTIFIER)('a')
+              PsiElement(RBRACKET)(']')
+            PsiWhiteSpace(' ')
+            PsiElement(LPAR)('(')
+            FUNCTION_TYPE
+              FUNCTION_TYPE_RECEIVER
+                TYPE_REFERENCE
+                  USER_TYPE
+                    REFERENCE_EXPRESSION
+                      PsiElement(IDENTIFIER)('T')
+                    TYPE_ARGUMENT_LIST
+                      PsiElement(LT)('<')
+                      TYPE_PROJECTION
+                        TYPE_REFERENCE
+                          USER_TYPE
+                            REFERENCE_EXPRESSION
+                              PsiElement(IDENTIFIER)('A')
+                      PsiElement(COMMA)(',')
+                      PsiWhiteSpace(' ')
+                      TYPE_PROJECTION
+                        TYPE_REFERENCE
+                          USER_TYPE
+                            REFERENCE_EXPRESSION
+                              PsiElement(IDENTIFIER)('B')
+                      PsiElement(GT)('>')
+              PsiElement(DOT)('.')
+              VALUE_PARAMETER_LIST
+                PsiElement(LPAR)('(')
+                PsiElement(RPAR)(')')
+              PsiWhiteSpace(' ')
+              PsiElement(ARROW)('->')
+              PsiWhiteSpace(' ')
+              TYPE_REFERENCE
+                USER_TYPE
+                  REFERENCE_EXPRESSION
+                    PsiElement(IDENTIFIER)('S')
+            PsiElement(RPAR)(')')
+        PsiElement(DOT)('.')
+        VALUE_PARAMETER_LIST
+          PsiElement(LPAR)('(')
+          PsiElement(RPAR)(')')
+        PsiWhiteSpace(' ')
+        PsiElement(ARROW)('->')
+        PsiWhiteSpace(' ')
         TYPE_REFERENCE
           USER_TYPE
             REFERENCE_EXPRESSION
               PsiElement(IDENTIFIER)('S')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RPAR)(')')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(DOT)('.')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LPAR)('(')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RPAR)(')')
-  PsiWhiteSpace(' ')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(COLON)(':')
-  PsiWhiteSpace(' ')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LPAR)('(')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RPAR)(')')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RBRACE)('}')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(DOT)('.')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LPAR)('(')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RPAR)(')')
-  PsiWhiteSpace(' ')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(COLON)(':')
-  PsiWhiteSpace(' ')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(LPAR)('(')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RPAR)(')')
-  PsiErrorElement:Expecting package directive or top level declaration
-    PsiElement(RBRACE)('}')
+      PsiElement(RPAR)(')')
+  PsiWhiteSpace('\n')
+  TYPEDEF
+    PsiElement(typealias)('typealias')
+    PsiWhiteSpace(' ')
+    PsiElement(IDENTIFIER)('f')
+    PsiWhiteSpace(' ')
+    PsiElement(EQ)('=')
+    PsiWhiteSpace(' ')
+    TYPE_REFERENCE
+      ANNOTATION
+        PsiElement(LBRACKET)('[')
+        ANNOTATION_ENTRY
+          CONSTRUCTOR_CALLEE
+            TYPE_REFERENCE
+              USER_TYPE
+                REFERENCE_EXPRESSION
+                  PsiElement(IDENTIFIER)('a')
+        PsiElement(RBRACKET)(']')
+      PsiWhiteSpace(' ')
+      PsiElement(LPAR)('(')
+      FUNCTION_TYPE
+        FUNCTION_TYPE_RECEIVER
+          TYPE_REFERENCE
+            ANNOTATION
+              PsiElement(LBRACKET)('[')
+              ANNOTATION_ENTRY
+                CONSTRUCTOR_CALLEE
+                  TYPE_REFERENCE
+                    USER_TYPE
+                      REFERENCE_EXPRESSION
+                        PsiElement(IDENTIFIER)('a')
+              PsiElement(RBRACKET)(']')
+            PsiWhiteSpace(' ')
+            PsiElement(LPAR)('(')
+            FUNCTION_TYPE
+              FUNCTION_TYPE_RECEIVER
+                TYPE_REFERENCE
+                  PsiElement(LPAR)('(')
+                  USER_TYPE
+                    REFERENCE_EXPRESSION
+                      PsiElement(IDENTIFIER)('S')
+                  PsiElement(RPAR)(')')
+              PsiElement(DOT)('.')
+              VALUE_PARAMETER_LIST
+                PsiElement(LPAR)('(')
+                PsiElement(RPAR)(')')
+              PsiWhiteSpace(' ')
+              PsiElement(ARROW)('->')
+              PsiWhiteSpace(' ')
+              TYPE_REFERENCE
+                USER_TYPE
+                  REFERENCE_EXPRESSION
+                    PsiElement(IDENTIFIER)('S')
+            PsiElement(RPAR)(')')
+        PsiElement(DOT)('.')
+        VALUE_PARAMETER_LIST
+          PsiElement(LPAR)('(')
+          PsiElement(RPAR)(')')
+        PsiWhiteSpace(' ')
+        PsiElement(ARROW)('->')
+        PsiWhiteSpace(' ')
+        TYPE_REFERENCE
+          USER_TYPE
+            REFERENCE_EXPRESSION
+              PsiElement(IDENTIFIER)('S')
+      PsiElement(RPAR)(')')

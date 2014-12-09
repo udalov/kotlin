@@ -33,7 +33,7 @@ trait IntervalWithHandler {
     val startLabel: LabelNode
     val endLabel: LabelNode
     val handler: LabelNode
-    val `type`: String?
+    val type: String?
 }
 
 class TryCatchBlockNodeInfo(val node: TryCatchBlockNode, val onlyCopyNotProcess: Boolean) : IntervalWithHandler {
@@ -43,16 +43,16 @@ class TryCatchBlockNodeInfo(val node: TryCatchBlockNode, val onlyCopyNotProcess:
     override val endLabel: LabelNode
             get() = node.end
     override val handler: LabelNode
-            get() = node.handler!!
-    override val `type`: String?
-            get() = node.`type`
+            get() = node.handler
+    override val type: String?
+            get() = node.type
 }
 
 class TryCatchBlockNodePosition(val nodeInfo: TryCatchBlockNodeInfo, var position: TryCatchPosition): IntervalWithHandler by nodeInfo
 
 class TryBlockCluster<T : IntervalWithHandler>(val blocks: MutableList<T>) {
     val defaultHandler: T?
-        get() = blocks.firstOrNull() { it.`type` == null }
+        get() = blocks.firstOrNull() { it.type == null }
 }
 
 

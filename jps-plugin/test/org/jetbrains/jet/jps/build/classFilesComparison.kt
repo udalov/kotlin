@@ -36,6 +36,8 @@ import java.io.ByteArrayInputStream
 import org.jetbrains.jet.descriptors.serialization.DebugProtoBuf
 import java.util.Arrays
 import org.jetbrains.jet.jps.incremental.LocalFileKotlinClass
+import org.jetbrains.jet.lang.resolve.kotlin.header.isCompatibleClassKind
+import org.jetbrains.jet.lang.resolve.kotlin.header.isCompatiblePackageFacadeKind
 
 // Set this to true if you want to dump all bytecode (test will fail in this case)
 val DUMP_ALL = System.getProperty("comparison.dump.all") == "true"
@@ -94,7 +96,7 @@ fun getAllRelativePaths(dir: File): Set<String> {
     return result
 }
 
-fun assertEqualDirectories(expected: File, actual: File) {
+fun assertEqualDirectories(expected: File, actual: File, forgiveExtraFiles: Boolean) {
     val pathsInExpected = getAllRelativePaths(expected)
     val pathsInActual = getAllRelativePaths(actual)
 
@@ -108,6 +110,17 @@ fun assertEqualDirectories(expected: File, actual: File) {
 
     if (DUMP_ALL) {
         assertEquals(expectedString, actualString + " ")
+    }
+
+    if (forgiveExtraFiles) {
+        // If compilation fails, output may be different for full rebuild and partial make. Parsing output (directory string) for simplicity.
+        if (changedPaths.isEmpty()) {
+            val expectedListingLines = expectedString.split('\n').toList()
+            val actualListingLines = actualString.split('\n').toList()
+            if (actualListingLines.containsAll(expectedListingLines)) {
+                return
+            }
+        }
     }
 
     assertEquals(expectedString, actualString)
@@ -126,15 +139,16 @@ fun classFileToString(classFile: File): String {
         ByteArrayInputStream(BitEncoding.decodeBytes(annotationDataEncoded)).use {
             input ->
 
-        out.write("\n------ simpleNames proto -----\n${DebugProtoBuf.SimpleNameTable.parseDelimitedFrom(input)}")
-        out.write("\n------ qualifiedNames proto -----\n${DebugProtoBuf.QualifiedNameTable.parseDelimitedFrom(input)}")
+            out.write("\n------ simpleNames proto -----\n${DebugProtoBuf.StringTable.parseDelimitedFrom(input)}")
+            out.write("\n------ qualifiedNames proto -----\n${DebugProtoBuf.QualifiedNameTable.parseDelimitedFrom(input)}")
 
-        when (classHeader!!.kind) {
-            KotlinClassHeader.Kind.PACKAGE_FACADE ->
-                out.write("\n------ package proto -----\n${DebugProtoBuf.Package.parseFrom(input, getExtensionRegistry())}")
+            when {
+                classHeader!!.isCompatiblePackageFacadeKind() ->
+                    out.write("\n------ package proto -----\n${DebugProtoBuf.Package.parseFrom(input, getExtensionRegistry())}")
 
-                KotlinClassHeader.Kind.CLASS ->
+                classHeader.isCompatibleClassKind() ->
                     out.write("\n------ class proto -----\n${DebugProtoBuf.Class.parseFrom(input, getExtensionRegistry())}")
+
                 else -> throw IllegalStateException()
             }
         }

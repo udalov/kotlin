@@ -16,17 +16,10 @@
 
 package org.jetbrains.jet.plugin.refactoring
 
-import org.jetbrains.jet.lang.resolve.name.FqName
-import org.jetbrains.jet.lang.psi.psiUtil.getQualifiedElement
-import org.jetbrains.jet.lang.resolve.name.isOneSegmentFQN
 import com.intellij.psi.PsiElement
 import com.intellij.openapi.util.Key
 import com.intellij.psi.PsiDirectory
 import com.intellij.openapi.roots.JavaProjectRootsUtil
-import com.intellij.psi.PsiPackage
-import com.intellij.psi.PsiClass
-import com.intellij.psi.PsiMember
-import org.jetbrains.jet.asJava.namedUnwrappedElement
 import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.refactoring.util.ConflictsUtil
 import org.jetbrains.jet.lang.psi.psiUtil.getPackage
@@ -44,7 +37,6 @@ import com.intellij.openapi.application.ApplicationManager
 import com.intellij.refactoring.BaseRefactoringProcessor.ConflictsInTestsException
 import com.intellij.refactoring.ui.ConflictsDialog
 import com.intellij.util.containers.MultiMap
-import com.intellij.openapi.command.CommandProcessor
 import org.jetbrains.jet.lang.psi.codeFragmentUtil.skipVisibilityCheck
 import com.intellij.ide.util.PsiElementListCellRenderer
 import com.intellij.openapi.ui.popup.JBPopup
@@ -64,50 +56,31 @@ import com.intellij.openapi.ui.popup.JBPopupAdapter
 import com.intellij.openapi.ui.popup.LightweightWindowEvent
 import com.intellij.psi.PsiDocumentManager
 import org.jetbrains.jet.lang.resolve.BindingContext
-import org.jetbrains.jet.lang.psi.psiUtil.getParentByType
 import org.jetbrains.jet.lang.psi.psiUtil.isAncestor
-import org.jetbrains.jet.plugin.caches.resolve.getLazyResolveSession
-import org.jetbrains.jet.plugin.util.application.runWriteAction
 import com.intellij.psi.PsiNamedElement
-import org.jetbrains.jet.plugin.project.AnalyzerFacadeWithCache
 import org.jetbrains.jet.lang.descriptors.FunctionDescriptor
 import org.jetbrains.jet.renderer.DescriptorRenderer
 import com.intellij.openapi.util.text.StringUtil
-import org.jetbrains.jet.plugin.util.collapseSpaces
 import javax.swing.Icon
-
-/**
- * Replace [[JetSimpleNameExpression]] (and its enclosing qualifier) with qualified element given by FqName
- * Result is either the same as original element, or [[JetQualifiedExpression]], or [[JetUserType]]
- * Note that FqName may not be empty
- */
-fun JetSimpleNameExpression.changeQualifiedName(fqName: FqName): JetElement {
-    assert (!fqName.isRoot(), "Can't set empty FqName for element $this")
-
-    val shortName = fqName.shortName().asString()
-    val psiFactory = JetPsiFactory(this)
-    val fqNameBase = (getParent() as? JetCallExpression)?.let { parent ->
-        val callCopy = parent.copy() as JetCallExpression
-        callCopy.getCalleeExpression()!!.replace(psiFactory.createSimpleName(shortName)).getParent()!!.getText()
-    } ?: shortName
-
-    val text = if (!fqName.isOneSegmentFQN()) "${fqName.parent().asString()}.$fqNameBase" else fqNameBase
-
-    val elementToReplace = getQualifiedElement()
-    return when (elementToReplace) {
-        is JetUserType -> {
-            val typeText = "$text${elementToReplace.getTypeArgumentList()?.getText() ?: ""}"
-            elementToReplace.replace(psiFactory.createType(typeText).getTypeElement()!!)
-        }
-        else -> elementToReplace.replace(psiFactory.createExpression(text))
-    } as JetElement
-}
+import org.jetbrains.jet.plugin.util.string.collapseSpaces
+import org.jetbrains.jet.asJava.KotlinLightMethod
+import com.intellij.psi.PsiMethod
+import org.jetbrains.jet.plugin.caches.resolve.analyze
+import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor
+import org.jetbrains.jet.lang.descriptors.CallableDescriptor
+import org.jetbrains.jet.lang.resolve.OverridingUtil
+import org.jetbrains.jet.lang.psi.psiUtil.getParentOfType
+import org.jetbrains.jet.lang.psi.psiUtil.getNonStrictParentOfType
+import org.jetbrains.jet.lang.psi.psiUtil.getStrictParentOfType
 
 fun <T: Any> PsiElement.getAndRemoveCopyableUserData(key: Key<T>): T? {
     val data = getCopyableUserData(key)
     putCopyableUserData(key, null)
     return data
 }
+
+fun getOrCreateKotlinFile(fileName: String, targetDir: PsiDirectory): JetFile? =
+        (targetDir.findFile(fileName) ?: createKotlinFile(fileName, targetDir)) as? JetFile
 
 fun createKotlinFile(fileName: String, targetDir: PsiDirectory): JetFile {
     val packageName = targetDir.getPackage()?.getQualifiedName()
@@ -126,21 +99,8 @@ public fun File.toPsiFile(project: Project): PsiFile? {
     return toVirtualFile()?.let { vfile -> PsiManager.getInstance(project).findFile(vfile) }
 }
 
-/**
- * Returns FqName for given declaration (either Java or Kotlin)
- */
-public fun PsiElement.getKotlinFqName(): FqName? {
-    val element = namedUnwrappedElement
-    return when (element) {
-        is PsiPackage -> FqName(element.getQualifiedName())
-        is PsiClass -> element.getQualifiedName()?.let { FqName(it) }
-        is PsiMember -> (element : PsiMember).getName()?.let { name ->
-            val prefix = element.getContainingClass()?.getQualifiedName()
-            FqName(if (prefix != null) "$prefix.$name" else name)
-        }
-        is JetNamedDeclaration -> element.getFqName()
-        else -> null
-    }
+public fun File.toPsiDirectory(project: Project): PsiDirectory? {
+    return toVirtualFile()?.let { vfile -> PsiManager.getInstance(project).findDirectory(vfile) }
 }
 
 public fun PsiElement.getUsageContext(): PsiElement {
@@ -178,8 +138,8 @@ public fun PsiElement.getAllExtractionContainers(strict: Boolean = true): List<J
 public fun PsiElement.getExtractionContainers(strict: Boolean = true, includeAll: Boolean = false): List<JetElement> {
     if (includeAll) return getAllExtractionContainers(strict)
 
-    val declaration = getParentByType(javaClass<JetDeclaration>(), strict)?.let { declaration ->
-        stream(declaration) { it.getParentByType(javaClass<JetDeclaration>(), true) }.firstOrNull { it !is JetFunctionLiteral }
+    val declaration = getParentOfType<JetDeclaration>(strict)?.let { declaration ->
+        stream(declaration) { it.getStrictParentOfType<JetDeclaration>() }.firstOrNull { it !is JetFunctionLiteral }
     } ?: return Collections.emptyList()
 
     val parent = declaration.getParent()?.let {
@@ -192,7 +152,7 @@ public fun PsiElement.getExtractionContainers(strict: Boolean = true, includeAll
     return when (parent) {
         is JetFile -> Collections.singletonList(parent)
         is JetClassBody -> {
-            getAllExtractionContainers(strict).filterIsInstance(javaClass<JetClassBody>())
+            getAllExtractionContainers(strict).filterIsInstance<JetClassBody>()
         }
         else -> {
             val enclosingDeclaration =
@@ -306,7 +266,7 @@ fun PsiElement.getLineCount(): Int {
 fun PsiElement.isMultiLine(): Boolean = getLineCount() > 1
 
 public fun JetElement.getContextForContainingDeclarationBody(): BindingContext? {
-    val enclosingDeclaration = getParentByType(javaClass<JetDeclaration>(), true)
+    val enclosingDeclaration = getStrictParentOfType<JetDeclaration>()
     val bodyElement = when (enclosingDeclaration) {
         is JetDeclarationWithBody -> enclosingDeclaration.getBodyExpression()
         is JetWithExpressionInitializer -> enclosingDeclaration.getInitializer()
@@ -319,7 +279,7 @@ public fun JetElement.getContextForContainingDeclarationBody(): BindingContext? 
         }
         else -> null
     }
-    return bodyElement?.let { getContainingJetFile().getLazyResolveSession().resolveToElement(it) }
+    return bodyElement?.let { it.analyze() }
 }
 
 public fun chooseContainerElement<T>(
@@ -338,14 +298,14 @@ public fun chooseContainerElement<T>(
                         return (getParent() as JetProperty).renderName() + if (isGetter()) ".get" else ".set"
                     }
                     if (this is JetObjectDeclaration && this.isClassObject()) {
-                        return "Class object of ${getParentByType(javaClass<JetClassOrObject>(), true)?.renderName() ?: "<anonymous>"}"
+                        return "Class object of ${getStrictParentOfType<JetClassOrObject>()?.renderName() ?: "<anonymous>"}"
                     }
                     return (this as? PsiNamedElement)?.getName() ?: "<anonymous>"
                 }
 
                 private fun JetElement.renderDeclaration(): String? {
                     val name = renderName()
-                    val descriptor = AnalyzerFacadeWithCache.getContextForElement(this)[BindingContext.DECLARATION_TO_DESCRIPTOR, this]
+                    val descriptor = this.analyze()[BindingContext.DECLARATION_TO_DESCRIPTOR, this]
                     val params = (descriptor as? FunctionDescriptor)?.let { descriptor ->
                         descriptor.getValueParameters()
                                 .map { DescriptorRenderer.SHORT_NAMES_IN_TYPES.renderType(it.getType()) }
@@ -404,4 +364,21 @@ public fun chooseContainerElementIfNecessary<T>(
         containers.size == 1 || ApplicationManager.getApplication()!!.isUnitTestMode() -> onSelect(containers.first())
         else -> chooseContainerElement(containers, editor, title, highlightSelection, toPsi, onSelect)
     }
+}
+
+public fun PsiElement.isTrueJavaMethod(): Boolean = this is PsiMethod && this !is KotlinLightMethod
+
+fun compareDescriptors(d1: DeclarationDescriptor?, d2: DeclarationDescriptor?): Boolean {
+    return d1 == d2 ||
+           (d1 != null && d2 != null &&
+            DescriptorRenderer.FQ_NAMES_IN_TYPES.render(d1) == DescriptorRenderer.FQ_NAMES_IN_TYPES.render(d2))
+}
+
+public fun comparePossiblyOverridingDescriptors(currentDescriptor: DeclarationDescriptor?, originalDescriptor: DeclarationDescriptor?): Boolean {
+    if (compareDescriptors(currentDescriptor, originalDescriptor)) return true
+    if (originalDescriptor is CallableDescriptor) {
+        if (!OverridingUtil.traverseOverridenDescriptors(originalDescriptor) { !compareDescriptors(currentDescriptor, it) }) return true
+    }
+
+    return false
 }

@@ -19,7 +19,7 @@ package org.jetbrains.jet.plugin.refactoring.rename
 import com.intellij.refactoring.MultiFileTestCase
 import com.intellij.openapi.util.io.FileUtil
 import java.io.File
-import junit.framework.Assert
+import org.junit.Assert
 import com.google.gson.JsonParser
 import com.google.gson.JsonObject
 import com.intellij.refactoring.util.CommonRefactoringUtil
@@ -46,7 +46,7 @@ import org.jetbrains.jet.lang.resolve.name.isSubpackageOf
 import org.jetbrains.jet.getString
 import org.jetbrains.jet.getNullableString
 import org.jetbrains.jet.plugin.search.allScope
-import org.jetbrains.jet.plugin.caches.resolve.getBindingContext
+import org.jetbrains.jet.plugin.caches.resolve.analyzeFully
 import org.jetbrains.jet.lang.resolve.DescriptorToSourceUtils
 import com.intellij.refactoring.BaseRefactoringProcessor.ConflictsInTestsException
 import com.intellij.refactoring.util.CommonRefactoringUtil.RefactoringErrorHintException
@@ -109,7 +109,7 @@ public abstract class AbstractRenameTest : MultiFileTestCase() {
         val classFQN = renameParamsObject.getString("classFQN")
         val newName = renameParamsObject.getString("newName")
 
-        doTest { rootDir, rootAfter ->
+        doTestCommittingDocuments { rootDir, rootAfter ->
             val aClass = context.javaFacade.findClass(classFQN, context.project.allScope())!!
             val substitution = RenamePsiElementProcessor.forElement(aClass).substituteElementToRename(aClass, null)
 
@@ -122,7 +122,7 @@ public abstract class AbstractRenameTest : MultiFileTestCase() {
         val methodSignature = renameParamsObject.getString("methodSignature")
         val newName = renameParamsObject.getString("newName")
 
-        doTest { rootDir, rootAfter ->
+        doTestCommittingDocuments { rootDir, rootAfter ->
             val aClass = context.javaFacade.findClass(classFQN, GlobalSearchScope.moduleScope(context.module))!!
 
             val methodText = context.javaFacade.getElementFactory().createMethodFromText(methodSignature + "{}", null)
@@ -162,7 +162,7 @@ public abstract class AbstractRenameTest : MultiFileTestCase() {
         val newName = renameParamsObject.getString("newName")
         val mainFilePath = renameParamsObject.getNullableString("mainFile") ?: "${getTestDirName(false)}.kt"
 
-        doTest { rootDir, rootAfter ->
+        doTestCommittingDocuments { rootDir, rootAfter ->
             val mainFile = rootDir.findChild(mainFilePath)!!
             val document = FileDocumentManager.getInstance()!!.getDocument(mainFile)!!
             val jetFile = PsiDocumentManager.getInstance(context.project).getPsiFile(document) as JetFile
@@ -187,12 +187,12 @@ public abstract class AbstractRenameTest : MultiFileTestCase() {
         val newName = renameParamsObject.getString("newName")
         val mainFilePath = renameParamsObject.getNullableString("mainFile") ?: "${getTestDirName(false)}.kt"
 
-        doTest { rootDir, rootAfter ->
+        doTestCommittingDocuments { rootDir, rootAfter ->
             val mainFile = rootDir.findChild(mainFilePath)!!
             val document = FileDocumentManager.getInstance()!!.getDocument(mainFile)!!
             val jetFile = PsiDocumentManager.getInstance(context.project).getPsiFile(document) as JetFile
 
-            val bindingContext = jetFile.getBindingContext()
+            val bindingContext = jetFile.analyzeFully()
             val classDescriptor = bindingContext.get(BindingContext.FQNAME_TO_CLASS_DESCRIPTOR, classFqName)!!
 
             val psiElement = DescriptorToSourceUtils.descriptorToDeclaration(findDescriptorToRename(classDescriptor))!!
@@ -208,7 +208,7 @@ public abstract class AbstractRenameTest : MultiFileTestCase() {
         return testName.substring(0, testName.indexOf('_'))
     }
 
-    protected fun doTest(action : (VirtualFile, VirtualFile?) -> Unit) {
+    protected fun doTestCommittingDocuments(action : (VirtualFile, VirtualFile?) -> Unit) {
         super.doTest(
                 { rootDir, rootAfter ->
                     action(rootDir, rootAfter)

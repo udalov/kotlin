@@ -19,6 +19,7 @@ package org.jetbrains.jet.renderer;
 import kotlin.Function1;
 import kotlin.KotlinPackage;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.descriptors.annotations.Annotated;
 import org.jetbrains.jet.lang.descriptors.annotations.AnnotationDescriptor;
@@ -42,9 +43,10 @@ import org.jetbrains.jet.utils.UtilsPackage;
 import java.util.*;
 
 import static org.jetbrains.jet.lang.types.TypeUtils.CANT_INFER_LAMBDA_PARAM_TYPE;
-import static org.jetbrains.jet.lang.types.TypeUtils.DONT_CARE;
 
 public class DescriptorRendererImpl implements DescriptorRenderer {
+
+    private final Function1<JetType, JetType> typeNormalizer;
     private final boolean shortNames;
     private final boolean withDefinedIn;
     private final Set<DescriptorRenderer.Modifier> modifiers;
@@ -63,6 +65,8 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
     private final boolean renderClassObjectName;
     private final boolean withoutSuperTypes;
     private final boolean receiverAfterName;
+    private final boolean renderDefaultValues;
+    private final boolean flexibleTypesForCode;
 
     @NotNull
     private final OverrideRenderingPolicy overrideRenderingPolicy;
@@ -97,7 +101,10 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
             boolean withoutTypeParameters,
             boolean receiverAfterName,
             boolean renderClassObjectName,
-            boolean withoutSuperTypes
+            boolean withoutSuperTypes,
+            @NotNull Function1<JetType, JetType> typeNormalizer,
+            boolean renderDefaultValues,
+            boolean flexibleTypesForCode
     ) {
         this.shortNames = shortNames;
         this.withDefinedIn = withDefinedIn;
@@ -122,6 +129,9 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
         this.receiverAfterName = receiverAfterName;
         this.renderClassObjectName = renderClassObjectName;
         this.withoutSuperTypes = withoutSuperTypes;
+        this.typeNormalizer = typeNormalizer;
+        this.renderDefaultValues = renderDefaultValues;
+        this.flexibleTypesForCode = flexibleTypesForCode;
     }
 
     /* FORMATTING */
@@ -292,7 +302,45 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
     @NotNull
     @Override
     public String renderType(@NotNull JetType type) {
-        if (type == CANT_INFER_LAMBDA_PARAM_TYPE || type == DONT_CARE) {
+        return renderNormalizedType(typeNormalizer.invoke(type));
+    }
+
+    @NotNull
+    private String renderNormalizedType(@NotNull JetType type) {
+        if (type instanceof LazyType && debugMode) {
+            return type.toString();
+        }
+        if (TypesPackage.isDynamic(type)) {
+            return "dynamic";
+        }
+        if (TypesPackage.isFlexible(type)) {
+            if (debugMode) {
+                return renderFlexibleTypeWithBothBounds(TypesPackage.flexibility(type).getLowerBound(),
+                                                        TypesPackage.flexibility(type).getUpperBound());
+            }
+            else if (flexibleTypesForCode) {
+                String prefix = shortNames ? "" : Flexibility.FLEXIBLE_TYPE_CLASSIFIER.getPackageFqName().asString() + ".";
+                return prefix + Flexibility.FLEXIBLE_TYPE_CLASSIFIER.getRelativeClassName()
+                       + lt()
+                       + renderNormalizedType(TypesPackage.flexibility(type).getLowerBound()) + ", "
+                       + renderNormalizedType(TypesPackage.flexibility(type).getUpperBound())
+                       + gt();
+            }
+            else {
+                return renderFlexibleType(type);
+            }
+        }
+        return renderInflexibleType(type);
+    }
+
+    private String renderFlexibleTypeWithBothBounds(@NotNull JetType lower, @NotNull JetType upper) {
+        return "(" + renderNormalizedType(lower) + ".." + renderNormalizedType(upper) + ")";
+    }
+
+    private String renderInflexibleType(@NotNull JetType type) {
+        assert !TypesPackage.isFlexible(type) : "Flexible types not allowed here: " + renderNormalizedType(type);
+
+        if (type == CANT_INFER_LAMBDA_PARAM_TYPE || TypeUtils.isDontCarePlaceholder(type)) {
             return "???";
         }
         if (ErrorUtils.isUninferredParameter(type)) {
@@ -301,16 +349,78 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
             }
             return "???";
         }
-        if (type instanceof LazyType && debugMode) {
-            return type.toString();
-        }
         if (type.isError()) {
             return renderDefaultType(type);
         }
-        if (KotlinBuiltIns.getInstance().isExactFunctionOrExtensionFunctionType(type) && prettyFunctionTypes) {
+        if (shouldRenderAsPrettyFunctionType(type)) {
             return renderFunctionType(type);
         }
         return renderDefaultType(type);
+    }
+
+    private boolean shouldRenderAsPrettyFunctionType(@NotNull JetType type) {
+        return KotlinBuiltIns.isExactFunctionOrExtensionFunctionType(type) && prettyFunctionTypes;
+    }
+
+    @NotNull
+    private String renderFlexibleType(@NotNull JetType type) {
+        JetType lower = TypesPackage.flexibility(type).getLowerBound();
+        JetType upper = TypesPackage.flexibility(type).getUpperBound();
+
+        String lowerRendered = renderInflexibleType(lower);
+        String upperRendered = renderInflexibleType(upper);
+
+        if (differsOnlyInNullability(lowerRendered, upperRendered)) {
+            if (upperRendered.startsWith("(")) {
+                // the case of complex type, e.g. (() -> Unit)?
+                return "(" + lowerRendered + ")!";
+            }
+            return lowerRendered + "!";
+        }
+
+        String kotlinPrefix = !shortNames ? "kotlin." : "";
+        String mutablePrefix = "Mutable";
+        // java.util.List<Foo> -> (Mutable)List<Foo!>!
+        String simpleCollection = replacePrefixes(
+                lowerRendered, kotlinPrefix + mutablePrefix, upperRendered, kotlinPrefix, kotlinPrefix + "(" + mutablePrefix + ")"
+        );
+        if (simpleCollection != null) return simpleCollection;
+        // java.util.Map.Entry<Foo, Bar> -> (Mutable)Map.(Mutable)Entry<Foo!, Bar!>!
+        String mutableEntry = replacePrefixes(
+                lowerRendered, kotlinPrefix + "MutableMap.MutableEntry", upperRendered, kotlinPrefix + "Map.Entry",
+                kotlinPrefix + "(Mutable)Map.(Mutable)Entry"
+        );
+        if (mutableEntry != null) return mutableEntry;
+
+        // Foo[] -> Array<(out) Foo!>!
+        String array = replacePrefixes(
+                lowerRendered, kotlinPrefix + escape("Array<"), upperRendered, kotlinPrefix + escape("Array<out "),
+                kotlinPrefix + escape("Array<(out) ")
+        );
+        if (array != null) return array;
+        return renderFlexibleTypeWithBothBounds(lower, upper);
+    }
+
+    @Nullable
+    private static String replacePrefixes(
+            @NotNull String lowerRendered,
+            @NotNull String lowerPrefix,
+            @NotNull String upperRendered,
+            @NotNull String upperPrefix,
+            @NotNull String foldedPrefix
+    ) {
+        if (lowerRendered.startsWith(lowerPrefix) && upperRendered.startsWith(upperPrefix)) {
+            String lowerWithoutPrefix = lowerRendered.substring(lowerPrefix.length());
+            if (differsOnlyInNullability(lowerWithoutPrefix, upperRendered.substring(upperPrefix.length()))) {
+                return foldedPrefix + lowerWithoutPrefix + "!";
+            }
+        }
+        return null;
+    }
+
+    private static boolean differsOnlyInNullability(String lower, String upper) {
+        return lower.equals(upper.replace("?", ""))
+               || upper.endsWith("?") && ((lower + "?").equals(upper)) || (("(" + lower + ")?").equals(upper));
     }
 
     @NotNull
@@ -335,7 +445,7 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
             sb.append(renderTypeName(type.getConstructor()));
         }
         sb.append(renderTypeArguments(type.getArguments()));
-        if (type.isNullable()) {
+        if (type.isMarkedNullable()) {
             sb.append("?");
         }
         return sb.toString();
@@ -362,7 +472,7 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
             if (typeProjection.getProjectionKind() != Variance.INVARIANT) {
                 builder.append(typeProjection.getProjectionKind()).append(" ");
             }
-            builder.append(renderType(typeProjection.getType()));
+            builder.append(renderNormalizedType(typeProjection.getType()));
             if (iterator.hasNext()) {
                 builder.append(", ");
             }
@@ -373,18 +483,18 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
     private String renderFunctionType(@NotNull JetType type) {
         StringBuilder sb = new StringBuilder();
 
-        JetType receiverType = KotlinBuiltIns.getInstance().getReceiverType(type);
+        JetType receiverType = KotlinBuiltIns.getReceiverType(type);
         if (receiverType != null) {
-            sb.append(renderType(receiverType));
+            sb.append(renderNormalizedType(receiverType));
             sb.append(".");
         }
 
         sb.append("(");
-        appendTypeProjections(KotlinBuiltIns.getInstance().getParameterTypeProjectionsFromFunctionType(type), sb);
+        appendTypeProjections(KotlinBuiltIns.getParameterTypeProjectionsFromFunctionType(type), sb);
         sb.append(") ").append(arrow()).append(" ");
-        sb.append(renderType(KotlinBuiltIns.getInstance().getReturnTypeFromFunctionType(type)));
+        sb.append(renderNormalizedType(KotlinBuiltIns.getReturnTypeFromFunctionType(type)));
 
-        if (type.isNullable()) {
+        if (type.isMarkedNullable()) {
             return "(" + sb + ")?";
         }
         return sb.toString();
@@ -563,7 +673,7 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
         if (typeParameter.isReified()) {
             builder.append(renderKeyword("reified")).append(" ");
         }
-        String variance = typeParameter.getVariance().toString();
+        String variance = typeParameter.getVariance().getLabel();
         if (!variance.isEmpty()) {
             builder.append(renderKeyword(variance)).append(" ");
         }
@@ -644,7 +754,7 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
         renderReceiverAfterName(function, builder);
 
         JetType returnType = function.getReturnType();
-        if (unitReturnType || (returnType == null || !KotlinBuiltIns.getInstance().isUnit(returnType))) {
+        if (unitReturnType || (returnType == null || !KotlinBuiltIns.isUnit(returnType))) {
             builder.append(": ").append(returnType == null ? "[NULL]" : escape(renderType(returnType)));
         }
 
@@ -663,7 +773,12 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
     private void renderReceiver(CallableDescriptor callableDescriptor, StringBuilder builder) {
         ReceiverParameterDescriptor receiver = callableDescriptor.getExtensionReceiverParameter();
         if (receiver != null) {
-            builder.append(escape(renderType(receiver.getType()))).append(".");
+            JetType type = receiver.getType();
+            String result = escape(renderType(type));
+            if (shouldRenderAsPrettyFunctionType(type) && !TypeUtils.isNullableType(type)) {
+                result = "(" + result + ")";
+            }
+            builder.append(result).append(".");
         }
     }
 
@@ -737,7 +852,7 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
 
         renderAnnotations(valueParameter, builder);
         renderVariable(valueParameter, includeName, builder, topLevel);
-        boolean withDefaultValue = debugMode ? valueParameter.declaresDefaultValue() : valueParameter.hasDefaultValue();
+        boolean withDefaultValue = renderDefaultValues && (debugMode ? valueParameter.declaresDefaultValue() : valueParameter.hasDefaultValue());
         if (withDefaultValue) {
             builder.append(" = ...");
         }
@@ -849,7 +964,7 @@ public class DescriptorRendererImpl implements DescriptorRenderer {
             Collection<JetType> supertypes = klass.getTypeConstructor().getSupertypes();
 
             if (supertypes.isEmpty() ||
-                supertypes.size() == 1 && KotlinBuiltIns.getInstance().isAnyOrNullableAny(supertypes.iterator().next())) {
+                supertypes.size() == 1 && KotlinBuiltIns.isAnyOrNullableAny(supertypes.iterator().next())) {
             }
             else {
                 renderSpaceIfNeeded(builder);

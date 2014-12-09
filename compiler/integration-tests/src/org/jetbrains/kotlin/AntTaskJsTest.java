@@ -19,7 +19,6 @@ package org.jetbrains.kotlin;
 import com.intellij.openapi.util.io.FileUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.jet.utils.fileUtils.FileUtilsPackage;
 import org.jetbrains.k2js.test.rhino.RhinoFunctionResultChecker;
 import org.jetbrains.k2js.test.rhino.RhinoUtils;
 import org.junit.Rule;
@@ -65,11 +64,15 @@ public class AntTaskJsTest extends AntTaskBaseTest {
     private static void checkFilePrefixPostfix(@NotNull File file, @Nullable File prefix, @Nullable File postfix) throws IOException {
         String fileContent = FileUtil.loadFile(file, true);
 
-        String prefixContent = FileUtilsPackage.readTextOrEmpty(prefix);
-        assertTrue(fileContent.startsWith(prefixContent));
+        if (prefix != null) {
+            String prefixContent = FileUtil.loadFile(prefix, true);
+            assertTrue(fileContent.startsWith(prefixContent));
+        }
 
-        String postfixContent = FileUtilsPackage.readTextOrEmpty(postfix);
-        assertTrue(fileContent.endsWith(postfixContent));
+        if (postfix != null) {
+            String postfixContent = FileUtil.loadFile(postfix, true);
+            assertTrue(fileContent.endsWith(postfixContent));
+        }
     }
 
     @Test
@@ -79,6 +82,11 @@ public class AntTaskJsTest extends AntTaskBaseTest {
 
     @Test
     public void simpleWithMain() throws Exception {
+        doJsAntTest();
+    }
+
+    @Test
+    public void simpleWithStdlib() throws Exception {
         doJsAntTest();
     }
 
@@ -102,6 +110,26 @@ public class AntTaskJsTest extends AntTaskBaseTest {
         doJsAntTest();
     }
 
+    @Test
+    public void suppressWarnings() throws Exception {
+        doJsAntTest();
+    }
+
+    @Test
+    public void verbose() throws Exception {
+        doJsAntTest();
+    }
+
+    @Test
+    public void version() throws Exception {
+        doJsAntTest();
+    }
+
+
+    @Test
+    public void outputWithoutDirectory() throws Exception {
+        doJsAntTest();
+    }
 
     @Test
     public void noSrcParam() throws Exception {

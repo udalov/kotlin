@@ -40,7 +40,6 @@ import org.jetbrains.jet.lexer.JetTokens
 import org.jetbrains.jet.lang.psi.JetIfExpression
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns
 import org.jetbrains.jet.lang.psi.JetContainerNode
-import org.jetbrains.jet.plugin.completion.smart.isSubtypeOf
 import org.jetbrains.jet.lang.resolve.calls.callUtil.noErrorsInValueArguments
 import org.jetbrains.jet.lang.descriptors.Visibilities
 import org.jetbrains.jet.lang.psi.JetBlockExpression
@@ -65,8 +64,11 @@ import org.jetbrains.jet.lang.resolve.bindingContextUtil.getTargetFunctionDescri
 import org.jetbrains.jet.plugin.completion.smart.toList
 import org.jetbrains.jet.lang.descriptors.PropertyGetterDescriptor
 import org.jetbrains.jet.lang.descriptors.SimpleFunctionDescriptor
-import org.jetbrains.jet.plugin.project.ResolveSessionForBodies
 import org.jetbrains.jet.lang.descriptors.VariableDescriptor
+import org.jetbrains.jet.lang.resolve.calls.results.ResolutionStatus
+import org.jetbrains.jet.plugin.caches.resolve.ResolutionFacade
+import org.jetbrains.jet.lang.types.typeUtil.isSubtypeOf
+import org.jetbrains.jet.lang.types.expressions.ExpressionTypingUtils
 
 enum class Tail {
     COMMA
@@ -74,10 +76,10 @@ enum class Tail {
     ELSE
 }
 
-open data class ExpectedInfo(val `type`: JetType, val name: String?, val tail: Tail?)
+open data class ExpectedInfo(val type: JetType, val name: String?, val tail: Tail?)
 
-class PositionalArgumentExpectedInfo(`type`: JetType, name: String?, tail: Tail?, val function: FunctionDescriptor, val argumentIndex: Int)
-  : ExpectedInfo(`type`, name, tail) {
+class PositionalArgumentExpectedInfo(type: JetType, name: String?, tail: Tail?, val function: FunctionDescriptor, val argumentIndex: Int)
+  : ExpectedInfo(type, name, tail) {
 
     override fun equals(other: Any?)
             = other is PositionalArgumentExpectedInfo && super.equals(other) && function == other.function && argumentIndex == other.argumentIndex
@@ -86,7 +88,7 @@ class PositionalArgumentExpectedInfo(`type`: JetType, name: String?, tail: Tail?
             = function.hashCode()
 }
 
-class ExpectedInfos(val bindingContext: BindingContext, val resolveSession: ResolveSessionForBodies) {
+class ExpectedInfos(val bindingContext: BindingContext, val resolutionFacade: ResolutionFacade) {
     public fun calculate(expressionWithType: JetExpression): Collection<ExpectedInfo>? {
         return calculateForArgument(expressionWithType)
             ?: calculateForFunctionLiteralArgument(expressionWithType)
@@ -130,9 +132,19 @@ class ExpectedInfos(val bindingContext: BindingContext, val resolveSession: Reso
         val callOperationNode: ASTNode?
         if (parent is JetQualifiedExpression && callElement == parent.getSelectorExpression()) {
             val receiverExpression = parent.getReceiverExpression()
-            val expressionType = bindingContext[BindingContext.EXPRESSION_TYPE, receiverExpression] ?: return null
-            receiver = ExpressionReceiver(receiverExpression, expressionType)
-            callOperationNode = parent.getOperationTokenNode()
+            val expressionType = bindingContext[BindingContext.EXPRESSION_TYPE, receiverExpression]
+            val qualifier = bindingContext[BindingContext.QUALIFIER, receiverExpression]
+            if (expressionType != null) {
+                receiver = ExpressionReceiver(receiverExpression, expressionType)
+                callOperationNode = parent.getOperationTokenNode()
+            }
+            else if (qualifier != null) {
+                receiver = qualifier
+                callOperationNode = null
+            }
+            else {
+                return null
+            }
         }
         else {
             receiver = ReceiverValue.NO_RECEIVER
@@ -161,15 +173,23 @@ class ExpectedInfos(val bindingContext: BindingContext, val resolveSession: Reso
                 CheckValueArgumentsMode.ENABLED,
                 CompositeExtension(listOf()),
                 false).replaceCollectAllCandidates(true)
-        val callResolver = InjectorForMacros(callElement.getProject(), resolveSession.getModuleDescriptor()).getCallResolver()!!
+        val callResolver = InjectorForMacros(
+                callElement.getProject(),
+                resolutionFacade.findModuleDescriptor(callElement)
+        ).getCallResolver()
         val results: OverloadResolutionResults<FunctionDescriptor> = callResolver.resolveFunctionCall(callResolutionContext)
 
         val expectedInfos = HashSet<ExpectedInfo>()
         for (candidate: ResolvedCall<FunctionDescriptor> in results.getAllCandidates()!!) {
+            val status = candidate.getStatus()
+            if (status == ResolutionStatus.RECEIVER_TYPE_ERROR || status == ResolutionStatus.RECEIVER_PRESENCE_ERROR) continue
+
             // consider only candidates with more arguments than in the truncated call and with all arguments before the current one matched
             if (candidate.noErrorsInValueArguments() && (candidate.getCandidateDescriptor().getValueParameters().size > argumentIndex || isFunctionLiteralArgument)) {
                 val descriptor = candidate.getResultingDescriptor()
-                if (!Visibilities.isVisible(descriptor, resolutionScope.getContainingDeclaration())) continue
+
+                val thisReceiver = ExpressionTypingUtils.normalizeReceiverValueForVisibility(candidate.getDispatchReceiver(), bindingContext)
+                if (!Visibilities.isVisible(thisReceiver, descriptor, resolutionScope.getContainingDeclaration())) continue
 
                 val parameters = descriptor.getValueParameters()
                 if (isFunctionLiteralArgument && argumentIndex != parameters.lastIndex) continue
@@ -195,7 +215,8 @@ class ExpectedInfos(val bindingContext: BindingContext, val resolveSession: Reso
         val binaryExpression = expressionWithType.getParent() as? JetBinaryExpression
         if (binaryExpression != null) {
             val operationToken = binaryExpression.getOperationToken()
-            if (operationToken == JetTokens.EQ || operationToken == JetTokens.EQEQ || operationToken == JetTokens.EXCLEQ) {
+            if (operationToken == JetTokens.EQ || operationToken == JetTokens.EQEQ || operationToken == JetTokens.EXCLEQ
+                || operationToken == JetTokens.EQEQEQ || operationToken == JetTokens.EXCLEQEQEQ) {
                 val otherOperand = if (expressionWithType == binaryExpression.getRight()) binaryExpression.getLeft() else binaryExpression.getRight()
                 if (otherOperand != null) {
                     val expressionType = bindingContext[BindingContext.EXPRESSION_TYPE, otherOperand] ?: return null
@@ -211,13 +232,13 @@ class ExpectedInfos(val bindingContext: BindingContext, val resolveSession: Reso
         return when (expressionWithType) {
             ifExpression.getCondition() -> listOf(ExpectedInfo(KotlinBuiltIns.getInstance().getBooleanType(), null, Tail.RPARENTH))
 
-            ifExpression.getThen() -> calculate(ifExpression)?.map { ExpectedInfo(it.`type`, it.name, Tail.ELSE) }
+            ifExpression.getThen() -> calculate(ifExpression)?.map { ExpectedInfo(it.type, it.name, Tail.ELSE) }
 
             ifExpression.getElse() -> {
                 val ifExpectedInfo = calculate(ifExpression)
                 val thenType = bindingContext[BindingContext.EXPRESSION_TYPE, ifExpression.getThen()]
                 if (thenType != null)
-                    ifExpectedInfo?.filter { it.`type`.isSubtypeOf(thenType) }
+                    ifExpectedInfo?.filter { it.type.isSubtypeOf(thenType) }
                 else
                     ifExpectedInfo
             }
@@ -237,7 +258,7 @@ class ExpectedInfos(val bindingContext: BindingContext, val resolveSession: Reso
                 val expectedInfos = calculate(binaryExpression)
                 if (expectedInfos != null) {
                     return if (leftTypeNotNullable != null)
-                        expectedInfos.filter { leftTypeNotNullable.isSubtypeOf(it.`type`) }
+                        expectedInfos.filter { leftTypeNotNullable.isSubtypeOf(it.type) }
                     else
                         expectedInfos
                 }
@@ -252,7 +273,7 @@ class ExpectedInfos(val bindingContext: BindingContext, val resolveSession: Reso
     private fun calculateForBlockExpression(expressionWithType: JetExpression): Collection<ExpectedInfo>? {
         val block = expressionWithType.getParent() as? JetBlockExpression ?: return null
         if (expressionWithType != block.getStatements().last()) return null
-        return calculate(block)?.map { ExpectedInfo(it.`type`, it.name, null) }
+        return calculate(block)?.map { ExpectedInfo(it.type, it.name, null) }
     }
 
     private fun calculateForWhenEntryValue(expressionWithType: JetExpression): Collection<ExpectedInfo>? {
@@ -278,14 +299,14 @@ class ExpectedInfos(val bindingContext: BindingContext, val resolveSession: Reso
     private fun calculateForInitializer(expressionWithType: JetExpression): Collection<ExpectedInfo>? {
         val property = expressionWithType.getParent() as? JetProperty ?: return null
         if (expressionWithType != property.getInitializer()) return null
-        val propertyDescriptor = resolveSession.resolveToDescriptor(property) as? VariableDescriptor ?: return null
+        val propertyDescriptor = bindingContext[BindingContext.DECLARATION_TO_DESCRIPTOR, property] as? VariableDescriptor ?: return null
         return listOf(ExpectedInfo(propertyDescriptor.getType(), propertyDescriptor.getName().asString(), null))
     }
 
     private fun calculateForExpressionBody(expressionWithType: JetExpression): Collection<ExpectedInfo>? {
         val declaration = expressionWithType.getParent() as? JetDeclarationWithBody ?: return null
         if (expressionWithType != declaration.getBodyExpression() || declaration.hasBlockBody()) return null
-        val descriptor = resolveSession.resolveToDescriptor(declaration) as? FunctionDescriptor ?: return null
+        val descriptor = bindingContext[BindingContext.DECLARATION_TO_DESCRIPTOR, declaration] as? FunctionDescriptor ?: return null
         return functionReturnValueExpectedInfo(descriptor).toList()
     }
 

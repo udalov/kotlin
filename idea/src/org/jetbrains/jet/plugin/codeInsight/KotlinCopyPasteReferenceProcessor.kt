@@ -64,6 +64,8 @@ import org.jetbrains.jet.utils.*
 import org.jetbrains.jet.renderer.DescriptorRenderer
 import org.jetbrains.jet.lang.resolve.descriptorUtil.isExtension
 import com.intellij.openapi.progress.ProcessCanceledException
+import org.jetbrains.jet.plugin.util.IdeDescriptorRenderers
+import org.jetbrains.jet.lang.psi.psiUtil.getStrictParentOfType
 
 //NOTE: this class is based on CopyPasteReferenceProcessor and JavaCopyPasteReferenceProcessor
 public class KotlinCopyPasteReferenceProcessor() : CopyPastePostProcessor<ReferenceTransferableData>() {
@@ -108,7 +110,7 @@ public class KotlinCopyPasteReferenceProcessor() : CopyPastePostProcessor<Refere
             }
         }
         catch (e: ProcessCanceledException) {
-            // supposedly session can only be canceled from another thread
+            // supposedly analysis can only be canceled from another thread
             // do not log ProcessCanceledException as it is rethrown by IdeaLogger and code won't be copied
             LOG.error("ProcessCanceledException while analyzing references in ${file.getName()}. References can't be processed.")
             return listOf()
@@ -222,7 +224,7 @@ public class KotlinCopyPasteReferenceProcessor() : CopyPastePostProcessor<Refere
             return Collections.emptyList()
         }
         return referenceData.map {
-            if (ImportInsertHelper.needImport(it.fqName, file)) {
+            if (ImportInsertHelper.getInstance().needImport(it.fqName, file)) {
                 val referenceExpression = findReference(it, file, bounds)
                 if (referenceExpression != null) createReferenceToRestoreData(referenceExpression, it.fqName) else null
             }
@@ -286,7 +288,7 @@ public class KotlinCopyPasteReferenceProcessor() : CopyPastePostProcessor<Refere
     private fun restoreReferences(referencesToRestore: Collection<ReferenceToRestoreData>, file: JetFile) {
         for ((referenceExpression, fqName, shouldLengthen) in referencesToRestore) {
             if (!shouldLengthen) {
-                ImportInsertHelper.addImportDirectiveIfNeeded(fqName, file)
+                ImportInsertHelper.getInstance().addImportDirectiveIfNeeded(fqName, file)
             }
             else {
                 //TODO: try to shorten reference after (sometimes is possible), need shorten reference to support all relevant cases
@@ -332,20 +334,20 @@ public class KotlinCopyPasteReferenceProcessor() : CopyPastePostProcessor<Refere
         fun lengthenReference(expression: JetElement, fqName: FqName) {
             assert(canLengthenReferenceExpression(expression, fqName))
             val parent = expression.getParent()
-            val prefixToInsert = DescriptorRenderer.SOURCE_CODE.renderFqName(fqName.parent())
+            val prefixToInsert = IdeDescriptorRenderers.SOURCE_CODE.renderFqName(fqName.parent())
             val psiFactory = JetPsiFactory(expression)
             if (parent is JetCallExpression) {
                 val text = "$prefixToInsert.${parent.getText()}"
                 parent.replace(createQualifiedExpression(psiFactory, text))
             }
             else if (parent is JetUserType) {
-                val typeReference = PsiTreeUtil.getParentOfType(expression, javaClass<JetTypeReference>())
+                val typeReference = expression.getStrictParentOfType<JetTypeReference>()
                 LOG.assertTrue(typeReference != null, "JetUserType is expected to have parent of type JetTypeReference:\n" +
                     "At: ${DiagnosticUtils.atLocation(expression)}\nFILE:\n${expression.getContainingFile()!!.getText()}")
                 typeReference!!.replace(psiFactory.createType("$prefixToInsert.${typeReference.getText()}"))
             }
             else {
-                expression.replace(createQualifiedExpression(psiFactory, DescriptorRenderer.SOURCE_CODE.renderFqName(fqName)))
+                expression.replace(createQualifiedExpression(psiFactory, IdeDescriptorRenderers.SOURCE_CODE.renderFqName(fqName)))
             }
         }
 

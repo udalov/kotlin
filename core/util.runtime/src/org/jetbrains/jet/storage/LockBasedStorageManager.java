@@ -30,7 +30,6 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class LockBasedStorageManager implements StorageManager {
-
     public interface ExceptionHandlingStrategy {
         ExceptionHandlingStrategy THROW = new ExceptionHandlingStrategy() {
             @NotNull
@@ -101,11 +100,12 @@ public class LockBasedStorageManager implements StorageManager {
     @NotNull
     @Override
     public <K, V> MemoizedFunctionToNotNull<K, V> createMemoizedFunction(@NotNull Function1<? super K, ? extends V> compute) {
-        return createMemoizedFunction(compute, new ConcurrentHashMap<K, Object>());
+        return createMemoizedFunction(compute, LockBasedStorageManager.<K>createConcurrentHashMap());
     }
 
     @NotNull
-    protected <K, V> MemoizedFunctionToNotNull<K, V> createMemoizedFunction(
+    @Override
+    public <K, V> MemoizedFunctionToNotNull<K, V> createMemoizedFunction(
             @NotNull Function1<? super K, ? extends V> compute,
             @NotNull ConcurrentMap<K, Object> map
     ) {
@@ -115,11 +115,12 @@ public class LockBasedStorageManager implements StorageManager {
     @NotNull
     @Override
     public <K, V> MemoizedFunctionToNullable<K, V> createMemoizedFunctionWithNullableValues(@NotNull Function1<? super K, ? extends V> compute) {
-        return createMemoizedFunctionWithNullableValues(compute, new ConcurrentHashMap<K, Object>());
+        return createMemoizedFunctionWithNullableValues(compute, LockBasedStorageManager.<K>createConcurrentHashMap());
     }
 
+    @Override
     @NotNull
-    protected <K, V> MemoizedFunctionToNullable<K, V> createMemoizedFunctionWithNullableValues(
+    public  <K, V> MemoizedFunctionToNullable<K, V> createMemoizedFunctionWithNullableValues(
             @NotNull Function1<? super K, ? extends V> compute,
             @NotNull ConcurrentMap<K, Object> map
     ) {
@@ -213,6 +214,12 @@ public class LockBasedStorageManager implements StorageManager {
         finally {
             lock.unlock();
         }
+    }
+
+    @NotNull
+    private static <K> ConcurrentMap<K, Object> createConcurrentHashMap() {
+        // memory optimization: fewer segments and entries stored
+        return new ConcurrentHashMap<K, Object>(3, 1, 2);
     }
 
     @NotNull

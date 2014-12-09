@@ -1,5 +1,5 @@
-<idea-plugin version="2" url="http://kotlin.jetbrains.org">
-  <id>org.jetbrains.kotlin</id>
+<idea-plugin version="2" url="http://kotlin.jetbrains.org" xmlns:xi="http://www.w3.org/2001/XInclude">
+    <id>org.jetbrains.kotlin</id>
 
   <name>Kotlin</name>
   <description>Kotlin language support</description>
@@ -61,11 +61,16 @@
       <add-to-group group-id="NewGroup" anchor="before" relative-to-action="NewFromTemplate"/>
     </action>
 
-    <action id="ShowJetExpressionType" class="org.jetbrains.jet.plugin.actions.ShowExpressionTypeAction"
+    <action id="ShowKotlinExpressionType" class="org.jetbrains.jet.plugin.actions.ShowExpressionTypeAction"
             text="Show Expression Type">
-      <keyboard-shortcut keymap="$default" first-keystroke="control shift Q"/>
-      <keyboard-shortcut keymap="Mac OS X" first-keystroke="control shift T"/>
-      <add-to-group group-id="CodeMenu" anchor="last"/>
+      <keyboard-shortcut keymap="$default" first-keystroke="alt EQUALS"/>
+
+      <keyboard-shortcut keymap="Mac OS X" first-keystroke="control shift P"/>
+      <keyboard-shortcut keymap="Mac OS X" first-keystroke="alt EQUALS" remove="true"/>
+
+      <keyboard-shortcut keymap="Mac OS X 10.5+" first-keystroke="control shift P"/>
+      <keyboard-shortcut keymap="Mac OS X 10.5+" first-keystroke="alt EQUALS" remove="true"/>
+      <add-to-group group-id="CodeEditorViewGroup" anchor="last"/>
     </action>
     <action id="ConvertJavaToKotlin" class="org.jetbrains.jet.plugin.actions.JavaToKotlinAction"
             text="Convert Java File to Kotlin File">
@@ -104,6 +109,16 @@
       <add-to-group group-id="KotlinToolsGroup" anchor="last"/>
     </action>
 
+    <action id="CheckPartialBodyResolve" class="org.jetbrains.jet.plugin.actions.internal.CheckPartialBodyResolveAction"
+          text="Check Partial Body Resolve">
+      <add-to-group group-id="KotlinToolsGroup" anchor="last"/>
+    </action>
+
+    <action id="FindImplicitNothingAction" class="org.jetbrains.jet.plugin.actions.internal.FindImplicitNothingAction"
+          text="Find Implicit Nothing Calls">
+      <add-to-group group-id="KotlinToolsGroup" anchor="last"/>
+    </action>
+
     <action id="KotlinInternalMode" class="org.jetbrains.jet.plugin.actions.internal.KotlinInternalModeToggleAction">
       <add-to-group group-id="KotlinToolsGroup" anchor="last"/>
     </action>
@@ -131,6 +146,8 @@
 
     <applicationService serviceInterface="org.jetbrains.jet.plugin.configuration.JetModuleTypeManager"
                         serviceImplementation="org.jetbrains.jet.plugin.JetModuleTypeManagerImpl"/>
+    <applicationService serviceInterface="org.jetbrains.jet.plugin.quickfix.ImportInsertHelper"
+                        serviceImplementation="org.jetbrains.jet.plugin.quickfix.ImportInsertHelperImpl"/>
 
     <projectService serviceInterface="org.jetbrains.jet.plugin.caches.resolve.KotlinCacheService"
                     serviceImplementation="org.jetbrains.jet.plugin.caches.resolve.KotlinCacheService"/>
@@ -140,6 +157,9 @@
 
     <projectService serviceInterface="org.jetbrains.jet.asJava.LightClassGenerationSupport"
                     serviceImplementation="org.jetbrains.jet.plugin.caches.resolve.IDELightClassGenerationSupport"/>
+
+    <projectService serviceInterface="org.jetbrains.jet.lang.resolve.CodeAnalyzerInitializer"
+                      serviceImplementation="org.jetbrains.jet.lang.resolve.DummyCodeAnalyzerInitializer"/>
 
     <projectService serviceInterface="org.jetbrains.jet.lang.parsing.JetScriptDefinitionProvider"
                     serviceImplementation="org.jetbrains.jet.lang.parsing.JetScriptDefinitionProvider"/>
@@ -201,6 +221,8 @@
     <lang.foldingBuilder language="jet" implementationClass="org.jetbrains.jet.plugin.JetFoldingBuilder"/>
     <lang.formatter language="jet" implementationClass="org.jetbrains.jet.plugin.formatter.JetFormattingModelBuilder"/>
     <lang.findUsagesProvider language="jet" implementationClass="org.jetbrains.jet.plugin.findUsages.JetFindUsagesProvider"/>
+    <lang.elementManipulator forClass="org.jetbrains.jet.lang.psi.JetStringTemplateExpression"
+                             implementationClass="org.jetbrains.jet.lang.psi.psiUtil.JetStringTemplateExpressionManipulator"/>
     <fileStructureGroupRuleProvider implementation="org.jetbrains.jet.plugin.findUsages.KotlinDeclarationGroupRuleProvider"/>
     <importFilteringRule implementation="org.jetbrains.jet.plugin.findUsages.JetImportFilteringRule"/>
     <lang.refactoringSupport language="jet" implementationClass="org.jetbrains.jet.plugin.refactoring.JetRefactoringSupportProvider"/>
@@ -239,6 +261,8 @@
                          displayName="Kotlin Compiler"
                          parentId="project.propCompiler"/>
 
+    <qualifiedNameProvider implementation="org.jetbrains.jet.plugin.actions.KotlinQualifiedNameProvider"/>
+
     <codeInsight.parameterInfo language="jet" implementationClass="org.jetbrains.jet.plugin.parameterInfo.JetFunctionParameterInfoHandler"/>
 
     <codeInsight.gotoSuper language="jet" implementationClass="org.jetbrains.jet.plugin.codeInsight.GotoSuperActionHandler"/>
@@ -247,22 +271,14 @@
     <completion.contributor language="jet"
                             id="JetCompletionContributor"
                             order="first"
-                            implementationClass="org.jetbrains.jet.plugin.completion.JetCompletionContributor"/>
-
-    <completion.contributor language="jet"
-                            id="JetLiveTemplateCompletionContributor"
-                            order="after JetCompletionContributor"
-                            implementationClass="org.jetbrains.jet.plugin.liveTemplates.JetLiveTemplateCompletionContributor"/>
+                            implementationClass="org.jetbrains.jet.plugin.completion.KotlinCompletionContributor"/>
 
     <completion.confidence language="jet" implementationClass="com.intellij.codeInsight.completion.UnfocusedNameIdentifier"/>
     <completion.confidence language="jet"
                            implementationClass="org.jetbrains.jet.plugin.completion.confidence.UnfocusedPossibleFunctionParameter"/>
     <completion.confidence language="jet" implementationClass="com.intellij.codeInsight.completion.AlwaysFocusLookup" order="last"/>
 
-    <completion.skip implementation="org.jetbrains.jet.plugin.liveTemplates.JetLiveTemplateCompletionContributor$Skipper"
-                     id="skipLiveTemplate"/>
-
-    <lookup.charFilter implementation="org.jetbrains.jet.plugin.completion.JetCompletionCharFilter"/>
+    <lookup.charFilter implementation="org.jetbrains.jet.plugin.completion.KotlinCompletionCharFilter"/>
 
     <psi.referenceContributor language="jet" implementation="org.jetbrains.jet.plugin.references.JetReferenceContributor"/>
 
@@ -351,6 +367,7 @@
     <debuggerEditorTextProvider language="jet" implementationClass="org.jetbrains.jet.plugin.debugger.KotlinEditorTextProvider"/>
     <debuggerClassFilterProvider implementation="org.jetbrains.jet.plugin.debugger.filter.KotlinDebuggerInternalClassesFilterProvider"/>
     <debugger.nodeRenderer implementation="org.jetbrains.jet.plugin.debugger.render.KotlinClassWithDelegatedPropertyRenderer"/>
+    <debugger.nodeRenderer implementation="org.jetbrains.jet.plugin.debugger.render.KotlinObjectRenderer"/>
     <xdebugger.settings implementation="org.jetbrains.jet.plugin.debugger.KotlinDebuggerSettings"/>
 
     <codeInsight.implementMethod language="jet" implementationClass="org.jetbrains.jet.plugin.codeInsight.ImplementMethodsHandler"/>
@@ -381,24 +398,22 @@
 
     <stubElementTypeHolder class="org.jetbrains.jet.lang.psi.stubs.elements.JetStubElementTypes"/>
     <stubIndex implementation="org.jetbrains.jet.plugin.stubindex.JetExactPackagesIndex"/>
-    <stubIndex implementation="org.jetbrains.jet.plugin.stubindex.JetClassByPackageIndex"/>
+    <stubIndex implementation="org.jetbrains.jet.plugin.stubindex.JetTopLevelClassByPackageIndex"/>
+    <stubIndex implementation="org.jetbrains.jet.plugin.stubindex.JetTopLevelFunctionByPackageIndex"/>
+    <stubIndex implementation="org.jetbrains.jet.plugin.stubindex.JetTopLevelPropertyByPackageIndex"/>
     <stubIndex implementation="org.jetbrains.jet.plugin.stubindex.JetClassShortNameIndex"/>
     <stubIndex implementation="org.jetbrains.jet.plugin.stubindex.JetFullClassNameIndex"/>
-    <stubIndex implementation="org.jetbrains.jet.plugin.stubindex.JetTopLevelNonExtensionFunctionShortNameIndex"/>
-    <stubIndex implementation="org.jetbrains.jet.plugin.stubindex.JetTopLevelNonExtensionPropertyShortNameIndex"/>
     <stubIndex implementation="org.jetbrains.jet.plugin.stubindex.JetPropertyShortNameIndex"/>
-    <stubIndex implementation="org.jetbrains.jet.plugin.stubindex.JetTopLevelExtensionFunctionShortNameIndex"/>
-    <stubIndex implementation="org.jetbrains.jet.plugin.stubindex.JetTopLevelExtensionPropertyShortNameIndex"/>
     <stubIndex implementation="org.jetbrains.jet.plugin.stubindex.JetFunctionShortNameIndex"/>
     <stubIndex implementation="org.jetbrains.jet.plugin.stubindex.JetSuperClassIndex"/>
-    <stubIndex implementation="org.jetbrains.jet.plugin.stubindex.JetTopLevelFunctionsFqnNameIndex"/>
-    <stubIndex implementation="org.jetbrains.jet.plugin.stubindex.JetTopLevelPropertiesFqnNameIndex"/>
+    <stubIndex implementation="org.jetbrains.jet.plugin.stubindex.JetTopLevelFunctionFqnNameIndex"/>
+    <stubIndex implementation="org.jetbrains.jet.plugin.stubindex.JetTopLevelPropertyFqnNameIndex"/>
     <stubIndex implementation="org.jetbrains.jet.plugin.stubindex.JetAnnotationsIndex"/>
-    <stubIndex implementation="org.jetbrains.jet.plugin.stubindex.JetTopLevelObjectShortNameIndex"/>
+    <stubIndex implementation="org.jetbrains.jet.plugin.stubindex.JetProbablyNothingFunctionShortNameIndex"/>
+    <stubIndex implementation="org.jetbrains.jet.plugin.stubindex.JetProbablyNothingPropertyShortNameIndex"/>
 
-    <psi.classFileDecompiler implementation="org.jetbrains.jet.plugin.libraries.JetClassFileDecompiler"/>
-    <psi.classFileDecompiler implementation="org.jetbrains.jet.plugin.libraries.JetDecompilerForWrongAbiVersion"/>
-
+    <psi.classFileDecompiler implementation="org.jetbrains.jet.plugin.decompiler.JetClassFileDecompiler"/>
+    
     <fileBasedIndex implementation="org.jetbrains.jet.plugin.versions.KotlinAbiVersionIndex"/>
     <fileBasedIndex implementation="org.jetbrains.jet.plugin.vfilefinder.KotlinClassFileIndex"/>
 
@@ -406,7 +421,7 @@
     <editorNotificationProvider implementation="org.jetbrains.jet.plugin.versions.UnsupportedAbiVersionNotificationPanelProvider"/>
     <editorNotificationProvider implementation="org.jetbrains.jet.plugin.highlighter.ErrorDuringFileAnalyzeNotificationProvider"/>
 
-    <psi.treeChangePreprocessor implementation="org.jetbrains.jet.asJava.JetCodeBlockModificationListener"/>
+    <psi.treeChangePreprocessor implementation="org.jetbrains.jet.asJava.KotlinCodeBlockModificationListener"/>
 
     <referencesSearch implementation="org.jetbrains.jet.plugin.search.ideaExtensions.KotlinReferencesSearcher"/>
     <directClassInheritorsSearch implementation="org.jetbrains.jet.plugin.search.ideaExtensions.KotlinDirectInheritorsSearcher"/>
@@ -806,13 +821,15 @@
 
   </extensions>
 
+  <xi:include href="extensions/ide.xml" xpointer="xpointer(/idea-plugin/*)"/>
+
   <extensionPoints>
-    <extensionPoint name="updater" beanClass="com.intellij.openapi.fileTypes.FileTypeExtensionPoint"/>
-    <extensionPoint name="projectConfigurator" interface="org.jetbrains.jet.plugin.configuration.KotlinProjectConfigurator"/>
+    <xi:include href="extensions/common.xml" xpointer="xpointer(/idea-plugin/extensionPoints/*)"/>
   </extensionPoints>
 
   <extensions defaultExtensionNs="org.jetbrains.kotlin">
-    <projectConfigurator implementation="org.jetbrains.jet.plugin.configuration.KotlinJavaModuleConfigurator"/>
-    <projectConfigurator implementation="org.jetbrains.jet.plugin.configuration.KotlinJsModuleConfigurator"/>
+      <xi:include href="extensions/kotlin2jvm.xml" xpointer="xpointer(/idea-plugin/extensions/*)"/>
+      <xi:include href="extensions/kotlin2js.xml" xpointer="xpointer(/idea-plugin/extensions/*)"/>
   </extensions>
+
 </idea-plugin>

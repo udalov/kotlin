@@ -36,7 +36,7 @@ public class JetCodeConformanceTest extends TestCase {
     private static final Pattern SOURCES_FILE_PATTERN = Pattern.compile("(.+\\.java|.+\\.kt|.+\\.js)");
     private static final List<File> EXCLUDED_FILES_AND_DIRS = Arrays.asList(
             new File("android.tests.dependencies"),
-            new File("core/runtime.jvm/src/kotlin/reflect/jvm/internal/pcollections"),
+            new File("core/reflection.jvm/src/kotlin/reflect/jvm/internal/pcollections"),
             new File("libraries/tools/runtime/target/copied-sources"),
             new File("dependencies"),
             new File("examples"),
@@ -54,7 +54,7 @@ public class JetCodeConformanceTest extends TestCase {
         for (File sourceFile : FileUtil.findFilesByMask(JAVA_FILE_PATTERN, new File("compiler/frontend/src/org/jetbrains/jet/lang/parsing"))) {
             String source = FileUtil.loadFile(sourceFile, true);
 
-            Pattern atPattern = Pattern.compile("assert.*?[^_]at.*?$", Pattern.MULTILINE);
+            Pattern atPattern = Pattern.compile("assert.*?\\b[^_]at.*?$", Pattern.MULTILINE);
             Matcher matcher = atPattern.matcher(source);
 
             if (matcher.find()) {

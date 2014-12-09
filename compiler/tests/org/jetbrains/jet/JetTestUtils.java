@@ -41,13 +41,15 @@ import com.intellij.util.Function;
 import com.intellij.util.Processor;
 import com.intellij.util.containers.ContainerUtil;
 import junit.framework.TestCase;
+import kotlin.Function1;
 import kotlin.KotlinPackage;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.TestOnly;
-import org.jetbrains.jet.analyzer.AnalyzeExhaust;
+import org.jetbrains.jet.analyzer.AnalysisResult;
 import org.jetbrains.jet.cli.jvm.compiler.CliLightClassGenerationSupport;
+import org.jetbrains.jet.cli.jvm.compiler.EnvironmentConfigFiles;
 import org.jetbrains.jet.cli.jvm.compiler.JetCoreEnvironment;
 import org.jetbrains.jet.codegen.forTestCompile.ForTestCompileRuntime;
 import org.jetbrains.jet.config.CommonConfigurationKeys;
@@ -92,7 +94,7 @@ import static org.jetbrains.jet.ConfigurationKind.ALL;
 import static org.jetbrains.jet.ConfigurationKind.JDK_AND_ANNOTATIONS;
 import static org.jetbrains.jet.cli.jvm.JVMConfigurationKeys.ANNOTATIONS_PATH_KEY;
 import static org.jetbrains.jet.cli.jvm.JVMConfigurationKeys.CLASSPATH_KEY;
-import static org.jetbrains.jet.jvm.compiler.LoadDescriptorUtil.compileKotlinToDirAndGetAnalyzeExhaust;
+import static org.jetbrains.jet.jvm.compiler.LoadDescriptorUtil.compileKotlinToDirAndGetAnalysisResult;
 import static org.jetbrains.jet.lang.psi.PsiPackage.JetPsiFactory;
 
 public class JetTestUtils {
@@ -243,12 +245,12 @@ public class JetTestUtils {
     }
 
     @NotNull
-    public static AnalyzeExhaust analyzeFile(@NotNull JetFile file) {
+    public static AnalysisResult analyzeFile(@NotNull JetFile file) {
         return JvmResolveUtil.analyzeOneFileWithJavaIntegration(file);
     }
 
     @NotNull
-    public static AnalyzeExhaust analyzeFileWithoutBody(@NotNull JetFile file) {
+    public static AnalysisResult analyzeFileWithoutBody(@NotNull JetFile file) {
         return JvmResolveUtil.analyzeFilesWithJavaIntegration(file.getProject(),
                                                               Collections.singleton(file),
                                                               Predicates.<PsiFile>alwaysFalse());
@@ -276,8 +278,10 @@ public class JetTestUtils {
             @NotNull ConfigurationKind configurationKind,
             @NotNull TestJdkKind jdkKind
     ) {
-        return JetCoreEnvironment.createForTests(disposable, compilerConfigurationForTests(
-                configurationKind, jdkKind, getAnnotationsJar()));
+        return JetCoreEnvironment.createForTests(
+                disposable,
+                compilerConfigurationForTests(configurationKind, jdkKind, getAnnotationsJar()),
+                EnvironmentConfigFiles.JVM_CONFIG_FILES);
     }
 
     public static File findMockJdkRtJar() {
@@ -294,7 +298,7 @@ public class JetTestUtils {
 
     @NotNull
     public static File getJdkAnnotationsJar() {
-        File jdkAnnotations = new File("dependencies/annotations/kotlin-jdk-annotations.jar");
+        File jdkAnnotations = new File(JetTestCaseBuilder.getHomeDirectory(), "dependencies/annotations/kotlin-jdk-annotations.jar");
         if (!jdkAnnotations.exists()) {
             throw new RuntimeException("Kotlin JDK annotations jar not found; please run 'ant dist' to build it");
         }
@@ -303,7 +307,7 @@ public class JetTestUtils {
 
     @NotNull
     public static File getAndroidSdkAnnotationsJar() {
-        File androidSdkAnnotations = new File("dependencies/annotations/kotlin-android-sdk-annotations.jar");
+        File androidSdkAnnotations = new File(JetTestCaseBuilder.getHomeDirectory(), "dependencies/annotations/kotlin-android-sdk-annotations.jar");
         if (!androidSdkAnnotations.exists()) {
             throw new RuntimeException("Kotlin Android SDK annotations jar not found; please run 'ant dist' to build it");
         }
@@ -415,19 +419,24 @@ public class JetTestUtils {
         return configuration;
     }
 
-    public static void newTrace(@NotNull JetCoreEnvironment environment) {
-        // let the next analysis use another trace
-        CliLightClassGenerationSupport.getInstanceForCli(environment.getProject()).newBindingTrace();
-    }
-
     public static void resolveAllKotlinFiles(JetCoreEnvironment environment) throws IOException {
         List<String> paths = environment.getConfiguration().get(CommonConfigurationKeys.SOURCE_ROOTS_KEY);
         if (paths == null) return;
         List<JetFile> jetFiles = Lists.newArrayList();
         for (String path : paths) {
-            jetFiles.add(loadJetFile(environment.getProject(), new File(path)));
+            File file = new File(path);
+            if (file.isFile()) {
+                jetFiles.add(loadJetFile(environment.getProject(), file));
+            }
+            else {
+                for (File childFile : file.listFiles()) {
+                    if (childFile.getName().endsWith(".kt")) {
+                        jetFiles.add(loadJetFile(environment.getProject(), childFile));
+                    }
+                }
+            }
         }
-        LazyResolveTestUtil.resolveEagerly(jetFiles, environment);
+        LazyResolveTestUtil.resolve(jetFiles, environment);
     }
 
     @NotNull
@@ -438,8 +447,17 @@ public class JetTestUtils {
     }
 
     public static void assertEqualsToFile(@NotNull File expectedFile, @NotNull String actual) {
+        assertEqualsToFile(expectedFile, actual, new Function1<String, String>() {
+            @Override
+            public String invoke(String s) {
+                return s;
+            }
+        });
+    }
+
+    public static void assertEqualsToFile(@NotNull File expectedFile, @NotNull String actual, @NotNull Function1<String, String> sanitizer) {
         try {
-            String actualText = UtilPackage.removeTrailingWhitespacesFromEachLine(StringUtil.convertLineSeparators(actual.trim()));
+            String actualText = UtilPackage.trimTrailingWhitespacesAndAddNewlineAtEOF(StringUtil.convertLineSeparators(actual.trim()));
 
             if (!expectedFile.exists()) {
                 FileUtil.writeToFile(expectedFile, actualText);
@@ -447,9 +465,9 @@ public class JetTestUtils {
             }
             String expected = FileUtil.loadFile(expectedFile, CharsetToolkit.UTF8, true);
 
-            String expectedText = UtilPackage.removeTrailingWhitespacesFromEachLine(StringUtil.convertLineSeparators(expected.trim()));
+            String expectedText = UtilPackage.trimTrailingWhitespacesAndAddNewlineAtEOF(StringUtil.convertLineSeparators(expected.trim()));
 
-            if (!Comparing.equal(expectedText, actualText)) {
+            if (!Comparing.equal(sanitizer.invoke(expectedText), sanitizer.invoke(actualText))) {
                 throw new FileComparisonFailure("Actual data differs from file content: " + expectedFile.getName(),
                                                 expected, actual, expectedFile.getAbsolutePath());
             }
@@ -466,7 +484,7 @@ public class JetTestUtils {
             @NotNull Disposable disposable
     ) throws IOException {
         if (!ktFiles.isEmpty()) {
-            compileKotlinToDirAndGetAnalyzeExhaust(ktFiles, outDir, disposable, ALL);
+            compileKotlinToDirAndGetAnalysisResult(ktFiles, outDir, disposable, ALL);
         }
         else {
             boolean mkdirs = outDir.mkdirs();

@@ -26,6 +26,7 @@ import org.jetbrains.jet.lang.resolve.DescriptorFactory;
 import org.jetbrains.jet.lang.resolve.OverridingUtil;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.resolve.name.SpecialNames;
+import org.jetbrains.jet.lang.resolve.scopes.DescriptorKindFilter;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
 import org.jetbrains.jet.lang.resolve.scopes.JetScopeImpl;
 import org.jetbrains.jet.lang.resolve.scopes.StaticScopeForKotlinClass;
@@ -164,6 +165,11 @@ public class EnumEntrySyntheticClassDescriptor extends ClassDescriptorBase {
         return Annotations.EMPTY;
     }
 
+    @Override
+    public String toString() {
+        return "enum entry " + getName();
+    }
+
     private class EnumEntryScope extends JetScopeImpl {
         private final MemoizedFunctionToNotNull<Name, Collection<FunctionDescriptor>> functions;
         private final MemoizedFunctionToNotNull<Name, Collection<PropertyDescriptor>> properties;
@@ -176,6 +182,7 @@ public class EnumEntrySyntheticClassDescriptor extends ClassDescriptorBase {
                     return computeFunctions(name);
                 }
             });
+
             this.properties = storageManager.createMemoizedFunction(new Function1<Name, Collection<PropertyDescriptor>>() {
                 @Override
                 public Collection<PropertyDescriptor> invoke(Name name) {
@@ -256,7 +263,10 @@ public class EnumEntrySyntheticClassDescriptor extends ClassDescriptorBase {
 
         @NotNull
         @Override
-        public Collection<DeclarationDescriptor> getAllDescriptors() {
+        public Collection<DeclarationDescriptor> getDescriptors(
+                @NotNull DescriptorKindFilter kindFilter,
+                @NotNull Function1<? super Name, ? extends Boolean> nameFilter
+        ) {
             return allDescriptors.invoke();
         }
 

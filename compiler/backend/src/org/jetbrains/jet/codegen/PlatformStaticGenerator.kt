@@ -30,16 +30,16 @@ class PlatformStaticGenerator(
         val state: GenerationState
 ) : Function2<ImplementationBodyCodegen, ClassBuilder, Unit> {
 
-    override fun invoke(p1: ImplementationBodyCodegen, p2: ClassBuilder) {
+    override fun invoke(codegen: ImplementationBodyCodegen, classBuilder: ClassBuilder) {
         val typeMapper = state.getTypeMapper()
-        val callable = typeMapper.mapToCallableMethod(descriptor, false, p1.getContext())
-        val asmMethod = callable.getAsmMethod()
-        val methodVisitor = p2.newMethod(
+        val asmMethod = typeMapper.mapSignature(descriptor).getAsmMethod()
+        val methodVisitor = classBuilder.newMethod(
                 Synthetic(declarationOrigin.element, descriptor),
                 Opcodes.ACC_STATIC or AsmUtil.getMethodAsmFlags(descriptor, OwnerKind.IMPLEMENTATION),
                 asmMethod.getName()!!,
                 asmMethod.getDescriptor()!!,
-                null, null)
+                typeMapper.mapSignature(descriptor).getGenericsSignature(),
+                FunctionCodegen.getThrownExceptions(descriptor, typeMapper))
 
         AnnotationCodegen.forMethod(methodVisitor, typeMapper)!!.genAnnotations(descriptor, asmMethod.getReturnType())
 
@@ -48,13 +48,19 @@ class PlatformStaticGenerator(
             val iv = InstructionAdapter(methodVisitor)
             val classDescriptor = descriptor.getContainingDeclaration() as ClassDescriptor
             val singletonValue = StackValue.singleton(classDescriptor, typeMapper)!!
-            singletonValue.put(singletonValue.`type`, iv);
+            singletonValue.put(singletonValue.type, iv);
             var index = 0;
             for (paramType in asmMethod.getArgumentTypes()) {
                 iv.load(index, paramType);
                 index += paramType.getSize();
             }
-            callable.invokeWithoutAssertions(iv)
+
+            val syntheticOrOriginalMethod = typeMapper.mapToCallableMethod(
+                    codegen.getContext().accessibleFunctionDescriptor(descriptor),
+                    false,
+                    codegen.getContext()
+            )
+            syntheticOrOriginalMethod.invokeWithoutAssertions(iv)
             iv.areturn(asmMethod.getReturnType());
             methodVisitor.visitEnd();
         }

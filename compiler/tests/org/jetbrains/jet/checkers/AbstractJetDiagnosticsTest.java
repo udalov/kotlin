@@ -26,11 +26,12 @@ import com.intellij.psi.PsiFile;
 import kotlin.Function1;
 import kotlin.KotlinPackage;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.JetTestUtils;
 import org.jetbrains.jet.cli.jvm.compiler.CliLightClassGenerationSupport;
+import org.jetbrains.jet.context.GlobalContext;
+import org.jetbrains.jet.context.SimpleGlobalContext;
 import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor;
-import org.jetbrains.jet.lang.descriptors.PackageFragmentDescriptor;
-import org.jetbrains.jet.lang.descriptors.PackageFragmentProvider;
 import org.jetbrains.jet.lang.descriptors.PackageViewDescriptor;
 import org.jetbrains.jet.lang.descriptors.impl.ModuleDescriptorImpl;
 import org.jetbrains.jet.lang.diagnostics.*;
@@ -38,7 +39,10 @@ import org.jetbrains.jet.lang.psi.Call;
 import org.jetbrains.jet.lang.psi.JetElement;
 import org.jetbrains.jet.lang.psi.JetExpression;
 import org.jetbrains.jet.lang.psi.JetFile;
-import org.jetbrains.jet.lang.resolve.*;
+import org.jetbrains.jet.lang.resolve.AnalyzingUtils;
+import org.jetbrains.jet.lang.resolve.BindingContext;
+import org.jetbrains.jet.lang.resolve.BindingTrace;
+import org.jetbrains.jet.lang.resolve.Diagnostics;
 import org.jetbrains.jet.lang.resolve.calls.model.MutableResolvedCall;
 import org.jetbrains.jet.lang.resolve.calls.model.ResolvedCall;
 import org.jetbrains.jet.lang.resolve.java.TopDownAnalyzerFacadeForJVM;
@@ -46,8 +50,11 @@ import org.jetbrains.jet.lang.resolve.lazy.LazyResolveTestUtil;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
+import org.jetbrains.jet.storage.ExceptionTracker;
+import org.jetbrains.jet.storage.LockBasedStorageManager;
 import org.jetbrains.jet.test.util.DescriptorValidator;
 import org.jetbrains.jet.test.util.RecursiveDescriptorComparator;
+import org.jetbrains.jet.utils.UtilsPackage;
 
 import java.io.File;
 import java.util.*;
@@ -56,6 +63,14 @@ import static org.jetbrains.jet.lang.diagnostics.Errors.*;
 import static org.jetbrains.jet.test.util.RecursiveDescriptorComparator.RECURSIVE;
 
 public abstract class AbstractJetDiagnosticsTest extends BaseDiagnosticsTest {
+
+    public static final Function1<String, String> HASH_SANITIZER = new Function1<String, String>() {
+        @Override
+        public String invoke(String s) {
+            return s.replaceAll("@(\\d)+", "");
+        }
+    };
+
     @Override
     protected void analyzeAndCheck(File testDataFile, List<TestFile> testFiles) {
         Map<TestModule, List<TestFile>> groupedByModule = KotlinPackage.groupByTo(
@@ -69,91 +84,134 @@ public abstract class AbstractJetDiagnosticsTest extends BaseDiagnosticsTest {
                 }
         );
 
-        CliLightClassGenerationSupport support = CliLightClassGenerationSupport.getInstanceForCli(getProject());
-        BindingTrace supportTrace = support.getTrace();
-
         List<JetFile> allJetFiles = new ArrayList<JetFile>();
         Map<TestModule, ModuleDescriptorImpl> modules = createModules(groupedByModule);
         Map<TestModule, BindingContext> moduleBindings = new HashMap<TestModule, BindingContext>();
+
+        LazyOperationsLog lazyOperationsLog = new LazyOperationsLog(HASH_SANITIZER);
 
         for (Map.Entry<TestModule, List<TestFile>> entry : groupedByModule.entrySet()) {
             TestModule testModule = entry.getKey();
             List<? extends TestFile> testFilesInModule = entry.getValue();
 
-            List<JetFile> jetFiles = getJetFiles(testFilesInModule);
+            List<JetFile> jetFiles = getJetFiles(testFilesInModule, true);
             allJetFiles.addAll(jetFiles);
 
             ModuleDescriptorImpl module = modules.get(testModule);
-            BindingTrace moduleTrace = groupedByModule.size() > 1
-                                           ? new DelegatingBindingTrace(supportTrace.getBindingContext(), "Trace for module " + module)
-                                           : supportTrace;
+            BindingTrace moduleTrace = new CliLightClassGenerationSupport.NoScopeRecordCliBindingTrace();
+
             moduleBindings.put(testModule, moduleTrace.getBindingContext());
 
-            if (module == null) {
-                module = support.newModule();
-                modules.put(entry.getKey(), module);
-            }
-            else {
-                module.addDependencyOnModule(KotlinBuiltIns.getInstance().getBuiltInsModule());
-                module.seal();
-            }
-
-            // New JavaDescriptorResolver is created for each module, which is good because it emulates different Java libraries for each module,
-            // albeit with same class names
-            TopDownAnalyzerFacadeForJVM.analyzeFilesWithJavaIntegration(
-                    getProject(),
-                    jetFiles,
-                    moduleTrace,
-                    Predicates.<PsiFile>alwaysTrue(),
-                    module,
-                    null,
-                    null
+            ExceptionTracker tracker = new ExceptionTracker();
+            GlobalContext context = new SimpleGlobalContext(
+                    new LoggingStorageManager(
+                            LockBasedStorageManager.createWithExceptionHandling(tracker),
+                            lazyOperationsLog.getAddRecordFunction()
+                    ),
+                    tracker
             );
+            analyzeModuleContents(context, jetFiles, module, moduleTrace);
 
             checkAllResolvedCallsAreCompleted(jetFiles, moduleTrace.getBindingContext());
         }
 
+        // We want to always create a test data file (txt) if it was missing,
+        // but don't want to skip the following checks in case this one fails
+        Throwable exceptionFromLazyResolveLogValidation = null;
+        if (KotlinPackage.any(testFiles, new Function1<TestFile, Boolean>() {
+            @Override
+            public Boolean invoke(TestFile file) {
+                return file.checkLazyLog;
+            }
+        })) {
+            exceptionFromLazyResolveLogValidation = checkLazyResolveLog(lazyOperationsLog, testDataFile);
+        }
+        else {
+            File lazyLogFile = getLazyLogFile(testDataFile);
+            assertFalse("No lazy log expected, but found: " + lazyLogFile.getAbsolutePath(), lazyLogFile.exists());
+        }
+
+        Throwable exceptionFromDescriptorValidation = null;
+        try {
+            File expectedFile = new File(FileUtil.getNameWithoutExtension(testDataFile.getAbsolutePath()) + ".txt");
+            validateAndCompareDescriptorWithFile(expectedFile, testFiles, modules);
+        }
+        catch (Throwable e) {
+            exceptionFromDescriptorValidation = e;
+        }
+
+        // main checks
         boolean ok = true;
 
         StringBuilder actualText = new StringBuilder();
         for (TestFile testFile : testFiles) {
-            ok &= testFile.getActualText(moduleBindings.get(testFile.getModule()), actualText, groupedByModule.size() > 1);
+            ok &= testFile.getActualText(moduleBindings.get(testFile.getModule()), actualText, shouldSkipJvmSignatureDiagnostics(groupedByModule));
         }
 
         JetTestUtils.assertEqualsToFile(testDataFile, actualText.toString());
 
         assertTrue("Diagnostics mismatch. See the output above", ok);
 
-        checkAllResolvedCallsAreCompleted(allJetFiles, supportTrace.getBindingContext());
+        // now we throw a previously found error, if any
+        if (exceptionFromDescriptorValidation != null) {
+            throw UtilsPackage.rethrow(exceptionFromDescriptorValidation);
+        }
+        if (exceptionFromLazyResolveLogValidation != null) {
+            throw UtilsPackage.rethrow(exceptionFromLazyResolveLogValidation);
+        }
+    }
 
-        File expectedFile = new File(FileUtil.getNameWithoutExtension(testDataFile.getAbsolutePath()) + ".txt");
-        validateAndCompareDescriptorWithFile(expectedFile, testFiles, support, modules);
+    public boolean shouldSkipJvmSignatureDiagnostics(Map<TestModule, List<TestFile>> groupedByModule) {
+        return groupedByModule.size() > 1;
+    }
+
+    @Nullable
+    private static Throwable checkLazyResolveLog(LazyOperationsLog lazyOperationsLog, File testDataFile) {
+        Throwable exceptionFromLazyResolveLogValidation = null;
+        try {
+            File expectedFile = getLazyLogFile(testDataFile);
+
+            JetTestUtils.assertEqualsToFile(
+                    expectedFile,
+                    lazyOperationsLog.getText(),
+                    HASH_SANITIZER
+            );
+        }
+        catch (Throwable e) {
+            exceptionFromLazyResolveLogValidation = e;
+        }
+        return exceptionFromLazyResolveLogValidation;
+    }
+
+    private static File getLazyLogFile(File testDataFile) {
+        return new File(FileUtil.getNameWithoutExtension(testDataFile.getAbsolutePath()) + ".lazy.log");
+    }
+
+    protected void analyzeModuleContents(
+            GlobalContext context,
+            List<JetFile> jetFiles,
+            ModuleDescriptorImpl module,
+            BindingTrace moduleTrace
+    ) {
+        // New JavaDescriptorResolver is created for each module, which is good because it emulates different Java libraries for each module,
+        // albeit with same class names
+        TopDownAnalyzerFacadeForJVM.analyzeFilesWithJavaIntegrationWithCustomContext(
+                getProject(),
+                context,
+                jetFiles,
+                moduleTrace,
+                Predicates.<PsiFile>alwaysTrue(),
+                module,
+                null,
+                null
+        );
     }
 
     private void validateAndCompareDescriptorWithFile(
             File expectedFile,
             List<TestFile> testFiles,
-            CliLightClassGenerationSupport support,
             Map<TestModule, ModuleDescriptorImpl> modules
     ) {
-        ModuleDescriptorImpl lightClassModule = support.getLightClassModule();
-        if (lightClassModule == null) {
-            ModuleDescriptorImpl cliModule = support.newModule();
-            cliModule.initialize(new PackageFragmentProvider() {
-                @NotNull
-                @Override
-                public List<PackageFragmentDescriptor> getPackageFragments(@NotNull FqName fqName) {
-                    return Collections.emptyList();
-                }
-
-                @NotNull
-                @Override
-                public Collection<FqName> getSubPackagesOf(@NotNull FqName fqName) {
-                    return Collections.emptyList();
-                }
-            });
-        }
-
         RecursiveDescriptorComparator comparator = new RecursiveDescriptorComparator(createdAffectedPackagesConfiguration(testFiles));
 
         boolean isMultiModuleTest = modules.size() != 1;
@@ -161,12 +219,12 @@ public abstract class AbstractJetDiagnosticsTest extends BaseDiagnosticsTest {
 
         for (TestModule module : KotlinPackage.sort(modules.keySet())) {
             ModuleDescriptorImpl moduleDescriptor = modules.get(module);
+            DeclarationDescriptor aPackage = moduleDescriptor.getPackage(FqName.ROOT);
+            assertNotNull(aPackage);
+
             if (isMultiModuleTest) {
                 rootPackageText.append(String.format("// -- Module: %s --\n", moduleDescriptor.getName()));
             }
-
-            DeclarationDescriptor aPackage = moduleDescriptor.getPackage(FqName.ROOT);
-            assertNotNull(aPackage);
 
             String actualSerialized = comparator.serializeRecursively(aPackage);
             rootPackageText.append(actualSerialized);
@@ -179,8 +237,8 @@ public abstract class AbstractJetDiagnosticsTest extends BaseDiagnosticsTest {
         JetTestUtils.assertEqualsToFile(expectedFile, rootPackageText.toString());
     }
 
-    public static RecursiveDescriptorComparator.Configuration createdAffectedPackagesConfiguration(List<TestFile> testFiles) {
-        final Set<Name> packagesNames = LazyResolveTestUtil.getTopLevelPackagesFromFileList(getJetFiles(testFiles));
+    public RecursiveDescriptorComparator.Configuration createdAffectedPackagesConfiguration(List<TestFile> testFiles) {
+        final Set<Name> packagesNames = LazyResolveTestUtil.getTopLevelPackagesFromFileList(getJetFiles(testFiles, false));
 
         Predicate<DeclarationDescriptor> stepIntoFilter = new Predicate<DeclarationDescriptor>() {
             @Override
@@ -198,15 +256,18 @@ public abstract class AbstractJetDiagnosticsTest extends BaseDiagnosticsTest {
             }
         };
 
-        return RECURSIVE.filterRecursion(stepIntoFilter).withValidationStrategy(DescriptorValidator.ValidationVisitor.ALLOW_ERROR_TYPES);
+        return RECURSIVE.filterRecursion(stepIntoFilter).withValidationStrategy(DescriptorValidator.ValidationVisitor.errorTypesAllowed());
     }
 
-    public static Map<TestModule, ModuleDescriptorImpl> createModules(Map<TestModule, List<TestFile>> groupedByModule) {
+    private Map<TestModule, ModuleDescriptorImpl> createModules(Map<TestModule, List<TestFile>> groupedByModule) {
         Map<TestModule, ModuleDescriptorImpl> modules = new HashMap<TestModule, ModuleDescriptorImpl>();
 
         for (TestModule testModule : groupedByModule.keySet()) {
-            if (testModule == null) continue;
-            ModuleDescriptorImpl module = TopDownAnalyzerFacadeForJVM.createJavaModule("<" + testModule.getName() + ">");
+            ModuleDescriptorImpl module =
+                    testModule == null ?
+                    createSealedModule() :
+                    createModule("<" + testModule.getName() + ">");
+
             modules.put(testModule, module);
         }
 
@@ -218,8 +279,21 @@ public abstract class AbstractJetDiagnosticsTest extends BaseDiagnosticsTest {
             for (TestModule dependency : testModule.getDependencies()) {
                 module.addDependencyOnModule(modules.get(dependency));
             }
+
+            module.addDependencyOnModule(KotlinBuiltIns.getInstance().getBuiltInsModule());
+            module.seal();
         }
+
         return modules;
+    }
+
+    protected ModuleDescriptorImpl createModule(String moduleName) {
+        return TopDownAnalyzerFacadeForJVM.createJavaModule(moduleName);
+    }
+
+    @NotNull
+    protected ModuleDescriptorImpl createSealedModule() {
+        return TopDownAnalyzerFacadeForJVM.createSealedJavaModule();
     }
 
     private static void checkAllResolvedCallsAreCompleted(@NotNull List<JetFile> jetFiles, @NotNull BindingContext bindingContext) {

@@ -29,7 +29,6 @@ import org.jetbrains.jet.storage.StorageManager
 import org.jetbrains.jet.lang.resolve.AnnotationResolver
 import org.jetbrains.jet.lang.resolve.BindingTrace
 import org.jetbrains.jet.lang.resolve.scopes.JetScope
-import org.jetbrains.jet.utils.keysToMapExceptNulls
 import org.jetbrains.jet.lang.resolve.BindingContext
 
 abstract class LazyAnnotationsContext(
@@ -53,7 +52,7 @@ public class LazyAnnotations(
 ) : Annotations, LazyEntity {
     override fun isEmpty() = annotationEntries.isEmpty()
 
-    val _annotation = c.storageManager.createMemoizedFunction {
+    private val annotation = c.storageManager.createMemoizedFunction {
         (entry: JetAnnotationEntry) ->
         LazyAnnotationDescriptor(c, entry)
     }
@@ -77,7 +76,7 @@ public class LazyAnnotations(
     }
 
     override fun iterator(): Iterator<AnnotationDescriptor> {
-        return annotationEntries.stream().map(_annotation).iterator()
+        return annotationEntries.stream().map(annotation).iterator()
     }
 
     override fun forceResolveAllContents() {
@@ -95,45 +94,34 @@ public class LazyAnnotationDescriptor(
         c.trace.record(BindingContext.ANNOTATION, annotationEntry, this)
     }
 
-    private val _resolutionResults = c.storageManager.createLazyValue {
-        val results = c.annotationResolver.resolveAnnotationCall(
-                annotationEntry,
-                c.scope,
-                c.trace
-        )
-        AnnotationResolver.checkAnnotationType(annotationEntry, c.trace, results)
-        results
-    }
-
-    private val _type = c.storageManager.createLazyValue {
+    private val type = c.storageManager.createLazyValue {
         c.annotationResolver.resolveAnnotationType(
                 c.scope,
                 annotationEntry
         )
     }
 
-    override fun getType() = _type()
+    override fun getType() = type()
 
-    private val _valueArguments = c.storageManager.createMemoizedFunctionWithNullableValues @f {
-        (valueParameterDescriptor: ValueParameterDescriptor): CompileTimeConstant<*>? ->
-        if (!_resolutionResults().isSingleResult()) return@f null
-
-        val resolvedValueArgument = _resolutionResults().getResultingCall().getValueArguments()[valueParameterDescriptor]
-        if (resolvedValueArgument == null) return@f null
-
-        AnnotationResolver.getAnnotationArgumentValue(c.trace, valueParameterDescriptor, resolvedValueArgument)
+    private val valueArguments = c.storageManager.createLazyValue {
+        computeValueArguments()
     }
 
-    override fun getValueArgument(valueParameterDescriptor: ValueParameterDescriptor): CompileTimeConstant<out Any?>? {
-        return _valueArguments(valueParameterDescriptor)
-    }
+    override fun getAllValueArguments() = valueArguments()
 
-    override fun getAllValueArguments(): Map<ValueParameterDescriptor, CompileTimeConstant<out Any?>> {
-        if (!_resolutionResults().isSingleResult()) return mapOf()
+    private fun computeValueArguments(): Map<ValueParameterDescriptor, CompileTimeConstant<*>> {
+        val resolutionResults = c.annotationResolver.resolveAnnotationCall(annotationEntry, c.scope, c.trace)
+        AnnotationResolver.checkAnnotationType(annotationEntry, c.trace, resolutionResults)
 
-        return _resolutionResults().getResultingCall().getValueArguments().keySet().keysToMapExceptNulls {
-            getValueArgument(it)
-        }
+        if (!resolutionResults.isSingleResult()) return mapOf()
+
+        [suppress("UNCHECKED_CAST")]
+        return resolutionResults.getResultingCall().getValueArguments()
+                .mapValues { val (valueParameter, resolvedArgument) = it;
+                    if (resolvedArgument == null) null
+                    else AnnotationResolver.getAnnotationArgumentValue(c.trace, valueParameter, resolvedArgument)
+                }
+                .filterValues { it != null } as Map<ValueParameterDescriptor, CompileTimeConstant<*>>
     }
 
     override fun forceResolveAllContents() {

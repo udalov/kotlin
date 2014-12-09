@@ -22,6 +22,7 @@ import com.intellij.psi.tree.IElementType;
 import com.intellij.psi.tree.TokenSet;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.JetNodeType;
+import org.jetbrains.jet.JetNodeTypes;
 import org.jetbrains.jet.lexer.JetToken;
 import org.jetbrains.jet.lexer.JetTokens;
 
@@ -51,7 +52,7 @@ public class JetExpressionParsing extends AbstractJetParsing {
 
     private static final TokenSet TYPE_ARGUMENT_LIST_STOPPERS = TokenSet.create(
             INTEGER_LITERAL, FLOAT_LITERAL, CHARACTER_LITERAL, OPEN_QUOTE,
-            PACKAGE_KEYWORD, AS_KEYWORD, TYPE_KEYWORD, TRAIT_KEYWORD, CLASS_KEYWORD, THIS_KEYWORD, VAL_KEYWORD, VAR_KEYWORD,
+            PACKAGE_KEYWORD, AS_KEYWORD, TYPE_ALIAS_KEYWORD, TRAIT_KEYWORD, CLASS_KEYWORD, THIS_KEYWORD, VAL_KEYWORD, VAR_KEYWORD,
             FUN_KEYWORD, FOR_KEYWORD, NULL_KEYWORD,
             TRUE_KEYWORD, FALSE_KEYWORD, IS_KEYWORD, THROW_KEYWORD, RETURN_KEYWORD, BREAK_KEYWORD,
             CONTINUE_KEYWORD, OBJECT_KEYWORD, IF_KEYWORD, TRY_KEYWORD, ELSE_KEYWORD, WHILE_KEYWORD, DO_KEYWORD,
@@ -121,7 +122,7 @@ public class JetExpressionParsing extends AbstractJetParsing {
                     VAL_KEYWORD, VAR_KEYWORD,
                     TRAIT_KEYWORD,
                     CLASS_KEYWORD,
-                    TYPE_KEYWORD
+                    TYPE_ALIAS_KEYWORD
             ),
             MODIFIER_KEYWORDS
     );
@@ -600,7 +601,7 @@ public class JetExpressionParsing extends AbstractJetParsing {
             parseDoWhile();
         }
         else if (atSet(CLASS_KEYWORD, FUN_KEYWORD, VAL_KEYWORD,
-                       VAR_KEYWORD, TYPE_KEYWORD)) {
+                       VAR_KEYWORD, TYPE_ALIAS_KEYWORD)) {
             parseLocalDeclaration();
         }
         else if (at(FIELD_IDENTIFIER)) {
@@ -846,7 +847,7 @@ public class JetExpressionParsing extends AbstractJetParsing {
             advance(); // COMMA
         }
 
-        expect(ARROW, "Expecting '->' or 'when'", WHEN_CONDITION_RECOVERY_SET);
+        expect(ARROW, "Expecting '->'", WHEN_CONDITION_RECOVERY_SET);
         if (atSet(WHEN_CONDITION_RECOVERY_SET)) {
             error("Expecting an element");
         }
@@ -958,7 +959,8 @@ public class JetExpressionParsing extends AbstractJetParsing {
         IElementType declType = parseLocalDeclarationRest(enumDetector.isDetected());
 
         if (declType != null) {
-            decl.done(declType);
+            // we do not attach preceding comments (non-doc) to local variables because they are likely commenting a few statements below
+            closeDeclarationWithCommentBinders(decl, declType, declType != JetNodeTypes.PROPERTY && declType != JetNodeTypes.MULTI_VARIABLE_DECLARATION);
             return true;
         }
         else {
@@ -1220,7 +1222,7 @@ public class JetExpressionParsing extends AbstractJetParsing {
 
         myBuilder.restoreNewlinesState();
 
-        expect(RPAR, "Expecting ')", TokenSet.create(ARROW, COLON));
+        expect(RPAR, "Expecting ')'", TokenSet.create(ARROW, COLON));
         list.done(VALUE_PARAMETER_LIST);
     }
 
@@ -1250,7 +1252,7 @@ public class JetExpressionParsing extends AbstractJetParsing {
                     error(severalStatementsError);
                 }
                 else {
-                    errorUntil(severalStatementsError, TokenSet.create(EOL_OR_SEMICOLON));
+                    errorUntil(severalStatementsError, TokenSet.create(EOL_OR_SEMICOLON, LBRACE, RBRACE));
                 }
             }
         }
@@ -1279,7 +1281,7 @@ public class JetExpressionParsing extends AbstractJetParsing {
      *   : property
      *   : extension
      *   : class
-     *   : typedef
+     *   : typeAlias
      *   : object
      *   ;
      */
@@ -1295,8 +1297,8 @@ public class JetExpressionParsing extends AbstractJetParsing {
         else if (keywordToken == VAL_KEYWORD || keywordToken == VAR_KEYWORD) {
             declType = myJetParsing.parseProperty(true);
         }
-        else if (keywordToken == TYPE_KEYWORD) {
-            declType = myJetParsing.parseTypeDef();
+        else if (keywordToken == TYPE_ALIAS_KEYWORD) {
+            declType = myJetParsing.parseTypeAlias();
         }
         else if (keywordToken == OBJECT_KEYWORD) {
             // Object expression may appear at the statement position: should parse it

@@ -24,6 +24,7 @@ import java.util.Set;
 public class InlineResult {
 
     private final Set<String> classesToRemove = new HashSet<String>();
+    private final ReifiedTypeParametersUsages reifiedTypeParametersUsages = new ReifiedTypeParametersUsages();
 
     private InlineResult() {
 
@@ -47,5 +48,10 @@ public class InlineResult {
     @NotNull
     public Set<String> getClassesToRemove() {
         return classesToRemove;
+    }
+
+    @NotNull
+    public ReifiedTypeParametersUsages getReifiedTypeParametersUsages() {
+        return reifiedTypeParametersUsages;
     }
 }

@@ -26,6 +26,7 @@ import org.jetbrains.jet.lang.descriptors.impl.TypeParameterDescriptorImpl;
 import org.jetbrains.jet.lang.psi.*;
 import org.jetbrains.jet.lang.resolve.DescriptorUtils;
 import org.jetbrains.jet.lang.resolve.TypeResolver;
+import org.jetbrains.jet.lang.resolve.java.JavaPackage;
 import org.jetbrains.jet.lang.resolve.java.mapping.JavaToKotlinClassMap;
 import org.jetbrains.jet.lang.resolve.java.mapping.KotlinToJavaTypesMap;
 import org.jetbrains.jet.lang.resolve.java.resolver.TypeUsage;
@@ -72,7 +73,7 @@ public class TypeTransformingVisitor extends JetVisitor<JetType, Void> {
 
     @Override
     public JetType visitNullableType(@NotNull JetNullableType nullableType, Void aVoid) {
-        if (!originalType.isNullable() && typeUsage != TYPE_ARGUMENT) {
+        if (!TypeUtils.isNullableType(originalType) && typeUsage != TYPE_ARGUMENT) {
             throw new AlternativeSignatureMismatchException("Auto type '%s' is not-null, while type in alternative signature is nullable: '%s'",
                  DescriptorRenderer.FQ_NAMES_IN_TYPES.renderType(originalType), nullableType.getText());
         }
@@ -133,6 +134,8 @@ public class TypeTransformingVisitor extends JetVisitor<JetType, Void> {
         List<TypeProjection> arguments = originalType.getArguments();
 
         if (arguments.size() != type.getTypeArgumentsAsTypes().size()) {
+            if (JavaPackage.getPLATFORM_TYPES()) return originalType;
+
             throw new AlternativeSignatureMismatchException("'%s' type in method signature has %d type arguments, while '%s' in alternative signature has %d of them",
                  DescriptorRenderer.FQ_NAMES_IN_TYPES.renderType(originalType), arguments.size(), type.getText(),
                  type.getTypeArgumentsAsTypes().size());
@@ -185,7 +188,7 @@ public class TypeTransformingVisitor extends JetVisitor<JetType, Void> {
         if (type instanceof JetUserType) {
             JetTypeProjection typeProjection = ((JetUserType) type).getTypeArguments().get(i);
             altProjectionKind = TypeResolver.resolveProjectionKind(typeProjection.getProjectionKind());
-            if (altProjectionKind != projectionKind && projectionKind != Variance.INVARIANT) {
+            if (altProjectionKind != projectionKind && projectionKind != Variance.INVARIANT && !JavaPackage.getPLATFORM_TYPES()) {
                 throw new AlternativeSignatureMismatchException("Projection kind mismatch, actual: %s, in alternative signature: %s",
                                                                 projectionKind, altProjectionKind);
             }
@@ -216,7 +219,7 @@ public class TypeTransformingVisitor extends JetVisitor<JetType, Void> {
         FqName javaFqName = KotlinToJavaTypesMap.getInstance().getKotlinToJavaFqName(originalClassFqName);
         if (javaFqName == null) return null;
 
-        Collection<ClassDescriptor> descriptors = JavaToKotlinClassMap.getInstance().mapPlatformClass(javaFqName);
+        Collection<ClassDescriptor> descriptors = JavaToKotlinClassMap.INSTANCE.mapPlatformClass(javaFqName);
         for (ClassDescriptor descriptor : descriptors) {
             String fqName = DescriptorUtils.getFqName(descriptor).asString();
             if (isSameName(qualifiedName, fqName)) {

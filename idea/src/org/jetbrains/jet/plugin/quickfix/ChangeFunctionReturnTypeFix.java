@@ -42,7 +42,7 @@ import org.jetbrains.jet.lang.types.checker.JetTypeChecker;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 import org.jetbrains.jet.plugin.JetBundle;
 import org.jetbrains.jet.plugin.caches.resolve.ResolvePackage;
-import org.jetbrains.jet.renderer.DescriptorRenderer;
+import org.jetbrains.jet.plugin.util.IdeDescriptorRenderers;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -52,16 +52,15 @@ import static org.jetbrains.jet.lang.psi.PsiPackage.JetPsiFactory;
 
 public class ChangeFunctionReturnTypeFix extends JetIntentionAction<JetFunction> {
     private final JetType type;
-    private final String renderedType;
     private final ChangeFunctionLiteralReturnTypeFix changeFunctionLiteralReturnTypeFix;
 
     public ChangeFunctionReturnTypeFix(@NotNull JetFunction element, @NotNull JetType type) {
         super(element);
         this.type = type;
-        renderedType = DescriptorRenderer.SHORT_NAMES_IN_TYPES.renderType(type);
         if (element instanceof JetFunctionLiteral) {
             JetFunctionLiteralExpression functionLiteralExpression = PsiTreeUtil.getParentOfType(element, JetFunctionLiteralExpression.class);
-            assert functionLiteralExpression != null : "FunctionLiteral outside any FunctionLiteralExpression";
+            assert functionLiteralExpression != null : "FunctionLiteral outside any FunctionLiteralExpression: " +
+                                                       JetPsiUtil.getElementTextWithContext(element);
             changeFunctionLiteralReturnTypeFix = new ChangeFunctionLiteralReturnTypeFix(functionLiteralExpression, type);
         }
         else {
@@ -80,11 +79,12 @@ public class ChangeFunctionReturnTypeFix extends JetIntentionAction<JetFunction>
         FqName fqName = element.getFqName();
         if (fqName != null) functionName = fqName.asString();
 
-        if (KotlinBuiltIns.getInstance().isUnit(type) && element.hasBlockBody()) {
+        if (KotlinBuiltIns.isUnit(type) && element.hasBlockBody()) {
             return functionName == null ?
                    JetBundle.message("remove.no.name.function.return.type") :
                    JetBundle.message("remove.function.return.type", functionName);
         }
+        String renderedType = IdeDescriptorRenderers.SOURCE_CODE_SHORT_NAMES_IN_TYPES.renderType(type);
         return functionName == null ?
                JetBundle.message("change.no.name.function.return.type", renderedType) :
                JetBundle.message("change.function.return.type", functionName, renderedType);
@@ -102,17 +102,18 @@ public class ChangeFunctionReturnTypeFix extends JetIntentionAction<JetFunction>
     }
 
     @Override
-    public void invoke(@NotNull Project project, @Nullable Editor editor, @Nullable JetFile file) throws IncorrectOperationException {
+    public void invoke(@NotNull Project project, @Nullable Editor editor, JetFile file) throws IncorrectOperationException {
         if (changeFunctionLiteralReturnTypeFix != null) {
             changeFunctionLiteralReturnTypeFix.invoke(project, editor, file);
         }
         else {
-            if (!(KotlinBuiltIns.getInstance().isUnit(type) && element.hasBlockBody())) {
-                element.setTypeReference(JetPsiFactory(project).createType(renderedType));
+            if (!(KotlinBuiltIns.isUnit(type) && element.hasBlockBody())) {
+                element.setTypeReference(JetPsiFactory(project).createType(IdeDescriptorRenderers.SOURCE_CODE.renderType(type)));
             }
             else {
                 element.setTypeReference(null);
             }
+            QuickFixUtil.shortenReferencesOfType(type, file);
         }
     }
 
@@ -130,9 +131,9 @@ public class ChangeFunctionReturnTypeFix extends JetIntentionAction<JetFunction>
         return new JetSingleIntentionActionFactory() {
             @Nullable
             @Override
-            public IntentionAction createAction(Diagnostic diagnostic) {
+            public IntentionAction createAction(@NotNull Diagnostic diagnostic) {
                 JetMultiDeclarationEntry entry = getMultiDeclarationEntryThatTypeMismatchComponentFunction(diagnostic);
-                BindingContext context = ResolvePackage.getBindingContext((JetFile) entry.getContainingFile().getContainingFile());
+                BindingContext context = ResolvePackage.analyzeFully((JetFile) entry.getContainingFile().getContainingFile());
                 ResolvedCall<FunctionDescriptor> resolvedCall = context.get(BindingContext.COMPONENT_RESOLVED_CALL, entry);
                 if (resolvedCall == null) return null;
                 JetFunction componentFunction = (JetFunction) DescriptorToSourceUtils
@@ -151,10 +152,10 @@ public class ChangeFunctionReturnTypeFix extends JetIntentionAction<JetFunction>
         return new JetSingleIntentionActionFactory() {
             @Nullable
             @Override
-            public IntentionAction createAction(Diagnostic diagnostic) {
+            public IntentionAction createAction(@NotNull Diagnostic diagnostic) {
                 JetExpression expression = QuickFixUtil.getParentElementOfType(diagnostic, JetExpression.class);
                 assert expression != null : "HAS_NEXT_FUNCTION_TYPE_MISMATCH reported on element that is not within any expression";
-                BindingContext context = ResolvePackage.getBindingContext(expression.getContainingJetFile());
+                BindingContext context = ResolvePackage.analyzeFully(expression.getContainingJetFile());
                 ResolvedCall<FunctionDescriptor> resolvedCall = context.get(BindingContext.LOOP_RANGE_HAS_NEXT_RESOLVED_CALL, expression);
                 if (resolvedCall == null) return null;
                 JetFunction hasNextFunction = (JetFunction) DescriptorToSourceUtils
@@ -172,10 +173,10 @@ public class ChangeFunctionReturnTypeFix extends JetIntentionAction<JetFunction>
         return new JetSingleIntentionActionFactory() {
             @Nullable
             @Override
-            public IntentionAction createAction(Diagnostic diagnostic) {
+            public IntentionAction createAction(@NotNull Diagnostic diagnostic) {
                 JetBinaryExpression expression = QuickFixUtil.getParentElementOfType(diagnostic, JetBinaryExpression.class);
                 assert expression != null : "COMPARE_TO_TYPE_MISMATCH reported on element that is not within any expression";
-                BindingContext context = ResolvePackage.getBindingContext(expression.getContainingJetFile());
+                BindingContext context = ResolvePackage.analyzeFully(expression.getContainingJetFile());
                 ResolvedCall<?> resolvedCall = CallUtilPackage.getResolvedCall(expression, context);
                 if (resolvedCall == null) return null;
                 PsiElement compareTo = DescriptorToSourceUtils.descriptorToDeclaration(resolvedCall.getCandidateDescriptor());
@@ -190,12 +191,12 @@ public class ChangeFunctionReturnTypeFix extends JetIntentionAction<JetFunction>
         return new JetIntentionActionsFactory() {
             @NotNull
             @Override
-            public List<IntentionAction> createActions(@NotNull Diagnostic diagnostic) {
+            protected List<IntentionAction> doCreateActions(@NotNull Diagnostic diagnostic) {
                 List<IntentionAction> actions = new LinkedList<IntentionAction>();
 
                 JetFunction function = QuickFixUtil.getParentElementOfType(diagnostic, JetFunction.class);
                 if (function != null) {
-                    BindingContext context = ResolvePackage.getBindingContext(function);
+                    BindingContext context = ResolvePackage.analyzeFully(function);
                     JetType matchingReturnType = QuickFixUtil.findLowerBoundOfOverriddenCallablesReturnTypes(context, function);
                     if (matchingReturnType != null) {
                         actions.add(new ChangeFunctionReturnTypeFix(function, matchingReturnType));
@@ -233,7 +234,7 @@ public class ChangeFunctionReturnTypeFix extends JetIntentionAction<JetFunction>
         return new JetSingleIntentionActionFactory() {
             @Nullable
             @Override
-            public IntentionAction createAction(Diagnostic diagnostic) {
+            public IntentionAction createAction(@NotNull Diagnostic diagnostic) {
                 JetFunction function = QuickFixUtil.getParentElementOfType(diagnostic, JetFunction.class);
                 return function == null ? null : new ChangeFunctionReturnTypeFix(function, KotlinBuiltIns.getInstance().getUnitType());
             }

@@ -16,7 +16,6 @@
 
 package org.jetbrains.jet.plugin.highlighter
 
-import com.intellij.testFramework.fixtures.LightCodeInsightFixtureTestCase
 import com.intellij.testFramework.LightProjectDescriptor
 import org.jetbrains.jet.plugin.JetJdkAndLibraryProjectDescriptor
 import com.intellij.openapi.vfs.VfsUtil
@@ -26,13 +25,13 @@ import org.jetbrains.jet.cli.common.messages.MessageCollectorPlainTextToStream
 import com.intellij.openapi.projectRoots.Sdk
 import org.jetbrains.jet.plugin.PluginTestCaseBase
 import kotlin.test.assertEquals
-import org.jetbrains.jet.plugin.caches.resolve.getBindingContext
+import org.jetbrains.jet.plugin.caches.resolve.analyzeFully
 import org.jetbrains.jet.lang.diagnostics.Severity
-import org.jetbrains.jet.codegen.forTestCompile.ForTestCompileRuntime
-import org.jetbrains.jet.JetTestUtils
 import kotlin.test.assertTrue
+import org.jetbrains.jet.plugin.JetLightCodeInsightFixtureTestCase
+import java.io.File
 
-public class NoErrorsInStdlibTest : LightCodeInsightFixtureTestCase() {
+public class NoErrorsInStdlibTest : JetLightCodeInsightFixtureTestCase() {
     public fun testNoErrors() {
         val root = myFixture.copyDirectoryToProject("../libraries/stdlib/src", "")
 
@@ -46,7 +45,7 @@ public class NoErrorsInStdlibTest : LightCodeInsightFixtureTestCase() {
                 val psiFile = psiManager.findFile(file)
                 if (psiFile is JetFile) {
                     hasAtLeastOneFile = true
-                    val bindingContext = psiFile.getBindingContext()
+                    val bindingContext = psiFile.analyzeFully()
                     val errors = bindingContext.getDiagnostics().all().filter { it.getSeverity() == Severity.ERROR }
 
                     if (errors.isNotEmpty()) {
@@ -68,9 +67,7 @@ public class NoErrorsInStdlibTest : LightCodeInsightFixtureTestCase() {
     }
 
     override fun getProjectDescriptor(): LightProjectDescriptor {
-        val dir = JetTestUtils.tmpDir("noErrorsInStdlibTest")
-        ForTestCompileRuntime.compileBuiltIns(dir)
-        return object : JetJdkAndLibraryProjectDescriptor(dir) {
+        return object : JetJdkAndLibraryProjectDescriptor(File("dist/classes/builtins")) {
             override fun getSdk(): Sdk? = PluginTestCaseBase.fullJdk()
         }
     }

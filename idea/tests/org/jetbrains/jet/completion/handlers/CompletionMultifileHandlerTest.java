@@ -62,11 +62,19 @@ public class CompletionMultifileHandlerTest extends KotlinCompletionTestCase {
         doTest();
     }
 
+    public void testClassWithClassObject() throws Exception {
+        doTest();
+    }
+
     public void doTest() throws Exception {
         String fileName = getTestName(false);
 
         configureByFiles(null, fileName + "-1.kt", fileName + "-2.kt");
         complete(2);
+        if (myItems != null) {
+            assertTrue("Multiple items in completion", myItems.length == 1);
+            selectItem(myItems[0]);
+        }
         checkResultByFile(fileName + ".kt.after");
     }
 

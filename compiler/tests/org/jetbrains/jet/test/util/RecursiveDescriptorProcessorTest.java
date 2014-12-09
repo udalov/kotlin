@@ -19,11 +19,12 @@ package org.jetbrains.jet.test.util;
 import com.google.common.collect.Lists;
 import com.intellij.openapi.util.io.FileUtil;
 import org.jetbrains.jet.JetTestUtils;
-import org.jetbrains.jet.analyzer.AnalyzeExhaust;
+import org.jetbrains.jet.analyzer.AnalysisResult;
 import org.jetbrains.jet.cli.jvm.compiler.JetCoreEnvironment;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.resolve.lazy.KotlinTestWithEnvironment;
+import org.jetbrains.jet.lang.resolve.lazy.LazyEntity;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.utils.Printer;
@@ -43,8 +44,8 @@ public class RecursiveDescriptorProcessorTest extends KotlinTestWithEnvironment 
         File txtFile = new File("compiler/testData/recursiveProcessor/declarations.txt");
         String text = FileUtil.loadFile(ktFile, true);
         JetFile jetFile = JetTestUtils.createFile("declarations.kt", text, getEnvironment().getProject());
-        AnalyzeExhaust exhaust = JetTestUtils.analyzeFile(jetFile);
-        PackageViewDescriptor testPackage = exhaust.getModuleDescriptor().getPackage(FqName.topLevel(Name.identifier("test")));
+        AnalysisResult result = JetTestUtils.analyzeFile(jetFile);
+        PackageViewDescriptor testPackage = result.getModuleDescriptor().getPackage(FqName.topLevel(Name.identifier("test")));
         assert testPackage != null;
 
         List<String> descriptors = recursivelyCollectDescriptors(testPackage);
@@ -66,10 +67,12 @@ public class RecursiveDescriptorProcessorTest extends KotlinTestWithEnvironment 
 
     private static Class closestInterface(Class<?> aClass) {
         if (aClass == null) return null;
-        if (aClass.isInterface()) return aClass;
+        if (aClass.isInterface() && aClass != LazyEntity.class) return aClass;
 
         Class<?>[] interfaces = aClass.getInterfaces();
-        if (interfaces.length > 0) return interfaces[0];
+        for (Class<?> anInterface : interfaces) {
+            if (anInterface != LazyEntity.class) return anInterface;
+        }
 
         return closestInterface(aClass.getSuperclass());
     }

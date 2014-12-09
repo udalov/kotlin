@@ -22,8 +22,8 @@ class EnumConstant(
         val identifier: Identifier,
         annotations: Annotations,
         modifiers: Modifiers,
-        val `type`: Type,
-        val params: Element
+        val type: Type,
+        val params: DeferredElement<ExpressionList>
 ) : Member(annotations, modifiers) {
 
     override fun generateCode(builder: CodeBuilder) {
@@ -32,8 +32,6 @@ class EnumConstant(
             return
         }
 
-        builder append annotations append identifier append " : " append `type` append "(" append params append ")"
+        builder append annotations append identifier append " : " append type append "(" append params append ")"
     }
-
-
 }

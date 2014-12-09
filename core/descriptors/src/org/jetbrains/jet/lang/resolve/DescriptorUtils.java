@@ -31,13 +31,12 @@ import org.jetbrains.jet.lang.types.ErrorUtils;
 import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.lang.types.LazyType;
 import org.jetbrains.jet.lang.types.TypeConstructor;
+import org.jetbrains.jet.lang.types.checker.JetTypeChecker;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
+import static org.jetbrains.jet.lang.descriptors.CallableMemberDescriptor.Kind.*;
 import static org.jetbrains.jet.lang.descriptors.ReceiverParameterDescriptor.NO_RECEIVER_PARAMETER;
 
 public class DescriptorUtils {
@@ -130,6 +129,14 @@ public class DescriptorUtils {
         return descriptor.getContainingDeclaration() instanceof PackageFragmentDescriptor;
     }
 
+    public static boolean isExtension(@NotNull CallableDescriptor descriptor) {
+        return (descriptor.getExtensionReceiverParameter() != null);
+    }
+
+    public static boolean isOverride(@NotNull CallableMemberDescriptor descriptor) {
+        return !descriptor.getOverriddenDescriptors().isEmpty();
+    }
+
     /**
      * @return true iff this is a top-level declaration or a class member with no expected "this" object (e.g. static members in Java,
      * values() and valueOf() methods of enum classes, etc.)
@@ -184,6 +191,18 @@ public class DescriptorUtils {
         ModuleDescriptor module = getParentOfType(descriptor, ModuleDescriptor.class, false);
         assert module != null : "Descriptor without a containing module: " + descriptor;
         return module;
+    }
+
+    @Nullable
+    public static ClassDescriptor getContainingClass(@NotNull DeclarationDescriptor descriptor) {
+        DeclarationDescriptor containing = descriptor.getContainingDeclaration();
+        while (containing != null) {
+            if (containing instanceof ClassDescriptor && !isClassObject(containing)) {
+                return (ClassDescriptor) containing;
+            }
+            containing = containing.getContainingDeclaration();
+        }
+        return null;
     }
 
     public static boolean isAncestor(
@@ -265,11 +284,6 @@ public class DescriptorUtils {
 
     public static boolean isClass(@Nullable DeclarationDescriptor descriptor) {
         return isKindOf(descriptor, ClassKind.CLASS);
-    }
-
-    public static boolean containerKindIs(@NotNull DeclarationDescriptor descriptor, @NotNull ClassKind kind) {
-        DeclarationDescriptor parentDeclaration = descriptor.getContainingDeclaration();
-        return  parentDeclaration != null && isKindOf(parentDeclaration, kind);
     }
 
     public static boolean isKindOf(@Nullable DeclarationDescriptor descriptor, @NotNull ClassKind classKind) {
@@ -393,13 +407,13 @@ public class DescriptorUtils {
     public static boolean shouldRecordInitializerForProperty(@NotNull VariableDescriptor variable, @NotNull JetType type) {
         if (variable.isVar() || type.isError()) return false;
 
-        if (type instanceof LazyType || type.isNullable()) return true;
+        if (type instanceof LazyType || type.isMarkedNullable()) return true;
 
         KotlinBuiltIns builtIns = KotlinBuiltIns.getInstance();
-        return builtIns.isPrimitiveType(type) ||
-               builtIns.getStringType().equals(type) ||
-               builtIns.getNumber().getDefaultType().equals(type) ||
-               builtIns.getAnyType().equals(type);
+        return KotlinBuiltIns.isPrimitiveType(type) ||
+               JetTypeChecker.DEFAULT.equalTypes(builtIns.getStringType(), type) ||
+               JetTypeChecker.DEFAULT.equalTypes(builtIns.getNumber().getDefaultType(), type) ||
+               JetTypeChecker.DEFAULT.equalTypes(builtIns.getAnyType(), type);
     }
 
     public static boolean classCanHaveAbstractMembers(@NotNull ClassDescriptor classDescriptor) {
@@ -408,5 +422,52 @@ public class DescriptorUtils {
 
     public static boolean classCanHaveOpenMembers(@NotNull ClassDescriptor classDescriptor) {
         return classDescriptor.getModality() != Modality.FINAL || classDescriptor.getKind() == ClassKind.ENUM_CLASS;
+    }
+
+    @NotNull
+    @SuppressWarnings("unchecked")
+    public static <D extends CallableDescriptor> Set<D> getAllOverriddenDescriptors(@NotNull D f) {
+        Set<D> result = new LinkedHashSet<D>();
+        collectAllOverriddenDescriptors((D) f.getOriginal(), result);
+        return result;
+    }
+
+    private static <D extends CallableDescriptor> void collectAllOverriddenDescriptors(@NotNull D current, @NotNull Set<D> result) {
+        if (result.contains(current)) return;
+        for (CallableDescriptor callableDescriptor : current.getOriginal().getOverriddenDescriptors()) {
+            @SuppressWarnings("unchecked")
+            D descriptor = (D) callableDescriptor;
+            collectAllOverriddenDescriptors(descriptor, result);
+            result.add(descriptor);
+        }
+    }
+
+    @NotNull
+    public static <D extends CallableMemberDescriptor> Set<D> getAllOverriddenDeclarations(@NotNull D memberDescriptor) {
+        Set<D> result = new HashSet<D>();
+        for (CallableMemberDescriptor overriddenDeclaration : memberDescriptor.getOverriddenDescriptors()) {
+            CallableMemberDescriptor.Kind kind = overriddenDeclaration.getKind();
+            if (kind == DECLARATION) {
+                //noinspection unchecked
+                result.add((D) overriddenDeclaration);
+            }
+            else if (kind == DELEGATION || kind == FAKE_OVERRIDE || kind == SYNTHESIZED) {
+                //do nothing
+            }
+            else {
+                throw new AssertionError("Unexpected callable kind " + kind);
+            }
+            //noinspection unchecked
+            result.addAll(getAllOverriddenDeclarations((D) overriddenDeclaration));
+        }
+        return result;
+    }
+
+    public static boolean containsReifiedTypeParameterWithName(@NotNull CallableDescriptor descriptor, @NotNull String name) {
+        for (TypeParameterDescriptor typeParameterDescriptor : descriptor.getTypeParameters()) {
+            if (typeParameterDescriptor.isReified() && typeParameterDescriptor.getName().asString().equals(name)) return true;
+        }
+
+        return false;
     }
 }

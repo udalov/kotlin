@@ -18,13 +18,14 @@ package org.jetbrains.jet.j2k
 
 import com.intellij.psi.*
 import org.jetbrains.jet.j2k.ast.*
-import org.jetbrains.jet.j2k.visitors.ExpressionVisitor
 import com.intellij.psi.util.PsiUtil
 import java.util.HashMap
 import java.util.ArrayList
 import java.util.HashSet
 
-class ConstructorConverter(private val psiClass: PsiClass, private val converter: Converter) {
+class ConstructorConverter(private val psiClass: PsiClass,
+                           private val converter: Converter,
+                           private val fieldCorrections: Map<PsiField, FieldCorrectionInfo>) {
     private val typeConverter = converter.typeConverter
 
     private val tempValName: String = "__"
@@ -82,7 +83,7 @@ class ConstructorConverter(private val psiClass: PsiClass, private val converter
                             else
                                 null
                         }
-                        val finalTarget = finalTargetInfo?.constructor ?: target!! //TODO: see KT-5335
+                        val finalTarget = finalTargetInfo?.constructor ?: target
 
                         toTargetConstructorMap[constructor] = TargetConstructorInfo(finalTarget, parameterDefaults)
                         for (entry in toTargetConstructorMap.entrySet()) {
@@ -148,7 +149,7 @@ class ConstructorConverter(private val psiClass: PsiClass, private val converter
         }
     }
 
-    public var baseClassParams: List<Expression> = listOf()
+    public var baseClassParams: List<DeferredElement<Expression>> = listOf()
         private set
 
     public fun convertConstructor(constructor: PsiMethod,
@@ -163,31 +164,36 @@ class ConstructorConverter(private val psiClass: PsiClass, private val converter
             if (constructor in constructorsToDrop) return null
 
             val params = converter.convertParameterList(constructor.getParameterList())
-            val bodyConverter = converter.withExpressionVisitor { object : ExpressionVisitor(it) {
-                override fun visitReferenceExpression(expression: PsiReferenceExpression) {
-                    if (isQualifierEmptyOrThis(expression)) {
-                        val member = expression.getReference()?.resolve() as? PsiMember
-                        if (member != null &&
-                                !member.isConstructor() &&
-                                member.getContainingClass() == constructor.getContainingClass()) {
-                            val isNullable = member is PsiField && typeConverter.variableNullability(member).isNullable(converter.settings)
-                            val qualifier = if (member.hasModifierProperty(PsiModifier.STATIC)) constructor.declarationIdentifier() else tempValIdentifier()
-                            result = QualifiedExpression(qualifier, Identifier(expression.getReferenceName()!!, isNullable).assignNoPrototype())
-                            return
-                        }
-                    }
-
-                    super.visitReferenceExpression(expression)
-                }
-            }}
-            var body = postProcessBody(bodyConverter.convertBlock(constructor.getBody()))
             val containingClass = constructor.getContainingClass()
             val typeParameterList = converter.convertTypeParameterList(containingClass?.getTypeParameterList())
             val factoryFunctionType = ClassType(ReferenceElement(containingClass?.declarationIdentifier() ?: Identifier.Empty, typeParameterList.parameters).assignNoPrototype(),
                                                 Nullability.NotNull,
                                                 converter.settings).assignNoPrototype()
+
+            fun convertBody(codeConverter: CodeConverter): Block {
+                val bodyConverter = codeConverter.withSpecialExpressionConverter(
+                        object : SpecialExpressionConverter {
+                            override fun convertExpression(expression: PsiExpression, codeConverter: CodeConverter): Expression? {
+                                if (expression is PsiReferenceExpression && expression.isQualifierEmptyOrThis()) {
+                                    val member = expression.getReference()?.resolve() as? PsiMember
+                                    if (member != null &&
+                                        !member.isConstructor() &&
+                                        member.getContainingClass() == constructor.getContainingClass()) {
+                                        val isNullable = member is PsiField && typeConverter.variableNullability(member).isNullable(codeConverter.settings)
+                                        val qualifier = if (member.hasModifierProperty(PsiModifier.STATIC)) constructor.declarationIdentifier() else tempValIdentifier()
+                                        val name = fieldCorrections[member]?.name ?: expression.getReferenceName()!!
+                                        return QualifiedExpression(qualifier, Identifier(name, isNullable).assignNoPrototype())
+                                    }
+                                }
+
+                                return null
+                            }
+                        })
+                return postProcessBody(bodyConverter.convertBlock(constructor.getBody()))
+            }
+
             return FactoryFunction(constructor.declarationIdentifier(), annotations, correctFactoryFunctionAccess(modifiers),
-                                   factoryFunctionType, params, typeParameterList, body)
+                                   factoryFunctionType, params, typeParameterList, converter.deferredElement(::convertBody))
         }
     }
 
@@ -201,7 +207,8 @@ class ConstructorConverter(private val psiClass: PsiClass, private val converter
 
         val parameterUsageReplacementMap = HashMap<String, String>()
         val correctedTypeConverter = converter.withSpecialContext(psiClass).typeConverter /* to correct nested class references */
-        val block = if (body != null) {
+
+        val bodyGenerator: (CodeConverter) -> Block = if (body != null) {
             val statementsToRemove = HashSet<PsiStatement>()
             for (parameter in params) {
                 val (field, initializationStatement) = findBackingFieldForConstructorParameter(parameter, primaryConstructor) ?: continue
@@ -209,7 +216,7 @@ class ConstructorConverter(private val psiClass: PsiClass, private val converter
                 val fieldType = correctedTypeConverter.convertVariableType(field)
                 val parameterType = correctedTypeConverter.convertVariableType(parameter)
                 // types can be different only in nullability
-                val `type` = if (fieldType == parameterType) {
+                val type = if (fieldType == parameterType) {
                     fieldType
                 }
                 else if (fieldType.toNotNullType() == parameterType.toNotNullType()) {
@@ -219,60 +226,78 @@ class ConstructorConverter(private val psiClass: PsiClass, private val converter
                     continue
                 }
 
-                parameterToField.put(parameter, field to `type`)
+                val fieldCorrection = fieldCorrections[field]
+                // we cannot specify different setter access for constructor parameter
+                if (fieldCorrection != null && !isVal(converter.referenceSearcher, field) && fieldCorrection.access != fieldCorrection.setterAccess) continue
+
+                parameterToField.put(parameter, field to type)
                 statementsToRemove.add(initializationStatement)
                 membersToRemove.add(field)
 
-                if (field.getName() != parameter.getName()) {
-                    parameterUsageReplacementMap.put(parameter.getName()!!, field.getName()!!)
+                val fieldName = fieldCorrection?.name ?: field.getName()!!
+                if (fieldName != parameter.getName()) {
+                    parameterUsageReplacementMap.put(parameter.getName()!!, fieldName)
                 }
             }
 
-            val bodyConverter = converter.withExpressionVisitor {
-                object : ReplacingExpressionVisitor(this, parameterUsageReplacementMap, it) {
-                    override fun visitMethodCallExpression(expression: PsiMethodCallExpression) {
-                        if (expression.isSuperConstructorCall()) return // skip it
-                        super.visitMethodCallExpression(expression)
-                    }
-                }
+            { codeConverter ->
+                val bodyConverter = codeConverter.withSpecialExpressionConverter(
+                        object : ReplacingExpressionConverter(parameterUsageReplacementMap) {
+                            override fun convertExpression(expression: PsiExpression, codeConverter: CodeConverter): Expression? {
+                                if (expression is PsiMethodCallExpression && expression.isSuperConstructorCall()) {
+                                    return Expression.Empty // skip it
+                                }
+                                return super.convertExpression(expression, codeConverter)
+                            }
+                        })
+                postProcessBody(bodyConverter.convertBlock(body, false, { !statementsToRemove.contains(it) }))
             }
-            postProcessBody(bodyConverter.convertBlock(body, false, { !statementsToRemove.contains(it) }))
         }
         else {
-            Block.Empty
+            { it -> Block.Empty }
         }
 
         // we need to replace renamed parameter usages in base class constructor arguments and in default values
-        val correctedConverter = converter.withExpressionVisitor { ReplacingExpressionVisitor(this, parameterUsageReplacementMap, it) }
-                                          .withSpecialContext(psiClass) /* to correct nested class references */
+
+        val correctedConverter = converter.withSpecialContext(psiClass) /* to correct nested class references */
+
+        fun CodeConverter.correct() = withSpecialExpressionConverter(ReplacingExpressionConverter(parameterUsageReplacementMap))
 
         val statement = primaryConstructor.getBody()?.getStatements()?.firstOrNull()
         val methodCall = (statement as? PsiExpressionStatement)?.getExpression() as? PsiMethodCallExpression
         if (methodCall != null && methodCall.isSuperConstructorCall()) {
-            baseClassParams = correctedConverter.convertExpressions(methodCall.getArgumentList().getExpressions())
+            baseClassParams = methodCall.getArgumentList().getExpressions().map {
+                correctedConverter.deferredElement { codeConverter -> codeConverter.correct().convertExpression(it) }
+            }
         }
 
         val parameterList = ParameterList(params.indices.map { i ->
             val parameter = params[i]
             val indexFromEnd = params.size - i - 1
             val defaultValue = if (indexFromEnd < lastParamDefaults.size)
-                correctedConverter.convertExpression(lastParamDefaults[indexFromEnd], parameter.getType())
+                correctedConverter.deferredElement { codeConverter -> codeConverter.correct().convertExpression(lastParamDefaults[indexFromEnd], parameter.getType()) }
             else
                 null
             if (!parameterToField.containsKey(parameter)) {
                 correctedConverter.convertParameter(parameter, defaultValue = defaultValue)
             }
             else {
-                val (field, `type`) = parameterToField[parameter]!!
-                Parameter(field.declarationIdentifier(),
-                          `type`,
+                val (field, type) = parameterToField[parameter]!!
+                val fieldCorrection = fieldCorrections[field]
+                val name = fieldCorrection?.identifier ?: field.declarationIdentifier()
+                val accessModifiers = if (fieldCorrection != null)
+                    Modifiers(listOf()).with(fieldCorrection.access).assignNoPrototype()
+                else
+                    converter.convertModifiers(field).filter { it in ACCESS_MODIFIERS }
+                Parameter(name,
+                          type,
                           if (isVal(converter.referenceSearcher, field)) Parameter.VarValModifier.Val else Parameter.VarValModifier.Var,
                           converter.convertAnnotations(parameter) + converter.convertAnnotations(field),
-                          converter.convertModifiers(field).filter { it in ACCESS_MODIFIERS },
+                          accessModifiers,
                           defaultValue).assignPrototypes(listOf(parameter, field), CommentsAndSpacesInheritance(blankLinesBefore = false))
             }
         }).assignPrototype(primaryConstructor.getParameterList())
-        return PrimaryConstructor(annotations, modifiers, parameterList, block).assignPrototype(primaryConstructor)
+        return PrimaryConstructor(annotations, modifiers, parameterList, converter.deferredElement(bodyGenerator)).assignPrototype(primaryConstructor)
     }
 
     private fun findBackingFieldForConstructorParameter(parameter: PsiParameter, constructor: PsiMethod): Pair<PsiField, PsiStatement>? {
@@ -286,7 +311,7 @@ class ConstructorConverter(private val psiClass: PsiClass, private val converter
             val assignment = ref.getParent() as? PsiAssignmentExpression ?: continue
             if (assignment.getOperationSign().getTokenType() != JavaTokenType.EQ) continue
             val assignee = assignment.getLExpression() as? PsiReferenceExpression ?: continue
-            if (!isQualifierEmptyOrThis(assignee)) continue
+            if (!assignee.isQualifierEmptyOrThis()) continue
             val field = assignee.resolve() as? PsiField ?: continue
             if (field.getContainingClass() != constructor.getContainingClass()) continue
             if (field.hasModifierProperty(PsiModifier.STATIC)) continue
@@ -297,7 +322,7 @@ class ConstructorConverter(private val psiClass: PsiClass, private val converter
             if (statement.getParent() != body) continue
 
             // and no other assignments to field should exist in the constructor
-            if (converter.referenceSearcher.findVariableUsages(field, body).any { it != assignee && PsiUtil.isAccessedForWriting(it) && isQualifierEmptyOrThis(it) }) continue
+            if (converter.referenceSearcher.findVariableUsages(field, body).any { it != assignee && PsiUtil.isAccessedForWriting(it) && it.isQualifierEmptyOrThis() }) continue
             //TODO: check access to field before assignment
 
             return field to statement
@@ -311,28 +336,27 @@ class ConstructorConverter(private val psiClass: PsiClass, private val converter
             return generateArtificialPrimaryConstructor(classBody)
         }
         else {
-            val updatedFunctions = processFactoryFunctionsWithConstructorCall(classBody.factoryFunctions)
-            return ClassBody(classBody.primaryConstructorSignature, classBody.members, classBody.classObjectMembers, updatedFunctions, classBody.lBrace, classBody.rBrace)
+            processFactoryFunctionsWithConstructorCall(classBody.factoryFunctions)
+            return classBody
         }
     }
 
     private fun generateArtificialPrimaryConstructor(classBody: ClassBody): ClassBody {
         assert(classBody.primaryConstructorSignature == null)
 
-        val fieldsToInitialize = classBody.members.filterIsInstance(javaClass<Field>()).filter { it.isVal }
-        val updatedFactoryFunctions = ArrayList<FactoryFunction>()
+        val propertiesToInitialize = classBody.members.filterIsInstance<Property>().filter { it.isVal }
         for (function in classBody.factoryFunctions) {
-            val body = function.body!!
-            // 2 cases: secondary constructor either calls another constructor or does not call any
-            val newStatements = processFactoryFunctionWithConstructorCall(body) ?:
-                    insertCallToArtificialPrimary(body, fieldsToInitialize)
-            val newBody = Block(newStatements, LBrace().assignNoPrototype(), RBrace().assignNoPrototype()).assignNoPrototype()
-            updatedFactoryFunctions.add(function.withBody(newBody))
+            function.body!!.updateGenerator { (codeConverter, block) ->
+                // 2 cases: secondary constructor either calls another constructor or does not call any
+                val newStatements = processFactoryFunctionWithConstructorCall(block) ?:
+                                    insertCallToArtificialPrimary(block, propertiesToInitialize)
+                Block(newStatements, LBrace().assignNoPrototype(), RBrace().assignNoPrototype()).assignNoPrototype()
+            }
         }
 
-        val parameters = fieldsToInitialize.map { field ->
-            val varValModifier = if (field.isVal) Parameter.VarValModifier.Val else Parameter.VarValModifier.Var
-            Parameter(field.identifier, field.`type`, varValModifier, field.annotations, field.modifiers.filter { it in ACCESS_MODIFIERS }).assignPrototypesFrom(field)
+        val parameters = propertiesToInitialize.map { property ->
+            val varValModifier = if (property.isVal) Parameter.VarValModifier.Val else Parameter.VarValModifier.Var
+            Parameter(property.identifier, property.type, varValModifier, property.annotations, property.modifiers.filter { it in ACCESS_MODIFIERS }).assignPrototypesFrom(property)
         }
 
         val modifiers = Modifiers.Empty
@@ -340,19 +364,20 @@ class ConstructorConverter(private val psiClass: PsiClass, private val converter
         //val modifiers = Modifiers(listOf(Modifier.PRIVATE)).assignNoPrototype()
         val parameterList = ParameterList(parameters).assignNoPrototype()
         val constructorSignature = PrimaryConstructorSignature(Annotations.Empty, modifiers, parameterList).assignNoPrototype()
-        val updatedMembers = classBody.members.filter { !fieldsToInitialize.contains(it) }
-        return ClassBody(constructorSignature, updatedMembers, classBody.classObjectMembers, updatedFactoryFunctions, classBody.lBrace, classBody.rBrace)
+        val updatedMembers = classBody.members.filter { !propertiesToInitialize.contains(it) }
+        return ClassBody(constructorSignature, classBody.baseClassParams, updatedMembers, classBody.classObjectMembers, classBody.factoryFunctions, classBody.lBrace, classBody.rBrace)
     }
 
-    private fun processFactoryFunctionsWithConstructorCall(functions: List<FactoryFunction>): List<FactoryFunction> {
-        return functions.map { function ->
-            val body = function.body!!
-            val statements = processFactoryFunctionWithConstructorCall(body)
-            if (statements != null) {
-                function.withBody(Block(statements, body.lBrace, body.rBrace).assignPrototypesFrom(body))
-            }
-            else {
-                function
+    private fun processFactoryFunctionsWithConstructorCall(functions: List<FactoryFunction>) {
+        for (function in functions) {
+            function.body!!.updateGenerator { (codeConverter, block) ->
+                val statements = processFactoryFunctionWithConstructorCall(block)
+                if (statements != null) {
+                    Block(statements, block.lBrace, block.rBrace).assignPrototypesFrom(block)
+                }
+                else {
+                    block
+                }
             }
         }
     }
@@ -381,10 +406,10 @@ class ConstructorConverter(private val psiClass: PsiClass, private val converter
         return null
     }
 
-    private fun insertCallToArtificialPrimary(body: Block, fieldsToInitialize: Collection<Field>): List<Statement> {
-        val initializers = HashMap<Field, Expression?>()
-        for (field in fieldsToInitialize) {
-            initializers.put(field, getDefaultInitializer(field))
+    private fun insertCallToArtificialPrimary(body: Block, propertiesToInitialize: Collection<Property>): List<Statement> {
+        val initializers = HashMap<Property, Expression?>()
+        for (property in propertiesToInitialize) {
+            initializers.put(property, getDefaultInitializer(property))
         }
 
         val statements = ArrayList<Statement>()
@@ -394,9 +419,9 @@ class ConstructorConverter(private val psiClass: PsiClass, private val converter
                 val assignee = statement.left
                 if (assignee is QualifiedExpression && (assignee.qualifier as? Identifier)?.name == tempValName) {
                     val name = (assignee.identifier as Identifier).name
-                    for (field in fieldsToInitialize) {
-                        if (name == field.identifier.name) {
-                            initializers.put(field, statement.right)
+                    for (property in propertiesToInitialize) {
+                        if (name == property.identifier.name) {
+                            initializers.put(property, statement.right)
                             keepStatement = false
                         }
 
@@ -410,7 +435,7 @@ class ConstructorConverter(private val psiClass: PsiClass, private val converter
             }
         }
 
-        val arguments = fieldsToInitialize.map { initializers[it] ?: LiteralExpression("null").assignNoPrototype() }
+        val arguments = propertiesToInitialize.map { initializers[it] ?: LiteralExpression("null").assignNoPrototype() }
         val initializer = MethodCallExpression.buildNotNull(null, className, arguments).assignNoPrototype()
         if (statements.isNotEmpty()) {
             val localVar = LocalVariable(tempValIdentifier(),
@@ -443,26 +468,23 @@ class ConstructorConverter(private val psiClass: PsiClass, private val converter
         return ref.getCanonicalText() == "super" && ref.resolve()?.isConstructor() ?: false
     }
 
-    private /*inner*//*TODO:KT-5343*/ open class ReplacingExpressionVisitor(
-            val owner: ConstructorConverter,
-            val parameterUsageReplacementMap: Map<String, String>, converter: Converter) : ExpressionVisitor(converter) {
-        override fun visitReferenceExpression(expression: PsiReferenceExpression) {
-            if (expression.getQualifier() == null) {
+    private inner open class ReplacingExpressionConverter(val parameterUsageReplacementMap: Map<String, String>) : SpecialExpressionConverter {
+        override fun convertExpression(expression: PsiExpression, codeConverter: CodeConverter): Expression? {
+            if (expression is PsiReferenceExpression && expression.getQualifier() == null) {
                 val replacement = parameterUsageReplacementMap[expression.getReferenceName()]
                 if (replacement != null) {
                     val target = expression.getReference()?.resolve()
                     if (target is PsiParameter) {
                         val scope = target.getDeclarationScope()
                         // we do not check for exactly this constructor because default values reference parameters in other constructors
-                        if (scope.isConstructor() && scope.getParent() == owner.psiClass) {
-                            result = Identifier(replacement, owner.typeConverter.variableNullability(target).isNullable(owner.converter.settings))
-                            return
+                        if (scope.isConstructor() && scope.getParent() == psiClass) {
+                            return Identifier(replacement, codeConverter.typeConverter.variableNullability(target).isNullable(codeConverter.settings))
                         }
                     }
                 }
             }
 
-            super.visitReferenceExpression(expression)
+            return null
         }
     }
 }

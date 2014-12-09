@@ -16,11 +16,18 @@
 
 package org.jetbrains.jet.lang.psi;
 
+import com.intellij.psi.PsiElement;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+
+import java.util.List;
 
 public interface JetCallableDeclaration extends JetNamedDeclaration, JetTypeParameterListOwner {
     @Nullable
     JetParameterList getValueParameterList();
+
+    @NotNull
+    List<JetParameter> getValueParameters();
 
     @Nullable
     JetTypeReference getReceiverTypeReference();
@@ -30,4 +37,7 @@ public interface JetCallableDeclaration extends JetNamedDeclaration, JetTypePara
 
     @Nullable
     JetTypeReference setTypeReference(@Nullable JetTypeReference typeRef);
+
+    @Nullable
+    PsiElement getColon();
 }

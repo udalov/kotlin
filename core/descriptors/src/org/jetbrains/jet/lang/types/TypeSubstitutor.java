@@ -21,11 +21,9 @@ import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.TypeParameterDescriptor;
 import org.jetbrains.jet.lang.resolve.scopes.SubstitutingScope;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
+import org.jetbrains.jet.lang.types.typeUtil.TypeUtilPackage;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class TypeSubstitutor {
 
@@ -151,9 +149,27 @@ public class TypeSubstitutor {
     @NotNull
     private TypeProjection unsafeSubstitute(@NotNull TypeProjection originalProjection, int recursionDepth) throws SubstitutionException {
         assertRecursionDepth(recursionDepth, originalProjection, substitution);
+
         // The type is within the substitution range, i.e. T or T?
         JetType type = originalProjection.getType();
-        if (KotlinBuiltIns.getInstance().isNothing(type) || type.isError()) return originalProjection;
+        Variance originalProjectionKind = originalProjection.getProjectionKind();
+        if (TypesPackage.isFlexible(type) && !TypesPackage.isCustomTypeVariable(type)) {
+            Flexibility flexibility = TypesPackage.flexibility(type);
+            TypeProjection substitutedLower =
+                    unsafeSubstitute(new TypeProjectionImpl(originalProjectionKind, flexibility.getLowerBound()), recursionDepth + 1);
+            TypeProjection substitutedUpper =
+                    unsafeSubstitute(new TypeProjectionImpl(originalProjectionKind, flexibility.getUpperBound()), recursionDepth + 1);
+            // todo: projection kind is neglected
+            return new TypeProjectionImpl(originalProjectionKind,
+                                          DelegatingFlexibleType.create(
+                                                  substitutedLower.getType(),
+                                                  substitutedUpper.getType(),
+                                                  flexibility.getExtraCapabilities()
+                                          )
+            );
+        }
+
+        if (KotlinBuiltIns.isNothing(type) || type.isError()) return originalProjection;
 
         TypeProjection replacement = substitution.get(type.getConstructor());
 
@@ -161,34 +177,64 @@ public class TypeSubstitutor {
             // It must be a type parameter: only they can be directly substituted for
             TypeParameterDescriptor typeParameter = (TypeParameterDescriptor) type.getConstructor().getDeclarationDescriptor();
 
-            switch (conflictType(originalProjection.getProjectionKind(), replacement.getProjectionKind())) {
+            switch (conflictType(originalProjectionKind, replacement.getProjectionKind())) {
                 case OUT_IN_IN_POSITION:
                     throw new SubstitutionException("Out-projection in in-position");
                 case IN_IN_OUT_POSITION:
                     //noinspection ConstantConditions
                     return TypeUtils.makeStarProjection(typeParameter);
                 case NO_CONFLICT:
-                    boolean resultingIsNullable = type.isNullable() || replacement.getType().isNullable();
-                    JetType substitutedType = TypeUtils.makeNullableAsSpecified(replacement.getType(), resultingIsNullable);
-                    Variance resultingProjectionKind = combine(originalProjection.getProjectionKind(), replacement.getProjectionKind());
+                    JetType substitutedType;
+                    CustomTypeVariable typeVariable = TypesPackage.getCustomTypeVariable(type);
+                    if (typeVariable != null) {
+                        substitutedType = typeVariable.substitutionResult(replacement.getType());
+                    }
+                    else {
+                        // this is a simple type T or T?: if it's T, we should just take replacement, if T? - we make replacement nullable
+                        substitutedType = type.isMarkedNullable() ? TypeUtils.makeNullable(replacement.getType()) : replacement.getType();
+                    }
 
+                    Variance resultingProjectionKind = combine(originalProjectionKind, replacement.getProjectionKind());
                     return new TypeProjectionImpl(resultingProjectionKind, substitutedType);
                 default:
                     throw new IllegalStateException();
             }
         }
-        else {
-            // The type is not within the substitution range, i.e. Foo, Bar<T> etc.
-            List<TypeProjection> substitutedArguments = substituteTypeArguments(
-                    type.getConstructor().getParameters(), type.getArguments(), recursionDepth);
+        // The type is not within the substitution range, i.e. Foo, Bar<T> etc.
+        return substituteCompoundType(type, originalProjectionKind, recursionDepth);
+    }
 
-            JetType substitutedType = new JetTypeImpl(type.getAnnotations(),   // Old annotations. This is questionable
-                                               type.getConstructor(),   // The same constructor
-                                               type.isNullable(),       // Same nullability
-                                               substitutedArguments,
-                                               new SubstitutingScope(type.getMemberScope(), this));
-            return new TypeProjectionImpl(originalProjection.getProjectionKind(), substitutedType);
-        }
+    private TypeProjection substituteCompoundType(
+            final JetType type,
+            Variance projectionKind,
+            int recursionDepth
+    ) throws SubstitutionException {
+        List<TypeProjection> substitutedArguments = substituteTypeArguments(
+                type.getConstructor().getParameters(), type.getArguments(), recursionDepth);
+
+        // Only type parameters of the corresponding class (or captured type parameters of outer declaration) are substituted
+        // e.g. for return type Foo of 'add(..)' in 'class Foo { fun <R> add(bar: Bar<R>): Foo }' R shouldn't be substituted in the scope
+        TypeSubstitution substitutionFilteringTypeParameters = new TypeSubstitution() {
+            private final Collection<TypeConstructor> containedOrCapturedTypeParameters =
+                    TypeUtilPackage.getContainedAndCapturedTypeParameterConstructors(type);
+
+            @Nullable
+            @Override
+            public TypeProjection get(TypeConstructor key) {
+                return containedOrCapturedTypeParameters.contains(key) ? substitution.get(key) : null;
+            }
+
+            @Override
+            public boolean isEmpty() {
+                return substitution.isEmpty();
+            }
+        };
+        JetType substitutedType = new JetTypeImpl(type.getAnnotations(),   // Old annotations. This is questionable
+                                           type.getConstructor(),   // The same constructor
+                                           type.isMarkedNullable(),       // Same nullability
+                                           substitutedArguments,
+                                           new SubstitutingScope(type.getMemberScope(), create(substitutionFilteringTypeParameters)));
+        return new TypeProjectionImpl(projectionKind, substitutedType);
     }
 
     private List<TypeProjection> substituteTypeArguments(

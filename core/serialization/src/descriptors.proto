@@ -20,14 +20,15 @@ option java_outer_classname = "ProtoBuf";
 option optimize_for = LITE_RUNTIME; // Smaller runtime
 option java_generic_services = false; // Less code
 
-message SimpleNameTable {
-  repeated string name = 1;
+message StringTable {
+  repeated string string = 1;
 }
 
 message QualifiedNameTable {
 
   message QualifiedName {
     optional int32 parent_qualified_name = 1 [default = -1];
+    // Id in the StringTable
     required int32 short_name = 2;
     optional Kind kind = 3 [default = PACKAGE];
 
@@ -38,6 +39,62 @@ message QualifiedNameTable {
   }
 
   repeated QualifiedName qualified_name = 1;
+}
+
+message Annotation {
+  message Argument {
+    message Value {
+      enum Type {
+        BYTE = 0;
+        CHAR = 1;
+        SHORT = 2;
+        INT = 3;
+        LONG = 4;
+        FLOAT = 5;
+        DOUBLE = 6;
+        BOOLEAN = 7;
+
+        STRING = 8;
+        CLASS = 9;
+        ENUM = 10;
+        ANNOTATION = 11;
+        ARRAY = 12;
+      }
+
+      // Note: a *Value* has a Type, not an Argument! This is done for future language features which may involve using arrays
+      // of elements of different types. Such entries are allowed in the constant pool of JVM class files.
+      // However, to save space, this field is optional: in case of homogeneous arrays, only the type of the first element is required
+      optional Type type = 1;
+
+      // Only one of the following values should be present. Consider using `oneof` instead when we upgrade to protobuf 2.6.0+
+
+      optional sint64 int_value = 2;
+      optional float float_value = 3;
+      optional double double_value = 4;
+
+      // id in StringTable
+      optional int32 string_value = 5;
+
+      // If type = CLASS, FQ name id of the referenced class; if type = ENUM, FQ name id of the enum class
+      optional int32 class_id = 6;
+
+      // id in StringTable
+      optional int32 enum_value_id = 7;
+
+      optional Annotation annotation = 8;
+
+      repeated Value array_element = 9;
+    }
+
+    // id in StringTable
+    required int32 name_id = 1;
+    required Value value = 2;
+  }
+
+  // Class FQ name id
+  required int32 id = 1;
+
+  repeated Argument argument = 2;
 }
 
 message Type {
@@ -68,10 +125,21 @@ message Type {
   repeated Argument argument = 2;
 
   optional bool nullable = 3 [default = false];
+
+  // Id in the StringTable
+  // If this field is set, the type is flexible.
+  // All the fields above represent its lower bound, and flexible_upper_bound must be set and represents its upper bound.
+  optional int32 flexible_type_capabilities_id = 4;
+
+  // While such an "indirect" encoding helps backwards compatibility with pre-flexible-types versions of this format,
+  // we use it mainly to save space: having a special mandatory tag on each an every type just to have an option
+  // to represent flexible types is too many wasted bytes.
+  optional Type flexible_upper_bound = 5;
 }
 
 message TypeParameter {
   required int32 id = 1;
+  // Id in the StringTable
   required int32 name = 2;
 
   optional bool reified = 3 [default = false];
@@ -139,10 +207,14 @@ message Class {
   // This field is present if and only if the class has a primary constructor
   optional PrimaryConstructor primary_constructor = 13;
   // todo: other constructors?
+
+  extensions 100 to 199;
 }
 
 message Package {
   repeated Callable member = 1;
+
+  extensions 100 to 199;
 }
 
 message Callable {
@@ -175,7 +247,7 @@ message Callable {
   optional int32 flags = 1;
   optional string extra_visibility = 2; // for things like java-specific visibilities
 
-    /*
+  /*
      isNotDefault
      Visibility
      Modality
@@ -188,6 +260,7 @@ message Callable {
 
   optional Type receiver_type = 5;
 
+  // Id in the StringTable
   required int32 name = 6;
 
   message ValueParameter {
@@ -196,6 +269,8 @@ message Callable {
        has_annotations
     */
     optional int32 flags = 1;
+
+    // Id in the StringTable
     required int32 name = 2;
     required Type type = 3;
     optional Type vararg_element_type = 4;
@@ -224,5 +299,6 @@ enum Visibility {
   PRIVATE = 0x01;
   PROTECTED = 0x02;
   PUBLIC = 0x03;
-  EXTRA = 0x04; // there's an extra field for the actual visibility
+  PRIVATE_TO_THIS = 0x04;
+  EXTRA = 0x05; // there's an extra field for the actual visibility
 }

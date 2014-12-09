@@ -19,34 +19,38 @@ package org.jetbrains.jet.plugin.completion.smart
 import com.intellij.codeInsight.lookup.LookupElement
 import org.jetbrains.jet.lang.types.TypeUtils
 import org.jetbrains.jet.lang.descriptors.*
-import org.jetbrains.jet.lang.resolve.scopes.JetScope
 import org.jetbrains.jet.lang.resolve.DescriptorUtils
 import com.intellij.codeInsight.lookup.LookupElementDecorator
 import com.intellij.codeInsight.lookup.LookupElementPresentation
 import org.jetbrains.jet.renderer.DescriptorRenderer
 import com.intellij.codeInsight.completion.InsertionContext
-import org.jetbrains.jet.plugin.project.ResolveSessionForBodies
 import org.jetbrains.jet.lang.resolve.BindingContext
-import org.jetbrains.jet.lang.psi.JetExpression
 import org.jetbrains.jet.plugin.completion.ExpectedInfo
-import org.jetbrains.jet.plugin.util.makeNotNullable
 import org.jetbrains.jet.plugin.completion.qualifiedNameForSourceCode
 import org.jetbrains.jet.lang.resolve.descriptorUtil.isExtension
+import org.jetbrains.jet.plugin.util.IdeDescriptorRenderers
+import org.jetbrains.jet.plugin.caches.resolve.ResolutionFacade
+import org.jetbrains.jet.plugin.completion.LookupElementFactory
+import org.jetbrains.jet.lang.types.TypeSubstitutor
+import org.jetbrains.jet.plugin.util.fuzzyReturnType
+import org.jetbrains.jet.lang.psi.JetSimpleNameExpression
+import org.jetbrains.jet.plugin.completion.isVisible
 
 // adds java static members, enum members and members from class object
-class StaticMembers(val bindingContext: BindingContext, val resolveSession: ResolveSessionForBodies) {
+class StaticMembers(
+        val bindingContext: BindingContext,
+        val resolutionFacade: ResolutionFacade,
+        val lookupElementFactory: LookupElementFactory
+) {
     public fun addToCollection(collection: MutableCollection<LookupElement>,
                                expectedInfos: Collection<ExpectedInfo>,
-                               context: JetExpression,
+                               context: JetSimpleNameExpression,
                                enumEntriesToSkip: Set<DeclarationDescriptor>) {
 
-        val scope = bindingContext[BindingContext.RESOLUTION_SCOPE, context]
-        if (scope == null) return
-
-        val expectedInfosByClass = expectedInfos.groupBy { TypeUtils.getClassDescriptor(it.`type`) }
+        val expectedInfosByClass = expectedInfos.groupBy { TypeUtils.getClassDescriptor(it.type) }
         for ((classDescriptor, expectedInfosForClass) in expectedInfosByClass) {
             if (classDescriptor != null && !classDescriptor.getName().isSpecial()) {
-                addToCollection(collection, classDescriptor, expectedInfosForClass, scope, enumEntriesToSkip)
+                addToCollection(collection, classDescriptor, expectedInfosForClass, context, enumEntriesToSkip)
             }
         }
     }
@@ -55,38 +59,29 @@ class StaticMembers(val bindingContext: BindingContext, val resolveSession: Reso
             collection: MutableCollection<LookupElement>,
             classDescriptor: ClassDescriptor,
             expectedInfos: Collection<ExpectedInfo>,
-            scope: JetScope,
+            context: JetSimpleNameExpression,
             enumEntriesToSkip: Set<DeclarationDescriptor>) {
 
+        val scope = bindingContext[BindingContext.RESOLUTION_SCOPE, context] ?: return
+
         fun processMember(descriptor: DeclarationDescriptor) {
-            if (descriptor is DeclarationDescriptorWithVisibility && !Visibilities.isVisible(descriptor, scope.getContainingDeclaration())) return
+            if (descriptor is DeclarationDescriptorWithVisibility && !descriptor.isVisible(scope.getContainingDeclaration(), bindingContext, context)) return
 
             val classifier: (ExpectedInfo) -> ExpectedInfoClassification
             if (descriptor is CallableDescriptor) {
-                val returnType = descriptor.getReturnType()
-                if (returnType == null) return
-                classifier = {
-                    expectedInfo ->
-                        when {
-                            returnType.isSubtypeOf(expectedInfo.`type`) -> ExpectedInfoClassification.MATCHES
-                            returnType.isNullable() && returnType.makeNotNullable().isSubtypeOf(expectedInfo.`type`) -> ExpectedInfoClassification.MAKE_NOT_NULLABLE
-                            else -> ExpectedInfoClassification.NOT_MATCHES
-                        }
-                }
+                val returnType = descriptor.fuzzyReturnType() ?: return
+                classifier = { expectedInfo -> returnType.classifyExpectedInfo(expectedInfo) }
             }
             else if (DescriptorUtils.isEnumEntry(descriptor) && !enumEntriesToSkip.contains(descriptor)) {
-                classifier = { ExpectedInfoClassification.MATCHES } /* we do not need to check type of enum entry because it's taken from proper enum */
-            }
-            else if (descriptor is ClassDescriptor && DescriptorUtils.isObject(descriptor)) {
-                classifier = { expectedInfo ->
-                    if (descriptor.getDefaultType().isSubtypeOf(expectedInfo.`type`)) ExpectedInfoClassification.MATCHES else ExpectedInfoClassification.NOT_MATCHES
-                }
+                classifier = { ExpectedInfoClassification.matches(TypeSubstitutor.EMPTY) } /* we do not need to check type of enum entry because it's taken from proper enum */
             }
             else {
                 return
             }
 
-            collection.addLookupElements(expectedInfos, classifier, { createLookupElement(descriptor, classDescriptor) })
+            collection.addLookupElements(descriptor, expectedInfos, classifier) {
+                descriptor -> createLookupElement(descriptor, classDescriptor)
+            }
         }
 
         classDescriptor.getStaticScope().getAllDescriptors().forEach(::processMember)
@@ -106,13 +101,14 @@ class StaticMembers(val bindingContext: BindingContext, val resolveSession: Reso
     }
 
     private fun createLookupElement(memberDescriptor: DeclarationDescriptor, classDescriptor: ClassDescriptor): LookupElement {
-        val lookupElement = createLookupElement(memberDescriptor, resolveSession)
+        val lookupElement = lookupElementFactory.createLookupElement(memberDescriptor, resolutionFacade, bindingContext, false)
         val qualifierPresentation = classDescriptor.getName().asString()
-        val lookupString = qualifierPresentation + "." + lookupElement.getLookupString()
         val qualifierText = qualifiedNameForSourceCode(classDescriptor)
 
         return object: LookupElementDecorator<LookupElement>(lookupElement) {
-            override fun getLookupString() = lookupString
+            override fun getAllLookupStrings(): Set<String> {
+                return setOf(lookupElement.getLookupString(), qualifierPresentation)
+            }
 
             override fun renderElement(presentation: LookupElementPresentation) {
                 getDelegate().renderElement(presentation)
@@ -133,7 +129,7 @@ class StaticMembers(val bindingContext: BindingContext, val resolveSession: Reso
             }
 
             override fun handleInsert(context: InsertionContext) {
-                var text = qualifierText + "." + DescriptorRenderer.SOURCE_CODE.renderName(memberDescriptor.getName())
+                var text = qualifierText + "." + IdeDescriptorRenderers.SOURCE_CODE.renderName(memberDescriptor.getName())
 
                 context.getDocument().replaceString(context.getStartOffset(), context.getTailOffset(), text)
                 context.setTailOffset(context.getStartOffset() + text.length)
@@ -144,6 +140,6 @@ class StaticMembers(val bindingContext: BindingContext, val resolveSession: Reso
 
                 shortenReferences(context, context.getStartOffset(), context.getTailOffset())
             }
-        }
+        }.assignSmartCompletionPriority(SmartCompletionItemPriority.STATIC_MEMBER)
     }
 }

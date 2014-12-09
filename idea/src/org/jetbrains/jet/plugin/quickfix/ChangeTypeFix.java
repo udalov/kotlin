@@ -28,24 +28,29 @@ import org.jetbrains.jet.lang.diagnostics.Errors;
 import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.psi.JetParameter;
 import org.jetbrains.jet.lang.psi.JetTypeReference;
+import org.jetbrains.jet.lang.resolve.DescriptorUtils;
 import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.plugin.JetBundle;
-import org.jetbrains.jet.renderer.DescriptorRenderer;
+import org.jetbrains.jet.plugin.codeInsight.ShortenReferences;
+import org.jetbrains.jet.plugin.util.IdeDescriptorRenderers;
 
 import static org.jetbrains.jet.lang.psi.PsiPackage.JetPsiFactory;
 
 public class ChangeTypeFix extends JetIntentionAction<JetTypeReference> {
+    private final JetType type;
     private final String renderedType;
 
     public ChangeTypeFix(@NotNull JetTypeReference element, JetType type) {
         super(element);
-        renderedType = DescriptorRenderer.SHORT_NAMES_IN_TYPES.renderType(type);
+        this.type = type;
+        renderedType = IdeDescriptorRenderers.SOURCE_CODE.renderType(type);
     }
 
     @NotNull
     @Override
     public String getText() {
-        return JetBundle.message("change.type", element.getText(), renderedType);
+        String currentTypeText = element.getText();
+        return JetBundle.message("change.type", currentTypeText, QuickFixUtil.renderTypeWithFqNameOnClash(type, currentTypeText));
     }
 
     @NotNull
@@ -57,6 +62,7 @@ public class ChangeTypeFix extends JetIntentionAction<JetTypeReference> {
     @Override
     public void invoke(@NotNull Project project, Editor editor, JetFile file) throws IncorrectOperationException {
         element.replace(JetPsiFactory(file).createType(renderedType));
+        QuickFixUtil.shortenReferencesOfType(type, file);
     }
 
     @NotNull
@@ -64,7 +70,7 @@ public class ChangeTypeFix extends JetIntentionAction<JetTypeReference> {
         return new JetSingleIntentionActionFactory() {
             @Nullable
             @Override
-            public IntentionAction createAction(Diagnostic diagnostic) {
+            public IntentionAction createAction(@NotNull Diagnostic diagnostic) {
                 DiagnosticWithParameters1<JetParameter, JetType> diagnosticWithParameters = Errors.EXPECTED_PARAMETER_TYPE_MISMATCH.cast(diagnostic);
                 JetTypeReference typeReference = diagnosticWithParameters.getPsiElement().getTypeReference();
                 assert typeReference != null : "EXPECTED_PARAMETER_TYPE_MISMATCH reported on parameter without explicitly declared type";
@@ -78,7 +84,7 @@ public class ChangeTypeFix extends JetIntentionAction<JetTypeReference> {
         return new JetSingleIntentionActionFactory() {
             @Nullable
             @Override
-            public IntentionAction createAction(Diagnostic diagnostic) {
+            public IntentionAction createAction(@NotNull Diagnostic diagnostic) {
                 DiagnosticWithParameters1<JetTypeReference, JetType> diagnosticWithParameters = Errors.EXPECTED_RETURN_TYPE_MISMATCH.cast(diagnostic);
                 return new ChangeTypeFix(diagnosticWithParameters.getPsiElement(), diagnosticWithParameters.getA());
             }

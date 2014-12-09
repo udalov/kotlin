@@ -16,7 +16,15 @@
 
 package org.jetbrains.jet.plugin.project;
 
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.jet.lang.resolve.AdditionalCheckerProvider;
+import org.jetbrains.jet.lang.resolve.kotlin.JavaDeclarationCheckerProvider;
+import org.jetbrains.k2js.resolve.KotlinJsDeclarationCheckerProvider;
+
 public interface TargetPlatform {
-    TargetPlatform JVM = new TargetPlatformImpl("JVM");
-    TargetPlatform JS = new TargetPlatformImpl("JS");
+    @NotNull
+    AdditionalCheckerProvider getAdditionalCheckerProvider();
+
+    TargetPlatform JVM = new TargetPlatformImpl("JVM", JavaDeclarationCheckerProvider.INSTANCE$);
+    TargetPlatform JS = new TargetPlatformImpl("JS", KotlinJsDeclarationCheckerProvider.INSTANCE$);
 }

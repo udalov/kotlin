@@ -30,6 +30,7 @@ import com.intellij.openapi.util.Key
 import java.io.PrintWriter
 import java.io.StringWriter
 import com.intellij.openapi.application.ApplicationManager
+import com.intellij.psi.PsiComment
 
 public fun JetPsiFactory(project: Project?): JetPsiFactory = JetPsiFactory(project!!)
 public fun JetPsiFactory(contextElement: JetElement): JetPsiFactory = JetPsiFactory(contextElement.getProject())
@@ -67,8 +68,8 @@ public class JetPsiFactory(private val project: Project) {
         return (property.getInitializer() as JetCallExpression).getTypeArgumentList()!!
     }
 
-    public fun createType(`type`: String): JetTypeReference {
-        return createProperty("val x : $`type`").getTypeReference()!!
+    public fun createType(type: String): JetTypeReference {
+        return createProperty("val x : $type").getTypeReference()!!
     }
 
     public fun createStar(): PsiElement {
@@ -109,8 +110,13 @@ public class JetPsiFactory(private val project: Project) {
         return createProperty("val${text}x").findElementAt(3)!!
     }
 
+    // Remove when all Java usages are rewritten to Kotlin
     public fun createNewLine(): PsiElement {
         return createWhiteSpace("\n")
+    }
+
+    public fun createNewLine(lineBreaks: Int): PsiElement {
+        return createWhiteSpace("\n".repeat(lineBreaks))
     }
 
     public fun createClass(text: String): JetClass {
@@ -152,13 +158,13 @@ public class JetPsiFactory(private val project: Project) {
         return PsiFileFactory.getInstance(project).createFileFromText(fileName, JetFileType.INSTANCE, text, LocalTimeCounter.currentTime(), true) as JetFile
     }
 
-    public fun createProperty(name: String, `type`: String?, isVar: Boolean, initializer: String?): JetProperty {
-        val text = (if (isVar) "var " else "val ") + name + (if (`type` != null) ":" + `type` else "") + (if (initializer == null) "" else " = " + initializer)
+    public fun createProperty(name: String, type: String?, isVar: Boolean, initializer: String?): JetProperty {
+        val text = (if (isVar) "var " else "val ") + name + (if (type != null) ":" + type else "") + (if (initializer == null) "" else " = " + initializer)
         return createProperty(text)
     }
 
-    public fun createProperty(name: String, `type`: String?, isVar: Boolean): JetProperty {
-        return createProperty(name, `type`, isVar, null)
+    public fun createProperty(name: String, type: String?, isVar: Boolean): JetProperty {
+        return createProperty(name, type, isVar, null)
     }
 
     public fun createProperty(text: String): JetProperty {
@@ -212,6 +218,10 @@ public class JetPsiFactory(private val project: Project) {
         return createFunction("fun foo() {}").getBodyExpression()!!
     }
 
+    public fun createAnonymousInitializer(): JetClassInitializer {
+        return createClass("class A { {} }").getAnonymousInitializers().first!!
+    }
+
     public fun createEmptyClassBody(): JetClassBody {
         return createClass("class A(){}").getBody()!!
     }
@@ -222,6 +232,14 @@ public class JetPsiFactory(private val project: Project) {
 
     public fun createParameterList(text: String): JetParameterList {
         return createFunction("fun foo$text{}").getValueParameterList()!!
+    }
+
+    public fun createFunctionLiteralParameterList(text: String): JetParameterList {
+        return (createExpression("{ $text -> 0}") as JetFunctionLiteralExpression).getFunctionLiteral().getValueParameterList()
+    }
+
+    public fun createEnumEntry(text: String): JetEnumEntry {
+        return createDeclaration<JetClass>("enum class E {$text}").getDeclarations()[0] as JetEnumEntry
     }
 
     public fun createWhenEntry(entryText: String): JetWhenEntry {
@@ -316,6 +334,10 @@ public class JetPsiFactory(private val project: Project) {
 
     public fun createArgument(argumentExpression: JetExpression): JetValueArgument {
         return createArgumentWithName(null, argumentExpression)
+    }
+
+    public fun createDelegatorToSuperCall(text: String): JetDelegatorToSuperCall {
+        return createClass("class A: $text").getDelegationSpecifiers().first() as JetDelegatorToSuperCall
     }
 
     public inner class IfChainBuilder() {
@@ -545,14 +567,14 @@ public class JetPsiFactory(private val project: Project) {
             return this
         }
 
-        public fun param(name: String, `type`: String): CallableBuilder {
+        public fun param(name: String, type: String): CallableBuilder {
             assert(target == Target.FUNCTION)
             assert(state == State.FIRST_PARAM || state == State.REST_PARAMS)
 
             if (state == State.REST_PARAMS) {
                 sb.append(", ")
             }
-            sb.append(name).append(": ").append(`type`)
+            sb.append(name).append(": ").append(type)
             if (state == State.FIRST_PARAM) {
                 state = State.REST_PARAMS
             }
@@ -560,9 +582,9 @@ public class JetPsiFactory(private val project: Project) {
             return this
         }
 
-        public fun returnType(`type`: String): CallableBuilder {
+        public fun returnType(type: String): CallableBuilder {
             closeParams()
-            sb.append(": ").append(`type`)
+            sb.append(": ").append(type)
 
             return this
         }
@@ -617,6 +639,14 @@ public class JetPsiFactory(private val project: Project) {
 
     public fun createEmptyClassObject(): JetClassObject {
         return createClass("class foo { class object { } }").getClassObject()!!
+    }
+
+    public fun createComment(text: String): PsiComment {
+        val file = createFile(text)
+        val comments = file.getChildren().filterIsInstance<PsiComment>()
+        val comment = comments.single()
+        assert(comment.getText() == text)
+        return comment
     }
 
     public fun wrapInABlock(expression: JetExpression): JetBlockExpression {

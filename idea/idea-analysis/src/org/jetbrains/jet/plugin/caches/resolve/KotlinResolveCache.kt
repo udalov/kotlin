@@ -20,14 +20,13 @@ import org.jetbrains.jet.lang.psi.JetElement
 import org.jetbrains.jet.lang.psi.JetFile
 import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.openapi.project.Project
-import org.jetbrains.jet.analyzer.AnalyzeExhaust
+import org.jetbrains.jet.analyzer.AnalysisResult
 import com.intellij.psi.util.CachedValuesManager
 import org.jetbrains.jet.lang.diagnostics.DiagnosticUtils
 import com.intellij.util.containers.SLRUCache
 import com.intellij.psi.util.PsiModificationTracker
 import com.intellij.openapi.project.DumbService
 import org.jetbrains.jet.lang.resolve.DelegatingBindingTrace
-import org.jetbrains.jet.di.InjectorForTopDownAnalyzerForJvm
 import org.jetbrains.jet.context.SimpleGlobalContext
 import org.jetbrains.jet.lang.resolve.TopDownAnalysisParameters
 import com.intellij.openapi.progress.ProcessCanceledException
@@ -61,6 +60,11 @@ import org.jetbrains.jet.lang.resolve.BindingTraceContext
 import org.jetbrains.jet.lang.types.TypeUtils
 import org.jetbrains.jet.lang.resolve.scopes.ChainedScope
 import org.jetbrains.jet.lang.resolve.bindingContextUtil.getDataFlowInfo
+import org.jetbrains.jet.di.InjectorForLazyBodyResolve
+import org.jetbrains.jet.plugin.project.TargetPlatformDetector
+import org.jetbrains.jet.lang.resolve.lazy.descriptors.LazyClassDescriptor
+import org.jetbrains.jet.lang.resolve.calls.smartcasts.DataFlowInfo
+import org.jetbrains.jet.lang.resolve.scopes.JetScope
 
 public trait CacheExtension<T> {
     public val platform: TargetPlatform
@@ -96,7 +100,7 @@ private class KotlinResolveCache(
         CachedValueProvider.Result(results, PsiModificationTracker.MODIFICATION_COUNT, resolverProvider.exceptionTracker)
     }, false)
 
-    fun getAnalysisResultsForElements(elements: Collection<JetElement>): AnalyzeExhaust {
+    fun getAnalysisResultsForElements(elements: Collection<JetElement>): AnalysisResult {
         val slruCache = synchronized(analysisResults) {
             analysisResults.getValue()!!
         }
@@ -106,27 +110,27 @@ private class KotlinResolveCache(
             }
             perFileCache.getAnalysisResults(it)
         }
-        val error = results.firstOrNull { it.isError() }
-        val bindingContext = CompositeBindingContext.create(results.map { it.getBindingContext() })
-        return if (error != null)
-                   AnalyzeExhaust.error(bindingContext, error.getError())
+        val withError = results.firstOrNull { it.isError() }
+        val bindingContext = CompositeBindingContext.create(results.map { it.bindingContext })
+        return if (withError != null)
+                   AnalysisResult.error(bindingContext, withError.error)
                else
                     //TODO: (module refactoring) several elements are passed here in debugger
-                   AnalyzeExhaust.success(bindingContext, getLazyResolveSession(elements.first()).getModuleDescriptor())
+                   AnalysisResult.success(bindingContext, getLazyResolveSession(elements.first()).getModuleDescriptor())
     }
 }
 
 private class PerFileAnalysisCache(val file: JetFile, val resolveSession: ResolveSessionForBodies) {
-    private val cache = HashMap<PsiElement, AnalyzeExhaust>()
+    private val cache = HashMap<PsiElement, AnalysisResult>()
 
-    private fun lookUp(analyzableElement: JetElement): AnalyzeExhaust? {
+    private fun lookUp(analyzableElement: JetElement): AnalysisResult? {
         // Looking for parent elements that are already analyzed
         // Also removing all elements whose parents are already analyzed, to guarantee consistency
         val descendantsOfCurrent = arrayListOf<PsiElement>()
         val toRemove = hashSetOf<PsiElement>()
 
         var current: PsiElement? = analyzableElement
-        var result: AnalyzeExhaust? = null
+        var result: AnalysisResult? = null
         while (current != null) {
             val cached = cache[current]
             if (cached != null) {
@@ -144,12 +148,12 @@ private class PerFileAnalysisCache(val file: JetFile, val resolveSession: Resolv
         return result
     }
 
-    fun getAnalysisResults(element: JetElement): AnalyzeExhaust {
+    fun getAnalysisResults(element: JetElement): AnalysisResult {
         assert (element.getContainingJetFile() == file, "Wrong file. Expected $file, but was ${element.getContainingJetFile()}")
 
         val analyzableParent = KotlinResolveDataProvider.findAnalyzableParent(element)
 
-        return synchronized(this) { (): AnalyzeExhaust ->
+        return synchronized(this) { (): AnalysisResult ->
 
             val cached = lookUp(analyzableParent)
             if (cached != null) return@synchronized cached
@@ -162,10 +166,10 @@ private class PerFileAnalysisCache(val file: JetFile, val resolveSession: Resolv
         }
     }
 
-    private fun analyze(analyzableElement: JetElement): AnalyzeExhaust {
+    private fun analyze(analyzableElement: JetElement): AnalysisResult {
         val project = analyzableElement.getProject()
         if (DumbService.isDumb(project)) {
-            return AnalyzeExhaust.EMPTY
+            return AnalysisResult.EMPTY
         }
 
         try {
@@ -178,7 +182,7 @@ private class PerFileAnalysisCache(val file: JetFile, val resolveSession: Resolv
             DiagnosticUtils.throwIfRunningOnServer(e)
             LOG.error(e)
 
-            return AnalyzeExhaust.error(BindingContext.EMPTY, e)
+            return AnalysisResult.error(BindingContext.EMPTY, e)
         }
     }
 }
@@ -218,10 +222,10 @@ private object KotlinResolveDataProvider {
                     ?: element.getContainingJetFile()
     }
 
-    fun analyze(project: Project, resolveSession: ResolveSessionForBodies, analyzableElement: JetElement): AnalyzeExhaust {
+    fun analyze(project: Project, resolveSession: ResolveSessionForBodies, analyzableElement: JetElement): AnalysisResult {
         try {
             if (analyzableElement is JetCodeFragment) {
-                return AnalyzeExhaust.success(
+                return AnalysisResult.success(
                         analyzeExpressionCodeFragment(resolveSession, analyzableElement),
                         resolveSession.getModuleDescriptor()
                 )
@@ -234,15 +238,17 @@ private object KotlinResolveDataProvider {
             }
 
             val trace = DelegatingBindingTrace(resolveSession.getBindingContext(), "Trace for resolution of " + analyzableElement)
-            val injector = InjectorForTopDownAnalyzerForJvm(
+
+            val lazyTopDownAnalyzer = InjectorForLazyBodyResolve(
                     project,
                     SimpleGlobalContext(resolveSession.getStorageManager(), resolveSession.getExceptionTracker()),
-                    trace,
-                    resolveSession.getModuleDescriptor()
-            )
-            injector.getLazyTopDownAnalyzer()!!.analyzeDeclarations(
                     resolveSession,
-                    TopDownAnalysisParameters.createForLazy(
+                    trace,
+                    TargetPlatformDetector.getPlatform(analyzableElement.getContainingJetFile()).getAdditionalCheckerProvider()
+            ).getLazyTopDownAnalyzer()!!
+
+            lazyTopDownAnalyzer.analyzeDeclarations(
+                    TopDownAnalysisParameters.create(
                             resolveSession.getStorageManager(),
                             resolveSession.getExceptionTracker(),
                             /* analyzeCompletely = */ { true },
@@ -251,7 +257,7 @@ private object KotlinResolveDataProvider {
                     ),
                     listOf(analyzableElement)
             )
-            return AnalyzeExhaust.success(
+            return AnalysisResult.success(
                     trace.getBindingContext(),
                     resolveSession.getModuleDescriptor()
             )
@@ -263,7 +269,7 @@ private object KotlinResolveDataProvider {
             DiagnosticUtils.throwIfRunningOnServer(e)
             LOG.error(e)
 
-            return AnalyzeExhaust.error(BindingContext.EMPTY, e)
+            return AnalysisResult.error(BindingContext.EMPTY, e)
         }
     }
 
@@ -272,11 +278,24 @@ private object KotlinResolveDataProvider {
         if (codeFragmentExpression !is JetExpression) return BindingContext.EMPTY
 
         val contextElement = codeFragment.getContext()
-        if (contextElement !is JetExpression) return BindingContext.EMPTY
 
-        val contextForElement = contextElement.getBindingContext()
+        val scopeForContextElement: JetScope?
+        val dataFlowInfo: DataFlowInfo
+        if (contextElement is JetClassOrObject) {
+            val descriptor = resolveSession.resolveToDescriptor(contextElement) as LazyClassDescriptor
 
-        val scopeForContextElement = contextForElement[BindingContext.RESOLUTION_SCOPE, contextElement]
+            scopeForContextElement = descriptor.getScopeForMemberDeclarationResolution()
+            dataFlowInfo = DataFlowInfo.EMPTY
+        }
+        else {
+            if (contextElement !is JetExpression) return BindingContext.EMPTY
+
+            val contextForElement = contextElement.analyzeFully()
+
+            scopeForContextElement = contextForElement[BindingContext.RESOLUTION_SCOPE, contextElement]
+            dataFlowInfo = contextForElement.getDataFlowInfo(contextElement)
+        }
+
         if (scopeForContextElement == null) return BindingContext.EMPTY
 
         val codeFragmentScope = resolveSession.getScopeProvider().getFileScope(codeFragment)
@@ -285,7 +304,6 @@ private object KotlinResolveDataProvider {
                                 "Scope for resolve code fragment",
                                 scopeForContextElement, codeFragmentScope)
 
-        val dataFlowInfo = contextForElement.getDataFlowInfo(contextElement)
         return codeFragmentExpression.analyzeInContext(
                 chainedScope,
                 BindingTraceContext(),

@@ -39,9 +39,9 @@ import org.jetbrains.jet.lang.resolve.lazy.ForceResolveUtil;
 import org.jetbrains.jet.lang.resolve.lazy.KotlinCodeAnalyzer;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.Name;
-import org.jetbrains.jet.plugin.libraries.JetSourceNavigationHelper;
+import org.jetbrains.jet.plugin.decompiler.navigation.JetSourceNavigationHelper;
 import org.jetbrains.jet.plugin.project.ResolveSessionForBodies;
-import org.jetbrains.jet.plugin.stubindex.JetClassByPackageIndex;
+import org.jetbrains.jet.plugin.stubindex.JetTopLevelClassByPackageIndex;
 import org.jetbrains.jet.plugin.stubindex.JetFullClassNameIndex;
 import org.jetbrains.jet.plugin.stubindex.PackageIndexUtil;
 
@@ -71,7 +71,8 @@ public class IDELightClassGenerationSupport extends LightClassGenerationSupport 
         List<JetFile> sortedFiles = new ArrayList<JetFile>(files);
         Collections.sort(sortedFiles, jetFileComparator);
 
-        ResolveSessionForBodies session = ResolvePackage.getLazyResolveSession(sortedFiles.get(0));
+        JetFile file = sortedFiles.get(0);
+        ResolveSessionForBodies session = KotlinCacheService.OBJECT$.getInstance(file.getProject()).getLazyResolveSession(file);
         forceResolvePackageDeclarations(files, session);
         return new LightClassConstructionContext(session.getBindingContext(), session.getModuleDescriptor());
     }
@@ -79,7 +80,8 @@ public class IDELightClassGenerationSupport extends LightClassGenerationSupport 
     @NotNull
     @Override
     public LightClassConstructionContext getContextForClassOrObject(@NotNull JetClassOrObject classOrObject) {
-        ResolveSessionForBodies session = ResolvePackage.getLazyResolveSession(classOrObject);
+        ResolveSessionForBodies session =
+                KotlinCacheService.OBJECT$.getInstance(classOrObject.getProject()).getLazyResolveSession(classOrObject);
 
         if (classOrObject.isLocal()) {
             BindingContext bindingContext = session.resolveToElement(classOrObject);
@@ -199,7 +201,7 @@ public class IDELightClassGenerationSupport extends LightClassGenerationSupport 
     public Collection<JetClassOrObject> findClassOrObjectDeclarationsInPackage(
             @NotNull FqName packageFqName, @NotNull GlobalSearchScope searchScope
     ) {
-        return JetClassByPackageIndex.getInstance().get(packageFqName.asString(), project, kotlinSources(searchScope, project));
+        return JetTopLevelClassByPackageIndex.getInstance().get(packageFqName.asString(), project, kotlinSources(searchScope, project));
     }
 
     @Override

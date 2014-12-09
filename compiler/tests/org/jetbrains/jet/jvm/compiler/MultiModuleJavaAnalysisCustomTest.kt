@@ -28,7 +28,6 @@ import org.jetbrains.jet.lang.resolve.name.Name
 import org.jetbrains.jet.lang.resolve.name.FqName
 import org.jetbrains.jet.lang.descriptors.*
 import org.junit.Assert
-import org.jetbrains.jet.lang.resolve.DescriptorUtils
 import org.jetbrains.jet.cli.jvm.compiler.JetCoreEnvironment
 import org.jetbrains.jet.config.CompilerConfiguration
 import org.jetbrains.jet.cli.jvm.JVMConfigurationKeys
@@ -41,6 +40,8 @@ import org.jetbrains.jet.analyzer.ModuleInfo
 import java.util.HashMap
 import org.jetbrains.jet.analyzer.ModuleContent
 import org.jetbrains.jet.lang.types.ErrorUtils
+import org.jetbrains.jet.lang.resolve.descriptorUtil.module
+import org.jetbrains.jet.cli.jvm.compiler.EnvironmentConfigFiles
 
 public class MultiModuleJavaAnalysisCustomTest : UsefulTestCase() {
 
@@ -71,7 +72,7 @@ public class MultiModuleJavaAnalysisCustomTest : UsefulTestCase() {
     private fun createEnvironment(moduleDirs: Array<File>): JetCoreEnvironment {
         val configuration = CompilerConfiguration()
         configuration.addAll(JVMConfigurationKeys.CLASSPATH_KEY, moduleDirs.toList())
-        return JetCoreEnvironment.createForTests(getTestRootDisposable()!!, configuration)
+        return JetCoreEnvironment.createForTests(getTestRootDisposable()!!, configuration, EnvironmentConfigFiles.JVM_CONFIG_FILES)
     }
 
     private fun setupModules(environment: JetCoreEnvironment, moduleDirs: Array<File>): List<TestModule> {
@@ -117,7 +118,7 @@ public class MultiModuleJavaAnalysisCustomTest : UsefulTestCase() {
     }
 
     private fun checkClass(classDescriptor: ClassDescriptor) {
-        classDescriptor.getDefaultType().getMemberScope().getAllDescriptors().filterIsInstance(javaClass<CallableDescriptor>()).forEach {
+        classDescriptor.getDefaultType().getMemberScope().getDescriptors().filterIsInstance<CallableDescriptor>().forEach {
             checkCallable(it)
         }
 
@@ -129,7 +130,7 @@ public class MultiModuleJavaAnalysisCustomTest : UsefulTestCase() {
         if (name in setOf("equals", "hashCode", "toString")) return
 
         val returnType = callable.getReturnType()!!
-        if (!KotlinBuiltIns.getInstance().isUnit(returnType)) {
+        if (!KotlinBuiltIns.isUnit(returnType)) {
             checkDescriptor(returnType.getConstructor().getDeclarationDescriptor()!!, callable)
         }
 
@@ -144,7 +145,7 @@ public class MultiModuleJavaAnalysisCustomTest : UsefulTestCase() {
 
     private fun checkSupertypes(classDescriptor: ClassDescriptor) {
         classDescriptor.getDefaultType().getConstructor().getSupertypes().filter {
-            !KotlinBuiltIns.getInstance().isAnyOrNullableAny(it)
+            !KotlinBuiltIns.isAnyOrNullableAny(it)
         }.map {
             it.getConstructor().getDeclarationDescriptor()!!
         }.forEach {
@@ -157,7 +158,7 @@ public class MultiModuleJavaAnalysisCustomTest : UsefulTestCase() {
 
         val descriptorName = referencedDescriptor.getName().asString()
         val expectedModuleName = "<${descriptorName.toLowerCase().first().toString()}>"
-        val moduleName = DescriptorUtils.getContainingModule(referencedDescriptor).getName().asString()
+        val moduleName = referencedDescriptor.module.getName().asString()
         Assert.assertEquals(
                 "Java class $descriptorName in $context should be in module $expectedModuleName, but instead was in $moduleName",
                 expectedModuleName, moduleName

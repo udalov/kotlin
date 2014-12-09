@@ -30,6 +30,7 @@ import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.ui.Gray;
 import com.intellij.ui.JBColor;
 import com.intellij.util.ArrayUtil;
+import kotlin.Function1;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.*;
@@ -39,14 +40,16 @@ import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.DescriptorToSourceUtils;
 import org.jetbrains.jet.lang.resolve.JetVisibilityChecker;
 import org.jetbrains.jet.lang.resolve.name.Name;
+import org.jetbrains.jet.lang.resolve.scopes.DescriptorKindExclude;
+import org.jetbrains.jet.lang.resolve.scopes.DescriptorKindFilter;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
 import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.lang.types.checker.JetTypeChecker;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 import org.jetbrains.jet.lexer.JetTokens;
+import org.jetbrains.jet.plugin.caches.resolve.ResolutionFacade;
 import org.jetbrains.jet.plugin.caches.resolve.ResolvePackage;
-import org.jetbrains.jet.plugin.codeInsight.TipsManager;
-import org.jetbrains.jet.plugin.project.ResolveSessionForBodies;
+import org.jetbrains.jet.plugin.codeInsight.ReferenceVariantsHelper;
 import org.jetbrains.jet.renderer.DescriptorRenderer;
 
 import java.awt.*;
@@ -55,7 +58,7 @@ import java.util.List;
 
 public class JetFunctionParameterInfoHandler implements ParameterInfoHandlerWithTabActionSupport<
         JetValueArgumentList,
-        Pair<? extends FunctionDescriptor, ResolveSessionForBodies>,
+        Pair<? extends FunctionDescriptor, ResolutionFacade>,
         JetValueArgument>
 {
     public final static Color GREEN_BACKGROUND = new JBColor(new Color(231, 254, 234), Gray._100);
@@ -109,7 +112,7 @@ public class JetFunctionParameterInfoHandler implements ParameterInfoHandlerWith
 
     @Nullable
     @Override
-    public Object[] getParametersForDocumentation(Pair<? extends FunctionDescriptor, ResolveSessionForBodies> p, ParameterInfoContext context) {
+    public Object[] getParametersForDocumentation(Pair<? extends FunctionDescriptor, ResolutionFacade> p, ParameterInfoContext context) {
         return ArrayUtil.EMPTY_OBJECT_ARRAY; //todo: ?
     }
 
@@ -197,7 +200,7 @@ public class JetFunctionParameterInfoHandler implements ParameterInfoHandlerWith
     }
 
     @Override
-    public void updateUI(Pair<? extends FunctionDescriptor, ResolveSessionForBodies> itemToShow, ParameterInfoUIContext context) {
+    public void updateUI(Pair<? extends FunctionDescriptor, ResolutionFacade> itemToShow, ParameterInfoUIContext context) {
         //todo: when we will have ability to pass Array as vararg, implement such feature here too?
         if (context == null || context.getParameterOwner() == null || !context.getParameterOwner().isValid()) {
             context.setUIComponentEnabled(false);
@@ -213,7 +216,7 @@ public class JetFunctionParameterInfoHandler implements ParameterInfoHandlerWith
         JetValueArgumentList argumentList = (JetValueArgumentList) parameterOwner;
 
         FunctionDescriptor functionDescriptor = itemToShow.first;
-        ResolveSessionForBodies resolveSession = itemToShow.second;
+        ResolutionFacade resolutionFacade = itemToShow.second;
 
         List<ValueParameterDescriptor> valueParameters = functionDescriptor.getValueParameters();
         List<JetValueArgument> valueArguments = argumentList.getArguments();
@@ -222,7 +225,7 @@ public class JetFunctionParameterInfoHandler implements ParameterInfoHandlerWith
         int boldStartOffset = -1;
         int boldEndOffset = -1;
         boolean isGrey = false;
-        boolean isDeprecated = KotlinBuiltIns.getInstance().isDeprecated(functionDescriptor);
+        boolean isDeprecated = KotlinBuiltIns.isDeprecated(functionDescriptor);
 
         boolean[] usedIndexes = new boolean[valueParameters.size()];
         Arrays.fill(usedIndexes, false);
@@ -236,7 +239,7 @@ public class JetFunctionParameterInfoHandler implements ParameterInfoHandlerWith
         StringBuilder builder = new StringBuilder();
 
         PsiElement owner = context.getParameterOwner();
-        BindingContext bindingContext = resolveSession.resolveToElement((JetElement) owner);
+        BindingContext bindingContext = resolutionFacade.analyze((JetElement) owner);
 
         for (int i = 0; i < valueParameters.size(); ++i) {
             if (i != 0) {
@@ -369,7 +372,7 @@ public class JetFunctionParameterInfoHandler implements ParameterInfoHandlerWith
             return null;
         }
 
-        JetSimpleNameExpression callNameExpression = getCallSimpleNameExpression(argumentList);
+        final JetSimpleNameExpression callNameExpression = getCallSimpleNameExpression(argumentList);
         if (callNameExpression == null) {
             return null;
         }
@@ -379,42 +382,46 @@ public class JetFunctionParameterInfoHandler implements ParameterInfoHandlerWith
             return null;
         }
 
-        ResolveSessionForBodies resolveSession =
-                ResolvePackage.getLazyResolveSession(callNameExpression.getContainingJetFile());
-        BindingContext bindingContext = resolveSession.resolveToElement(callNameExpression);
+        ResolutionFacade resolutionFacade = ResolvePackage.getResolutionFacade(callNameExpression.getContainingJetFile());
+        BindingContext bindingContext = resolutionFacade.analyze(callNameExpression);
 
         JetScope scope = bindingContext.get(BindingContext.RESOLUTION_SCOPE, callNameExpression);
-        DeclarationDescriptor placeDescriptor = null;
+        final DeclarationDescriptor placeDescriptor;
         if (scope != null) {
             placeDescriptor = scope.getContainingDeclaration();
         }
+        else {
+            placeDescriptor = null;
+        }
+        Function1<DeclarationDescriptor, Boolean> visibilityFilter = new Function1<DeclarationDescriptor, Boolean>() {
+            @Override
+            public Boolean invoke(DeclarationDescriptor descriptor) {
+                return placeDescriptor == null || JetVisibilityChecker.isVisible(placeDescriptor, descriptor);
+            }
+        };
 
-        Collection<DeclarationDescriptor> variants = TipsManager.INSTANCE$.getReferenceVariants(callNameExpression, bindingContext);
+        final Name refName = callNameExpression.getReferencedNameAsName();
 
-        Name refName = callNameExpression.getReferencedNameAsName();
+        Function1<Name, Boolean> nameFilter = new Function1<Name, Boolean>() {
+            @Override
+            public Boolean invoke(Name name) {
+                return name.equals(refName);
+            }
+        };
+        Collection<DeclarationDescriptor> variants = new ReferenceVariantsHelper(bindingContext, visibilityFilter).getReferenceVariants(
+                callNameExpression, new DescriptorKindFilter(DescriptorKindFilter.FUNCTIONS_MASK | DescriptorKindFilter.CLASSIFIERS_MASK,
+                                                             Collections.<DescriptorKindExclude>emptyList()), false, nameFilter);
 
-        Collection<Pair<? extends DeclarationDescriptor, ResolveSessionForBodies>> itemsToShow = new ArrayList<Pair<? extends DeclarationDescriptor, ResolveSessionForBodies>>();
+        Collection<Pair<? extends DeclarationDescriptor, ResolutionFacade>> itemsToShow = new ArrayList<Pair<? extends DeclarationDescriptor, ResolutionFacade>>();
         for (DeclarationDescriptor variant : variants) {
             if (variant instanceof FunctionDescriptor) {
-                FunctionDescriptor functionDescriptor = (FunctionDescriptor) variant;
-                if (functionDescriptor.getName().equals(refName)) {
-                    //todo: renamed functions?
-                    if (placeDescriptor != null && !JetVisibilityChecker.isVisible(placeDescriptor, functionDescriptor)) {
-                        continue;
-                    }
-                    itemsToShow.add(Pair.create(functionDescriptor, resolveSession));
-                }
+                //todo: renamed functions?
+                itemsToShow.add(Pair.create((FunctionDescriptor) variant, resolutionFacade));
             }
             else if (variant instanceof ClassDescriptor) {
-                ClassDescriptor classDescriptor = (ClassDescriptor) variant;
-                if (classDescriptor.getName().equals(refName)) {
-                    //todo: renamed classes?
-                    for (ConstructorDescriptor constructorDescriptor : classDescriptor.getConstructors()) {
-                        if (placeDescriptor != null && !JetVisibilityChecker.isVisible(placeDescriptor, constructorDescriptor)) {
-                            continue;
-                        }
-                        itemsToShow.add(Pair.create(constructorDescriptor, resolveSession));
-                    }
+                //todo: renamed classes?
+                for (ConstructorDescriptor constructorDescriptor : ((ClassDescriptor) variant).getConstructors()) {
+                    itemsToShow.add(Pair.create(constructorDescriptor, resolutionFacade));
                 }
             }
         }

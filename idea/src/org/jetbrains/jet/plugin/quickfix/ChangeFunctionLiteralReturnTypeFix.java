@@ -38,7 +38,7 @@ import org.jetbrains.jet.lang.types.checker.JetTypeChecker;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 import org.jetbrains.jet.plugin.JetBundle;
 import org.jetbrains.jet.plugin.caches.resolve.ResolvePackage;
-import org.jetbrains.jet.renderer.DescriptorRenderer;
+import org.jetbrains.jet.plugin.util.IdeDescriptorRenderers;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -46,16 +46,16 @@ import java.util.List;
 import static org.jetbrains.jet.lang.psi.PsiPackage.JetPsiFactory;
 
 public class ChangeFunctionLiteralReturnTypeFix extends JetIntentionAction<JetFunctionLiteralExpression> {
-    private final String renderedType;
+    private final JetType type;
     private final JetTypeReference functionLiteralReturnTypeRef;
     private IntentionAction appropriateQuickFix = null;
 
     public ChangeFunctionLiteralReturnTypeFix(@NotNull JetFunctionLiteralExpression functionLiteralExpression, @NotNull JetType type) {
         super(functionLiteralExpression);
-        renderedType = DescriptorRenderer.SHORT_NAMES_IN_TYPES.renderType(type);
+        this.type = type;
         functionLiteralReturnTypeRef = functionLiteralExpression.getFunctionLiteral().getTypeReference();
 
-        BindingContext context = ResolvePackage.getBindingContext(functionLiteralExpression.getContainingJetFile());
+        BindingContext context = ResolvePackage.analyzeFully(functionLiteralExpression.getContainingJetFile());
         JetType functionLiteralType = context.get(BindingContext.EXPRESSION_TYPE, functionLiteralExpression);
         assert functionLiteralType != null : "Type of function literal not available in binding context";
 
@@ -111,7 +111,7 @@ public class ChangeFunctionLiteralReturnTypeFix extends JetIntentionAction<JetFu
         if (appropriateQuickFix != null) {
             return appropriateQuickFix.getText();
         }
-        return JetBundle.message("change.function.literal.return.type", renderedType);
+        return JetBundle.message("change.function.literal.return.type", IdeDescriptorRenderers.SOURCE_CODE_SHORT_NAMES_IN_TYPES.renderType(type));
     }
 
     @NotNull
@@ -129,7 +129,8 @@ public class ChangeFunctionLiteralReturnTypeFix extends JetIntentionAction<JetFu
     @Override
     public void invoke(@NotNull Project project, Editor editor, JetFile file) throws IncorrectOperationException {
         if (functionLiteralReturnTypeRef != null) {
-            functionLiteralReturnTypeRef.replace(JetPsiFactory(file).createType(renderedType));
+            functionLiteralReturnTypeRef.replace(JetPsiFactory(file).createType(IdeDescriptorRenderers.SOURCE_CODE.renderType(type)));
+            QuickFixUtil.shortenReferencesOfType(type, file);
         }
         if (appropriateQuickFix != null && appropriateQuickFix.isAvailable(project, editor, file)) {
             appropriateQuickFix.invoke(project, editor, file);
@@ -141,7 +142,7 @@ public class ChangeFunctionLiteralReturnTypeFix extends JetIntentionAction<JetFu
         return new JetSingleIntentionActionFactory() {
             @Nullable
             @Override
-            public IntentionAction createAction(Diagnostic diagnostic) {
+            public IntentionAction createAction(@NotNull Diagnostic diagnostic) {
                 JetFunctionLiteralExpression functionLiteralExpression = QuickFixUtil.getParentElementOfType(diagnostic, JetFunctionLiteralExpression.class);
                 if (functionLiteralExpression == null) return null;
                 return new ChangeFunctionLiteralReturnTypeFix(functionLiteralExpression, KotlinBuiltIns.getInstance().getUnitType());

@@ -25,7 +25,6 @@ import com.intellij.util.containers.ContainerUtil;
 import kotlin.Function1;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.jet.codegen.binding.CalculatedClosure;
 import org.jetbrains.jet.codegen.binding.CodegenBinding;
 import org.jetbrains.jet.codegen.bridges.Bridge;
 import org.jetbrains.jet.codegen.bridges.BridgesPackage;
@@ -51,6 +50,8 @@ import org.jetbrains.jet.lang.resolve.java.jvmSignature.JvmMethodParameterKind;
 import org.jetbrains.jet.lang.resolve.java.jvmSignature.JvmMethodParameterSignature;
 import org.jetbrains.jet.lang.resolve.java.jvmSignature.JvmMethodSignature;
 import org.jetbrains.jet.lang.resolve.name.FqName;
+import org.jetbrains.jet.lang.types.Approximation;
+import org.jetbrains.jet.lang.types.TypesPackage;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 import org.jetbrains.org.objectweb.asm.AnnotationVisitor;
 import org.jetbrains.org.objectweb.asm.Label;
@@ -225,7 +226,7 @@ public class FunctionCodegen extends ParentCodegenAware {
             if (kind == JvmMethodParameterKind.VALUE) {
                 ValueParameterDescriptor descriptor = descriptors.next();
                 name = descriptor.getName().asString();
-                nullableType = descriptor.getType().isNullable();
+                nullableType = descriptor.getType().isMarkedNullable();
             }
             else {
                 String lowercaseKind = kind.name().toLowerCase();
@@ -238,7 +239,7 @@ public class FunctionCodegen extends ParentCodegenAware {
 
                 if (kind == JvmMethodParameterKind.RECEIVER) {
                     ReceiverParameterDescriptor receiver = functionDescriptor.getExtensionReceiverParameter();
-                    nullableType = receiver == null || receiver.getType().isNullable();
+                    nullableType = receiver == null || receiver.getType().isMarkedNullable();
                 }
                 else {
                     nullableType = true;
@@ -484,7 +485,7 @@ public class FunctionCodegen extends ParentCodegenAware {
     }
 
     @NotNull
-    private static String[] getThrownExceptions(@NotNull FunctionDescriptor function, @NotNull final JetTypeMapper mapper) {
+    public static String[] getThrownExceptions(@NotNull FunctionDescriptor function, @NotNull final JetTypeMapper mapper) {
         AnnotationDescriptor annotation = function.getAnnotations().findAnnotation(new FqName("kotlin.throws"));
         if (annotation == null) return ArrayUtil.EMPTY_STRING_ARRAY;
 
@@ -660,9 +661,7 @@ public class FunctionCodegen extends ParentCodegenAware {
                 Label loadArg = new Label();
                 iv.ifeq(loadArg);
 
-                loadStrategy.putValueOnStack(parameterDescriptor, codegen);
-
-                iv.store(parameterIndex, type);
+                StackValue.local(parameterIndex, type).store(loadStrategy.genValue(parameterDescriptor, codegen), iv);
 
                 iv.mark(loadArg);
             }
@@ -753,8 +752,8 @@ public class FunctionCodegen extends ParentCodegenAware {
 
         if (CodegenBinding.canHaveOuter(context, classDescriptor)) return false;
 
-        if (classDescriptor.getVisibility() == Visibilities.PRIVATE ||
-            constructorDescriptor.getVisibility() == Visibilities.PRIVATE) return false;
+        if (Visibilities.isPrivate(classDescriptor.getVisibility()) ||
+            Visibilities.isPrivate(constructorDescriptor.getVisibility())) return false;
 
         if (constructorDescriptor.getValueParameters().isEmpty()) return false;
 
@@ -783,6 +782,8 @@ public class FunctionCodegen extends ParentCodegenAware {
         Type[] originalArgTypes = delegateTo.getArgumentTypes();
 
         InstructionAdapter iv = new InstructionAdapter(mv);
+        ImplementationBodyCodegen.markLineNumberForSyntheticFunction(owner.getThisDescriptor(), iv);
+
         iv.load(0, OBJECT_TYPE);
         for (int i = 0, reg = 1; i < argTypes.length; i++) {
             StackValue.local(reg, argTypes[i]).put(originalArgTypes[i], iv);
@@ -799,21 +800,19 @@ public class FunctionCodegen extends ParentCodegenAware {
     }
 
     public void genDelegate(FunctionDescriptor functionDescriptor, FunctionDescriptor overriddenDescriptor, StackValue field) {
-        genDelegate(functionDescriptor, (ClassDescriptor) overriddenDescriptor.getContainingDeclaration(), field,
-                    typeMapper.mapSignature(functionDescriptor),
-                    typeMapper.mapSignature(overriddenDescriptor.getOriginal())
-        );
+        genDelegate(functionDescriptor, overriddenDescriptor.getOriginal(), (ClassDescriptor) overriddenDescriptor.getContainingDeclaration(), field);
     }
 
     public void genDelegate(
-            FunctionDescriptor functionDescriptor,
+            final FunctionDescriptor delegateFunction,
+            final FunctionDescriptor delegatedTo,
             final ClassDescriptor toClass,
-            final StackValue field,
-            final JvmMethodSignature jvmDelegateMethodSignature,
-            final JvmMethodSignature jvmDelegatingMethodSignature
+            final StackValue field
     ) {
+        final JvmMethodSignature jvmDelegateMethodSignature = typeMapper.mapSignature(delegateFunction);
+        final JvmMethodSignature jvmDelegateToMethodSignature = typeMapper.mapSignature(delegatedTo);
         generateMethod(
-                OtherOrigin(functionDescriptor), jvmDelegateMethodSignature, functionDescriptor,
+                OtherOrigin(delegateFunction), jvmDelegateMethodSignature, delegateFunction,
                 new FunctionGenerationStrategy() {
                     @Override
                     public void generateBody(
@@ -823,11 +822,11 @@ public class FunctionCodegen extends ParentCodegenAware {
                             @NotNull MethodContext context,
                             @NotNull MemberCodegen<?> parentCodegen
                     ) {
-                        Method overriddenMethod = jvmDelegatingMethodSignature.getAsmMethod();
+                        Method delegateToMethod = jvmDelegateToMethodSignature.getAsmMethod();
                         Method delegateMethod = jvmDelegateMethodSignature.getAsmMethod();
 
                         Type[] argTypes = delegateMethod.getArgumentTypes();
-                        Type[] originalArgTypes = overriddenMethod.getArgumentTypes();
+                        Type[] originalArgTypes = delegateToMethod.getArgumentTypes();
 
                         InstructionAdapter iv = new InstructionAdapter(mv);
                         iv.load(0, OBJECT_TYPE);
@@ -840,13 +839,22 @@ public class FunctionCodegen extends ParentCodegenAware {
 
                         String internalName = typeMapper.mapType(toClass).getInternalName();
                         if (toClass.getKind() == ClassKind.TRAIT) {
-                            iv.invokeinterface(internalName, overriddenMethod.getName(), overriddenMethod.getDescriptor());
+                            iv.invokeinterface(internalName, delegateToMethod.getName(), delegateToMethod.getDescriptor());
                         }
                         else {
-                            iv.invokevirtual(internalName, overriddenMethod.getName(), overriddenMethod.getDescriptor());
+                            iv.invokevirtual(internalName, delegateToMethod.getName(), delegateToMethod.getDescriptor());
                         }
 
-                        StackValue.onStack(overriddenMethod.getReturnType()).put(delegateMethod.getReturnType(), iv);
+                        StackValue stackValue = AsmUtil.genNotNullAssertions(
+                                state,
+                                StackValue.onStack(delegateToMethod.getReturnType()),
+                                TypesPackage.getApproximationTo(
+                                        delegatedTo.getReturnType(),
+                                        delegateFunction.getReturnType(),
+                                        new Approximation.DataFlowExtras.OnlyMessage(delegatedTo.getName() + "(...)"))
+                        );
+
+                        stackValue.put(delegateMethod.getReturnType(), iv);
 
                         iv.areturn(delegateMethod.getReturnType());
                     }

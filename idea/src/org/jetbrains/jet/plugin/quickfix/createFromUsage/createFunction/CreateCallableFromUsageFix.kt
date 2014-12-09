@@ -10,24 +10,44 @@ import org.jetbrains.jet.lang.resolve.DescriptorUtils
 import org.jetbrains.jet.plugin.codeInsight.DescriptorToDeclarationUtil
 import org.jetbrains.jet.lang.psi.JetClassOrObject
 import org.jetbrains.jet.plugin.refactoring.chooseContainerElementIfNecessary
-import org.jetbrains.jet.plugin.refactoring.getExtractionContainers
 import org.jetbrains.jet.lang.psi.JetClassBody
 import org.jetbrains.jet.plugin.quickfix.createFromUsage.callableBuilder.*
 import org.jetbrains.jet.lang.psi.JetExpression
+import org.jetbrains.jet.utils.addToStdlib.singletonOrEmptyList
+import org.jetbrains.jet.utils.addToStdlib.singletonOrEmptyList
+import java.util.HashSet
+import org.jetbrains.jet.lang.psi.JetElement
 
 public class CreateCallableFromUsageFix(
         originalExpression: JetExpression,
-        val callableInfo: CallableInfo) : CreateFromUsageFixBase(originalExpression) {
-    override fun getText(): String {
-        val key = when (callableInfo.kind) {
-            CallableKind.FUNCTION -> "create.function.from.usage"
-            CallableKind.PROPERTY -> "create.property.from.usage"
+        val callableInfos: List<CallableInfo>) : CreateFromUsageFixBase(originalExpression) {
+    {
+        if (callableInfos.size > 1) {
+            val receiverSet = callableInfos.mapTo(HashSet<TypeInfo>()) { it.receiverTypeInfo }
+            if (receiverSet.size > 1) throw AssertionError("All functions must have common receiver: $receiverSet")
+
+            val possibleContainerSet = callableInfos.mapTo(HashSet<List<JetElement>>()) { it.possibleContainers }
+            if (possibleContainerSet.size > 1) throw AssertionError("All functions must have common containers: $possibleContainerSet")
         }
-        return JetBundle.message(key, callableInfo.name)
+    }
+
+    override fun getText(): String {
+        val renderedCallables = callableInfos.map {
+            val kind = when (it.kind) {
+                CallableKind.FUNCTION -> "function"
+                CallableKind.PROPERTY -> "property"
+                else -> throw AssertionError("Unexpected callable info: $it")
+            }
+            "$kind '${it.name}'"
+        }
+
+        return JetBundle.message("create.0.from.usage", renderedCallables.joinToString())
     }
 
     override fun invoke(project: Project, editor: Editor?, file: JetFile?) {
-        val callableBuilder = CallableBuilderConfiguration(callableInfo, element as JetExpression, file!!, editor!!).createBuilder()
+        val callableInfo = callableInfos.first()
+
+        val callableBuilder = CallableBuilderConfiguration(callableInfos, element as JetExpression, file!!, editor!!).createBuilder()
 
         fun runBuilder(placement: CallablePlacement) {
             callableBuilder.placement = placement
@@ -37,12 +57,16 @@ public class CreateCallableFromUsageFix(
         val popupTitle = JetBundle.message("choose.target.class.or.trait.title")
         val receiverTypeCandidates = callableBuilder.computeTypeCandidates(callableInfo.receiverTypeInfo)
         if (receiverTypeCandidates.isNotEmpty()) {
-            val toPsi: (TypeCandidate) -> JetClassOrObject = {
-                val descriptor = DescriptorUtils.getClassDescriptorForType(it.theType)
-                DescriptorToDeclarationUtil.getDeclaration(file, descriptor) as JetClassOrObject
-            }
-            chooseContainerElementIfNecessary(receiverTypeCandidates, editor, popupTitle, false, toPsi) {
-                runBuilder(CallablePlacement.WithReceiver(it))
+            // TODO: Support generation of Java class members
+            val containers = receiverTypeCandidates
+                    .map { candidate ->
+                        val descriptor = candidate.theType.getConstructor().getDeclarationDescriptor()
+                        (DescriptorToDeclarationUtil.getDeclaration(file, descriptor) as? JetClassOrObject)?.let { candidate to it }
+                    }
+                    .filterNotNull()
+
+            chooseContainerElementIfNecessary(containers, editor, popupTitle, false, { it.second }) {
+                runBuilder(CallablePlacement.WithReceiver(it.first))
             }
         }
         else {
@@ -54,4 +78,11 @@ public class CreateCallableFromUsageFix(
             }
         }
     }
+}
+
+public fun CreateCallableFromUsageFix(
+        originalExpression: JetExpression,
+        callableInfo: CallableInfo
+) : CreateCallableFromUsageFix {
+    return CreateCallableFromUsageFix(originalExpression, callableInfo.singletonOrEmptyList())
 }

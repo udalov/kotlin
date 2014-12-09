@@ -19,6 +19,7 @@ package kotlin.jvm.internal;
 import kotlin.IntRange;
 import kotlin.KotlinNullPointerException;
 
+import java.lang.Deprecated;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -35,6 +36,13 @@ public class Intrinsics {
 
     public static void throwNpe() {
         throw new KotlinNullPointerException();
+    }
+
+    public static void checkExpressionValueIsNotNull(Object value, String message) {
+        if (value == null) {
+            IllegalStateException exception = new IllegalStateException(message + " must not be null");
+            throw sanitizeStackTrace(exception);
+        }
     }
 
     public static void checkReturnedValueIsNotNull(Object value, String className, String methodName) {
@@ -86,13 +94,40 @@ public class Intrinsics {
         return first == null ? second == null : first.equals(second);
     }
 
+    // This method is not used from generated code anymore but kept for backwards compatibility
+    @Deprecated
     public static IntRange arrayIndices(int length) {
         return new IntRange(0, length - 1);
     }
 
     private static final Set<String> METHOD_NAMES_TO_SKIP = new HashSet<String>(Arrays.asList(
-            "throwNpe", "checkReturnedValueIsNotNull", "checkFieldIsNotNull", "checkParameterIsNotNull", "throwParameterIsNullException"
+            "throwNpe", "checkExpressionValueIsNotNull", "checkReturnedValueIsNotNull", "checkFieldIsNotNull", "checkParameterIsNotNull",
+            "throwParameterIsNullException"
     ));
+
+    private static void throwUndefinedForReified() {
+        throw new UnsupportedOperationException("You should not use functions with reified parameter without inline");
+    }
+
+    public static void reifyNewArray(String typeParameterIdentifier) {
+        throwUndefinedForReified();
+    }
+
+    public static void reifyCheckcast(String typeParameterIdentifier) {
+        throwUndefinedForReified();
+    }
+
+    public static void reifyInstanceof(String typeParameterIdentifier) {
+        throwUndefinedForReified();
+    }
+
+    public static void reifyJavaClass(String typeParameterIdentifier) {
+        throwUndefinedForReified();
+    }
+
+    public static void needClassReification() {
+        throwUndefinedForReified();
+    }
 
     public static <T extends Throwable> T sanitizeStackTrace(T throwable) {
         StackTraceElement[] stackTrace = throwable.getStackTrace();

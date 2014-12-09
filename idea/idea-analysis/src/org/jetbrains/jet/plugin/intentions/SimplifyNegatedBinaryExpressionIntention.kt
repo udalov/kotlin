@@ -29,6 +29,7 @@ import org.jetbrains.jet.lexer.JetTokens
 import org.jetbrains.jet.lang.psi.JetPsiUtil
 import org.jetbrains.jet.plugin.JetBundle
 import org.jetbrains.jet.lang.psi.JetPsiFactory
+import com.intellij.psi.PsiElement
 
 public class SimplifyNegatedBinaryExpressionIntention : JetSelfTargetingIntention<JetPrefixExpression>("simplify.negated.binary.expression", javaClass()) {
 

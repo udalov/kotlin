@@ -97,7 +97,7 @@ public abstract class AbstractInsertImportOnPasteTest extends JetLightCodeInsigh
     }
 
     private static void checkNoUnresolvedReferences(@NotNull final JetFile file) {
-        BindingContext bindingContext = ResolvePackage.getBindingContext(file);
+        BindingContext bindingContext = ResolvePackage.analyzeFully(file);
         for (Diagnostic diagnostic : bindingContext.getDiagnostics()) {
             if (Errors.UNRESOLVED_REFERENCE_DIAGNOSTICS.contains(diagnostic.getFactory())) {
                 List<TextRange> textRanges = diagnostic.getTextRanges();
@@ -109,6 +109,11 @@ public abstract class AbstractInsertImportOnPasteTest extends JetLightCodeInsigh
             }
         }
         DebugInfoUtil.markDebugAnnotations(file, bindingContext, new DebugInfoUtil.DebugInfoReporter() {
+            @Override
+            public void preProcessReference(@NotNull JetReferenceExpression expression) {
+                ResolvePackage.analyze(expression);
+            }
+
             @Override
             public void reportElementWithErrorType(@NotNull JetReferenceExpression expression) {
                 //do nothing

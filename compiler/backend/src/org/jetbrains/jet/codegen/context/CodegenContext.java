@@ -31,10 +31,7 @@ import org.jetbrains.jet.storage.LockBasedStorageManager;
 import org.jetbrains.jet.storage.NullableLazyValue;
 import org.jetbrains.org.objectweb.asm.Type;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static org.jetbrains.jet.codegen.AsmUtil.CAPTURED_THIS_FIELD;
 import static org.jetbrains.jet.codegen.AsmUtil.getVisibilityAccessFlag;
@@ -55,7 +52,7 @@ public abstract class CodegenContext<T extends DeclarationDescriptor> {
 
     private Map<DeclarationDescriptor, DeclarationDescriptor> accessors;
     private Map<DeclarationDescriptor, CodegenContext> childContexts;
-    private NullableLazyValue<StackValue> lazyOuterExpression;
+    private NullableLazyValue<StackValue.Field> lazyOuterExpression;
 
     public CodegenContext(
             @NotNull T contextDescriptor,
@@ -131,7 +128,7 @@ public abstract class CodegenContext<T extends DeclarationDescriptor> {
             }
             closure.setCaptureThis();
         }
-        return prefix != null ? StackValue.composed(prefix, lazyOuterExpression.invoke()) : lazyOuterExpression.invoke();
+        return StackValue.changeReceiverForFieldAndSharedVar(lazyOuterExpression.invoke(), prefix);
     }
 
     @NotNull
@@ -190,13 +187,13 @@ public abstract class CodegenContext<T extends DeclarationDescriptor> {
     }
 
     @NotNull
-    public CodegenContext intoClosure(
+    public ClassContext intoClosure(
             @NotNull FunctionDescriptor funDescriptor,
             @NotNull LocalLookup localLookup,
             @NotNull JetTypeMapper typeMapper
     ) {
         ClassDescriptor classDescriptor = anonymousClassForFunction(typeMapper.getBindingContext(), funDescriptor);
-        return new ClosureContext(typeMapper, funDescriptor, classDescriptor, this, localLookup);
+        return new ClosureContext(typeMapper, classDescriptor, this, localLookup);
     }
 
     @Nullable
@@ -231,7 +228,7 @@ public abstract class CodegenContext<T extends DeclarationDescriptor> {
     @NotNull
     public DeclarationDescriptor getAccessor(@NotNull DeclarationDescriptor descriptor, boolean isForBackingFieldInOuterClass, @Nullable JetType delegateType) {
         if (accessors == null) {
-            accessors = new HashMap<DeclarationDescriptor, DeclarationDescriptor>();
+            accessors = new LinkedHashMap<DeclarationDescriptor, DeclarationDescriptor>();
         }
         descriptor = descriptor.getOriginal();
         DeclarationDescriptor accessor = accessors.get(descriptor);
@@ -263,15 +260,15 @@ public abstract class CodegenContext<T extends DeclarationDescriptor> {
     public abstract boolean isStatic();
 
     protected void initOuterExpression(@NotNull final JetTypeMapper typeMapper, @NotNull final ClassDescriptor classDescriptor) {
-        lazyOuterExpression = LockBasedStorageManager.NO_LOCKS.createNullableLazyValue(new Function0<StackValue>() {
+        lazyOuterExpression = LockBasedStorageManager.NO_LOCKS.createNullableLazyValue(new Function0<StackValue.Field>() {
             @Override
-            public StackValue invoke() {
+            public StackValue.Field invoke() {
                 ClassDescriptor enclosingClass = getEnclosingClass();
                 if (enclosingClass == null) return null;
 
                 return canHaveOuter(typeMapper.getBindingContext(), classDescriptor)
                        ? StackValue.field(typeMapper.mapType(enclosingClass), typeMapper.mapType(classDescriptor),
-                                          CAPTURED_THIS_FIELD, false)
+                                          CAPTURED_THIS_FIELD, false, StackValue.LOCAL_0)
                        : null;
             }
         });
@@ -282,25 +279,24 @@ public abstract class CodegenContext<T extends DeclarationDescriptor> {
         if (closure != null) {
             EnclosedValueDescriptor answer = closure.getCaptureVariables().get(d);
             if (answer != null) {
-                StackValue innerValue = answer.getInnerValue();
-                return result == null ? innerValue : StackValue.composed(result, innerValue);
+                return StackValue.changeReceiverForFieldAndSharedVar(answer.getInnerValue(), result);
             }
 
             for (LocalLookup.LocalLookupCase aCase : LocalLookup.LocalLookupCase.values()) {
                 if (aCase.isCase(d)) {
                     Type classType = state.getTypeMapper().mapType(getThisDescriptor());
-                    StackValue innerValue = aCase.innerValue(d, enclosingLocalLookup, state, closure, classType);
+                    StackValue.StackValueWithSimpleReceiver innerValue = aCase.innerValue(d, enclosingLocalLookup, state, closure, classType);
                     if (innerValue == null) {
                         break;
                     }
                     else {
-                        return result == null ? innerValue : composedOrStatic(result, innerValue);
+                        return StackValue.changeReceiverForFieldAndSharedVar(innerValue, result);
                     }
                 }
             }
 
-            myOuter = getOuterExpression(null, ignoreNoOuter, false);
-            result = result == null || myOuter == null ? myOuter : StackValue.composed(result, myOuter);
+            myOuter = getOuterExpression(result, ignoreNoOuter, false);
+            result = myOuter;
         }
 
         StackValue resultValue;
@@ -444,15 +440,7 @@ public abstract class CodegenContext<T extends DeclarationDescriptor> {
         return childContexts == null ? null : childContexts.get(child);
     }
 
-    @NotNull
-    private static StackValue composedOrStatic(@NotNull StackValue prefix, @NotNull StackValue suffix) {
-        if (isStaticField(suffix)) {
-            return suffix;
-        }
-        return StackValue.composed(prefix, suffix);
-    }
-
     private static boolean isStaticField(@NotNull StackValue value) {
-        return value instanceof StackValue.Field && ((StackValue.Field) value).isStatic;
+        return value instanceof StackValue.Field && ((StackValue.Field) value).isStaticPut;
     }
 }

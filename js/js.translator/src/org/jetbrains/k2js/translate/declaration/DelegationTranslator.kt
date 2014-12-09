@@ -36,6 +36,7 @@ import java.util.HashMap
 import org.jetbrains.k2js.translate.declaration.propertyTranslator.addGetterAndSetter
 import org.jetbrains.k2js.translate.utils.ManglingUtils.getMangledMemberNameForExplicitDelegation
 import org.jetbrains.k2js.translate.utils.generateDelegateCall
+import org.jetbrains.jet.backend.common.CodegenUtilKt
 
 public class DelegationTranslator(
         private val classDeclaration: JetClassOrObject,
@@ -46,7 +47,7 @@ public class DelegationTranslator(
             BindingUtils.getClassDescriptor(context.bindingContext(), classDeclaration);
 
     private val delegationBySpecifiers =
-            classDeclaration.getDelegationSpecifiers().filterIsInstance(javaClass<JetDelegatorByExpressionSpecifier>());
+            classDeclaration.getDelegationSpecifiers().filterIsInstance<JetDelegatorByExpressionSpecifier>();
 
     private class Field (val name: String, val generateField: Boolean)
     private val fields = HashMap<JetDelegatorByExpressionSpecifier, Field>();
@@ -90,7 +91,7 @@ public class DelegationTranslator(
         CodegenUtil.getSuperClassByDelegationSpecifier(specifier, bindingContext())
 
     private fun generateDelegates(toClass: ClassDescriptor, field: Field, properties: MutableList<JsPropertyInitializer>) {
-        for ((descriptor, overriddenDescriptor) in CodegenUtil.getDelegates(classDescriptor, toClass)) {
+        for ((descriptor, overriddenDescriptor) in CodegenUtilKt.getDelegates(classDescriptor, toClass)) {
             when (descriptor) {
                 is PropertyDescriptor ->
                     generateDelegateCallForPropertyMember(descriptor, field.name, properties)
@@ -114,7 +115,7 @@ public class DelegationTranslator(
             val delegateRefName = context().getScopeForDescriptor(getterDescriptor).declareName(delegateName)
             val delegateRef = JsNameRef(delegateRefName, JsLiteral.THIS)
 
-            val returnExpression = if (JsDescriptorUtils.isExtension(descriptor)) {
+            val returnExpression = if (DescriptorUtils.isExtension(descriptor)) {
                 val getterName = context().getNameForDescriptor(getterDescriptor)
                 val receiver = Namer.getReceiverParameterName()
                 JsInvocation(JsNameRef(getterName, delegateRef), JsNameRef(receiver))
@@ -124,7 +125,7 @@ public class DelegationTranslator(
             }
 
             val jsFunction = simpleReturnFunction(context().getScopeForDescriptor(getterDescriptor.getContainingDeclaration()), returnExpression)
-            if (JsDescriptorUtils.isExtension(descriptor)) {
+            if (DescriptorUtils.isExtension(descriptor)) {
                 val receiverName = jsFunction.getScope().declareName(Namer.getReceiverParameterName())
                 jsFunction.getParameters().add(JsParameter(receiverName))
             }
@@ -142,7 +143,7 @@ public class DelegationTranslator(
             val delegateRefName = context().getScopeForDescriptor(setterDescriptor).declareName(delegateName)
             val delegateRef = JsNameRef(delegateRefName, JsLiteral.THIS)
 
-            val setExpression = if (JsDescriptorUtils.isExtension(descriptor)) {
+            val setExpression = if (DescriptorUtils.isExtension(descriptor)) {
                 val setterName = context().getNameForDescriptor(setterDescriptor)
                 val setterNameRef = JsNameRef(setterName, delegateRef)
                 val extensionFunctionReceiverName = jsFunction.getScope().declareName(Namer.getReceiverParameterName())

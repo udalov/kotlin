@@ -35,7 +35,7 @@ import org.jetbrains.jet.lang.psi.JetExpression
 import org.jetbrains.jet.lang.resolve.bindingContextUtil.recordScopeAndDataFlowInfo
 import kotlin.properties.Delegates
 
-public trait Qualifier {
+public trait Qualifier: ReceiverValue {
 
     public val expression: JetExpression
 
@@ -56,7 +56,7 @@ class QualifierReceiver (
         val referenceExpression: JetSimpleNameExpression,
         override val packageView: PackageViewDescriptor?,
         override val classifier: ClassifierDescriptor?
-) : Qualifier, ReceiverValue {
+) : Qualifier {
 
     override val expression: JetExpression = referenceExpression.getTopmostParentQualifiedExpressionForSelector() ?: referenceExpression
 
@@ -67,7 +67,7 @@ class QualifierReceiver (
 
     override val scope: JetScope get() {
         val scopes = listOf(classifier?.getClassObjectType()?.getMemberScope(), getNestedClassesAndPackageMembersScope()).filterNotNull().copyToArray()
-        return ChainedScope(descriptor, "Member scope for " + name + " as package or class or object", *scopes as Array<JetScope?>)
+        return ChainedScope(descriptor, "Member scope for " + name + " as package or class or object", *scopes)
     }
 
     fun getClassObjectReceiver(): ReceiverValue =

@@ -64,7 +64,7 @@ public class TypeUtils {
         }
 
         @Override
-        public boolean isNullable() {
+        public boolean isMarkedNullable() {
             throw new IllegalStateException(name);
         }
 
@@ -85,6 +85,12 @@ public class TypeUtils {
             throw new IllegalStateException(name);
         }
 
+        @Nullable
+        @Override
+        public <T extends TypeCapability> T getCapability(@NotNull Class<T> capabilityClass) {
+            return null;
+        }
+
         @Override
         public String toString() {
             return name;
@@ -92,11 +98,15 @@ public class TypeUtils {
     }
 
     public static final JetType NO_EXPECTED_TYPE = new SpecialType("NO_EXPECTED_TYPE");
-    
+
     public static final JetType UNIT_EXPECTED_TYPE = new SpecialType("UNIT_EXPECTED_TYPE");
 
     public static boolean noExpectedType(@NotNull JetType type) {
         return type == NO_EXPECTED_TYPE || type == UNIT_EXPECTED_TYPE;
+    }
+
+    public static boolean isDontCarePlaceholder(@Nullable JetType type) {
+        return type != null && type.getConstructor() == DONT_CARE.getConstructor();
     }
 
     @NotNull
@@ -111,6 +121,11 @@ public class TypeUtils {
 
     @NotNull
     public static JetType makeNullableAsSpecified(@NotNull JetType type, boolean nullable) {
+        NullAwareness nullAwareness = type.getCapability(NullAwareness.class);
+        if (nullAwareness != null) {
+            return nullAwareness.makeNullableAsSpecified(nullable);
+        }
+
         // Wrapping serves two purposes here
         // 1. It's requires less memory than copying with a changed nullability flag: a copy has many fields, while a wrapper has only one
         // 2. It preserves laziness of types
@@ -121,7 +136,7 @@ public class TypeUtils {
         }
 
         // checking to preserve laziness
-        if (!(type instanceof LazyType) && type.isNullable() == nullable) {
+        if (!(type instanceof LazyType) && type.isMarkedNullable() == nullable) {
             return type;
         }
 
@@ -156,11 +171,11 @@ public class TypeUtils {
         boolean nothingTypePresent = false;
         List<JetType> nullabilityStripped = new ArrayList<JetType>(types.size());
         for (JetType type : types) {
-            nothingTypePresent |= KotlinBuiltIns.getInstance().isNothingOrNullableNothing(type);
-            allNullable &= type.isNullable();
+            nothingTypePresent |= KotlinBuiltIns.isNothingOrNullableNothing(type);
+            allNullable &= type.isMarkedNullable();
             nullabilityStripped.add(makeNotNullable(type));
         }
-        
+
         if (nothingTypePresent) {
             return allNullable ? KotlinBuiltIns.getInstance().getNullableNothingType() : KotlinBuiltIns.getInstance().getNothingType();
         }
@@ -196,7 +211,7 @@ public class TypeUtils {
             }
             resultingTypes.add(type);
         }
-        
+
         if (resultingTypes.size() == 1) {
             return makeNullableAsSpecified(resultingTypes.get(0), allNullable);
         }
@@ -216,7 +231,21 @@ public class TypeUtils {
                 constructor,
                 allNullable,
                 Collections.<TypeProjection>emptyList(),
-                new ChainedScope(null, "member scope for intersection type " + constructor, scopes)); // TODO : check intersectibility, don't use a chanied scope
+                new IntersectionScope(constructor, scopes)
+        );
+    }
+
+    // TODO : check intersectibility, don't use a chanied scope
+    public static class IntersectionScope extends ChainedScope {
+        public IntersectionScope(@NotNull TypeConstructor constructor, @NotNull JetScope[] scopes) {
+            super(null, "member scope for intersection type " + constructor, scopes);
+        }
+
+        @NotNull
+        @Override
+        public DeclarationDescriptor getContainingDeclaration() {
+            throw new UnsupportedOperationException("Should not call getContainingDeclaration on intersection scope " + this);
+        }
     }
 
     private static class TypeUnifier {
@@ -270,7 +299,7 @@ public class TypeUtils {
     }
 
     public static boolean canHaveSubtypes(JetTypeChecker typeChecker, JetType type) {
-        if (type.isNullable()) {
+        if (type.isMarkedNullable()) {
             return true;
         }
         if (!type.getConstructor().isFinal()) {
@@ -372,7 +401,7 @@ public class TypeUtils {
 
     @NotNull
     public static List<JetType> getImmediateSupertypes(@NotNull JetType type) {
-        boolean isNullable = type.isNullable();
+        boolean isNullable = type.isMarkedNullable();
         TypeSubstitutor substitutor = TypeSubstitutor.create(type);
         Collection<JetType> originalSupertypes = type.getConstructor().getSupertypes();
         List<JetType> result = new ArrayList<JetType>(originalSupertypes.size());
@@ -405,7 +434,7 @@ public class TypeUtils {
 
     public static boolean hasNullableLowerBound(@NotNull TypeParameterDescriptor typeParameterDescriptor) {
         for (JetType bound : typeParameterDescriptor.getLowerBounds()) {
-            if (bound.isNullable()) {
+            if (bound.isMarkedNullable()) {
                 return true;
             }
         }
@@ -417,10 +446,13 @@ public class TypeUtils {
      * @return true if a value of this type can be null
      */
     public static boolean isNullableType(@NotNull JetType type) {
-        if (type.isNullable()) {
+        if (type.isMarkedNullable()) {
             return true;
         }
-        if (type.getConstructor().getDeclarationDescriptor() instanceof TypeParameterDescriptor) {
+        if (TypesPackage.isFlexible(type) && isNullableType(TypesPackage.flexibility(type).getUpperBound())) {
+            return true;
+        }
+        if (isTypeParameter(type)) {
             return hasNullableSuperType(type);
         }
         return false;
@@ -433,10 +465,10 @@ public class TypeUtils {
         }
 
         for (JetType supertype : getImmediateSupertypes(type)) {
-            if (supertype.isNullable()) return true;
+            if (supertype.isMarkedNullable()) return true;
             if (hasNullableSuperType(supertype)) return true;
         }
-        
+
         return false;
     }
 
@@ -519,6 +551,11 @@ public class TypeUtils {
     ) {
         if (type == null) return false;
         if (isSpecialType.invoke(type)) return true;
+        Flexibility flexibility = type.getCapability(Flexibility.class);
+        if (flexibility != null
+                && (containsSpecialType(flexibility.getLowerBound(), isSpecialType) || containsSpecialType(flexibility.getUpperBound(), isSpecialType))) {
+            return true;
+        }
         for (TypeProjection projection : type.getArguments()) {
             if (containsSpecialType(projection.getType(), isSpecialType)) return true;
         }
@@ -701,6 +738,23 @@ public class TypeUtils {
         });
     }
 
+    public static boolean isTypeParameter(@NotNull JetType type) {
+        return getTypeParameterDescriptorOrNull(type) != null;
+    }
+
+    public static boolean isNonReifiedTypeParemeter(@NotNull JetType type) {
+        TypeParameterDescriptor typeParameterDescriptor = getTypeParameterDescriptorOrNull(type);
+        return typeParameterDescriptor != null && !typeParameterDescriptor.isReified();
+    }
+
+    @Nullable
+    public static TypeParameterDescriptor getTypeParameterDescriptorOrNull(@NotNull JetType type) {
+        if (type.getConstructor().getDeclarationDescriptor() instanceof TypeParameterDescriptor) {
+            return (TypeParameterDescriptor) type.getConstructor().getDeclarationDescriptor();
+        }
+        return null;
+    }
+
     private static abstract class AbstractTypeWithKnownNullability extends AbstractJetType {
         private final JetType delegate;
 
@@ -721,7 +775,7 @@ public class TypeUtils {
         }
 
         @Override
-        public abstract boolean isNullable();
+        public abstract boolean isMarkedNullable();
 
         @Override
         @NotNull
@@ -748,7 +802,7 @@ public class TypeUtils {
         }
 
         @Override
-        public boolean isNullable() {
+        public boolean isMarkedNullable() {
             return true;
         }
     }
@@ -760,7 +814,7 @@ public class TypeUtils {
         }
 
         @Override
-        public boolean isNullable() {
+        public boolean isMarkedNullable() {
             return false;
         }
     }

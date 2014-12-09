@@ -25,14 +25,15 @@ import com.intellij.psi.PsiWhiteSpace;
 import com.intellij.psi.tree.IElementType;
 import com.intellij.psi.util.PsiTreeUtil;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.asJava.KotlinLightMethod;
 import org.jetbrains.jet.kdoc.lexer.KDocTokens;
 import org.jetbrains.jet.kdoc.psi.api.KDoc;
 import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor;
-import org.jetbrains.jet.lang.psi.*;
+import org.jetbrains.jet.lang.psi.JetDeclaration;
+import org.jetbrains.jet.lang.psi.JetPackageDirective;
+import org.jetbrains.jet.lang.psi.JetReferenceExpression;
 import org.jetbrains.jet.lang.resolve.BindingContext;
-import org.jetbrains.jet.plugin.project.AnalyzerFacadeWithCache;
+import org.jetbrains.jet.plugin.caches.resolve.ResolvePackage;
 import org.jetbrains.jet.renderer.DescriptorRenderer;
 
 public class JetQuickDocumentationProvider extends AbstractDocumentationProvider {
@@ -66,7 +67,7 @@ public class JetQuickDocumentationProvider extends AbstractDocumentationProvider
         if (quickNavigation) {
             JetReferenceExpression referenceExpression = PsiTreeUtil.getParentOfType(originalElement, JetReferenceExpression.class, false);
             if (referenceExpression != null) {
-                BindingContext context = AnalyzerFacadeWithCache.getContextForElement(referenceExpression);
+                BindingContext context = ResolvePackage.analyze(referenceExpression);
                 DeclarationDescriptor declarationDescriptor = context.get(BindingContext.REFERENCE_TARGET, referenceExpression);
                 if (declarationDescriptor != null) {
                     return mixKotlinToJava(declarationDescriptor, element, originalElement);
@@ -81,7 +82,7 @@ public class JetQuickDocumentationProvider extends AbstractDocumentationProvider
     }
 
     private static String renderKotlinDeclaration(JetDeclaration declaration, boolean quickNavigation) {
-        BindingContext context = AnalyzerFacadeWithCache.getContextForElement(declaration);
+        BindingContext context = ResolvePackage.analyze(declaration);
         DeclarationDescriptor declarationDescriptor = context.get(BindingContext.DECLARATION_TO_DESCRIPTOR, declaration);
 
         assert declarationDescriptor != null;
@@ -91,7 +92,7 @@ public class JetQuickDocumentationProvider extends AbstractDocumentationProvider
             renderedDecl = "<pre>" + DescriptorRenderer.HTML_NAMES_WITH_SHORT_TYPES.render(declarationDescriptor) + "</pre>";
         }
 
-        KDoc comment = findElementKDoc(declaration);
+        KDoc comment = declaration.getDocComment();
         if (comment != null) {
             renderedDecl = renderedDecl + "<br/>" + kDocToHtml(comment);
         }
@@ -137,12 +138,6 @@ public class JetQuickDocumentationProvider extends AbstractDocumentationProvider
         }
 
         return builder.toString();
-    }
-
-    @Nullable
-    private static KDoc findElementKDoc(@NotNull JetElement element) {
-        PsiElement comment = JetPsiUtil.skipSiblingsBackwardByPredicate(element, SKIP_WHITESPACE_AND_EMPTY_PACKAGE);
-        return comment instanceof KDoc ? (KDoc) comment : null;
     }
 
     private static String kDocToHtml(@NotNull KDoc comment) {

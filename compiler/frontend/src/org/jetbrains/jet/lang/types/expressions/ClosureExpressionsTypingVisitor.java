@@ -21,6 +21,7 @@ import com.intellij.psi.PsiElement;
 import com.intellij.util.Function;
 import com.intellij.util.containers.ContainerUtil;
 import kotlin.Function0;
+import kotlin.Function1;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.*;
@@ -85,11 +86,13 @@ public class ClosureExpressionsTypingVisitor extends ExpressionTypingVisitor {
         };
         ObservableBindingTrace traceAdapter = new ObservableBindingTrace(temporaryTrace);
         traceAdapter.addHandler(CLASS, handler);
-        TopDownAnalyzer.processClassOrObject(components.globalContext,
-                                             null, // don't need to add classifier of object literal to any scope
-                                             context.replaceBindingTrace(traceAdapter).replaceContextDependency(INDEPENDENT),
-                                             context.scope.getContainingDeclaration(),
-                                             expression.getObjectDeclaration(), components.additionalCheckerProvider);
+        LocalClassifierAnalyzer.processClassOrObject(components.globalContext,
+                                                     null, // don't need to add classifier of object literal to any scope
+                                                     context.replaceBindingTrace(traceAdapter).replaceContextDependency(INDEPENDENT),
+                                                     context.scope.getContainingDeclaration(),
+                                                     expression.getObjectDeclaration(),
+                                                     components.additionalCheckerProvider,
+                                                     components.dynamicTypesSettings);
 
         DelegatingBindingTrace cloneDelta = new DelegatingBindingTrace(
                 new BindingTraceContext().getBindingContext(), "cached delta trace for object literal expression resolve", expression);
@@ -104,7 +107,7 @@ public class ClosureExpressionsTypingVisitor extends ExpressionTypingVisitor {
         if (!expression.getFunctionLiteral().hasBody()) return null;
 
         JetType expectedType = context.expectedType;
-        boolean functionTypeExpected = !noExpectedType(expectedType) && KotlinBuiltIns.getInstance().isFunctionOrExtensionFunctionType(
+        boolean functionTypeExpected = !noExpectedType(expectedType) && KotlinBuiltIns.isFunctionOrExtensionFunctionType(
                 expectedType);
 
         AnonymousFunctionDescriptor functionDescriptor = createFunctionDescriptor(expression, context, functionTypeExpected);
@@ -113,9 +116,9 @@ public class ClosureExpressionsTypingVisitor extends ExpressionTypingVisitor {
 
         JetType receiver = DescriptorUtils.getReceiverParameterType(functionDescriptor.getExtensionReceiverParameter());
         List<JetType> valueParametersTypes = ExpressionTypingUtils.getValueParametersTypes(functionDescriptor.getValueParameters());
-        JetType resultType = KotlinBuiltIns.getInstance().getFunctionType(
+        JetType resultType = components.builtIns.getFunctionType(
                 Annotations.EMPTY, receiver, valueParametersTypes, safeReturnType);
-        if (!noExpectedType(expectedType) && KotlinBuiltIns.getInstance().isFunctionOrExtensionFunctionType(expectedType)) {
+        if (!noExpectedType(expectedType) && KotlinBuiltIns.isFunctionOrExtensionFunctionType(expectedType)) {
             // all checks were done before
             return JetTypeInfo.create(resultType, context.dataFlowInfo);
         }
@@ -142,7 +145,7 @@ public class ClosureExpressionsTypingVisitor extends ExpressionTypingVisitor {
         JetType effectiveReceiverType;
         if (receiverTypeRef == null) {
             if (functionTypeExpected) {
-                effectiveReceiverType = KotlinBuiltIns.getInstance().getReceiverType(context.expectedType);
+                effectiveReceiverType = KotlinBuiltIns.getReceiverType(context.expectedType);
             }
             else {
                 effectiveReceiverType = null;
@@ -174,7 +177,7 @@ public class ClosureExpressionsTypingVisitor extends ExpressionTypingVisitor {
         List<JetParameter> declaredValueParameters = functionLiteral.getValueParameters();
 
         List<ValueParameterDescriptor> expectedValueParameters =  (functionTypeExpected)
-                                                          ? KotlinBuiltIns.getInstance().getValueParameters(functionDescriptor, context.expectedType)
+                                                          ? KotlinBuiltIns.getValueParameters(functionDescriptor, context.expectedType)
                                                           : null;
 
         JetParameterList valueParameterList = functionLiteral.getValueParameterList();
@@ -231,7 +234,13 @@ public class ClosureExpressionsTypingVisitor extends ExpressionTypingVisitor {
             }
         }
         else {
-            if (expectedType == null || expectedType == DONT_CARE || ErrorUtils.isUninferredParameter(expectedType)) {
+            boolean containsUninferredParameter = TypeUtils.containsSpecialType(expectedType, new Function1<JetType, Boolean>() {
+                @Override
+                public Boolean invoke(JetType type) {
+                    return TypeUtils.isDontCarePlaceholder(type) || ErrorUtils.isUninferredParameter(type);
+                }
+            });
+            if (expectedType == null || containsUninferredParameter) {
                 context.trace.report(CANNOT_INFER_PARAMETER_TYPE.on(declaredParameter));
             }
             if (expectedType != null) {
@@ -252,12 +261,12 @@ public class ClosureExpressionsTypingVisitor extends ExpressionTypingVisitor {
             @NotNull SimpleFunctionDescriptorImpl functionDescriptor,
             boolean functionTypeExpected
     ) {
-        JetType expectedReturnType = functionTypeExpected ? KotlinBuiltIns.getInstance().getReturnTypeFromFunctionType(context.expectedType) : null;
+        JetType expectedReturnType = functionTypeExpected ? KotlinBuiltIns.getReturnTypeFromFunctionType(context.expectedType) : null;
         JetType returnType = computeUnsafeReturnType(expression, context, functionDescriptor, expectedReturnType);
 
         if (!expression.getFunctionLiteral().hasDeclaredReturnType() && functionTypeExpected) {
-            if (KotlinBuiltIns.getInstance().isUnit(expectedReturnType)) {
-                return KotlinBuiltIns.getInstance().getUnitType();
+            if (KotlinBuiltIns.isUnit(expectedReturnType)) {
+                return components.builtIns.getUnitType();
             }
         }
         return returnType == null ? CANT_INFER_LAMBDA_PARAM_TYPE : returnType;
@@ -305,7 +314,7 @@ public class ClosureExpressionsTypingVisitor extends ExpressionTypingVisitor {
         return CommonSupertypes.commonSupertype(returnedExpressionTypes);
     }
 
-    private static List<JetType> getTypesOfLocallyReturnedExpressions(
+    private List<JetType> getTypesOfLocallyReturnedExpressions(
             final JetFunctionLiteral functionLiteral,
             final BindingTrace trace,
             Collection<JetReturnExpression> returnExpressions
@@ -327,11 +336,12 @@ public class ClosureExpressionsTypingVisitor extends ExpressionTypingVisitor {
 
                 JetExpression returnedExpression = returnExpression.getReturnedExpression();
                 if (returnedExpression == null) {
-                    return KotlinBuiltIns.getInstance().getUnitType();
+                    return components.builtIns.getUnitType();
                 }
                 JetType returnedType = trace.get(EXPRESSION_TYPE, returnedExpression);
                 assert returnedType != null : "No type for returned expression: " + returnedExpression + ",\n" +
-                                              "the type should have been computed by getBlockReturnedType() above";
+                                              "the type should have been computed by getBlockReturnedType() above\n" +
+                                              JetPsiUtil.getElementTextWithContext(returnedExpression);
                 return returnedType;
             }
         });

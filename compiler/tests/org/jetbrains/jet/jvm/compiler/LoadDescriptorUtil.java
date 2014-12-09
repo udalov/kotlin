@@ -27,9 +27,10 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.ConfigurationKind;
 import org.jetbrains.jet.JetTestUtils;
 import org.jetbrains.jet.TestJdkKind;
-import org.jetbrains.jet.analyzer.AnalyzeExhaust;
+import org.jetbrains.jet.analyzer.AnalysisResult;
 import org.jetbrains.jet.cli.common.output.outputUtils.OutputUtilsPackage;
 import org.jetbrains.jet.cli.jvm.compiler.CliLightClassGenerationSupport;
+import org.jetbrains.jet.cli.jvm.compiler.EnvironmentConfigFiles;
 import org.jetbrains.jet.cli.jvm.compiler.JetCoreEnvironment;
 import org.jetbrains.jet.codegen.GenerationUtils;
 import org.jetbrains.jet.codegen.forTestCompile.ForTestCompileRuntime;
@@ -41,17 +42,15 @@ import org.jetbrains.jet.lang.descriptors.PackageViewDescriptor;
 import org.jetbrains.jet.lang.descriptors.impl.ModuleDescriptorImpl;
 import org.jetbrains.jet.lang.psi.JetFile;
 import org.jetbrains.jet.lang.resolve.BindingContext;
-import org.jetbrains.jet.lang.resolve.BindingTraceContext;
+import org.jetbrains.jet.lang.resolve.BindingTrace;
 import org.jetbrains.jet.lang.resolve.lazy.JvmResolveUtil;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.Name;
-import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 
 import static org.jetbrains.jet.JetTestUtils.createEnvironmentWithMockJdkAndIdeaAnnotations;
@@ -65,18 +64,18 @@ public final class LoadDescriptorUtil {
     }
 
     @NotNull
-    public static AnalyzeExhaust compileKotlinToDirAndGetAnalyzeExhaust(
+    public static AnalysisResult compileKotlinToDirAndGetAnalysisResult(
             @NotNull List<File> kotlinFiles,
             @NotNull File outDir,
             @NotNull Disposable disposable,
             @NotNull ConfigurationKind configurationKind
     ) {
-        JetFilesAndExhaust fileAndExhaust = JetFilesAndExhaust.createJetFilesAndAnalyze(kotlinFiles, disposable, configurationKind);
-        AnalyzeExhaust exhaust = fileAndExhaust.getExhaust();
-        List<JetFile> files = fileAndExhaust.getJetFiles();
-        GenerationState state = GenerationUtils.compileFilesGetGenerationState(files.get(0).getProject(), exhaust, files);
+        JetFilesAndAnalysisResult filesAndResult = JetFilesAndAnalysisResult.createJetFilesAndAnalyze(kotlinFiles, disposable, configurationKind);
+        AnalysisResult result = filesAndResult.getAnalysisResult();
+        List<JetFile> files = filesAndResult.getJetFiles();
+        GenerationState state = GenerationUtils.compileFilesGetGenerationState(files.get(0).getProject(), result, files);
         OutputUtilsPackage.writeAllTo(state.getFactory(), outDir);
-        return exhaust;
+        return result;
     }
 
     @NotNull
@@ -91,13 +90,13 @@ public final class LoadDescriptorUtil {
                 javaRoot,
                 new File("compiler/tests") // for @ExpectLoadError annotation
         );
-        JetCoreEnvironment jetCoreEnvironment = JetCoreEnvironment.createForTests(disposable, configuration);
-        BindingTraceContext trace = new BindingTraceContext();
+        JetCoreEnvironment jetCoreEnvironment =
+                JetCoreEnvironment.createForTests(disposable, configuration, EnvironmentConfigFiles.JVM_CONFIG_FILES);
+        BindingTrace trace = new CliLightClassGenerationSupport.NoScopeRecordCliBindingTrace();
         InjectorForJavaDescriptorResolver injector =
                 InjectorForJavaDescriptorResolverUtil.create(jetCoreEnvironment.getProject(), trace, true);
         ModuleDescriptorImpl module = injector.getModule();
 
-        CliLightClassGenerationSupport.getInstanceForCli(jetCoreEnvironment.getProject()).setModule(module);
         PackageViewDescriptor packageView = module.getPackage(TEST_PACKAGE_FQNAME);
         assert packageView != null;
 
@@ -126,9 +125,9 @@ public final class LoadDescriptorUtil {
         ));
     }
 
-    private static class JetFilesAndExhaust {
+    private static class JetFilesAndAnalysisResult {
         @NotNull
-        public static JetFilesAndExhaust createJetFilesAndAnalyze(
+        public static JetFilesAndAnalysisResult createJetFilesAndAnalyze(
                 @NotNull List<File> kotlinFiles,
                 @NotNull Disposable disposable,
                 @NotNull ConfigurationKind configurationKind
@@ -146,17 +145,17 @@ public final class LoadDescriptorUtil {
                     }
                 }
             });
-            AnalyzeExhaust exhaust = JvmResolveUtil.analyzeFilesWithJavaIntegrationAndCheckForErrors(
+            AnalysisResult result = JvmResolveUtil.analyzeFilesWithJavaIntegrationAndCheckForErrors(
                     jetCoreEnvironment.getProject(), jetFiles, Predicates.<PsiFile>alwaysTrue());
-            return new JetFilesAndExhaust(jetFiles, exhaust);
+            return new JetFilesAndAnalysisResult(jetFiles, result);
         }
 
         private final List<JetFile> jetFiles;
-        private final AnalyzeExhaust exhaust;
+        private final AnalysisResult result;
 
-        private JetFilesAndExhaust(@NotNull List<JetFile> jetFiles, @NotNull AnalyzeExhaust exhaust) {
+        private JetFilesAndAnalysisResult(@NotNull List<JetFile> jetFiles, @NotNull AnalysisResult result) {
             this.jetFiles = jetFiles;
-            this.exhaust = exhaust;
+            this.result = result;
         }
 
         @NotNull
@@ -165,8 +164,8 @@ public final class LoadDescriptorUtil {
         }
 
         @NotNull
-        public AnalyzeExhaust getExhaust() {
-            return exhaust;
+        public AnalysisResult getAnalysisResult() {
+            return result;
         }
     }
 }

@@ -44,7 +44,7 @@ import org.jetbrains.eval4j.jdi.asValue
 import org.jetbrains.jet.lang.psi.JetNamedFunction
 import org.jetbrains.jet.codegen.ClassFileFactory
 import org.jetbrains.jet.OutputFileCollection
-import org.jetbrains.jet.plugin.caches.resolve.getAnalysisResults
+import org.jetbrains.jet.plugin.caches.resolve.analyzeFullyAndGetResult
 import org.jetbrains.jet.lang.psi.JetCodeFragment
 import org.jetbrains.jet.lang.psi.codeFragmentUtil.skipVisibilityCheck
 import com.intellij.openapi.diagnostic.Logger
@@ -71,7 +71,12 @@ import org.jetbrains.jet.lang.resolve.java.structure.impl.JavaClassImpl
 import com.intellij.openapi.project.Project
 import org.jetbrains.jet.lang.resolve.DescriptorUtils
 import org.jetbrains.jet.codegen.StackValue
-import org.jetbrains.jet.analyzer.AnalyzeExhaust
+import org.jetbrains.jet.lang.types.Flexibility
+import org.jetbrains.jet.lang.psi.JetElement
+import org.jetbrains.jet.plugin.util.attachment.attachmentByPsiFile
+import com.intellij.openapi.diagnostic.Attachment
+import org.jetbrains.jet.plugin.util.attachment.mergeAttachments
+import com.sun.jdi.ClassType
 
 private val RECEIVER_NAME = "\$receiver"
 private val THIS_NAME = "this"
@@ -85,6 +90,15 @@ object KotlinEvaluationBuilder: EvaluatorBuilder {
         val file = position.getFile()
         if (file !is JetFile) {
             throw EvaluateExceptionUtil.createEvaluateException("Couldn't evaluate kotlin expression in non-kotlin context")
+        }
+
+        if (codeFragment.getContext() !is JetElement) {
+            val attachments = array(attachmentByPsiFile(position.getFile()),
+                                    attachmentByPsiFile(codeFragment),
+                                    Attachment("breakpoint.info", "line: ${position.getLine()}"))
+
+            logger.error("Trying to evaluate ${codeFragment.javaClass} with context ${codeFragment.getContext()?.javaClass}", mergeAttachments(*attachments))
+            throw EvaluateExceptionUtil.createEvaluateException("Couldn't evaluate kotlin expression in this context")
         }
 
         val packageName = file.getPackageDirective()?.getFqName()?.asString()
@@ -207,7 +221,7 @@ class KotlinEvaluator(val codeFragment: JetCodeFragment,
         private fun JetNamedFunction.getParametersForDebugger(): ParametersDescriptor {
             return runReadAction {
                 val parameters = ParametersDescriptor()
-                val bindingContext = getAnalysisResults().getBindingContext()
+                val bindingContext = analyzeFullyAndGetResult().bindingContext
                 val descriptor = bindingContext[BindingContext.FUNCTION, this]
                 if (descriptor != null) {
                     val receiver = descriptor.getExtensionReceiverParameter()
@@ -221,7 +235,7 @@ class KotlinEvaluator(val codeFragment: JetCodeFragment,
                     }
                 }
                 parameters
-            }!!
+            }
         }
 
         private fun EvaluationContextImpl.getArgumentsForEval4j(parameterNames: List<String>, parameterTypes: Array<Type>): List<Value> {
@@ -232,21 +246,20 @@ class KotlinEvaluator(val codeFragment: JetCodeFragment,
             return runReadAction {
                 val file = createFileForDebugger(codeFragment, extractedFunction)
 
-                file.checkForErrors()
+                val (bindingContext, moduleDescriptor) = file.checkForErrors()
 
-                val analyzeExhaust = file.getAnalysisResults()
                 val state = GenerationState(
                         file.getProject(),
                         ClassBuilderFactories.BINARIES,
-                        analyzeExhaust.getModuleDescriptor(),
-                        analyzeExhaust.getBindingContext(),
+                        moduleDescriptor,
+                        bindingContext,
                         listOf(file)
                 )
 
                 KotlinCodegenFacade.compileCorrectFiles(state, CompilationErrorHandler.THROW_EXCEPTION)
 
                 state.getFactory()
-            }!!
+            }
         }
 
         private fun exception(msg: String) = throw EvaluateExceptionUtil.createEvaluateException(msg)
@@ -259,7 +272,7 @@ class KotlinEvaluator(val codeFragment: JetCodeFragment,
             throw EvaluateExceptionUtil.createEvaluateException(e)
         }
 
-        private fun JetFile.checkForErrors() {
+        private fun JetFile.checkForErrors() =
             runReadAction {
                 try {
                     AnalyzingUtils.checkForSyntacticErrors(this)
@@ -268,17 +281,18 @@ class KotlinEvaluator(val codeFragment: JetCodeFragment,
                     throw EvaluateExceptionUtil.createEvaluateException(e.getMessage())
                 }
 
-                val analyzeExhaust = this.getAnalysisResults()
-                if (analyzeExhaust.isError()) {
-                    throw EvaluateExceptionUtil.createEvaluateException(analyzeExhaust.getError())
+                val analysisResult = this.analyzeFullyAndGetResult(createFlexibleTypesFile())
+                if (analysisResult.isError()) {
+                    throw EvaluateExceptionUtil.createEvaluateException(analysisResult.error)
                 }
 
-                val bindingContext = analyzeExhaust.getBindingContext()
+                val bindingContext = analysisResult.bindingContext
                 bindingContext.getDiagnostics().firstOrNull { it.getSeverity() == Severity.ERROR }?.let {
                     throw EvaluateExceptionUtil.createEvaluateException(DefaultErrorMessages.RENDERER.render(it))
                 }
+
+                analysisResult
             }
-        }
     }
 }
 
@@ -304,17 +318,49 @@ private fun createFileForDebugger(codeFragment: JetCodeFragment,
     assert(extractedFunctionText != null, "Text of extracted function shouldn't be null")
     fileText = fileText.replace("!FUNCTION!", extractedFunction.getText()!!)
 
-    val virtualFile = LightVirtualFile("debugFile.kt", JetLanguage.INSTANCE, fileText)
-    virtualFile.setCharset(CharsetToolkit.UTF8_CHARSET)
-    val jetFile = (PsiFileFactory.getInstance(codeFragment.getProject()) as PsiFileFactoryImpl)
-            .trySetupPsiForFile(virtualFile, JetLanguage.INSTANCE, true, false) as JetFile
+    val jetFile = codeFragment.createJetFile("debugFile.kt", fileText)
     jetFile.skipVisibilityCheck = true
-    jetFile.analysisContext = codeFragment
+    return jetFile
+}
+
+private fun PsiElement.createFlexibleTypesFile(): JetFile {
+    return createJetFile(
+            "FLEXIBLE_TYPES.kt",
+            """
+                package ${Flexibility.FLEXIBLE_TYPE_CLASSIFIER.getPackageFqName()}
+                public class ${Flexibility.FLEXIBLE_TYPE_CLASSIFIER.getRelativeClassName()}<L, U>
+            """
+    )
+}
+
+private fun PsiElement.createJetFile(fileName: String, fileText: String): JetFile {
+    // Not using JetPsiFactory because we need a virtual file attached to the JetFile
+    val virtualFile = LightVirtualFile(fileName, JetLanguage.INSTANCE, fileText)
+    virtualFile.setCharset(CharsetToolkit.UTF8_CHARSET)
+    val jetFile = (PsiFileFactory.getInstance(getProject()) as PsiFileFactoryImpl)
+            .trySetupPsiForFile(virtualFile, JetLanguage.INSTANCE, true, false) as JetFile
+    jetFile.analysisContext = this
     return jetFile
 }
 
 private fun SuspendContext.getInvokePolicy(): Int {
     return if (getSuspendPolicy() == EventRequest.SUSPEND_EVENT_THREAD) ObjectReference.INVOKE_SINGLE_THREADED else 0
+}
+
+private fun com.sun.jdi.Type?.isSubclass(superClassName: String): Boolean {
+    if (this !is ClassType) return false
+    if (allInterfaces().any { it.name() == superClassName }) {
+        return true
+    }
+
+    var superClass = this.superclass()
+    while (superClass != null) {
+        if (superClass.name() == superClassName) {
+            return true
+        }
+        superClass = superClass.superclass()
+    }
+    return false
 }
 
 fun EvaluationContextImpl.findLocalVariable(name: String, asmType: Type?, checkType: Boolean, failIfNotFound: Boolean): Value? {
@@ -326,9 +372,13 @@ fun EvaluationContextImpl.findLocalVariable(name: String, asmType: Type?, checkT
         if (!shouldCheckType || asmType == null || value.asmType == asmType) return true
         if (project == null) return false
 
+        if ((value.obj() as? com.sun.jdi.ObjectReference)?.referenceType().isSubclass(asmType.getClassName())) {
+            return true
+        }
+
         val thisDesc = value.asmType.getClassDescriptor(project)
         val expDesc = asmType.getClassDescriptor(project)
-        return thisDesc != null && expDesc != null && runReadAction { DescriptorUtils.isSubclass(thisDesc, expDesc) }!!
+        return thisDesc != null && expDesc != null && runReadAction { DescriptorUtils.isSubclass(thisDesc, expDesc) }
     }
 
 
@@ -432,7 +482,7 @@ fun Type.getClassDescriptor(project: Project): ClassDescriptor? {
 
     val jvmName = JvmClassName.byInternalName(getInternalName()).getFqNameForClassNameWithoutDollars()
 
-    val platformClasses = JavaToKotlinClassMap.getInstance().mapPlatformClass(jvmName)
+    val platformClasses = JavaToKotlinClassMap.INSTANCE.mapPlatformClass(jvmName)
     if (platformClasses.notEmpty) return platformClasses.first()
 
     return runReadAction {

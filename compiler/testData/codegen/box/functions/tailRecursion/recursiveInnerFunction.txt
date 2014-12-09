@@ -1,4 +1,0 @@
-package
-
-internal fun box(): kotlin.String
-internal fun test(): kotlin.Unit

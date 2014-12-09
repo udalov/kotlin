@@ -21,15 +21,12 @@ import org.jetbrains.jet.lang.resolve.java.lazy.types.LazyJavaTypeResolver
 import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor
 import org.jetbrains.jet.lang.resolve.java.structure.JavaTypeParameter
 import org.jetbrains.jet.lang.resolve.java.JavaClassFinder
-import org.jetbrains.jet.lang.resolve.java.resolver.ExternalAnnotationResolver
-import org.jetbrains.jet.lang.resolve.java.resolver.ExternalSignatureResolver
-import org.jetbrains.jet.lang.resolve.java.resolver.MethodSignatureChecker
-import org.jetbrains.jet.lang.resolve.java.resolver.ErrorReporter
-import org.jetbrains.jet.lang.resolve.java.resolver.JavaResolverCache
+import org.jetbrains.jet.lang.resolve.java.resolver.*
 import org.jetbrains.jet.lang.resolve.kotlin.DeserializedDescriptorResolver
 import org.jetbrains.jet.lang.resolve.kotlin.KotlinClassFinder
 import org.jetbrains.jet.lang.resolve.java.structure.JavaPropertyInitializerEvaluator
 import org.jetbrains.jet.lang.resolve.java.sources.JavaSourceElementFactory
+import org.jetbrains.jet.lang.resolve.java.structure.JavaTypeParameterListOwner
 
 open class GlobalJavaResolverContext(
         val storageManager: StorageManager,
@@ -42,73 +39,40 @@ open class GlobalJavaResolverContext(
         val methodSignatureChecker: MethodSignatureChecker,
         val javaResolverCache: JavaResolverCache,
         val javaPropertyInitializerEvaluator: JavaPropertyInitializerEvaluator,
+        val samConversionResolver: SamConversionResolver,
         val sourceElementFactory: JavaSourceElementFactory,
         val moduleClassResolver: ModuleClassResolver
 )
 
 open class LazyJavaResolverContext(
+        globalContext: GlobalJavaResolverContext,
         val packageFragmentProvider: LazyJavaPackageFragmentProvider,
         val javaClassResolver: LazyJavaClassResolver,
-        storageManager: StorageManager,
-        finder: JavaClassFinder,
-        kotlinClassFinder: KotlinClassFinder,
-        deserializedDescriptorResolver: DeserializedDescriptorResolver,
-        externalAnnotationResolver: ExternalAnnotationResolver,
-        externalSignatureResolver: ExternalSignatureResolver,
-        errorReporter: ErrorReporter,
-        methodSignatureChecker: MethodSignatureChecker,
-        javaResolverCache: JavaResolverCache,
-        javaPropertyInitializerEvaluator: JavaPropertyInitializerEvaluator,
-        sourceElementFactory: JavaSourceElementFactory,
-        moduleClassResolver: ModuleClassResolver
-) : GlobalJavaResolverContext(storageManager, finder, kotlinClassFinder, deserializedDescriptorResolver,
-                              externalAnnotationResolver, externalSignatureResolver,
-                              errorReporter, methodSignatureChecker, javaResolverCache, javaPropertyInitializerEvaluator,
-                              sourceElementFactory, moduleClassResolver)
-
-fun LazyJavaResolverContext.withTypes(
-        typeParameterResolver: TypeParameterResolver = TypeParameterResolver.EMPTY
-)  =  LazyJavaResolverContextWithTypes(
-        packageFragmentProvider,
-        javaClassResolver,
-        storageManager,
-        finder,
-        kotlinClassFinder,
-        deserializedDescriptorResolver,
-        externalAnnotationResolver,
-        externalSignatureResolver,
-        errorReporter,
-        methodSignatureChecker,
-        javaResolverCache,
-        javaPropertyInitializerEvaluator,
-        sourceElementFactory,
-        moduleClassResolver,
-        LazyJavaTypeResolver(this, typeParameterResolver),
-        typeParameterResolver)
-
-class LazyJavaResolverContextWithTypes(
-        packageFragmentProvider: LazyJavaPackageFragmentProvider,
-        javaClassResolver: LazyJavaClassResolver,
-        storageManager: StorageManager,
-        finder: JavaClassFinder,
-        kotlinClassFinder: KotlinClassFinder,
-        deserializedDescriptorResolver: DeserializedDescriptorResolver,
-        externalAnnotationResolver: ExternalAnnotationResolver,
-        externalSignatureResolver: ExternalSignatureResolver,
-        errorReporter: ErrorReporter,
-        methodSignatureChecker: MethodSignatureChecker,
-        javaResolverCache: JavaResolverCache,
-        javaPropertyInitializerEvaluator: JavaPropertyInitializerEvaluator,
-        sourceElementFactory: JavaSourceElementFactory,
-        moduleClassResolver: ModuleClassResolver,
-        val typeResolver: LazyJavaTypeResolver,
         val typeParameterResolver: TypeParameterResolver
-) : LazyJavaResolverContext(packageFragmentProvider, javaClassResolver, storageManager, finder,
-                            kotlinClassFinder, deserializedDescriptorResolver,
-                            externalAnnotationResolver, externalSignatureResolver, errorReporter, methodSignatureChecker,
-                            javaResolverCache, javaPropertyInitializerEvaluator, sourceElementFactory, moduleClassResolver)
+) : GlobalJavaResolverContext(
+        globalContext.storageManager,
+        globalContext.finder,
+        globalContext.kotlinClassFinder,
+        globalContext.deserializedDescriptorResolver,
+        globalContext.externalAnnotationResolver,
+        globalContext.externalSignatureResolver,
+        globalContext.errorReporter,
+        globalContext.methodSignatureChecker,
+        globalContext.javaResolverCache,
+        globalContext.javaPropertyInitializerEvaluator,
+        globalContext.samConversionResolver,
+        globalContext.sourceElementFactory,
+        globalContext.moduleClassResolver
+) {
+    val typeResolver = LazyJavaTypeResolver(this, typeParameterResolver)
+}
 
-fun LazyJavaResolverContextWithTypes.child(
+fun LazyJavaResolverContext.child(
+        typeParameterResolver: TypeParameterResolver
+) = LazyJavaResolverContext(this, packageFragmentProvider, javaClassResolver, typeParameterResolver)
+
+
+fun LazyJavaResolverContext.child(
         containingDeclaration: DeclarationDescriptor,
-        typeParameters: Set<JavaTypeParameter>
-): LazyJavaResolverContextWithTypes = this.withTypes(LazyJavaTypeParameterResolver(this, containingDeclaration, typeParameters))
+        typeParameterOwner: JavaTypeParameterListOwner
+) = this.child(LazyJavaTypeParameterResolver(this, containingDeclaration, typeParameterOwner))

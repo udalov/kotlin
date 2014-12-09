@@ -36,13 +36,14 @@ import org.jetbrains.jet.lang.types.JetType;
 import org.jetbrains.jet.lang.types.checker.JetTypeChecker;
 import org.jetbrains.jet.plugin.JetBundle;
 import org.jetbrains.jet.plugin.caches.resolve.ResolvePackage;
-import org.jetbrains.jet.plugin.refactoring.SimpleCollectingValidator;
 import org.jetbrains.jet.plugin.refactoring.JetNameValidator;
+import org.jetbrains.jet.plugin.refactoring.SimpleCollectingValidator;
 import org.jetbrains.jet.plugin.refactoring.changeSignature.JetChangeSignatureConfiguration;
 import org.jetbrains.jet.plugin.refactoring.changeSignature.JetChangeSignatureData;
 import org.jetbrains.jet.plugin.refactoring.changeSignature.JetParameterInfo;
-import org.jetbrains.jet.renderer.DescriptorRenderer;
+import org.jetbrains.jet.plugin.util.IdeDescriptorRenderers;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
@@ -51,6 +52,7 @@ import static org.jetbrains.jet.plugin.refactoring.changeSignature.ChangeSignatu
 public class AddFunctionParametersFix extends ChangeFunctionSignatureFix {
     private final JetCallElement callElement;
     private final boolean hasTypeMismatches;
+    private final List<JetType> typesToShorten = new ArrayList<JetType>();
 
     public AddFunctionParametersFix(
             @NotNull JetCallElement callElement,
@@ -106,9 +108,15 @@ public class AddFunctionParametersFix extends ChangeFunctionSignatureFix {
     }
 
     @Override
+    public boolean startInWriteAction() {
+        return true;
+    }
+
+    @Override
     protected void invoke(@NotNull Project project, Editor editor, JetFile file) {
-        BindingContext bindingContext = ResolvePackage.getBindingContext((JetFile) callElement.getContainingFile());
+        BindingContext bindingContext = ResolvePackage.analyzeFully((JetFile) callElement.getContainingFile());
         runChangeSignature(project, functionDescriptor, addParameterConfiguration(), bindingContext, callElement, getText());
+        QuickFixUtil.shortenReferencesOfTypes(typesToShorten, file);
     }
 
     private JetChangeSignatureConfiguration addParameterConfiguration() {
@@ -128,14 +136,18 @@ public class AddFunctionParametersFix extends ChangeFunctionSignatureFix {
                         JetType argumentType = expression != null ? bindingContext.get(BindingContext.EXPRESSION_TYPE, expression) : null;
                         JetType parameterType = parameters.get(i).getType();
 
-                        if (argumentType != null && !JetTypeChecker.DEFAULT.isSubtypeOf(argumentType, parameterType))
-                            changeSignatureData.getParameters().get(i).setTypeText(DescriptorRenderer.SHORT_NAMES_IN_TYPES.renderType(argumentType));
+                        if (argumentType != null && !JetTypeChecker.DEFAULT.isSubtypeOf(argumentType, parameterType)) {
+                            changeSignatureData.getParameters().get(i).setTypeText(IdeDescriptorRenderers.SOURCE_CODE.renderType(argumentType));
+                            typesToShorten.add(argumentType);
+                        }
                     }
                     else {
                         JetParameterInfo parameterInfo = getNewParameterInfo(bindingContext, argument, validator);
+                        typesToShorten.add(parameterInfo.getType());
 
-                        if (expression != null)
+                        if (expression != null) {
                             parameterInfo.setDefaultValueText(expression.getText());
+                        }
 
                         changeSignatureData.addParameter(parameterInfo);
                     }

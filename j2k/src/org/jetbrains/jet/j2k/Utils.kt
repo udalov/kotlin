@@ -30,8 +30,8 @@ fun PsiVariable.countWriteAccesses(searcher: ReferenceSearcher, scope: PsiElemen
 fun PsiVariable.hasWriteAccesses(searcher: ReferenceSearcher, scope: PsiElement?): Boolean
         = if (scope != null) searcher.findVariableUsages(this, scope).any { PsiUtil.isAccessedForWriting(it) } else false
 
-fun getDefaultInitializer(field: Field): Expression? {
-    val t = field.`type`
+fun getDefaultInitializer(property: Property): Expression? {
+    val t = property.type
     val result = if (t.isNullable) {
         LiteralExpression("null")
     }
@@ -61,7 +61,7 @@ fun isVal(searcher: ReferenceSearcher, field: PsiField): Boolean {
     val parent = write.getParent()
     if (parent is PsiAssignmentExpression &&
             parent.getOperationSign().getTokenType() == JavaTokenType.EQ &&
-            isQualifierEmptyOrThis(write)) {
+            write.isQualifierEmptyOrThis()) {
         val constructor = write.getContainingConstructor()
         return constructor != null &&
                 constructor.getContainingClass() == containingClass &&
@@ -74,8 +74,8 @@ fun isVal(searcher: ReferenceSearcher, field: PsiField): Boolean {
 fun shouldGenerateDefaultInitializer(searcher: ReferenceSearcher, field: PsiField)
         = field.getInitializer() == null && !(isVal(searcher, field) && field.hasWriteAccesses(searcher, field.getContainingClass()))
 
-fun isQualifierEmptyOrThis(ref: PsiReferenceExpression): Boolean {
-    val qualifier = ref.getQualifierExpression()
+fun PsiReferenceExpression.isQualifierEmptyOrThis(): Boolean {
+    val qualifier = getQualifierExpression()
     return qualifier == null || (qualifier is PsiThisExpression && qualifier.getQualifier() == null)
 }
 
@@ -93,6 +93,7 @@ fun PsiElement.isInSingleLine(): Boolean {
     return true
 }
 
+//TODO: check for variables that are definitely assigned in constructors
 fun PsiElement.getContainingMethod(): PsiMethod? {
     var context = getContext()
     while (context != null) {

@@ -43,23 +43,24 @@ JetFile: Properties_ERR.kt
   PROPERTY
     PsiElement(val)('val')
     PsiWhiteSpace(' ')
-    ANNOTATION
-      PsiElement(LBRACKET)('[')
-      ANNOTATION_ENTRY
-        CONSTRUCTOR_CALLEE
-          TYPE_REFERENCE
-            USER_TYPE
-              REFERENCE_EXPRESSION
-                PsiElement(IDENTIFIER)('a')
-      PsiWhiteSpace(' ')
-      ANNOTATION_ENTRY
-        CONSTRUCTOR_CALLEE
-          TYPE_REFERENCE
-            USER_TYPE
-              REFERENCE_EXPRESSION
-                PsiElement(IDENTIFIER)('foo')
-      PsiErrorElement:Expecting ']' to close an list of annotation
-        <empty list>
+    PsiErrorElement:Annotations are not allowed in this position
+      ANNOTATION
+        PsiElement(LBRACKET)('[')
+        ANNOTATION_ENTRY
+          CONSTRUCTOR_CALLEE
+            TYPE_REFERENCE
+              USER_TYPE
+                REFERENCE_EXPRESSION
+                  PsiElement(IDENTIFIER)('a')
+        PsiWhiteSpace(' ')
+        ANNOTATION_ENTRY
+          CONSTRUCTOR_CALLEE
+            TYPE_REFERENCE
+              USER_TYPE
+                REFERENCE_EXPRESSION
+                  PsiElement(IDENTIFIER)('foo')
+        PsiErrorElement:Expecting ']' to close the annotation list
+          <empty list>
     PsiWhiteSpace(' ')
     PsiElement(EQ)('=')
     PsiWhiteSpace(' ')
@@ -84,15 +85,16 @@ JetFile: Properties_ERR.kt
   PROPERTY
     PsiElement(val)('val')
     PsiWhiteSpace(' ')
-    ANNOTATION
-      PsiElement(LBRACKET)('[')
-      ANNOTATION_ENTRY
-        CONSTRUCTOR_CALLEE
-          TYPE_REFERENCE
-            USER_TYPE
-              REFERENCE_EXPRESSION
-                PsiElement(IDENTIFIER)('a')
-      PsiElement(RBRACKET)(']')
+    PsiErrorElement:Annotations are not allowed in this position
+      ANNOTATION
+        PsiElement(LBRACKET)('[')
+        ANNOTATION_ENTRY
+          CONSTRUCTOR_CALLEE
+            TYPE_REFERENCE
+              USER_TYPE
+                REFERENCE_EXPRESSION
+                  PsiElement(IDENTIFIER)('a')
+        PsiElement(RBRACKET)(']')
     PsiWhiteSpace(' ')
     PsiElement(IDENTIFIER)('foo')
     PsiWhiteSpace(' ')
@@ -119,22 +121,22 @@ JetFile: Properties_ERR.kt
   MODIFIER_LIST
     PsiElement(public)('public')
   PsiWhiteSpace(' ')
-  PsiErrorElement:Expecting package directive or top level declaration
+  PsiErrorElement:Expecting a top level declaration
     PsiElement(LPAR)('(')
-  PsiErrorElement:Expecting package directive or top level declaration
+  PsiErrorElement:Expecting a top level declaration
     PsiElement(RPAR)(')')
   PsiWhiteSpace(' ')
-  PsiErrorElement:Expecting package directive or top level declaration
+  PsiErrorElement:Expecting a top level declaration
     PsiElement(LBRACE)('{')
-  PsiErrorElement:Expecting package directive or top level declaration
+  PsiErrorElement:Expecting a top level declaration
     PsiElement(RBRACE)('}')
   PsiWhiteSpace('\n   ')
-  PsiErrorElement:Expecting package directive or top level declaration
+  PsiErrorElement:Expecting a top level declaration
     PsiElement(LPAR)('(')
-  PsiErrorElement:Expecting package directive or top level declaration
+  PsiErrorElement:Expecting a top level declaration
     PsiElement(RPAR)(')')
   PsiWhiteSpace(' ')
-  PsiErrorElement:Expecting package directive or top level declaration
+  PsiErrorElement:Expecting a top level declaration
     PsiElement(EQ)('=')
   PsiWhiteSpace(' ')
   PROPERTY

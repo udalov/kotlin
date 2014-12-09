@@ -229,12 +229,13 @@ public class CallCompleter(
         if (valueArgument.isExternal()) return
 
         val expression = valueArgument.getArgumentExpression()
-        if (expression == null) return
+        val deparenthesized = ArgumentTypeResolver.deparenthesizeArgument(expression)
+        if (deparenthesized == null) return
 
         val recordedType = context.trace[BindingContext.EXPRESSION_TYPE, expression]
         var updatedType: JetType? = recordedType
 
-        val results = completeCallForArgument(expression, context)
+        val results = completeCallForArgument(deparenthesized, context)
         if (results != null && results.isSingleResult()) {
             val resolvedCall = results.getResultingCall()
             updatedType = if (resolvedCall.hasInferredReturnType()) resolvedCall.getResultingDescriptor()?.getReturnType() else null
@@ -246,7 +247,7 @@ public class CallCompleter(
             updatedType = ArgumentTypeResolver.updateResultArgumentTypeIfNotDenotable(context as ResolutionContext<*>, expression)
         }
 
-        updateRecordedTypeForArgument(updatedType, recordedType, expression, context.trace)
+        updatedType = updateRecordedTypeForArgument(updatedType, recordedType, expression, context.trace)
 
         // While the expected type is not known, the function literal arguments are not analyzed (to analyze function literal bodies once),
         // but they should be analyzed when the expected type is known (during the call completion).
@@ -256,14 +257,16 @@ public class CallCompleter(
                     context as CallResolutionContext<*>, RESOLVE_FUNCTION_ARGUMENTS)
         }
 
-        DataFlowUtils.checkType(updatedType, expression, context as ResolutionContext<*>)
+        DataFlowUtils.checkType(updatedType, deparenthesized, context as ResolutionContext<*>)
     }
 
     private fun completeCallForArgument(
             expression: JetExpression,
             context: BasicCallResolutionContext
     ): OverloadResolutionResultsImpl<*>? {
-        val argumentCall = getCallForArgument(expression, context.trace.getBindingContext())
+        if (!ExpressionTypingUtils.dependsOnExpectedType(expression)) return null
+
+        val argumentCall = expression.getCall(context.trace.getBindingContext())
         if (argumentCall == null) return null
 
         val cachedDataForCall = context.resolutionResultsCache[argumentCall]
@@ -278,24 +281,13 @@ public class CallCompleter(
         return completeCall(contextForArgument, cachedResults, tracing)
     }
 
-    private fun getCallForArgument(argument: JetExpression?, bindingContext: BindingContext): Call? {
-        if (!ExpressionTypingUtils.dependsOnExpectedType(argument)) {
-            return null
-        }
-        if (argument is JetBlockExpression) {
-            val lastStatement = JetPsiUtil.getLastStatementInABlock(argument)
-            return getCallForArgument(lastStatement as? JetExpression, bindingContext)
-        }
-        return argument?.getCall(bindingContext)
-    }
-
     private fun updateRecordedTypeForArgument(
             updatedType: JetType?,
             recordedType: JetType?,
             argumentExpression: JetExpression,
             trace: BindingTrace
-    ) {
-        if (recordedType == updatedType) return
+    ): JetType? {
+        if (recordedType == updatedType || updatedType == null) return updatedType
 
         fun deparenthesizeOrGetSelector(expression: JetExpression?): JetExpression? {
             val deparenthesized = JetPsiUtil.deparenthesizeOnce(expression, /* deparenthesizeBinaryExpressionWithTypeRHS = */ false)
@@ -315,6 +307,7 @@ public class CallCompleter(
             BindingContextUtils.updateRecordedType(
                     updatedType, expression, trace, /* shouldBeMadeNullable = */ hasNecessarySafeCall(expression, trace))
         }
+        return trace[BindingContext.EXPRESSION_TYPE, argumentExpression]
     }
 
     private fun hasNecessarySafeCall(expression: JetExpression, trace: BindingTrace): Boolean {
@@ -326,6 +319,6 @@ public class CallCompleter(
 
         //If a receiver type is not null, then this safe expression is useless, and we don't need to make the result type nullable.
         val expressionType = trace[BindingContext.EXPRESSION_TYPE, expression.getReceiverExpression()]
-        return expressionType != null && expressionType.isNullable()
+        return expressionType != null && TypeUtils.isNullableType(expressionType)
     }    
 }

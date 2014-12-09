@@ -2,9 +2,6 @@ package kotlin
 
 import java.io.StringReader
 import java.util.ArrayList
-import java.util.HashMap
-import java.util.HashSet
-import java.util.LinkedList
 import java.util.Locale
 import java.nio.charset.Charset
 
@@ -29,8 +26,6 @@ public fun String.trim(): String = (this as java.lang.String).trim()
 public fun String.toUpperCase(): String = (this as java.lang.String).toUpperCase()
 
 public fun String.toLowerCase(): String = (this as java.lang.String).toLowerCase()
-
-public fun String.length(): Int = (this as java.lang.String).length()
 
 public fun String.toCharArray(): CharArray = (this as java.lang.String).toCharArray()
 
@@ -80,8 +75,6 @@ public fun String(stringBuilder: java.lang.StringBuilder): String = java.lang.St
 
 public fun String.replaceFirst(regex: String, replacement: String): String = (this as java.lang.String).replaceFirst(regex, replacement)
 
-public fun String.charAt(index: Int): Char = (this as java.lang.String).charAt(index)
-
 public fun String.split(regex: String, limit: Int): Array<String> = (this as java.lang.String).split(regex, limit)
 
 public fun String.codePointAt(index: Int): Int = (this as java.lang.String).codePointAt(index)
@@ -122,19 +115,9 @@ public fun String.regionMatches(toffset: Int, other: String, ooffset: Int, len: 
 
 public fun String.replace(target: CharSequence, replacement: CharSequence): String = (this as java.lang.String).replace(target, replacement)
 
-public fun String.subSequence(beginIndex: Int, endIndex: Int): CharSequence = (this as java.lang.String).subSequence(beginIndex, endIndex)
-
 public fun String.toLowerCase(locale: java.util.Locale): String = (this as java.lang.String).toLowerCase(locale)
 
 public fun String.toUpperCase(locale: java.util.Locale): String = (this as java.lang.String).toUpperCase(locale)
-
-public fun CharSequence.charAt(index: Int): Char = (this as java.lang.CharSequence).charAt(index)
-
-public fun CharSequence.subSequence(start: Int, end: Int): CharSequence? = (this as java.lang.CharSequence).subSequence(start, end)
-
-public fun CharSequence.toString(): String? = (this as java.lang.CharSequence).toString()
-
-public fun CharSequence.length(): Int = (this as java.lang.CharSequence).length()
 
 public val CharSequence.size: Int
     get() = this.length
@@ -151,8 +134,7 @@ public fun String.toDouble(): Double = java.lang.Double.parseDouble(this)
 
 public fun String.toCharList(): List<Char> = toCharArray().toList()
 
-public fun CharSequence.get(index: Int): Char = charAt(index)
-public fun CharSequence.get(start: Int, end: Int): CharSequence? = subSequence(start, end)
+public fun CharSequence.get(start: Int, end: Int): CharSequence = subSequence(start, end)
 
 public fun String.toByteArray(charset: String): ByteArray = (this as java.lang.String).getBytes(charset)
 public fun String.toByteArray(charset: Charset = Charsets.UTF_8): ByteArray = (this as java.lang.String).getBytes(charset)
@@ -170,7 +152,7 @@ public fun String.getBytes(charset: String): ByteArray = (this as java.lang.Stri
  * Returns a subsequence specified by given range.
  */
 public fun CharSequence.slice(range: IntRange): CharSequence {
-    return subSequence(range.start, range.end + 1)!! // inclusive
+    return subSequence(range.start, range.end + 1) // inclusive
 }
 
 /**
@@ -273,26 +255,6 @@ public inline fun <T : Appendable> String.takeWhileTo(result: T, predicate: (Cha
 /** Copies all characters into a [[Collection] */
 deprecated("Use toList() instead.")
 public fun String.toCollection(): Collection<Char> = toCollection(ArrayList<Char>(this.length()))
-
-/** Returns a new String containing the everything but the leading whitespace characters */
-public fun String.trimLeading(): String {
-    var count = 0
-
-    while ((count < this.length) && (this[count] <= ' ')) {
-        count++
-    }
-    return if (count > 0) substring(count) else this
-}
-
-/** Returns a new String containing the everything but the trailing whitespace characters */
-public fun String.trimTrailing(): String {
-    var count = this.length
-
-    while (count > 0 && this[count - 1] <= ' ') {
-        count--
-    }
-    return if (count < this.length) substring(0, count) else this
-}
 
 /**
  * Replaces every *regexp* occurence in the text with the value retruned by the given function *body* that can handle

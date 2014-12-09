@@ -36,11 +36,15 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.lang.descriptors.CallableMemberDescriptor;
 import org.jetbrains.jet.lang.descriptors.ClassDescriptor;
 import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor;
-import org.jetbrains.jet.lang.psi.*;
+import org.jetbrains.jet.lang.psi.JetElement;
+import org.jetbrains.jet.lang.psi.JetNamedFunction;
+import org.jetbrains.jet.lang.psi.JetProperty;
+import org.jetbrains.jet.lang.psi.JetPsiUtil;
 import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.plugin.JetBundle;
-import org.jetbrains.jet.plugin.project.AnalyzerFacadeWithCache;
+import org.jetbrains.jet.plugin.caches.resolve.ResolvePackage;
 import org.jetbrains.jet.plugin.refactoring.JetRefactoringUtil;
+import org.jetbrains.jet.plugin.util.IdeDescriptorRenderers;
 import org.jetbrains.jet.renderer.DescriptorRenderer;
 
 import javax.swing.*;
@@ -89,7 +93,7 @@ class KotlinOverridingDialog extends DialogWrapper {
     private static String formatElement(PsiElement element) {
         element = JetPsiUtil.ascendIfPropertyAccessor(element);
         if (element instanceof JetNamedFunction || element instanceof JetProperty) {
-            BindingContext bindingContext = AnalyzerFacadeWithCache.getContextForElement((JetElement) element);
+            BindingContext bindingContext = ResolvePackage.analyze((JetElement) element);
 
             DeclarationDescriptor declarationDescriptor = bindingContext.get(BindingContext.DECLARATION_TO_DESCRIPTOR, element);
             if (declarationDescriptor instanceof CallableMemberDescriptor) {
@@ -98,7 +102,7 @@ class KotlinOverridingDialog extends DialogWrapper {
                     return JetBundle.message(
                             "x.in.y",
                             DescriptorRenderer.COMPACT.render(declarationDescriptor),
-                            DescriptorRenderer.SOURCE_CODE_SHORT_NAMES_IN_TYPES.render(containingDescriptor)
+                            IdeDescriptorRenderers.SOURCE_CODE_SHORT_NAMES_IN_TYPES.render(containingDescriptor)
                     );
                 }
             }

@@ -159,7 +159,9 @@ public class JetTypeMapper {
     private Type mapReturnType(@NotNull CallableDescriptor descriptor, @Nullable BothSignatureWriter sw) {
         JetType returnType = descriptor.getReturnType();
         assert returnType != null : "Function has no return type: " + descriptor;
-        if (returnType.equals(KotlinBuiltIns.getInstance().getUnitType()) && !(descriptor instanceof PropertyGetterDescriptor)) {
+        if (returnType.equals(KotlinBuiltIns.getInstance().getUnitType())
+            && !TypeUtils.isNullableType(returnType)
+            && !(descriptor instanceof PropertyGetterDescriptor)) {
             if (sw != null) {
                 sw.writeAsmType(Type.VOID_TYPE);
             }
@@ -220,7 +222,7 @@ public class JetTypeMapper {
         if (descriptor instanceof ClassDescriptor) {
             FqNameUnsafe className = DescriptorUtils.getFqName(descriptor);
             if (className.isSafe()) {
-                known = KotlinToJavaTypesMap.getInstance().getJavaAnalog(className.toSafe(), jetType.isNullable());
+                known = KotlinToJavaTypesMap.getInstance().getJavaAnalog(className.toSafe(), TypeUtils.isNullableType(jetType));
             }
         }
 
@@ -262,7 +264,7 @@ public class JetTypeMapper {
             return asmType;
         }
 
-        if (descriptor instanceof ClassDescriptor && KotlinBuiltIns.getInstance().isArray(jetType)) {
+        if (descriptor instanceof ClassDescriptor && KotlinBuiltIns.isArray(jetType)) {
             if (jetType.getArguments().size() != 1) {
                 throw new UnsupportedOperationException("arrays must have one type argument");
             }
@@ -491,7 +493,7 @@ public class JetTypeMapper {
                     invokeOpcode = INVOKEINTERFACE;
                 }
                 else {
-                    boolean isPrivateFunInvocation = functionDescriptor.getVisibility() == Visibilities.PRIVATE;
+                    boolean isPrivateFunInvocation = Visibilities.isPrivate(functionDescriptor.getVisibility());
                     invokeOpcode = superCall || isPrivateFunInvocation ? INVOKESPECIAL : INVOKEVIRTUAL;
                 }
 
@@ -681,11 +683,11 @@ public class JetTypeMapper {
      */
     private static boolean forceBoxedReturnType(@NotNull FunctionDescriptor descriptor) {
         //noinspection ConstantConditions
-        if (!KotlinBuiltIns.getInstance().isPrimitiveType(descriptor.getReturnType())) return false;
+        if (!KotlinBuiltIns.isPrimitiveType(descriptor.getReturnType())) return false;
 
-        for (FunctionDescriptor overridden : OverrideResolver.getAllOverriddenDescriptors(descriptor)) {
+        for (FunctionDescriptor overridden : getAllOverriddenDescriptors(descriptor)) {
             //noinspection ConstantConditions
-            if (!KotlinBuiltIns.getInstance().isPrimitiveType(overridden.getOriginal().getReturnType())) return true;
+            if (!KotlinBuiltIns.isPrimitiveType(overridden.getOriginal().getReturnType())) return true;
         }
 
         return false;

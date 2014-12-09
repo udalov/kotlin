@@ -69,11 +69,21 @@ public class TypeCheckingProcedure {
     }
 
     public boolean equalTypes(@NotNull JetType type1, @NotNull JetType type2) {
-        if (type1.isNullable() != type2.isNullable()) {
+        if (TypesPackage.isFlexible(type1)) {
+            if (TypesPackage.isFlexible(type2)) {
+                return !type1.isError() && !type2.isError() && isSubtypeOf(type1, type2) && isSubtypeOf(type2, type1);
+            }
+            return heterogeneousEquivalence(type2, type1);
+        }
+        else if (TypesPackage.isFlexible(type2)) {
+            return heterogeneousEquivalence(type1, type2);
+        }
+
+        if (type1.isMarkedNullable() != type2.isMarkedNullable()) {
             return false;
         }
 
-        if (type1.isNullable()) {
+        if (type1.isMarkedNullable()) {
             // Then type2 is nullable, too (see the previous condition
             return constraints.assertEqualTypes(TypeUtils.makeNotNullable(type1), TypeUtils.makeNotNullable(type2), this);
         }
@@ -105,6 +115,13 @@ public class TypeCheckingProcedure {
             }
         }
         return true;
+    }
+
+    protected boolean heterogeneousEquivalence(JetType inflexibleType, JetType flexibleType) {
+        // This is to account for the case when we have Collection<X> vs (Mutable)Collection<X>! or K(java.util.Collection<? extends X>)
+        assert !TypesPackage.isFlexible(inflexibleType) : "Only inflexible types are allowed here: " + inflexibleType;
+        return isSubtypeOf(TypesPackage.flexibility(flexibleType).getLowerBound(), inflexibleType)
+               && isSubtypeOf(inflexibleType, TypesPackage.flexibility(flexibleType).getUpperBound());
     }
 
     public enum EnrichedProjectionKind {
@@ -163,15 +180,21 @@ public class TypeCheckingProcedure {
     }
 
     public boolean isSubtypeOf(@NotNull JetType subtype, @NotNull JetType supertype) {
+        if (TypesPackage.isFlexible(subtype)) {
+            return isSubtypeOf(TypesPackage.flexibility(subtype).getLowerBound(), supertype);
+        }
+        if (TypesPackage.isFlexible(supertype)) {
+            return isSubtypeOf(subtype, TypesPackage.flexibility(supertype).getUpperBound());
+        }
         if (subtype.isError() || supertype.isError()) {
             return true;
         }
-        if (!supertype.isNullable() && subtype.isNullable()) {
+        if (!supertype.isMarkedNullable() && subtype.isMarkedNullable()) {
             return false;
         }
         subtype = TypeUtils.makeNotNullable(subtype);
         supertype = TypeUtils.makeNotNullable(supertype);
-        if (KotlinBuiltIns.getInstance().isNothingOrNullableNothing(subtype)) {
+        if (KotlinBuiltIns.isNothingOrNullableNothing(subtype)) {
             return true;
         }
         @Nullable JetType closestSupertype = findCorrespondingSupertype(subtype, supertype, constraints);

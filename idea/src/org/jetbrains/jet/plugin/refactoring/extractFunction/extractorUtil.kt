@@ -21,7 +21,7 @@ import org.jetbrains.jet.lang.psi.JetElement
 import org.jetbrains.jet.lang.psi.JetSimpleNameExpression
 import java.util.HashMap
 import org.jetbrains.jet.lang.psi.JetTreeVisitorVoid
-import org.jetbrains.jet.lang.psi.psiUtil.getParentByType
+import org.jetbrains.jet.lang.psi.psiUtil.getNonStrictParentOfType
 import org.jetbrains.jet.lang.psi.JetNamedFunction
 import org.jetbrains.jet.lang.psi.JetExpression
 import com.intellij.psi.PsiElement
@@ -36,12 +36,9 @@ import java.util.Collections
 import org.jetbrains.jet.lang.psi.psiUtil.isFunctionLiteralOutsideParentheses
 import com.intellij.psi.util.PsiTreeUtil
 import org.jetbrains.jet.lang.psi.JetFunctionLiteralArgument
-import org.jetbrains.jet.lang.resolve.BindingContext
 import org.jetbrains.jet.plugin.util.psiModificationUtil.moveInsideParenthesesAndReplaceWith
-import org.jetbrains.jet.lang.psi.psiUtil.prependElement
 import org.jetbrains.jet.lang.psi.psiUtil.appendElement
 import org.jetbrains.jet.lang.psi.psiUtil.replaced
-import org.jetbrains.jet.plugin.intentions.declarations.DeclarationUtils
 import org.jetbrains.jet.lang.psi.JetBlockExpression
 import org.jetbrains.jet.plugin.refactoring.extractFunction.OutputValue.ParameterUpdate
 import org.jetbrains.jet.plugin.refactoring.extractFunction.OutputValue.Jump
@@ -54,19 +51,23 @@ import org.jetbrains.jet.plugin.refactoring.isMultiLine
 import org.jetbrains.jet.plugin.refactoring.extractFunction.OutputValueBoxer.AsTuple
 import org.jetbrains.jet.plugin.util.psi.patternMatching.JetPsiUnifier
 import org.jetbrains.jet.plugin.util.psi.patternMatching.UnifierParameter
-import org.jetbrains.jet.plugin.util.psi.patternMatching.toRange
 import org.jetbrains.jet.plugin.codeInsight.ShortenReferences
 import org.jetbrains.jet.plugin.util.psi.patternMatching.JetPsiRange
-import org.jetbrains.jet.plugin.util.psi.patternMatching.UnificationResult
 import org.jetbrains.jet.plugin.util.psi.patternMatching.JetPsiRange.Match
-import org.jetbrains.jet.plugin.util.psi.patternMatching.UnificationResult.Status
 import org.jetbrains.jet.plugin.util.psi.patternMatching.UnificationResult.WeaklyMatched
 import org.jetbrains.jet.plugin.util.psi.patternMatching.UnificationResult.StronglyMatched
+import org.jetbrains.jet.plugin.util.IdeDescriptorRenderers
+import org.jetbrains.jet.lang.psi.psiUtil.parents
+import java.util.ArrayList
+import org.jetbrains.jet.lang.psi.psiUtil.getStrictParentOfType
+import org.jetbrains.jet.lang.psi.psiUtil.getNonStrictParentOfType
 
 fun ExtractableCodeDescriptor.getDeclarationText(
         options: ExtractionGeneratorOptions = ExtractionGeneratorOptions.DEFAULT,
         withBody: Boolean = true,
-        descriptorRenderer: DescriptorRenderer = DescriptorRenderer.FQ_NAMES_IN_TYPES
+        descriptorRenderer: DescriptorRenderer = if (options.flexibleTypesAllowed)
+                                                    DescriptorRenderer.FLEXIBLE_TYPES_FOR_CODE
+                                                 else IdeDescriptorRenderers.SOURCE_CODE
 ): String {
     if (!canGenerateProperty() && options.extractAsProperty) {
         throw IllegalArgumentException("Can't generate property: ${extractionData.getCodeFragmentText()}")
@@ -108,7 +109,7 @@ fun createNameCounterpartMap(from: JetElement, to: JetElement): Map<JetSimpleNam
             object: JetTreeVisitorVoid() {
                 override fun visitSimpleNameExpression(expression: JetSimpleNameExpression) {
                     val offset = expression.getTextRange()!!.getStartOffset() - fromOffset
-                    val newExpression = to.findElementAt(offset)?.getParentByType(javaClass<JetSimpleNameExpression>())
+                    val newExpression = to.findElementAt(offset)?.getNonStrictParentOfType<JetSimpleNameExpression>()
                     assert(newExpression!= null, "Couldn't find expression at $offset in '${to.getText()}'")
 
                     map[expression] = newExpression!!
@@ -201,7 +202,7 @@ private fun makeCall(
     fun insertCall(anchor: PsiElement, wrappedCall: JetExpression) {
         val firstExpression = rangeToReplace.elements.firstOrNull { it is JetExpression } as? JetExpression
         if (firstExpression?.isFunctionLiteralOutsideParentheses() ?: false) {
-            val functionLiteralArgument = PsiTreeUtil.getParentOfType(firstExpression, javaClass<JetFunctionLiteralArgument>())!!
+            val functionLiteralArgument = firstExpression?.getStrictParentOfType<JetFunctionLiteralArgument>()!!
             functionLiteralArgument.moveInsideParenthesesAndReplaceWith(wrappedCall, extractableDescriptor.originalContext)
             return
         }
@@ -346,7 +347,7 @@ fun ExtractableCodeDescriptor.generateDeclaration(options: ExtractionGeneratorOp
     fun createDeclaration(): JetNamedDeclaration {
         return with(extractionData) {
             if (options.inTempFile) {
-                createTemporaryDeclaration("${getDeclarationText()}\n")
+                createTemporaryDeclaration("${getDeclarationText(options)}\n")
             }
             else {
                 psiFactory.createDeclaration(getDeclarationText(options))
@@ -403,7 +404,7 @@ fun ExtractableCodeDescriptor.generateDeclaration(options: ExtractionGeneratorOp
          * before calls/types themselves
          */
         for ((offsetInBody, resolveResult) in extractionData.refOffsetToDeclaration.entrySet().sortDescendingBy { it.key }) {
-            val expr = file.findElementAt(bodyOffset + offsetInBody)?.getParentByType(javaClass<JetSimpleNameExpression>())
+            val expr = file.findElementAt(bodyOffset + offsetInBody)?.getNonStrictParentOfType<JetSimpleNameExpression>()
             assert(expr != null, "Couldn't find expression at $offsetInBody in '${body.getText()}'")
 
             originalOffsetByExpr[expr!!] = offsetInBody
@@ -423,7 +424,7 @@ fun ExtractableCodeDescriptor.generateDeclaration(options: ExtractionGeneratorOp
             replacingReturn = psiFactory.createExpression(if (jumpValue.conditional) "return true" else "return")
             expressionsToReplaceWithReturn = jumpValue.elementsToReplace.map { jumpElement ->
                 val offsetInBody = jumpElement.getTextRange()!!.getStartOffset() - extractionData.originalStartOffset!!
-                val expr = file.findElementAt(bodyOffset + offsetInBody)?.getParentByType(jumpElement.javaClass)
+                val expr = file.findElementAt(bodyOffset + offsetInBody)?.getNonStrictParentOfType(jumpElement.javaClass)
                 assert(expr != null, "Couldn't find expression at $offsetInBody in '${body.getText()}'")
 
                 expr!!
@@ -485,19 +486,19 @@ fun ExtractableCodeDescriptor.generateDeclaration(options: ExtractionGeneratorOp
         }
     }
 
-    fun insertDeclaration(declaration: JetNamedDeclaration): JetNamedDeclaration {
+    fun insertDeclaration(declaration: JetNamedDeclaration, anchor: PsiElement): JetNamedDeclaration {
         return with(extractionData) {
-            val targetContainer = targetSibling.getParent()!!
+            val targetContainer = anchor.getParent()!!
             val emptyLines = psiFactory.createWhiteSpace("\n\n")
             if (insertBefore) {
-                val declarationInFile = targetContainer.addBefore(declaration, targetSibling) as JetNamedDeclaration
-                targetContainer.addBefore(emptyLines, targetSibling)
+                val declarationInFile = targetContainer.addBefore(declaration, anchor) as JetNamedDeclaration
+                targetContainer.addBefore(emptyLines, anchor)
 
                 declarationInFile
             }
             else {
-                val declarationInFile = targetContainer.addAfter(declaration, targetSibling) as JetNamedDeclaration
-                targetContainer.addAfter(emptyLines, targetSibling)
+                val declarationInFile = targetContainer.addAfter(declaration, anchor) as JetNamedDeclaration
+                targetContainer.addAfter(emptyLines, anchor)
 
                 declarationInFile
             }
@@ -506,13 +507,29 @@ fun ExtractableCodeDescriptor.generateDeclaration(options: ExtractionGeneratorOp
 
     val duplicates = if (options.inTempFile) Collections.emptyList() else findDuplicates()
 
-    val declaration = createDeclaration().let { if (options.inTempFile) it else insertDeclaration(it) }
+    val anchor = with(extractionData) {
+        val anchorCandidates = duplicates.mapTo(ArrayList<PsiElement>()) { it.range.elements.first() }
+        anchorCandidates.add(targetSibling)
+
+        val marginalCandidate = if (insertBefore) {
+            anchorCandidates.minBy { it.getTextRange().getStartOffset() }!!
+        }
+        else {
+            anchorCandidates.maxBy { it.getTextRange().getStartOffset() }!!
+        }
+
+        // Ascend to the level of targetSibling
+        val targetParent = targetSibling.getParent()
+        marginalCandidate.parents().first { it.getParent() == targetParent }
+    }
+
+    val declaration = createDeclaration().let { if (options.inTempFile) it else insertDeclaration(it, anchor) }
     adjustDeclarationBody(declaration)
 
     if (options.inTempFile) return ExtractionResult(declaration, Collections.emptyMap(), nameByOffset)
 
     makeCall(this, declaration, controlFlow, extractionData.originalRange, parameters.map { it.argumentText })
-    ShortenReferences.process(declaration)    
+    ShortenReferences.process(declaration)
 
     val duplicateReplacers = duplicates.map { it.range to { makeCall(this, declaration, it.controlFlow, it.range, it.arguments) } }.toMap()
     return ExtractionResult(declaration, duplicateReplacers, nameByOffset)

@@ -34,7 +34,7 @@ class TypeKindHighlightingVisitor extends AfterAnalysisHighlightingVisitor {
     public void visitSimpleNameExpression(@NotNull JetSimpleNameExpression expression) {
         PsiReference ref = expression.getReference();
         if (ref == null) return;
-        if (JetPsiChecker.isNamesHighlightingEnabled()) {
+        if (JetPsiChecker.OBJECT$.getNamesHighlightingEnabled()) {
             DeclarationDescriptor referenceTarget = bindingContext.get(BindingContext.REFERENCE_TARGET, expression);
             if (referenceTarget instanceof ConstructorDescriptor) {
                 referenceTarget = referenceTarget.getContainingDeclaration();
@@ -79,6 +79,11 @@ class TypeKindHighlightingVisitor extends AfterAnalysisHighlightingVisitor {
             highlightName(identifier, textAttributesKeyForClass(classDescriptor));
         }
         super.visitClass(klass);
+    }
+
+    @Override
+    public void visitDynamicType(@NotNull JetDynamicType type) {
+        // Do nothing: 'dynamic' is highlighted as a keyword
     }
 
     private void highlightName(@NotNull PsiElement whatToHighlight, @NotNull TextAttributesKey textAttributesKey) {

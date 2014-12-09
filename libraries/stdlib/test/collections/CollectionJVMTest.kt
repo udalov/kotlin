@@ -70,6 +70,10 @@ class CollectionJVMTest {
         }
     }
 
+    test fun first() {
+        assertEquals(19, TreeSet(arrayListOf(90, 47, 19)).first())
+    }
+
     test fun last() {
         val data = arrayListOf("foo", "bar")
         assertEquals("bar", data.last())
@@ -85,28 +89,57 @@ class CollectionJVMTest {
         assertTrue(linkedListOf(15, 19, 20).contains(15))
     }
 
-    test fun sortBy() {
-        expect(arrayListOf("two" to 2, "three" to 3)) {
-            arrayListOf("three" to 3, "two" to 2).sortBy { it.second }
-        }
-        expect(arrayListOf("three" to 3, "two" to 2)) {
-            arrayListOf("three" to 3, "two" to 2).sortBy { it.first }
-        }
-        expect(arrayListOf("two" to 2, "three" to 3)) {
-            arrayListOf("three" to 3, "two" to 2).sortBy { it.first.length }
+    test fun toArray() {
+        val data = arrayListOf("foo", "bar")
+        val arr = data.toArray()
+        println("Got array ${arr}")
+        assertEquals(2, arr.size)
+        todo {
+            assertTrue {
+                arr is Array<String>
+            }
         }
     }
 
-
-    test fun sortFunctionShouldReturnSortedCopyForList() {
-        val list: List<Int> = arrayListOf(2, 3, 1)
-        expect(arrayListOf(1, 2, 3)) { list.sort() }
-        expect(arrayListOf(2, 3, 1)) { list }
+    test fun takeReturnsFirstNElements() {
+        expect(setOf(1, 2)) { sortedSetOf(1, 2, 3, 4, 5).take(2).toSet() }
     }
 
-    test fun sortFunctionShouldReturnSortedCopyForIterable() {
-        val list: Iterable<Int> = arrayListOf(2, 3, 1)
-        expect(arrayListOf(1, 2, 3)) { list.sort() }
-        expect(arrayListOf(2, 3, 1)) { list }
+    test fun filterIsInstanceList() {
+        val src: List<Any> = listOf(1,2,3.toDouble(), "abc", "cde")
+
+        val ints: List<Int> = src.filterIsInstance<Int>()
+        assertEquals(arrayListOf(1,2), ints)
+
+        val doubles: List<Double> = src.filterIsInstance<Double>()
+        assertEquals(arrayListOf(3.0), doubles)
+
+        val strings: List<String> = src.filterIsInstance<String>()
+        assertEquals(arrayListOf("abc", "cde"), strings)
+
+        val anys: List<Any> = src.filterIsInstance<Any>()
+        assertEquals(src.toList(), anys)
+
+        val chars: List<Char> = src.filterIsInstance<Char>()
+        assertEquals(0, chars.size())
+    }
+
+    test fun filterIsInstanceArray() {
+        val src: Array<Any> = array(1,2,3.toDouble(), "abc", "cde")
+
+        val ints: List<Int> = src.filterIsInstance<Int>()
+        assertEquals(arrayListOf(1,2), ints)
+
+        val doubles: List<Double> = src.filterIsInstance<Double>()
+        assertEquals(arrayListOf(3.0), doubles)
+
+        val strings: List<String> = src.filterIsInstance<String>()
+        assertEquals(arrayListOf("abc", "cde"), strings)
+
+        val anys: List<Any> = src.filterIsInstance<Any>()
+        assertEquals(src.toList(), anys)
+
+        val chars: List<Char> = src.filterIsInstance<Char>()
+        assertEquals(0, chars.size())
     }
 }

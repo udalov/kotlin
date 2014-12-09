@@ -23,6 +23,7 @@ import org.jetbrains.annotations.Nullable;
 import org.jetbrains.jet.lang.descriptors.ClassifierDescriptor;
 import org.jetbrains.jet.lang.descriptors.TypeParameterDescriptor;
 import org.jetbrains.jet.lang.types.*;
+import org.jetbrains.jet.lang.types.checker.JetTypeChecker;
 import org.jetbrains.jet.lang.types.checker.TypeCheckingProcedure;
 import org.jetbrains.jet.lang.types.checker.TypingConstraints;
 import org.jetbrains.jet.lang.types.lang.KotlinBuiltIns;
@@ -342,7 +343,7 @@ public class ConstraintSystemImpl implements ConstraintSystem {
     }
 
     private boolean isErrorOrSpecialType(@Nullable JetType type) {
-        if (type == DONT_CARE || ErrorUtils.isUninferredParameter(type)) {
+        if (TypeUtils.isDontCarePlaceholder(type) || ErrorUtils.isUninferredParameter(type)) {
             return true;
         }
 
@@ -366,9 +367,8 @@ public class ConstraintSystemImpl implements ConstraintSystem {
 
         assert superType != TypeUtils.PLACEHOLDER_FUNCTION_TYPE : "The type for " + constraintPosition + " shouldn't be a placeholder for function type";
 
-        KotlinBuiltIns kotlinBuiltIns = KotlinBuiltIns.getInstance();
         if (subType == TypeUtils.PLACEHOLDER_FUNCTION_TYPE) {
-            if (!kotlinBuiltIns.isFunctionOrExtensionFunctionType(superType)) {
+            if (!KotlinBuiltIns.isFunctionOrExtensionFunctionType(superType)) {
                 if (isMyTypeVariable(superType)) {
                     // a constraint binds type parameter and any function type, so there is no new info and no error
                     return;
@@ -382,14 +382,16 @@ public class ConstraintSystemImpl implements ConstraintSystem {
         // function literal without declaring receiver type { x -> ... }
         // can be considered as extension function if one is expected
         // (special type constructor for function/ extension function should be introduced like PLACEHOLDER_FUNCTION_TYPE)
-        if (constraintKind == SUB_TYPE && kotlinBuiltIns.isFunctionType(subType) && kotlinBuiltIns.isExtensionFunctionType(superType)) {
+        if (constraintKind == SUB_TYPE && KotlinBuiltIns.isFunctionType(subType) && KotlinBuiltIns.isExtensionFunctionType(superType)) {
             subType = createCorrespondingExtensionFunctionType(subType, DONT_CARE);
         }
 
         // can be equal for the recursive invocations:
         // fun <T> foo(i: Int) : T { ... return foo(i); } => T <: T
-        if (subType.equals(superType)) return;
+        if (isMyTypeVariable(subType) && isMyTypeVariable(superType) && JetTypeChecker.DEFAULT.equalTypes(subType, superType)) return;
 
+        //todo temporary hack KT-6320
+        if (isMyTypeVariable(subType) && isMyTypeVariable(superType)) return;
         assert !isMyTypeVariable(subType) || !isMyTypeVariable(superType) :
                 "The constraint shouldn't contain different type variables on both sides: " + subType + " <: " + superType;
 
@@ -413,10 +415,25 @@ public class ConstraintSystemImpl implements ConstraintSystem {
             @NotNull TypeBoundsImpl.BoundKind boundKind,
             @NotNull ConstraintPosition constraintPosition
     ) {
+        // Here we are handling the case when T! gets a bound Foo (or Foo?)
+        // In this case, type parameter T is supposed to get the bound Foo!
+        // Example:
+        // val c: Collection<Foo> = Collections.singleton(null : Foo?)
+        // Constraints for T are:
+        //   Foo? <: T!
+        //   Foo >: T!
+        // both Foo and Foo? transform to Foo! here
+        if (TypesPackage.isFlexible(parameterType)) {
+            CustomTypeVariable typeVariable = TypesPackage.getCustomTypeVariable(parameterType);
+            if (typeVariable != null) {
+                constrainingType = typeVariable.substitutionResult(constrainingType);
+            }
+        }
+
         TypeBoundsImpl typeBounds = getTypeBounds(parameterType);
         assert typeBounds != null : "constraint should be generated only for type variables";
 
-        if (!parameterType.isNullable() || !constrainingType.isNullable()) {
+        if (!parameterType.isMarkedNullable() || !constrainingType.isMarkedNullable()) {
             typeBounds.addBound(boundKind, constrainingType, constraintPosition);
             return;
         }
@@ -504,7 +521,7 @@ public class ConstraintSystemImpl implements ConstraintSystem {
 
     @NotNull
     public static JetType createCorrespondingExtensionFunctionType(@NotNull JetType functionType, @NotNull JetType receiverType) {
-        assert KotlinBuiltIns.getInstance().isFunctionType(functionType);
+        assert KotlinBuiltIns.isFunctionType(functionType);
 
         List<TypeProjection> typeArguments = functionType.getArguments();
         assert !typeArguments.isEmpty();

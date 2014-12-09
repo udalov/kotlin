@@ -1,12 +1,10 @@
-type f = {T<A, B>.T<x>.() : ()}
-type f = {{(S).() : ()}.() : ()}
-type f = {{T.() : ()}.() : ()}
-type f = {{T.T.() : ()}.() : ()}
-type f = {{T<A, B>.T<x>.() : ()}.() : ()}
-type f = {{(S).() : ()}.() : ()}
+typealias f = (((S).() -> S).() -> S)
+typealias f = ((T.() -> S).() -> S)
+typealias f = ((T.T.() -> S).() -> S)
+typealias f = ((T<A, B>.T<x>.() -> S).() -> S)
+typealias f = (((S).() -> S).() -> S)
 
-type f =  [a] {[a] {(S).() : ()}.() : ()}
-type f = [a] {[a] {T.() : ()}.() : ()}
-type f = [a] {[a] {T.T.() : ()}.() : ()}
-type f = [a] {[a] {T<A, B>.T<x>.() : ()}.() : ()}
-type f = [a] {[a] {(S).() : ()}.() : ()}
+typealias f =  [a] ([a] ((S).() -> S).() -> S)
+typealias f = [a] ([a] (T.() -> S).() -> S)
+typealias f = [a] ([a] (T<A, B>.() -> S).() -> S)
+typealias f = [a] ([a] ((S).() -> S).() -> S)

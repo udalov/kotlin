@@ -28,11 +28,13 @@ import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.descriptors.annotations.AnnotationDescriptor;
 import org.jetbrains.jet.lang.diagnostics.Errors;
 import org.jetbrains.jet.lang.psi.*;
-import org.jetbrains.jet.lang.resolve.constants.*;
+import org.jetbrains.jet.lang.resolve.constants.CompileTimeConstant;
+import org.jetbrains.jet.lang.resolve.constants.StringValue;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.Name;
 import org.jetbrains.jet.lexer.JetModifierKeywordToken;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
@@ -65,43 +67,61 @@ public class ModifiersChecker {
 
     @NotNull
     private final BindingTrace trace;
+    @NotNull
+    private final AdditionalCheckerProvider additionalCheckerProvider;
 
-    public ModifiersChecker(@NotNull BindingTrace trace) {
+    public ModifiersChecker(@NotNull BindingTrace trace, @NotNull AdditionalCheckerProvider additionalCheckerProvider) {
         this.trace = trace;
+        this.additionalCheckerProvider = additionalCheckerProvider;
     }
 
-    public static ModifiersChecker create(@NotNull BindingTrace trace) {
-        return new ModifiersChecker(trace);
+    public static ModifiersChecker create(@NotNull BindingTrace trace, @NotNull AdditionalCheckerProvider provider) {
+        return new ModifiersChecker(trace, provider);
     }
 
-    public void checkModifiersForDeclaration(@NotNull JetModifierListOwner modifierListOwner, @NotNull DeclarationDescriptor descriptor) {
-        JetModifierList modifierList = modifierListOwner.getModifierList();
-        checkModalityModifiers(modifierList);
-        checkVisibilityModifiers(modifierListOwner, descriptor);
-        checkInnerModifier(modifierListOwner, descriptor);
+    public void checkModifiersForDeclaration(@NotNull JetDeclaration modifierListOwner, @NotNull MemberDescriptor descriptor) {
+        if (modifierListOwner instanceof JetEnumEntry) {
+            checkIllegalInThisContextModifiers(modifierListOwner, Arrays.asList(MODIFIER_KEYWORDS_ARRAY));
+        }
+        else {
+            checkInnerModifier(modifierListOwner, descriptor);
+            checkModalityModifiers(modifierListOwner);
+            checkVisibilityModifiers(modifierListOwner, descriptor);
+        }
         checkPlatformNameApplicability(descriptor);
+        runAnnotationCheckers(modifierListOwner, descriptor);
     }
 
-    public void checkModifiersForLocalDeclaration(@NotNull JetModifierListOwner modifierListOwner, @NotNull DeclarationDescriptor descriptor) {
+    public void checkModifiersForLocalDeclaration(@NotNull JetDeclaration modifierListOwner, @NotNull DeclarationDescriptor descriptor) {
         checkIllegalModalityModifiers(modifierListOwner);
         checkIllegalVisibilityModifiers(modifierListOwner);
         checkPlatformNameApplicability(descriptor);
+        runAnnotationCheckers(modifierListOwner, descriptor);
     }
 
     public void checkIllegalModalityModifiers(@NotNull JetModifierListOwner modifierListOwner) {
-        checkIllegalInThisContextModifiers(modifierListOwner.getModifierList(), MODALITY_MODIFIERS);
+        checkIllegalInThisContextModifiers(modifierListOwner, MODALITY_MODIFIERS);
     }
 
     public void checkIllegalVisibilityModifiers(@NotNull JetModifierListOwner modifierListOwner) {
-        checkIllegalInThisContextModifiers(modifierListOwner.getModifierList(), VISIBILITY_MODIFIERS);
+        checkIllegalInThisContextModifiers(modifierListOwner, VISIBILITY_MODIFIERS);
     }
 
-    private void checkModalityModifiers(@Nullable JetModifierList modifierList) {
+    private void checkModalityModifiers(@NotNull JetModifierListOwner modifierListOwner) {
+        JetModifierList modifierList = modifierListOwner.getModifierList();
         if (modifierList == null) return;
+
         checkRedundantModifier(modifierList, Pair.create(OPEN_KEYWORD, ABSTRACT_KEYWORD), Pair.create(OPEN_KEYWORD, OVERRIDE_KEYWORD));
 
-        checkCompatibility(modifierList, Lists.newArrayList(ABSTRACT_KEYWORD, OPEN_KEYWORD, FINAL_KEYWORD),
-                           Lists.newArrayList(ABSTRACT_KEYWORD, OPEN_KEYWORD));
+        checkCompatibility(modifierList, Arrays.asList(ABSTRACT_KEYWORD, OPEN_KEYWORD, FINAL_KEYWORD),
+                           Arrays.asList(ABSTRACT_KEYWORD, OPEN_KEYWORD));
+
+        if (modifierListOwner.getParent() instanceof JetClassObject || modifierListOwner instanceof JetObjectDeclaration) {
+            checkIllegalModalityModifiers(modifierListOwner);
+        }
+        else if (modifierListOwner instanceof JetClassOrObject) {
+            checkIllegalInThisContextModifiers(modifierListOwner, Collections.singletonList(OVERRIDE_KEYWORD));
+        }
     }
 
     private void checkVisibilityModifiers(@NotNull JetModifierListOwner modifierListOwner, @NotNull DeclarationDescriptor descriptor) {
@@ -121,7 +141,7 @@ public class ModifiersChecker {
     private void checkInnerModifier(@NotNull JetModifierListOwner modifierListOwner, @NotNull DeclarationDescriptor descriptor) {
         if (modifierListOwner.hasModifier(INNER_KEYWORD)) {
             if (isIllegalInner(descriptor)) {
-                checkIllegalInThisContextModifiers(modifierListOwner.getModifierList(), Collections.singletonList(INNER_KEYWORD));
+                checkIllegalInThisContextModifiers(modifierListOwner, Collections.singletonList(INNER_KEYWORD));
             }
             return;
         }
@@ -134,7 +154,7 @@ public class ModifiersChecker {
         }
     }
 
-    private static boolean isIllegalInner(@NotNull DeclarationDescriptor descriptor) {
+    public static boolean isIllegalInner(@NotNull DeclarationDescriptor descriptor) {
         if (!(descriptor instanceof ClassDescriptor)) return true;
         ClassDescriptor classDescriptor = (ClassDescriptor) descriptor;
         if (classDescriptor.getKind() != ClassKind.CLASS) return true;
@@ -216,10 +236,10 @@ public class ModifiersChecker {
     }
 
     public void checkIllegalInThisContextModifiers(
-            @Nullable JetModifierList modifierList,
+            @NotNull JetModifierListOwner modifierListOwner,
             @NotNull Collection<JetModifierKeywordToken> illegalModifiers
     ) {
-        reportIllegalModifiers(modifierList, illegalModifiers, trace);
+        reportIllegalModifiers(modifierListOwner.getModifierList(), illegalModifiers, trace);
     }
 
     @NotNull
@@ -290,5 +310,11 @@ public class ModifiersChecker {
             return ((ClassDescriptor) descriptor.getContainingDeclaration()).getVisibility();
         }
         return Visibilities.INTERNAL;
+    }
+
+    private void runAnnotationCheckers(@NotNull JetDeclaration declaration, @NotNull DeclarationDescriptor descriptor) {
+        for (AnnotationChecker checker : additionalCheckerProvider.getAnnotationCheckers()) {
+            checker.check(declaration, descriptor, trace);
+        }
     }
 }

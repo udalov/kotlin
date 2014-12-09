@@ -26,14 +26,14 @@ import org.jetbrains.jet.ConfigurationKind;
 import org.jetbrains.jet.JetTestCaseBuilder;
 import org.jetbrains.jet.JetTestUtils;
 import org.jetbrains.jet.TestJdkKind;
-import org.jetbrains.jet.analyzer.AnalyzeExhaust;
+import org.jetbrains.jet.analyzer.AnalysisResult;
 import org.jetbrains.jet.cli.jvm.JVMConfigurationKeys;
 import org.jetbrains.jet.cli.jvm.compiler.CliLightClassGenerationSupport;
+import org.jetbrains.jet.cli.jvm.compiler.EnvironmentConfigFiles;
 import org.jetbrains.jet.cli.jvm.compiler.JetCoreEnvironment;
 import org.jetbrains.jet.config.CommonConfigurationKeys;
 import org.jetbrains.jet.config.CompilerConfiguration;
 import org.jetbrains.jet.descriptors.serialization.descriptors.DeserializedClassDescriptor;
-import org.jetbrains.jet.di.InjectorForTopDownAnalyzerForJvm;
 import org.jetbrains.jet.lang.descriptors.ClassDescriptor;
 import org.jetbrains.jet.lang.descriptors.DeclarationDescriptor;
 import org.jetbrains.jet.lang.descriptors.PackageViewDescriptor;
@@ -43,10 +43,12 @@ import org.jetbrains.jet.lang.resolve.BindingContext;
 import org.jetbrains.jet.lang.resolve.BindingTrace;
 import org.jetbrains.jet.lang.resolve.DescriptorUtils;
 import org.jetbrains.jet.lang.resolve.TopDownAnalysisParameters;
+import org.jetbrains.jet.lang.resolve.java.TopDownAnalyzerFacadeForJVM;
 import org.jetbrains.jet.lang.resolve.lazy.JvmResolveUtil;
 import org.jetbrains.jet.storage.ExceptionTracker;
 import org.jetbrains.jet.storage.LockBasedStorageManager;
 import org.jetbrains.jet.test.TestCaseWithTmpdir;
+import org.jetbrains.jet.test.util.DescriptorValidator;
 import org.jetbrains.jet.test.util.RecursiveDescriptorComparator;
 import org.junit.Assert;
 
@@ -61,7 +63,8 @@ import java.util.regex.Pattern;
 
 import static org.jetbrains.jet.JetTestUtils.*;
 import static org.jetbrains.jet.jvm.compiler.LoadDescriptorUtil.*;
-import static org.jetbrains.jet.test.util.DescriptorValidator.ValidationVisitor.ALLOW_ERROR_TYPES;
+import static org.jetbrains.jet.test.util.DescriptorValidator.ValidationVisitor.errorTypesAllowed;
+import static org.jetbrains.jet.test.util.DescriptorValidator.ValidationVisitor.errorTypesForbidden;
 import static org.jetbrains.jet.test.util.RecursiveDescriptorComparator.*;
 
 /*
@@ -78,7 +81,7 @@ public abstract class AbstractLoadJavaTest extends TestCaseWithTmpdir {
         File sourcesDir = new File(expectedFileName.replaceFirst("\\.txt$", ""));
 
         List<File> kotlinSources = FileUtil.findFilesByMask(Pattern.compile(".+\\.kt"), sourcesDir);
-        compileKotlinToDirAndGetAnalyzeExhaust(kotlinSources, tmpdir, myTestRootDisposable, ConfigurationKind.JDK_ONLY);
+        compileKotlinToDirAndGetAnalysisResult(kotlinSources, tmpdir, myTestRootDisposable, ConfigurationKind.JDK_ONLY);
 
         List<File> javaSources = FileUtil.findFilesByMask(Pattern.compile(".+\\.java"), sourcesDir);
         Pair<PackageViewDescriptor, BindingContext> binaryPackageAndContext = compileJavaAndLoadTestPackageAndBindingContextFromBinary(
@@ -102,11 +105,11 @@ public abstract class AbstractLoadJavaTest extends TestCaseWithTmpdir {
     protected void doTestCompiledKotlin(@NotNull String ktFileName, @NotNull ConfigurationKind configurationKind) throws Exception {
         File ktFile = new File(ktFileName);
         File txtFile = new File(ktFileName.replaceFirst("\\.kt$", ".txt"));
-        AnalyzeExhaust exhaust = compileKotlinToDirAndGetAnalyzeExhaust(Collections.singletonList(ktFile), tmpdir, getTestRootDisposable(),
+        AnalysisResult result = compileKotlinToDirAndGetAnalysisResult(Collections.singletonList(ktFile), tmpdir, getTestRootDisposable(),
                                                                         configurationKind);
 
-        PackageViewDescriptor packageFromSource = exhaust.getModuleDescriptor().getPackage(TEST_PACKAGE_FQNAME);
-        assert packageFromSource != null;
+        PackageViewDescriptor packageFromSource = result.getModuleDescriptor().getPackage(TEST_PACKAGE_FQNAME);
+        assert packageFromSource != null : "Package " + TEST_PACKAGE_FQNAME + " not found";
         Assert.assertEquals("test", packageFromSource.getName().asString());
 
         PackageViewDescriptor packageFromBinary = LoadDescriptorUtil.loadTestPackageAndBindingContextFromJavaRoot(
@@ -118,12 +121,12 @@ public abstract class AbstractLoadJavaTest extends TestCaseWithTmpdir {
             }
         }
 
-        validateAndCompareDescriptors(packageFromSource, packageFromBinary,
-                                      RecursiveDescriptorComparator.DONT_INCLUDE_METHODS_OF_OBJECT
-                                              .checkPrimaryConstructors(true)
-                                              .checkPropertyAccessors(true),
-                                      txtFile
-        );
+        DescriptorValidator.validate(errorTypesForbidden(), packageFromSource);
+        DescriptorValidator.validate(new DeserializedScopeValidationVisitor(), packageFromBinary);
+        Configuration configuration = RecursiveDescriptorComparator.DONT_INCLUDE_METHODS_OF_OBJECT
+                .checkPrimaryConstructors(true)
+                .checkPropertyAccessors(true);
+        compareDescriptors(packageFromSource, packageFromBinary, configuration, txtFile);
     }
 
     protected void doTestJavaAgainstKotlin(String expectedFileName) throws Exception {
@@ -141,12 +144,11 @@ public abstract class AbstractLoadJavaTest extends TestCaseWithTmpdir {
                 ConfigurationKind.JDK_ONLY, TestJdkKind.MOCK_JDK, tmpdir);
         configuration.put(CommonConfigurationKeys.SOURCE_ROOTS_KEY, Arrays.asList(sourcesDir.getAbsolutePath()));
         configuration.add(JVMConfigurationKeys.CLASSPATH_KEY, new File("compiler/tests")); // for @ExpectLoadError annotation
-        JetCoreEnvironment environment = JetCoreEnvironment.createForTests(getTestRootDisposable(), configuration);
+        JetCoreEnvironment environment =
+                JetCoreEnvironment.createForTests(getTestRootDisposable(), configuration, EnvironmentConfigFiles.JVM_CONFIG_FILES);
 
-        // we need the same binding trace for resolve from Java and Kotlin
-        CliLightClassGenerationSupport support = CliLightClassGenerationSupport.getInstanceForCli(environment.getProject());
-        BindingTrace trace = support.getTrace();
-        ModuleDescriptorImpl module = support.newModule();
+        BindingTrace trace = new CliLightClassGenerationSupport.NoScopeRecordCliBindingTrace();
+        ModuleDescriptorImpl module = TopDownAnalyzerFacadeForJVM.createSealedJavaModule();
 
         TopDownAnalysisParameters parameters = TopDownAnalysisParameters.create(
                 new LockBasedStorageManager(),
@@ -155,16 +157,13 @@ public abstract class AbstractLoadJavaTest extends TestCaseWithTmpdir {
                 false,
                 false
         );
-        InjectorForTopDownAnalyzerForJvm injectorForAnalyzer = new InjectorForTopDownAnalyzerForJvm(
-                environment.getProject(),
-                parameters,
-                trace,
-                module);
 
-        injectorForAnalyzer.getTopDownAnalyzer().analyzeFiles(
-                parameters, environment.getSourceFiles(),
-                injectorForAnalyzer.getJavaDescriptorResolver().getPackageFragmentProvider()
-        );
+        TopDownAnalyzerFacadeForJVM.analyzeFilesWithJavaIntegrationNoIncremental(
+                environment.getProject(),
+                environment.getSourceFiles(),
+                trace,
+                parameters,
+                module);
 
         PackageViewDescriptor packageView = module.getPackage(TEST_PACKAGE_FQNAME);
         assert packageView != null : "Test package not found";
@@ -187,18 +186,21 @@ public abstract class AbstractLoadJavaTest extends TestCaseWithTmpdir {
         );
 
         JetCoreEnvironment environment = JetCoreEnvironment.createForTests(
-                getTestRootDisposable(), compilerConfigurationForTests(ConfigurationKind.JDK_ONLY, TestJdkKind.MOCK_JDK,
-                                                                       getAnnotationsJar(), libraryOut)
-        );
+                getTestRootDisposable(),
+                compilerConfigurationForTests(ConfigurationKind.JDK_ONLY, TestJdkKind.MOCK_JDK, getAnnotationsJar(), libraryOut),
+                EnvironmentConfigFiles.JVM_CONFIG_FILES);
+
         JetFile jetFile = JetTestUtils.createFile(kotlinSrc.getPath(), FileUtil.loadFile(kotlinSrc, true), environment.getProject());
 
-        AnalyzeExhaust exhaust = JvmResolveUtil.analyzeFilesWithJavaIntegrationAndCheckForErrors(
+        AnalysisResult result = JvmResolveUtil.analyzeFilesWithJavaIntegrationAndCheckForErrors(
                 environment.getProject(), Collections.singleton(jetFile), Predicates.<PsiFile>alwaysTrue()
         );
-        PackageViewDescriptor packageView = exhaust.getModuleDescriptor().getPackage(TEST_PACKAGE_FQNAME);
+        PackageViewDescriptor packageView = result.getModuleDescriptor().getPackage(TEST_PACKAGE_FQNAME);
         assertNotNull(packageView);
 
-        validateAndCompareDescriptorWithFile(packageView, DONT_INCLUDE_METHODS_OF_OBJECT, expectedFile);
+        validateAndCompareDescriptorWithFile(packageView, DONT_INCLUDE_METHODS_OF_OBJECT.withValidationStrategy(
+                new DeserializedScopeValidationVisitor()
+        ), expectedFile);
     }
 
     protected void doTestSourceJava(@NotNull String javaFileName) throws Exception {
@@ -213,7 +215,7 @@ public abstract class AbstractLoadJavaTest extends TestCaseWithTmpdir {
                 tmpdir, getTestRootDisposable(), ConfigurationKind.JDK_ONLY);
 
         checkJavaPackage(expectedFile, javaPackageAndContext.first, javaPackageAndContext.second,
-                         DONT_INCLUDE_METHODS_OF_OBJECT.withValidationStrategy(ALLOW_ERROR_TYPES));
+                         DONT_INCLUDE_METHODS_OF_OBJECT.withValidationStrategy(errorTypesAllowed()));
     }
 
     private void doTestCompiledJava(@NotNull String javaFileName, Configuration configuration) throws Exception {

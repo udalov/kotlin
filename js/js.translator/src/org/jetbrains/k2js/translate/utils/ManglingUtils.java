@@ -22,9 +22,10 @@ import com.intellij.util.containers.ContainerUtil;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.jet.backend.common.CodegenUtil;
 import org.jetbrains.jet.lang.descriptors.*;
-import org.jetbrains.jet.lang.resolve.OverrideResolver;
+import org.jetbrains.jet.lang.resolve.DescriptorUtils;
 import org.jetbrains.jet.lang.resolve.name.FqName;
 import org.jetbrains.jet.lang.resolve.name.Name;
+import org.jetbrains.jet.lang.resolve.scopes.DescriptorKindFilter;
 import org.jetbrains.jet.lang.resolve.scopes.JetScope;
 
 import java.util.*;
@@ -47,7 +48,7 @@ public class ManglingUtils {
         String suggestedName = descriptor.getName().asString();
 
         if (descriptor instanceof FunctionDescriptor ||
-            descriptor instanceof PropertyDescriptor && JsDescriptorUtils.isExtension((PropertyDescriptor) descriptor)
+            descriptor instanceof PropertyDescriptor && DescriptorUtils.isExtension((PropertyDescriptor) descriptor)
         ) {
             suggestedName = getMangledName((CallableMemberDescriptor) descriptor);
         }
@@ -68,7 +69,7 @@ public class ManglingUtils {
     private static boolean needsStableMangling(CallableMemberDescriptor descriptor) {
         // Use stable mangling for overrides because we use stable mangling when any function inside a overridable declaration
         // for avoid clashing names when inheritance.
-        if (JsDescriptorUtils.isOverride(descriptor)) {
+        if (DescriptorUtils.isOverride(descriptor)) {
             return true;
         }
 
@@ -144,7 +145,7 @@ public class ManglingUtils {
         int counter = 0;
 
         if (jetScope != null) {
-            Collection<DeclarationDescriptor> declarations = jetScope.getAllDescriptors();
+            Collection<DeclarationDescriptor> declarations = jetScope.getDescriptors(DescriptorKindFilter.CALLABLES, JetScope.ALL_NAME_FILTER);
             List<CallableMemberDescriptor>
                     overloadedFunctions = ContainerUtil.mapNotNull(declarations, new Function<DeclarationDescriptor, CallableMemberDescriptor>() {
                 @Override
@@ -240,7 +241,7 @@ public class ManglingUtils {
         private static boolean isNativeOrOverrideNative(CallableMemberDescriptor descriptor) {
             if (AnnotationsUtils.isNativeObject(descriptor)) return true;
 
-            Set<CallableMemberDescriptor> declarations = OverrideResolver.getAllOverriddenDeclarations(descriptor);
+            Set<CallableMemberDescriptor> declarations = DescriptorUtils.getAllOverriddenDeclarations(descriptor);
             for (CallableMemberDescriptor memberDescriptor : declarations) {
                 if (AnnotationsUtils.isNativeObject(memberDescriptor)) return true;
             }

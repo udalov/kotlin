@@ -55,11 +55,9 @@ import static org.jetbrains.jet.lang.types.expressions.ExpressionTypingUtils.cre
 
 public class DelegatedPropertyResolver {
    
-    @NotNull
     private ExpressionTypingServices expressionTypingServices;
-
-    @NotNull
     private CallResolver callResolver;
+    private KotlinBuiltIns builtIns;
 
     private static final String PD_METHOD_NAME = "propertyDelegated";
 
@@ -71,6 +69,11 @@ public class DelegatedPropertyResolver {
     @Inject
     public void setCallResolver(@NotNull CallResolver callResolver) {
         this.callResolver = callResolver;
+    }
+
+    @Inject
+    public void setBuiltIns(@NotNull KotlinBuiltIns builtIns) {
+        this.builtIns = builtIns;
     }
 
     @Nullable
@@ -118,11 +121,11 @@ public class DelegatedPropertyResolver {
     }
 
     @NotNull
-    private static JetExpression createExpressionForPropertyMetadata(
+    private JetExpression createExpressionForPropertyMetadata(
             @NotNull JetPsiFactory psiFactory,
             @NotNull PropertyDescriptor propertyDescriptor
     ) {
-        return psiFactory.createExpression(KotlinBuiltIns.getInstance().getPropertyMetadataImpl().getName().asString() +
+        return psiFactory.createExpression(builtIns.getPropertyMetadataImpl().getName().asString() +
                                            "(\"" +
                                            propertyDescriptor.getName().asString() +
                                            "\")");
@@ -181,7 +184,7 @@ public class DelegatedPropertyResolver {
         if (trace.getBindingContext().get(DELEGATED_PROPERTY_CALL, accessor) != null) return;
 
         OverloadResolutionResults<FunctionDescriptor> functionResults = getDelegatedPropertyConventionMethod(
-                propertyDescriptor, delegateExpression, delegateType, trace, scope, isGet);
+                propertyDescriptor, delegateExpression, delegateType, trace, scope, isGet, true);
         Call call = trace.getBindingContext().get(DELEGATED_PROPERTY_CALL, accessor);
         assert call != null : "'getDelegatedPropertyConventionMethod' didn't record a call";
 
@@ -215,14 +218,18 @@ public class DelegatedPropertyResolver {
             @NotNull JetType delegateType,
             @NotNull BindingTrace trace,
             @NotNull JetScope scope,
-            boolean isGet
+            boolean isGet,
+            boolean isComplete
     ) {
         PropertyAccessorDescriptor accessor = isGet ? propertyDescriptor.getGetter() : propertyDescriptor.getSetter();
         assert accessor != null : "Delegated property should have getter/setter " + propertyDescriptor + " " + delegateExpression.getText();
 
+        JetType expectedType = isComplete && isGet && !(propertyDescriptor.getType() instanceof DeferredType)
+                               ? propertyDescriptor.getType() : TypeUtils.NO_EXPECTED_TYPE;
+
         ExpressionTypingContext context = ExpressionTypingContext.newContext(
                 expressionTypingServices, trace, scope,
-                DataFlowInfo.EMPTY, TypeUtils.NO_EXPECTED_TYPE);
+                DataFlowInfo.EMPTY, expectedType);
 
         boolean hasThis = propertyDescriptor.getExtensionReceiverParameter() != null || propertyDescriptor.getDispatchReceiverParameter() != null;
 
@@ -315,7 +322,9 @@ public class DelegatedPropertyResolver {
                         TemporaryBindingTrace.create(trace, "Trace to resolve delegated property convention methods");
                 OverloadResolutionResults<FunctionDescriptor>
                         getMethodResults = getDelegatedPropertyConventionMethod(
-                        propertyDescriptor, delegateExpression, returnType, traceToResolveConventionMethods, accessorScope, true);
+                                propertyDescriptor, delegateExpression, returnType, traceToResolveConventionMethods, accessorScope,
+                                true, false
+                        );
 
                 if (conventionMethodFound(getMethodResults)) {
                     FunctionDescriptor descriptor = getMethodResults.getResultingDescriptor();
@@ -332,9 +341,11 @@ public class DelegatedPropertyResolver {
                 // But if the type isn't known yet, the constraint shouldn't be added (we try to infer the type of 'v' here as well).
                 if (propertyDescriptor.getReturnType() instanceof DeferredType) return;
 
-                OverloadResolutionResults<FunctionDescriptor> setMethodResults =
-                        getDelegatedPropertyConventionMethod(
-                                propertyDescriptor, delegateExpression, returnType, traceToResolveConventionMethods, accessorScope, false);
+                OverloadResolutionResults<FunctionDescriptor>
+                        setMethodResults = getDelegatedPropertyConventionMethod(
+                                propertyDescriptor, delegateExpression, returnType, traceToResolveConventionMethods, accessorScope,
+                                false, false
+                        );
 
                 if (conventionMethodFound(setMethodResults)) {
                     FunctionDescriptor descriptor = setMethodResults.getResultingDescriptor();
@@ -363,7 +374,7 @@ public class DelegatedPropertyResolver {
                 JetType typeOfThis =
                         extensionReceiver != null ? extensionReceiver.getType() :
                         dispatchReceiver != null ? dispatchReceiver.getType() :
-                        KotlinBuiltIns.getInstance().getNullableNothingType();
+                        builtIns.getNullableNothingType();
 
                 List<ValueParameterDescriptor> valueParameters = resultingDescriptor.getValueParameters();
                 if (valueParameters.isEmpty()) return;

@@ -148,7 +148,9 @@ class CollectionTest {
             list.reduce { a, b -> a + b }
         }
 
-        failsWith(javaClass<UnsupportedOperationException>()) {
+//        TODO replace with more accurate version when KT-5987 will be fixed
+//        failsWith(javaClass<UnsupportedOperationException>()) {
+        fails {
             arrayListOf<Int>().reduce { a, b -> a + b }
         }
     }
@@ -159,7 +161,9 @@ class CollectionTest {
             list.reduceRight { a, b -> a + b }
         }
 
-        failsWith(javaClass<UnsupportedOperationException>()) {
+//        TODO replace with more accurate version when KT-5987 will be fixed
+//        failsWith(javaClass<UnsupportedOperationException>()) {
+        fails {
             arrayListOf<Int>().reduceRight { a, b -> a + b }
         }
     }
@@ -229,7 +233,10 @@ class CollectionTest {
         assertEquals(arrayListOf("foo", "bar"), notNull)
 
         val hasNulls = arrayListOf("foo", null, "bar")
-        failsWith(javaClass<IllegalArgumentException>()) {
+
+//        TODO replace with more accurate version when KT-5987 will be fixed
+//        failsWith(javaClass<IllegalArgumentException>()) {
+        fails {
             // should throw an exception as we have a null
             hasNulls.requireNoNulls()
         }
@@ -277,9 +284,9 @@ class CollectionTest {
         assertEquals(arrayListOf("foo", "bar", "abc"), coll.takeWhile { it.size == 3 })
     }
 
-    test fun toArray() {
+    test fun copyToArray() {
         val data = arrayListOf("foo", "bar")
-        val arr = data.toArray()
+        val arr = data.copyToArray()
         println("Got array ${arr}")
         assertEquals(2, arr.size)
         todo {
@@ -297,7 +304,11 @@ class CollectionTest {
     }
 
     test fun first() {
-        assertEquals(19, TreeSet(arrayListOf(90, 47, 19)).first())
+        val data = arrayListOf("foo", "bar")
+        assertEquals("foo", data.first())
+        assertEquals(15, arrayListOf(15, 19, 20, 25).first())
+        assertEquals('a', arrayListOf('a').first())
+        fails { arrayListOf<Int>().first() }
     }
 
     test fun last() {
@@ -344,7 +355,6 @@ class CollectionTest {
         assertTrue(arrayListOf(15, 19, 20).contains(15))
 
         assertTrue(IterableWrapper(hashSetOf(45, 14, 13)).contains(14))
-        assertFalse(IterableWrapper(linkedListOf<Int>()).contains(15))
     }
 
     test fun sortForMutableIterable() {
@@ -432,10 +442,71 @@ class CollectionTest {
         expect(listOf(1, 2, 3, 4, 5)) { (1..10).toList().take(5) }
         expect(listOf(1, 2)) { (1..10) take 2 }
         expect(listOf(1, 2)) { (1..10).toList().take(2) }
-        expect(listOf<Long>()) { (0L..5L) take 0 }
-        expect(listOf<Long>()) { listOf(1L) take 0 }
+        expect(true) { (0L..5L).take(0).none() }
+        expect(true) { listOf(1L).take(0).none() }
         expect(listOf(1)) { (1..1) take 10 }
         expect(listOf(1)) { listOf(1) take 10 }
-        expect(setOf(1, 2)) { sortedSetOf(1, 2, 3, 4, 5).take(2).toSet() }
+    }
+
+    test fun sortBy() {
+        expect(arrayListOf("two" to 2, "three" to 3)) {
+            arrayListOf("three" to 3, "two" to 2).sortBy { it.second }
+        }
+        expect(arrayListOf("three" to 3, "two" to 2)) {
+            arrayListOf("three" to 3, "two" to 2).sortBy { it.first }
+        }
+        expect(arrayListOf("two" to 2, "three" to 3)) {
+            arrayListOf("three" to 3, "two" to 2).sortBy { it.first.length }
+        }
+    }
+
+    test fun sortFunctionShouldReturnSortedCopyForList() {
+        val list: List<Int> = arrayListOf(2, 3, 1)
+        expect(arrayListOf(1, 2, 3)) { list.sort() }
+        expect(arrayListOf(2, 3, 1)) { list }
+    }
+
+    test fun sortFunctionShouldReturnSortedCopyForIterable() {
+        val list: Iterable<Int> = arrayListOf(2, 3, 1)
+        expect(arrayListOf(1, 2, 3)) { list.sort() }
+        expect(arrayListOf(2, 3, 1)) { list }
+    }
+
+    test fun decomposeFirst() {
+        val (first) = listOf(1, 2)
+        assertEquals(first, 1)
+    }
+
+    test fun decomposeSplit() {
+        val (key, value) = "key = value".split("=").map { it.trim() }
+        assertEquals(key, "key")
+        assertEquals(value, "value")
+    }
+
+    test fun decomposeList() {
+        val (a, b, c, d, e) = listOf(1, 2, 3, 4, 5)
+        assertEquals(a, 1)
+        assertEquals(b, 2)
+        assertEquals(c, 3)
+        assertEquals(d, 4)
+        assertEquals(e, 5)
+    }
+
+    test fun decomposeArray() {
+        val (a, b, c, d, e) = array(1, 2, 3, 4, 5)
+        assertEquals(a, 1)
+        assertEquals(b, 2)
+        assertEquals(c, 3)
+        assertEquals(d, 4)
+        assertEquals(e, 5)
+    }
+
+    test fun decomposeIntArray() {
+        val (a, b, c, d, e) = intArray(1, 2, 3, 4, 5)
+        assertEquals(a, 1)
+        assertEquals(b, 2)
+        assertEquals(c, 3)
+        assertEquals(d, 4)
+        assertEquals(e, 5)
     }
 }

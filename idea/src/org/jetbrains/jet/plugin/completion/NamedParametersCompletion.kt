@@ -18,7 +18,6 @@ package org.jetbrains.jet.plugin.completion
 
 import org.jetbrains.jet.lang.psi.JetValueArgument
 import org.jetbrains.jet.lexer.JetTokens
-import com.intellij.psi.util.PsiTreeUtil
 import org.jetbrains.jet.lang.psi.JetCallElement
 import org.jetbrains.jet.plugin.references.JetReference
 import org.jetbrains.jet.lang.descriptors.FunctionDescriptor
@@ -38,6 +37,9 @@ import org.jetbrains.jet.lang.psi.psiUtil.getCallNameExpression
 import com.intellij.psi.PsiElement
 import com.intellij.codeInsight.completion.InsertHandler
 import org.jetbrains.jet.lang.resolve.name.Name
+import org.jetbrains.jet.plugin.util.IdeDescriptorRenderers
+import org.jetbrains.jet.plugin.completion.handlers.WithTailInsertHandler
+import org.jetbrains.jet.lang.psi.psiUtil.getStrictParentOfType
 
 object NamedParametersCompletion {
     private val positionFilter = AndFilter(
@@ -54,9 +56,9 @@ object NamedParametersCompletion {
     public fun isOnlyNamedParameterExpected(position: PsiElement): Boolean {
         if (!positionFilter.isAcceptable(position, position)) return false
 
-        val thisArgument = PsiTreeUtil.getParentOfType(position, javaClass<JetValueArgument>())!!
+        val thisArgument = position.getStrictParentOfType<JetValueArgument>()!!
 
-        val callElement = PsiTreeUtil.getParentOfType(thisArgument, javaClass<JetCallElement>()) ?: return false
+        val callElement = thisArgument.getStrictParentOfType<JetCallElement>() ?: return false
 
         for (argument in callElement.getValueArguments()) {
             if (argument == thisArgument) break
@@ -69,9 +71,9 @@ object NamedParametersCompletion {
     public fun complete(position: PsiElement, collector: LookupElementsCollector) {
         if (!positionFilter.isAcceptable(position, position)) return
 
-        val valueArgument = PsiTreeUtil.getParentOfType(position, javaClass<JetValueArgument>())!!
+        val valueArgument = position.getStrictParentOfType<JetValueArgument>()!!
 
-        val callElement = PsiTreeUtil.getParentOfType(valueArgument, javaClass<JetCallElement>()) ?: return
+        val callElement = valueArgument.getStrictParentOfType<JetCallElement>() ?: return
         val callSimpleName = callElement.getCallNameExpression() ?: return
 
         val callReference = callSimpleName.getReference() as JetReference
@@ -87,14 +89,12 @@ object NamedParametersCompletion {
                 val name = parameter.getName()
                 val nameString = name.asString()
                 if (nameString !in usedArguments) {
-                    val text = "$nameString ="
-                    val lookupElement = LookupElementBuilder.create(text)
+                    val lookupElement = LookupElementBuilder.create(nameString)
+                            .withPresentableText("$nameString =")
                             .withTailText(" ${DescriptorRenderer.SHORT_NAMES_IN_TYPES.renderType(parameter.getType())}")
                             .withIcon(JetIcons.PARAMETER)
                             .withInsertHandler(NamedParameterInsertHandler(name))
                             .assignPriority(ItemPriority.NAMED_PARAMETER)
-                    lookupElement.putUserData(JetCompletionCharFilter.ACCEPT_EQ, true);
-
                     collector.addElement(lookupElement)
                 }
             }
@@ -103,15 +103,12 @@ object NamedParametersCompletion {
 
     private class NamedParameterInsertHandler(val parameterName: Name) : InsertHandler<LookupElement> {
         override fun handleInsert(context: InsertionContext, item: LookupElement) {
-            val ch = context.getCompletionChar()
-            if (ch == '=' || ch == ' ') {
-                context.setAddCompletionChar(false)
-            }
-
             val editor = context.getEditor()
-            val text = DescriptorRenderer.SOURCE_CODE.renderName(parameterName) + " = "
+            val text = IdeDescriptorRenderers.SOURCE_CODE.renderName(parameterName)
             editor.getDocument().replaceString(context.getStartOffset(), context.getTailOffset(), text)
             editor.getCaretModel().moveToOffset(context.getStartOffset() + text.length)
+
+            WithTailInsertHandler.eqTail().postHandleInsert(context, item)
         }
     }
 }

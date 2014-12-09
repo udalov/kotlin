@@ -121,13 +121,13 @@ public abstract class AbstractKotlinSteppingTest : KotlinDebuggerTestBase() {
 
             val stepTargets = KotlinSmartStepIntoHandler().findSmartStepTargets(position)
 
-            stepTargets.filterIsInstance(javaClass<MethodSmartStepTarget>()).map {
+            stepTargets.filterIsInstance<MethodSmartStepTarget>().map {
                 stepTarget ->
                 when (stepTarget) {
                     is KotlinMethodSmartStepTarget -> KotlinBasicStepMethodFilter(stepTarget as KotlinMethodSmartStepTarget)
                     else -> BasicStepMethodFilter(stepTarget.getMethod(), stepTarget.getCallingExpressionLines())
                 }
             }
-        }!!
+        }
     }
 }

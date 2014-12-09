@@ -50,6 +50,7 @@ import org.jetbrains.jet.lang.types.checker.JetTypeChecker;
 import org.jetbrains.jet.plugin.JetBundle;
 import org.jetbrains.jet.plugin.caches.resolve.ResolvePackage;
 import org.jetbrains.jet.plugin.codeInsight.ShortenReferences;
+import org.jetbrains.jet.plugin.util.IdeDescriptorRenderers;
 import org.jetbrains.jet.renderer.DescriptorRenderer;
 import org.jetbrains.jet.renderer.DescriptorRendererBuilder;
 
@@ -61,6 +62,7 @@ import java.util.*;
  */
 public class ChangeMemberFunctionSignatureFix extends JetHintAction<JetNamedFunction> {
     private static final DescriptorRenderer SIGNATURE_RENDERER = new DescriptorRendererBuilder()
+            .setTypeNormalizer(IdeDescriptorRenderers.APPROXIMATE_FLEXIBLE_TYPES)
             .setWithDefinedIn(false)
             .setModifiers()
             .setShortNames(true)
@@ -114,7 +116,7 @@ public class ChangeMemberFunctionSignatureFix extends JetHintAction<JetNamedFunc
             return Collections.emptyList();
         }
 
-        BindingContext context = ResolvePackage.getBindingContext(functionElement);
+        BindingContext context = ResolvePackage.analyzeFully(functionElement);
         FunctionDescriptor functionDescriptor = context.get(BindingContext.FUNCTION, functionElement);
         if (functionDescriptor == null) return Lists.newArrayList();
         List<FunctionDescriptor> superFunctions = getPossibleSuperFunctionsDescriptors(functionDescriptor);
@@ -358,7 +360,7 @@ public class ChangeMemberFunctionSignatureFix extends JetHintAction<JetNamedFunc
         }
 
         private void changeSignature(FunctionDescriptor patternDescriptor) {
-            final String signatureString = DescriptorRenderer.SOURCE_CODE.render(patternDescriptor);
+            final String signatureString = IdeDescriptorRenderers.SOURCE_CODE.render(patternDescriptor);
 
             PsiDocumentManager.getInstance(project).commitAllDocuments();
 

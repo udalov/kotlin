@@ -26,17 +26,21 @@ import com.intellij.openapi.util.NullableLazyValue;
 import com.intellij.openapi.util.Pair;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.*;
+import com.intellij.psi.PsiPackage;
 import com.intellij.psi.impl.PsiManagerImpl;
 import com.intellij.psi.impl.compiled.ClsFileImpl;
 import com.intellij.psi.impl.java.stubs.PsiJavaFileStub;
 import com.intellij.psi.impl.light.LightClass;
 import com.intellij.psi.impl.light.LightMethod;
+import com.intellij.psi.scope.PsiScopeProcessor;
 import com.intellij.psi.stubs.PsiClassHolderFileStub;
 import com.intellij.psi.util.CachedValue;
 import com.intellij.psi.util.CachedValuesManager;
 import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.util.ArrayUtil;
 import com.intellij.util.IncorrectOperationException;
+import kotlin.Function1;
+import kotlin.KotlinPackage;
 import org.jetbrains.annotations.NonNls;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -55,7 +59,6 @@ import org.jetbrains.jet.lexer.JetModifierKeywordToken;
 import org.jetbrains.jet.plugin.JetLanguage;
 
 import javax.swing.*;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
@@ -296,6 +299,27 @@ public class KotlinLightClassForExplicitDeclaration extends KotlinWrappingLightC
                 public PsiClassHolderFileStub getStub() {
                     return getJavaFileStub();
                 }
+
+                @SuppressWarnings("Contract")
+                @Override
+                public boolean processDeclarations(
+                        @NotNull PsiScopeProcessor processor,
+                        @NotNull ResolveState state,
+                        PsiElement lastParent,
+                        @NotNull PsiElement place
+                ) {
+                    if (!super.processDeclarations(processor, state, lastParent, place)) return false;
+
+                    // We have to explicitly process package declarations if current file belongs to default package
+                    // so that Java resolve can find classes located in that package
+                    String packageName = getPackageName();
+                    if (!packageName.isEmpty()) return true;
+
+                    PsiPackage aPackage = JavaPsiFacade.getInstance(myManager.getProject()).findPackage(packageName);
+                    if (aPackage != null && !aPackage.processDeclarations(processor, state, null, place)) return false;
+
+                    return true;
+                }
             };
         }
     };
@@ -354,6 +378,11 @@ public class KotlinLightClassForExplicitDeclaration extends KotlinWrappingLightC
     @Override
     public PsiElement getParent() {
         return parent.getValue();
+    }
+
+    @Override
+    public PsiElement getContext() {
+        return getParent();
     }
 
     @Nullable
@@ -428,7 +457,7 @@ public class KotlinLightClassForExplicitDeclaration extends KotlinWrappingLightC
         if (isAbstract(classOrObject)) {
             psiModifiers.add(PsiModifier.ABSTRACT);
         }
-        else if (!classOrObject.hasModifier(OPEN_KEYWORD)) {
+        else if (!(classOrObject.hasModifier(OPEN_KEYWORD) || (classOrObject instanceof JetClass && ((JetClass) classOrObject).isEnum()))) {
             psiModifiers.add(PsiModifier.FINAL);
         }
 
@@ -542,8 +571,18 @@ public class KotlinLightClassForExplicitDeclaration extends KotlinWrappingLightC
     @NotNull
     @Override
     public List<PsiClass> getOwnInnerClasses() {
-        // TODO: Should return inner class wrapper
-        return Arrays.asList(getDelegate().getInnerClasses());
+        return KotlinPackage.filterNotNull(
+                KotlinPackage.map(
+                        getDelegate().getInnerClasses(),
+                        new Function1<PsiClass, PsiClass>() {
+                            @Override
+                            public PsiClass invoke(PsiClass aClass) {
+                                JetClassOrObject declaration = (JetClassOrObject) ClsWrapperStubPsiFactory.getOriginalDeclaration(aClass);
+                                return declaration != null ? KotlinLightClassForExplicitDeclaration.create(myManager, declaration) : null;
+                            }
+                        }
+                )
+        );
     }
 
     private static boolean checkSuperTypeByFQName(@NotNull ClassDescriptor classDescriptor, @NotNull String qualifiedName, Boolean deep) {

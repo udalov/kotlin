@@ -85,7 +85,7 @@ public final class FunctionBodyTranslator extends AbstractTranslator {
         JetExpression jetBodyExpression = declaration.getBodyExpression();
         assert jetBodyExpression != null : "Cannot translate a body of an abstract function.";
         JsBlock jsBlock = new JsBlock(setDefaultValueForArguments(descriptor, context()));
-        jsBlock.getStatements().addAll(mayBeWrapWithReturn(Translation.translateExpression(jetBodyExpression, context())).getStatements());
+        jsBlock.getStatements().addAll(mayBeWrapWithReturn(Translation.translateExpression(jetBodyExpression, context(), jsBlock)).getStatements());
         return jsBlock;
     }
 
@@ -100,7 +100,7 @@ public final class FunctionBodyTranslator extends AbstractTranslator {
     private boolean mustAddReturnToGeneratedFunctionBody() {
         JetType functionReturnType = descriptor.getReturnType();
         assert functionReturnType != null : "Function return typed type must be resolved.";
-        return (!declaration.hasBlockBody()) && (!KotlinBuiltIns.getInstance().isUnit(functionReturnType));
+        return (!declaration.hasBlockBody()) && (!KotlinBuiltIns.isUnit(functionReturnType));
     }
 
     @NotNull

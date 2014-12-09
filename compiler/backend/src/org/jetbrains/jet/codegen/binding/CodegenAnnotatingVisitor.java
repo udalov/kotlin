@@ -117,7 +117,7 @@ class CodegenAnnotatingVisitor extends JetVisitorVoid {
                 funDescriptor.getContainingDeclaration(), Name.special("<closure-" + simpleName + ">"), Modality.FINAL, supertypes,
                 SourcePackage.toSourceElement(element)
         );
-        classDescriptor.initialize(JetScope.EMPTY, Collections.<ConstructorDescriptor>emptySet(), null);
+        classDescriptor.initialize(JetScope.Empty.INSTANCE$, Collections.<ConstructorDescriptor>emptySet(), null);
 
         bindingTrace.record(CLASS_FOR_FUNCTION, funDescriptor, classDescriptor);
         return classDescriptor;
@@ -180,7 +180,12 @@ class CodegenAnnotatingVisitor extends JetVisitorVoid {
         assert descriptor != null :
                 String.format("No descriptor for enum entry \n---\n%s\n---\n", JetPsiUtil.getElementTextWithContext(enumEntry));
 
-        if (!enumEntry.getDeclarations().isEmpty()) {
+        if (enumEntry.getDeclarations().isEmpty()) {
+            for (JetDelegationSpecifier specifier : enumEntry.getDelegationSpecifiers()) {
+                specifier.accept(this);
+            }
+        }
+        else {
             bindingTrace.record(ENUM_ENTRY_CLASS_NEED_SUBCLASS, descriptor);
             super.visitEnumEntry(enumEntry);
         }

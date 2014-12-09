@@ -36,6 +36,8 @@ import static org.jetbrains.jet.lang.types.lang.KotlinBuiltIns.BUILT_INS_PACKAGE
 import static org.jetbrains.org.objectweb.asm.Opcodes.*;
 
 public class IntrinsicMethods {
+    public static final String INTRINSICS_CLASS_NAME = "kotlin/jvm/internal/Intrinsics";
+
     private static final IntrinsicMethod UNARY_MINUS = new UnaryMinus();
     private static final IntrinsicMethod UNARY_PLUS = new UnaryPlus();
     private static final IntrinsicMethod NUMBER_CAST = new NumberCast();
@@ -46,7 +48,6 @@ public class IntrinsicMethods {
     private static final IntrinsicMethod HASH_CODE = new HashCode();
 
     private static final IntrinsicMethod ARRAY_SIZE = new ArraySize();
-    private static final IntrinsicMethod ARRAY_INDICES = new ArrayIndices();
     private static final Equals EQUALS = new Equals();
     private static final IdentityEquals IDENTITY_EQUALS = new IdentityEquals();
     private static final IteratorNext ITERATOR_NEXT = new IteratorNext();
@@ -112,7 +113,6 @@ public class IntrinsicMethods {
         declareIntrinsicFunction("Boolean", "not", 0, new Not());
 
         declareIntrinsicFunction("String", "plus", 1, new Concat());
-        declareIntrinsicFunction("CharSequence", "get", 1, new StringGetChar());
         declareIntrinsicFunction("String", "get", 1, new StringGetChar());
 
         declareIntrinsicFunction("Cloneable", "clone", 0, CLONE);
@@ -129,9 +129,6 @@ public class IntrinsicMethods {
             declareIntrinsicFunction(typeName + "Iterator", "next", 0, ITERATOR_NEXT);
         }
 
-        declareIntrinsicProperty("CharSequence", "length", new StringLength());
-        declareIntrinsicProperty("String", "length", new StringLength());
-
         declareArrayMethods();
     }
 
@@ -140,8 +137,7 @@ public class IntrinsicMethods {
             declareArrayMethodsForPrimitive(jvmPrimitiveType);
         }
 
-        declareIntrinsicProperty("Array", "size", ARRAY_SIZE);
-        declareIntrinsicProperty("Array", "indices", ARRAY_INDICES);
+        declareIntrinsicFunction("Array", "size", 0, ARRAY_SIZE);
         declareIntrinsicFunction("Array", "set", 2, ARRAY_SET);
         declareIntrinsicFunction("Array", "get", 1, ARRAY_GET);
         declareIntrinsicFunction("Array", "clone", 0, CLONE);
@@ -150,8 +146,7 @@ public class IntrinsicMethods {
 
     private void declareArrayMethodsForPrimitive(@NotNull JvmPrimitiveType jvmPrimitiveType) {
         String arrayTypeName = jvmPrimitiveType.getPrimitiveType().getArrayTypeName().asString();
-        declareIntrinsicProperty(arrayTypeName, "size", ARRAY_SIZE);
-        declareIntrinsicProperty(arrayTypeName, "indices", ARRAY_INDICES);
+        declareIntrinsicFunction(arrayTypeName, "size", 0, ARRAY_SIZE);
         declareIntrinsicFunction(arrayTypeName, "set", 2, ARRAY_SET);
         declareIntrinsicFunction(arrayTypeName, "get", 1, ARRAY_GET);
         declareIntrinsicFunction(arrayTypeName, "clone", 0, CLONE);
@@ -167,10 +162,6 @@ public class IntrinsicMethods {
         for (PrimitiveType type : PrimitiveType.values()) {
             declareIntrinsicFunction(type.getTypeName().asString(), methodName, 1, op);
         }
-    }
-
-    private void declareIntrinsicProperty(@NotNull String className, @NotNull String methodName, @NotNull IntrinsicMethod implementation) {
-        declareIntrinsicFunction(className, methodName, -1, implementation);
     }
 
     private void declareIntrinsicFunction(

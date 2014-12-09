@@ -17,6 +17,7 @@
 package org.jetbrains.jet.lang.psi;
 
 import com.intellij.lang.ASTNode;
+import com.intellij.psi.PsiElement;
 import com.intellij.psi.tree.TokenSet;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -49,13 +50,37 @@ public class JetMultiDeclarationEntry extends JetNamedDeclarationNotStubbed impl
 
     @Nullable
     @Override
+    public PsiElement getColon() {
+        return findChildByType(JetTokens.COLON);
+    }
+
+    @Nullable
+    @Override
     public JetParameterList getValueParameterList() {
         return null;
+    }
+
+    @NotNull
+    @Override
+    public List<JetParameter> getValueParameters() {
+        return Collections.emptyList();
     }
 
     @Nullable
     @Override
     public JetTypeReference getReceiverTypeReference() {
+        return null;
+    }
+
+    @Nullable
+    @Override
+    public JetTypeParameterList getTypeParameterList() {
+        return null;
+    }
+
+    @Nullable
+    @Override
+    public JetTypeConstraintList getTypeConstraintList() {
         return null;
     }
 

@@ -17,11 +17,8 @@
 package org.jetbrains.jet.completion
 
 import org.jetbrains.jet.plugin.PluginTestCaseBase
-import org.jetbrains.jet.plugin.project.AnalyzerFacadeWithCache
 import org.jetbrains.jet.lang.psi.JetFile
-import org.jetbrains.jet.lang.resolve.BindingContext
 import org.jetbrains.jet.lang.psi.JetExpression
-import com.intellij.psi.util.PsiTreeUtil
 import org.jetbrains.jet.plugin.completion.renderDataFlowValue
 import org.jetbrains.jet.JetTestUtils
 import com.intellij.openapi.util.io.FileUtil
@@ -30,6 +27,8 @@ import org.jetbrains.jet.plugin.JetLightCodeInsightFixtureTestCase
 import com.intellij.testFramework.LightProjectDescriptor
 import com.intellij.testFramework.fixtures.LightCodeInsightFixtureTestCase
 import org.jetbrains.jet.lang.resolve.bindingContextUtil.getDataFlowInfo
+import org.jetbrains.jet.plugin.caches.resolve.analyze
+import org.jetbrains.jet.lang.psi.psiUtil.getStrictParentOfType
 
 public abstract class AbstractDataFlowValueRenderingTest: JetLightCodeInsightFixtureTestCase() {
     override fun getTestDataPath() : String {
@@ -46,8 +45,8 @@ public abstract class AbstractDataFlowValueRenderingTest: JetLightCodeInsightFix
 
         val jetFile = fixture.getFile() as JetFile
         val element = jetFile.findElementAt(fixture.getCaretOffset())
-        val expression = PsiTreeUtil.getParentOfType(element, javaClass<JetExpression>())!!
-        val info = AnalyzerFacadeWithCache.getContextForElement(expression).getDataFlowInfo(expression)
+        val expression = element.getStrictParentOfType<JetExpression>()!!
+        val info = expression.analyze().getDataFlowInfo(expression)
 
         val allValues = (info.getCompleteTypeInfo().keySet() + info.getCompleteNullabilityInfo().keySet()).toSet()
         val actual = allValues.map { renderDataFlowValue(it) }.filterNotNull().sort().makeString("\n")

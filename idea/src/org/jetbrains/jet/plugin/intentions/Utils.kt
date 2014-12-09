@@ -20,19 +20,19 @@ import org.jetbrains.jet.lang.psi.*
 import org.jetbrains.jet.lang.types.JetType
 import org.jetbrains.jet.lang.resolve.BindingContext
 import org.jetbrains.jet.lang.descriptors.FunctionDescriptor
-import org.jetbrains.jet.renderer.DescriptorRenderer
 import org.jetbrains.jet.plugin.codeInsight.ShortenReferences
 import org.jetbrains.jet.JetNodeTypes
 import org.jetbrains.jet.lexer.JetTokens
-import org.jetbrains.jet.plugin.caches.resolve.getLazyResolveSession
+import org.jetbrains.jet.plugin.util.IdeDescriptorRenderers
+import org.jetbrains.jet.plugin.caches.resolve.analyze
 
 fun specifyTypeExplicitly(declaration: JetNamedFunction, typeText: String) {
     specifyTypeExplicitly(declaration, JetPsiFactory(declaration).createType(typeText))
 }
 
-fun specifyTypeExplicitly(declaration: JetNamedFunction, `type`: JetType) {
-    if (`type`.isError()) return
-    val typeReference = JetPsiFactory(declaration).createType(DescriptorRenderer.SOURCE_CODE.renderType(`type`))
+fun specifyTypeExplicitly(declaration: JetNamedFunction, type: JetType) {
+    if (type.isError()) return
+    val typeReference = JetPsiFactory(declaration).createType(IdeDescriptorRenderers.SOURCE_CODE.renderType(type))
     specifyTypeExplicitly(declaration, typeReference)
     ShortenReferences.process(declaration.getTypeReference()!!)
 }
@@ -44,14 +44,12 @@ fun specifyTypeExplicitly(declaration: JetNamedFunction, typeReference: JetTypeR
 }
 
 fun expressionType(expression: JetExpression): JetType? {
-    val resolveSession = expression.getLazyResolveSession()
-    val bindingContext = resolveSession.resolveToElement(expression)
+    val bindingContext = expression.analyze()
     return bindingContext.get(BindingContext.EXPRESSION_TYPE, expression)
 }
 
 fun functionReturnType(function: JetNamedFunction): JetType? {
-    val resolveSession = function.getLazyResolveSession()
-    val bindingContext = resolveSession.resolveToElement(function)
+    val bindingContext = function.analyze()
     val descriptor = bindingContext.get(BindingContext.DECLARATION_TO_DESCRIPTOR, function)
     if (descriptor == null) return null
     return (descriptor as FunctionDescriptor).getReturnType()

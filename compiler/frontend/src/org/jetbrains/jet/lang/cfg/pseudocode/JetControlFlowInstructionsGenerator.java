@@ -486,7 +486,7 @@ public class JetControlFlowInstructionsGenerator extends JetControlFlowBuilderAd
                     resolvedCall,
                     receiverValues,
                     arguments,
-                    returnType != null && KotlinBuiltIns.getInstance().isNothing(returnType) ? null : valueFactory
+                    returnType != null && KotlinBuiltIns.isNothing(returnType) ? null : valueFactory
             );
             add(instruction);
             return instruction;
@@ -528,11 +528,6 @@ public class JetControlFlowInstructionsGenerator extends JetControlFlowBuilderAd
                 default:
                     throw new IllegalArgumentException("Invalid operation: " + operation);
             }
-        }
-
-        @Override
-        public void compilationError(@NotNull JetElement element, @NotNull String message) {
-            add(new CompilationErrorInstruction(element, getCurrentScope(), message));
         }
 
         @NotNull

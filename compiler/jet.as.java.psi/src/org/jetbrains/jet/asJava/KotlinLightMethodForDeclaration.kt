@@ -26,11 +26,15 @@ import com.intellij.psi.util.PsiModificationTracker
 import com.intellij.psi.util.CachedValueProvider
 import com.intellij.psi.util.CachedValue
 import org.jetbrains.jet.lang.psi.JetPropertyAccessor
-import org.jetbrains.jet.lang.psi.psiUtil.getParentByType
+import org.jetbrains.jet.lang.psi.psiUtil.getNonStrictParentOfType
 import org.jetbrains.jet.lang.psi.JetProperty
 import org.jetbrains.jet.lang.psi.JetClassOrObject
 import com.intellij.psi.impl.light.LightTypeParameterListBuilder
 import com.intellij.psi.search.SearchScope
+import com.intellij.lang.Language
+import com.intellij.psi.scope.PsiScopeProcessor
+import com.intellij.psi.util.MethodSignature
+import com.intellij.psi.util.MethodSignatureBackedByPsiMethod
 
 open public class KotlinLightMethodForDeclaration(
         manager: PsiManager,
@@ -42,7 +46,7 @@ open public class KotlinLightMethodForDeclaration(
     private val paramsList: CachedValue<PsiParameterList> by Delegates.blockingLazy {
         val cacheManager = CachedValuesManager.getManager(delegate.getProject())
         cacheManager.createCachedValue<PsiParameterList>({
-            val parameterBuilder = LightParameterListBuilder(getManager(), JetLanguage.INSTANCE)
+            val parameterBuilder = LightParameterListBuilder(getManager(), JetLanguage.INSTANCE, this)
 
             for ((index, parameter) in delegate.getParameterList().getParameters().withIndices()) {
                 parameterBuilder.addParameter(KotlinLightParameter(parameter, index, this))
@@ -55,10 +59,8 @@ open public class KotlinLightMethodForDeclaration(
     private val typeParamsList: CachedValue<PsiTypeParameterList> by Delegates.blockingLazy {
         val cacheManager = CachedValuesManager.getManager(delegate.getProject())
         cacheManager.createCachedValue<PsiTypeParameterList>({
-            val declaration = if (origin is JetPropertyAccessor) origin.getParentByType(javaClass<JetProperty>()) else origin
-
             val list = if (origin is JetClassOrObject) {
-                LightTypeParameterListBuilder(getManager(), getLanguage())
+                KotlinLightTypeParameterListBuilder(getManager())
             }
             else {
                 LightClassUtil.buildLightTypeParameterList(this@KotlinLightMethodForDeclaration, origin)
@@ -97,11 +99,24 @@ open public class KotlinLightMethodForDeclaration(
     override fun getTypeParameters(): Array<PsiTypeParameter> =
             getTypeParameterList()?.let { it.getTypeParameters() } ?: PsiTypeParameter.EMPTY_ARRAY
 
+    override fun getSignature(substitutor: PsiSubstitutor): MethodSignature {
+        if (substitutor == PsiSubstitutor.EMPTY) {
+            return delegate.getSignature(substitutor)
+        }
+        return MethodSignatureBackedByPsiMethod.create(this, substitutor)
+    }
+
     override fun copy(): PsiElement {
         return KotlinLightMethodForDeclaration(getManager()!!, delegate, origin.copy() as JetDeclaration, getContainingClass()!!)
     }
 
     override fun getUseScope(): SearchScope = origin.getUseScope()
+
+    override fun getLanguage(): Language = JetLanguage.INSTANCE
+
+    override fun processDeclarations(processor: PsiScopeProcessor, state: ResolveState, lastParent: PsiElement?, place: PsiElement): Boolean {
+        return getTypeParameters().all { processor.execute(it, state) }
+    }
 
     override fun equals(other: Any?): Boolean =
             other is KotlinLightMethodForDeclaration &&

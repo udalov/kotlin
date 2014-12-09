@@ -32,8 +32,8 @@ import org.jetbrains.jet.lang.resolve.calls.model.ResolvedValueArgument
 import org.jetbrains.jet.JetNodeTypes
 import java.math.BigInteger
 import org.jetbrains.jet.lang.diagnostics.Errors
-import com.intellij.psi.util.PsiTreeUtil
 import org.jetbrains.jet.lang.resolve.calls.callUtil.getResolvedCall
+import org.jetbrains.jet.lang.psi.psiUtil.getStrictParentOfType
 
 public class ConstantExpressionEvaluator private (val trace: BindingTrace) : JetVisitor<CompileTimeConstant<*>, JetType>() {
 
@@ -47,9 +47,11 @@ public class ConstantExpressionEvaluator private (val trace: BindingTrace) : Jet
             if (descriptor.isVar()) {
                 return false
             }
-            if (DescriptorUtils.isClassObject(descriptor.getContainingDeclaration()) || DescriptorUtils.isStaticDeclaration(descriptor)) {
+            if (DescriptorUtils.isObject(descriptor.getContainingDeclaration()) ||
+                DescriptorUtils.isClassObject(descriptor.getContainingDeclaration()) ||
+                DescriptorUtils.isStaticDeclaration(descriptor)) {
                 val returnType = descriptor.getType()
-                return KotlinBuiltIns.getInstance().isPrimitiveType(returnType) || KotlinBuiltIns.getInstance().getStringType() == returnType
+                return KotlinBuiltIns.isPrimitiveType(returnType) || KotlinBuiltIns.isString(returnType)
             }
             return false
         }
@@ -167,8 +169,8 @@ public class ConstantExpressionEvaluator private (val trace: BindingTrace) : Jet
 
             if (leftValue !is Boolean || rightValue !is Boolean) return null
             val result = when(operationToken) {
-                JetTokens.ANDAND -> leftValue as Boolean && rightValue as Boolean
-                JetTokens.OROR -> leftValue as Boolean || rightValue as Boolean
+                JetTokens.ANDAND -> leftValue && rightValue
+                JetTokens.OROR -> leftValue || rightValue
                 else -> throw IllegalArgumentException("Unknown boolean operation token ${operationToken}")
             }
             val usesVariableAsConstant = leftConstant.usesVariableAsConstant() || rightConstant.usesVariableAsConstant()
@@ -255,7 +257,7 @@ public class ConstantExpressionEvaluator private (val trace: BindingTrace) : Jet
         assert (name == "minus", "Only negation should be checked for overflow")
 
         if (receiver.value == result) {
-            trace.report(Errors.INTEGER_OVERFLOW.on(PsiTreeUtil.getParentOfType(callExpression, javaClass<JetExpression>()) ?: callExpression))
+            trace.report(Errors.INTEGER_OVERFLOW.on(callExpression.getStrictParentOfType<JetExpression>() ?: callExpression))
         }
         return result
     }
@@ -280,7 +282,7 @@ public class ConstantExpressionEvaluator private (val trace: BindingTrace) : Jet
         val resultInBigIntegers = checker(toBigInteger(receiver.value), toBigInteger(parameter.value))
 
         if (toBigInteger(actualResult) != resultInBigIntegers) {
-            trace.report(Errors.INTEGER_OVERFLOW.on(PsiTreeUtil.getParentOfType(callExpression, javaClass<JetExpression>()) ?: callExpression))
+            trace.report(Errors.INTEGER_OVERFLOW.on(callExpression.getStrictParentOfType<JetExpression>() ?: callExpression))
         }
         return actualResult
     }
@@ -334,6 +336,11 @@ public class ConstantExpressionEvaluator private (val trace: BindingTrace) : Jet
         val selectorExpression = expression.getSelectorExpression()
         // 1.toInt(); 1.plus(1);
         if (selectorExpression is JetCallExpression) {
+            val qualifiedCallValue = evaluate(selectorExpression, expectedType)
+            if (qualifiedCallValue != null) {
+                return qualifiedCallValue
+            }
+
             val calleeExpression = selectorExpression.getCalleeExpression()
             if (calleeExpression !is JetSimpleNameExpression) {
                 return null
@@ -518,7 +525,7 @@ private fun createCompileTimeConstantForEquals(result: Any?, operationReference:
             JetTokens.EQEQ -> BooleanValue(result, c.canBeUsedInAnnotation, c.usesVariableAsConstant)
             JetTokens.EXCLEQ -> BooleanValue(!result, c.canBeUsedInAnnotation, c.usesVariableAsConstant)
             JetTokens.IDENTIFIER -> {
-                assert ((operationReference as JetSimpleNameExpression).getReferencedNameAsName() == OperatorConventions.EQUALS, "This method should be called only for equals operations")
+                assert (operationReference.getReferencedNameAsName() == OperatorConventions.EQUALS, "This method should be called only for equals operations")
                 return BooleanValue(result, c.canBeUsedInAnnotation, c.usesVariableAsConstant)
             }
             else -> throw IllegalStateException("Unknown equals operation token: $operationToken ${operationReference.getText()}")
@@ -537,7 +544,7 @@ private fun createCompileTimeConstantForCompareTo(result: Any?, operationReferen
             JetTokens.GT -> BooleanValue(result > 0, c.canBeUsedInAnnotation, c.usesVariableAsConstant)
             JetTokens.GTEQ -> BooleanValue(result >= 0, c.canBeUsedInAnnotation, c.usesVariableAsConstant)
             JetTokens.IDENTIFIER -> {
-                assert ((operationReference as JetSimpleNameExpression).getReferencedNameAsName() == OperatorConventions.COMPARE_TO, "This method should be called only for compareTo operations")
+                assert (operationReference.getReferencedNameAsName() == OperatorConventions.COMPARE_TO, "This method should be called only for compareTo operations")
                 return IntValue(result, c.canBeUsedInAnnotation, c.isPure, c.usesVariableAsConstant)
             }
             else -> throw IllegalStateException("Unknown compareTo operation token: $operationToken")
@@ -554,7 +561,7 @@ private fun createStringConstant(value: CompileTimeConstant<*>?): StringValue? {
         is CharValue,
         is DoubleValue, is FloatValue,
         is BooleanValue,
-        is NullValue -> StringValue(value.getValue().toString(), value.canBeUsedInAnnotations(), value.usesVariableAsConstant())
+        is NullValue -> StringValue("${value.getValue()}", value.canBeUsedInAnnotations(), value.usesVariableAsConstant())
         else -> null
     }
 }

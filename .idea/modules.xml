@@ -23,8 +23,8 @@
       <module fileurl="file://$PROJECT_DIR$/objc/frontend.objc/frontend.objc.iml" filepath="$PROJECT_DIR$/objc/frontend.objc/frontend.objc.iml" group="compiler/objc" />
       <module fileurl="file://$PROJECT_DIR$/generators/generators.iml" filepath="$PROJECT_DIR$/generators/generators.iml" group="infrastructure" />
       <module fileurl="file://$PROJECT_DIR$/grammar/grammar.iml" filepath="$PROJECT_DIR$/grammar/grammar.iml" group="compiler" />
+      <module fileurl="file://$PROJECT_DIR$/idea/ide-common/ide-common.iml" filepath="$PROJECT_DIR$/idea/ide-common/ide-common.iml" group="ide" />
       <module fileurl="file://$PROJECT_DIR$/ide-compiler-runner/ide-compiler-runner.iml" filepath="$PROJECT_DIR$/ide-compiler-runner/ide-compiler-runner.iml" group="ide" />
-      <module fileurl="file://$PROJECT_DIR$/idea/ide-lazy-resolve/ide-lazy-resolve.iml" filepath="$PROJECT_DIR$/idea/ide-lazy-resolve/ide-lazy-resolve.iml" group="ide" />
       <module fileurl="file://$PROJECT_DIR$/idea/idea.iml" filepath="$PROJECT_DIR$/idea/idea.iml" group="ide" />
       <module fileurl="file://$PROJECT_DIR$/idea/idea-analysis/idea-analysis.iml" filepath="$PROJECT_DIR$/idea/idea-analysis/idea-analysis.iml" group="ide" />
       <module fileurl="file://$PROJECT_DIR$/idea_runner/idea_runner.iml" filepath="$PROJECT_DIR$/idea_runner/idea_runner.iml" group="ide" />
@@ -43,6 +43,7 @@
       <module fileurl="file://$PROJECT_DIR$/objc/objc.as.java.codegen/objc.as.java.codegen.iml" filepath="$PROJECT_DIR$/objc/objc.as.java.codegen/objc.as.java.codegen.iml" group="compiler/objc" />
       <module fileurl="file://$PROJECT_DIR$/compiler/preloader/preloader.iml" filepath="$PROJECT_DIR$/compiler/preloader/preloader.iml" group="compiler/cli" />
       <module fileurl="file://$PROJECT_DIR$/core/reflection/reflection.iml" filepath="$PROJECT_DIR$/core/reflection/reflection.iml" group="core" />
+      <module fileurl="file://$PROJECT_DIR$/core/reflection.jvm/reflection.jvm.iml" filepath="$PROJECT_DIR$/core/reflection.jvm/reflection.jvm.iml" group="core" />
       <module fileurl="file://$PROJECT_DIR$/core/runtime.jvm/runtime.jvm.iml" filepath="$PROJECT_DIR$/core/runtime.jvm/runtime.jvm.iml" group="core" />
       <module fileurl="file://$PROJECT_DIR$/objc/runtime.objc/runtime.objc.iml" filepath="$PROJECT_DIR$/objc/runtime.objc/runtime.objc.iml" group="compiler/objc" />
       <module fileurl="file://$PROJECT_DIR$/core/serialization/serialization.iml" filepath="$PROJECT_DIR$/core/serialization/serialization.iml" group="core" />
@@ -52,4 +53,3 @@
     </modules>
   </component>
 </project>
-

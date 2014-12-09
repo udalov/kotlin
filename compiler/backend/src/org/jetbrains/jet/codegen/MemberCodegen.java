@@ -25,6 +25,7 @@ import org.jetbrains.jet.codegen.context.CodegenContext;
 import org.jetbrains.jet.codegen.context.FieldOwnerContext;
 import org.jetbrains.jet.codegen.inline.InlineCodegenUtil;
 import org.jetbrains.jet.codegen.inline.NameGenerator;
+import org.jetbrains.jet.codegen.inline.ReifiedTypeParametersUsages;
 import org.jetbrains.jet.codegen.state.GenerationState;
 import org.jetbrains.jet.lang.descriptors.*;
 import org.jetbrains.jet.lang.descriptors.annotations.Annotations;
@@ -46,11 +47,8 @@ import org.jetbrains.org.objectweb.asm.Type;
 import org.jetbrains.org.objectweb.asm.commons.InstructionAdapter;
 import org.jetbrains.org.objectweb.asm.commons.Method;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
-import static org.jetbrains.jet.codegen.AsmUtil.boxType;
 import static org.jetbrains.jet.codegen.AsmUtil.isPrimitive;
 import static org.jetbrains.jet.lang.descriptors.CallableMemberDescriptor.Kind.SYNTHESIZED;
 import static org.jetbrains.jet.lang.descriptors.SourceElement.NO_SOURCE;
@@ -70,6 +68,7 @@ public abstract class MemberCodegen<T extends JetElement/* TODO: & JetDeclaratio
 
     protected ExpressionCodegen clInit;
     private NameGenerator inlineNameGenerator;
+    private final ReifiedTypeParametersUsages reifiedTypeParametersUsages = new ReifiedTypeParametersUsages();
 
     public MemberCodegen(
             @NotNull GenerationState state,
@@ -84,6 +83,10 @@ public abstract class MemberCodegen<T extends JetElement/* TODO: & JetDeclaratio
         this.v = builder;
         this.functionCodegen = new FunctionCodegen(context, v, state, this);
         this.propertyCodegen = new PropertyCodegen(context, v, functionCodegen, this);
+    }
+
+    protected MemberCodegen(@NotNull MemberCodegen<T> wrapped) {
+        this(wrapped.state, wrapped.getParentCodegen(), wrapped.getContext(), wrapped.element, wrapped.v);
     }
 
     public void generate() {
@@ -235,20 +238,10 @@ public abstract class MemberCodegen<T extends JetElement/* TODO: & JetDeclaratio
         JetExpression initializer = property.getDelegateExpressionOrInitializer();
         assert initializer != null : "shouldInitializeProperty must return false if initializer is null";
 
-        JetType jetType = getPropertyOrDelegateType(property, propertyDescriptor);
+        StackValue.Property propValue = codegen.intermediateValueForProperty(propertyDescriptor, true, null, MethodKind.INITIALIZER,
+                                                                             StackValue.LOCAL_0);
 
-        StackValue.Property propValue = codegen.intermediateValueForProperty(propertyDescriptor, true, null, MethodKind.INITIALIZER);
-
-        if (!propValue.isStatic) {
-            codegen.v.load(0, OBJECT_TYPE);
-        }
-
-        Type type = codegen.expressionType(initializer);
-        if (jetType.isNullable()) {
-            type = boxType(type);
-        }
-        codegen.gen(initializer, type);
-        propValue.store(type, codegen.v);
+        propValue.store(codegen.gen(initializer), codegen.v);
 
         ResolvedCall<FunctionDescriptor> pdResolvedCall =
                 bindingContext.get(BindingContext.DELEGATED_PROPERTY_PD_RESOLVED_CALL, propertyDescriptor);
@@ -292,7 +285,7 @@ public abstract class MemberCodegen<T extends JetElement/* TODO: & JetDeclaratio
 
     private static boolean skipDefaultValue(@NotNull PropertyDescriptor propertyDescriptor, Object value, @NotNull Type type) {
         if (isPrimitive(type)) {
-            if (!propertyDescriptor.getType().isNullable() && value instanceof Number) {
+            if (!propertyDescriptor.getType().isMarkedNullable() && value instanceof Number) {
                 if (type == Type.INT_TYPE && ((Number) value).intValue() == 0) {
                     return true;
                 }
@@ -389,5 +382,10 @@ public abstract class MemberCodegen<T extends JetElement/* TODO: & JetDeclaratio
     @NotNull
     public FieldOwnerContext<?> getContext() {
         return context;
+    }
+
+    @NotNull
+    public ReifiedTypeParametersUsages getReifiedTypeParametersUsages() {
+        return reifiedTypeParametersUsages;
     }
 }

@@ -18,18 +18,23 @@ package org.jetbrains.jet.plugin.stubindex.resolve
 
 import com.intellij.openapi.project.Project
 import com.intellij.psi.search.GlobalSearchScope
-import com.intellij.psi.stubs.StringStubIndexExtension
 import org.jetbrains.jet.lang.psi.*
 import org.jetbrains.jet.lang.resolve.lazy.declarations.PackageMemberDeclarationProvider
 import org.jetbrains.jet.lang.resolve.name.FqName
 import org.jetbrains.jet.lang.resolve.name.Name
 import org.jetbrains.jet.plugin.stubindex.JetFullClassNameIndex
-import org.jetbrains.jet.plugin.stubindex.JetTopLevelFunctionsFqnNameIndex
-import org.jetbrains.jet.plugin.stubindex.JetTopLevelPropertiesFqnNameIndex
 import org.jetbrains.jet.plugin.stubindex.PackageIndexUtil
 import org.jetbrains.jet.lang.resolve.lazy.data.JetClassLikeInfo
 import org.jetbrains.jet.lang.resolve.lazy.data.JetClassInfoUtil
 import org.jetbrains.jet.lang.resolve.lazy.ResolveSessionUtils
+import java.util.ArrayList
+import org.jetbrains.jet.lang.resolve.scopes.DescriptorKindFilter
+import org.jetbrains.jet.plugin.stubindex.JetTopLevelFunctionByPackageIndex
+import com.intellij.psi.stubs.StringStubIndexExtension
+import org.jetbrains.jet.plugin.stubindex.JetTopLevelPropertyByPackageIndex
+import org.jetbrains.jet.plugin.stubindex.JetTopLevelPropertyFqnNameIndex
+import org.jetbrains.jet.plugin.stubindex.JetTopLevelFunctionFqnNameIndex
+import org.jetbrains.jet.plugin.stubindex.JetTopLevelClassByPackageIndex
 
 public class StubBasedPackageMemberDeclarationProvider(
         private val fqName: FqName,
@@ -37,12 +42,26 @@ public class StubBasedPackageMemberDeclarationProvider(
         private val searchScope: GlobalSearchScope
 ) : PackageMemberDeclarationProvider {
 
-    override fun getAllDeclarations(): List<JetDeclaration> {
-        return TOP_LEVEL_DECLARATION_INDICES.flatMap {
-            index ->
-            val fqNames = index.getAllKeys(project).toSet().map { FqName(it) }.filter { !it.isRoot() && it.parent() == fqName }
-            fqNames.flatMap { index.get(it.asString(), project, searchScope) }
+    override fun getDeclarations(kindFilter: DescriptorKindFilter, nameFilter: (Name) -> Boolean): List<JetDeclaration> {
+        val result = ArrayList<JetDeclaration>()
+
+        fun addFromIndex(index: StringStubIndexExtension<out JetNamedDeclaration>) {
+            index.get(fqName.asString(), project, searchScope).filterTo(result) { nameFilter(it.getNameAsSafeName()) }
         }
+
+        if (kindFilter.acceptsKinds(DescriptorKindFilter.CLASSIFIERS_MASK)) {
+            addFromIndex(JetTopLevelClassByPackageIndex.getInstance())
+        }
+
+        if (kindFilter.acceptsKinds(DescriptorKindFilter.FUNCTIONS_MASK)) {
+            addFromIndex(JetTopLevelFunctionByPackageIndex.getInstance())
+        }
+
+        if (kindFilter.acceptsKinds(DescriptorKindFilter.VARIABLES_MASK)) {
+            addFromIndex(JetTopLevelPropertyByPackageIndex.getInstance())
+        }
+
+        return result
     }
 
     override fun getClassOrObjectDeclarations(name: Name): Collection<JetClassLikeInfo> {
@@ -51,11 +70,11 @@ public class StubBasedPackageMemberDeclarationProvider(
     }
 
     override fun getFunctionDeclarations(name: Name): Collection<JetNamedFunction> {
-        return JetTopLevelFunctionsFqnNameIndex.getInstance().get(childName(name), project, searchScope)
+        return JetTopLevelFunctionFqnNameIndex.getInstance().get(childName(name), project, searchScope)
     }
 
     override fun getPropertyDeclarations(name: Name): Collection<JetProperty> {
-        return JetTopLevelPropertiesFqnNameIndex.getInstance().get(childName(name), project, searchScope)
+        return JetTopLevelPropertyFqnNameIndex.getInstance().get(childName(name), project, searchScope)
     }
 
     override fun getAllDeclaredSubPackages(): Collection<FqName> {
@@ -70,9 +89,3 @@ public class StubBasedPackageMemberDeclarationProvider(
         return fqName.child(ResolveSessionUtils.safeNameForLazyResolve(name)).asString()
     }
 }
-
-private val TOP_LEVEL_DECLARATION_INDICES: List<StringStubIndexExtension<out JetNamedDeclaration>> = listOf(
-        JetFullClassNameIndex.getInstance(),
-        JetTopLevelFunctionsFqnNameIndex.getInstance(),
-        JetTopLevelPropertiesFqnNameIndex.getInstance()
-)

@@ -24,14 +24,18 @@ import org.jetbrains.jet.lang.descriptors.annotations.AnnotationDescriptor
 import org.jetbrains.jet.lang.resolve.java.JvmAnnotationNames
 import org.jetbrains.jet.lang.resolve.java.lazy.descriptors.resolveAnnotation
 
-class LazyJavaAnnotations(c: LazyJavaResolverContextWithTypes, val annotationOwner: JavaAnnotationOwner) : Annotations {
+class LazyJavaAnnotations(
+        c: LazyJavaResolverContext,
+        val annotationOwner: JavaAnnotationOwner,
+        private val extraLookup: (FqName) -> JavaAnnotation? = { null }
+) : Annotations {
     private val annotationDescriptors = c.storageManager.createMemoizedFunctionWithNullableValues {
         (annotation: JavaAnnotation) ->
         c.resolveAnnotation(annotation)
     }
 
     override fun findAnnotation(fqName: FqName): AnnotationDescriptor? {
-        val jAnnotation = annotationOwner.findAnnotation(fqName)
+        val jAnnotation = annotationOwner.findAnnotation(fqName) ?: extraLookup(fqName)
         if (jAnnotation == null) return null
 
         return annotationDescriptors(jAnnotation)
@@ -44,8 +48,8 @@ class LazyJavaAnnotations(c: LazyJavaResolverContextWithTypes, val annotationOwn
     override fun isEmpty() = iterator().hasNext()
 }
 
-fun LazyJavaResolverContextWithTypes.resolveAnnotations(annotationsOwner: JavaAnnotationOwner): Annotations
-        = LazyJavaAnnotations(this, annotationsOwner)
+fun LazyJavaResolverContext.resolveAnnotations(annotationsOwner: JavaAnnotationOwner): Annotations
+        = LazyJavaAnnotations(this, annotationsOwner) { fqName -> externalAnnotationResolver.findExternalAnnotation(annotationsOwner, fqName) }
 
 private fun GlobalJavaResolverContext.hasAnnotation(owner: JavaAnnotationOwner, annotationFqName: FqName): Boolean
         = owner.findAnnotation(annotationFqName) != null || externalAnnotationResolver.findExternalAnnotation(owner, annotationFqName) != null

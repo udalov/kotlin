@@ -27,27 +27,24 @@ import org.jetbrains.jet.lang.descriptors.impl.PackageFragmentDescriptorImpl
 import org.jetbrains.jet.lang.resolve.scopes.JetScope
 import org.jetbrains.jet.storage.StorageManager
 import org.jetbrains.jet.descriptors.serialization.descriptors.DeserializedPackageMemberScope
-import org.jetbrains.jet.descriptors.serialization.JavaProtoBufUtil
+import org.jetbrains.jet.descriptors.serialization.*
 import org.jetbrains.jet.lang.resolve.java.JavaDescriptorResolver
 import org.jetbrains.jet.utils.addToStdlib.singletonOrEmptyList
 import org.jetbrains.jet.storage.NotNullLazyValue
-import org.jetbrains.jet.descriptors.serialization.ProtoBuf
 import org.jetbrains.jet.lang.resolve.kotlin.PackagePartClassUtils
-import org.jetbrains.jet.descriptors.serialization.JavaProtoBuf
 import org.jetbrains.jet.lang.resolve.java.JvmClassName
-import org.jetbrains.jet.descriptors.serialization.PackageData
-import org.jetbrains.jet.lang.resolve.kotlin.DeserializationGlobalContextForJava
 import org.jetbrains.jet.lang.resolve.kotlin.incremental.cache.IncrementalCache
+import org.jetbrains.jet.lang.resolve.name.Name
+import org.jetbrains.jet.descriptors.serialization.context.DeserializationComponents
 
 public class IncrementalPackageFragmentProvider(
         sourceFiles: Collection<JetFile>,
         val module: ModuleDescriptor,
         val storageManager: StorageManager,
-        val deserializationContext: DeserializationGlobalContextForJava,
+        val deserializationComponents: DeserializationComponents,
         val incrementalCache: IncrementalCache,
         val moduleId: String,
         val javaDescriptorResolver: JavaDescriptorResolver
-
 ) : PackageFragmentProvider {
 
     val packagePartsToNotLoadFromCache = (
@@ -81,7 +78,7 @@ public class IncrementalPackageFragmentProvider(
         fqNamesToLoad.forEach { createPackageFragment(it) }
     }
 
-    override fun getSubPackagesOf(fqName: FqName): Collection<FqName> {
+    override fun getSubPackagesOf(fqName: FqName, nameFilter: (Name) -> Boolean): Collection<FqName> {
         return fqNameToSubFqNames[fqName].orEmpty()
     }
 
@@ -94,14 +91,14 @@ public class IncrementalPackageFragmentProvider(
         public val moduleId: String
             get() = this@IncrementalPackageFragmentProvider.moduleId
 
-        val _memberScope: NotNullLazyValue<JetScope> = storageManager.createLazyValue {
+        val memberScope: NotNullLazyValue<JetScope> = storageManager.createLazyValue {
             if (fqName !in fqNamesToLoad) {
-                JetScope.EMPTY
+                JetScope.Empty
             }
             else {
                 val packageDataBytes = incrementalCache.getPackageData(fqName)
                 if (packageDataBytes == null) {
-                    JetScope.EMPTY
+                    JetScope.Empty
                 }
                 else {
                     IncrementalPackageScope(JavaProtoBufUtil.readPackageDataFrom(packageDataBytes))
@@ -109,12 +106,11 @@ public class IncrementalPackageFragmentProvider(
             }
         }
 
-        override fun getMemberScope(): JetScope {
-            return _memberScope()
-        }
+        override fun getMemberScope(): JetScope = memberScope()
 
         private inner class IncrementalPackageScope(val packageData: PackageData) : DeserializedPackageMemberScope(
-                this@IncrementalPackageFragment, packageData, deserializationContext, { listOf() }
+                this@IncrementalPackageFragment, packageData.getPackageProto(), packageData.getNameResolver(), deserializationComponents,
+                { listOf() }
         ) {
             override fun filteredMemberProtos(allMemberProtos: Collection<ProtoBuf.Callable>): Collection<ProtoBuf.Callable> {
                 return allMemberProtos
