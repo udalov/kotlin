@@ -31,5 +31,6 @@
     <orderEntry type="module" module-name="idea-completion" scope="TEST" />
     <orderEntry type="module" module-name="annotation-collector" scope="TEST" />
     <orderEntry type="module" module-name="container" scope="TEST" />
+    <orderEntry type="module" module-name="preloader" scope="TEST" />
   </component>
 </module>
