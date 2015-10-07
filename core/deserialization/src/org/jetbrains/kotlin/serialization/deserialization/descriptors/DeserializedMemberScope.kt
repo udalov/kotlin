@@ -38,11 +38,11 @@ public abstract class DeserializedMemberScope protected constructor(
 
     private val functionProtos =
             c.storageManager.createLazyValue {
-                groupByKey(filteredFunctionProtos(functionList), { it.name }) { it.hasReceiverType() }
+                groupByKey(filteredFunctionProtos(functionList), { it.name }) { it.hasReceiverType() || it.hasReceiverTypeId() }
             }
     private val propertyProtos =
             c.storageManager.createLazyValue {
-                groupByKey(filteredPropertyProtos(propertyList), { it.name }) { it.hasReceiverType() }
+                groupByKey(filteredPropertyProtos(propertyList), { it.name }) { it.hasReceiverType() || it.hasReceiverTypeId() }
             }
 
     private val functions =
