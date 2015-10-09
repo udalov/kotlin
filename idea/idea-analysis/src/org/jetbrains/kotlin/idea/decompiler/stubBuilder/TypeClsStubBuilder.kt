@@ -57,11 +57,17 @@ class TypeClsStubBuilder(private val c: ClsStubBuilderContext) {
                 else typeReference
 
         when {
-            type.hasClassName() ->
+            type.hasClassName() -> {
                 createClassReferenceTypeStub(effectiveParent, type, annotations)
+            }
             type.hasTypeParameter() -> {
                 createTypeAnnotationStubs(effectiveParent, annotations)
                 val typeParameterName = c.typeParameters[type.typeParameter]
+                createStubForTypeName(ClassId.topLevel(FqName.topLevel(typeParameterName)), effectiveParent)
+            }
+            type.hasTypeParameterName() -> {
+                createTypeAnnotationStubs(effectiveParent, annotations)
+                val typeParameterName = c.nameResolver.getName(type.typeParameterName)
                 createStubForTypeName(ClassId.topLevel(FqName.topLevel(typeParameterName)), effectiveParent)
             }
         }

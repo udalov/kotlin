@@ -41,17 +41,20 @@ import static org.jetbrains.kotlin.resolve.DescriptorUtils.isEnumEntry;
 public class DescriptorSerializer {
     public static boolean USE_TYPE_TABLE = true;
 
+    private final DeclarationDescriptor containingDeclaration;
     private final Interner<TypeParameterDescriptor> typeParameters;
     private final SerializerExtension extension;
     private final MutableTypeTable typeTable;
     private final boolean serializeTypeTableToFunction;
 
     private DescriptorSerializer(
+            @Nullable DeclarationDescriptor containingDeclaration,
             @NotNull Interner<TypeParameterDescriptor> typeParameters,
             @NotNull SerializerExtension extension,
             @NotNull MutableTypeTable typeTable,
             boolean serializeTypeTableToFunction
     ) {
+        this.containingDeclaration = containingDeclaration;
         this.typeParameters = typeParameters;
         this.extension = extension;
         this.typeTable = typeTable;
@@ -73,12 +76,12 @@ public class DescriptorSerializer {
 
     @NotNull
     public static DescriptorSerializer createTopLevel(@NotNull SerializerExtension extension) {
-        return new DescriptorSerializer(new Interner<TypeParameterDescriptor>(), extension, new MutableTypeTable(), false);
+        return new DescriptorSerializer(null, new Interner<TypeParameterDescriptor>(), extension, new MutableTypeTable(), false);
     }
 
     @NotNull
     public static DescriptorSerializer createForLambda(@NotNull SerializerExtension extension) {
-        return new DescriptorSerializer(new Interner<TypeParameterDescriptor>(), extension, new MutableTypeTable(), true);
+        return new DescriptorSerializer(null, new Interner<TypeParameterDescriptor>(), extension, new MutableTypeTable(), true);
     }
 
     @NotNull
@@ -93,6 +96,7 @@ public class DescriptorSerializer {
         // serializing outer classes before nested classes.
         // Otherwise our interner can get wrong ids because we may serialize classes in any order.
         DescriptorSerializer serializer = new DescriptorSerializer(
+                descriptor,
                 new Interner<TypeParameterDescriptor>(parentSerializer.typeParameters),
                 parentSerializer.extension,
                 new MutableTypeTable(),
@@ -105,8 +109,8 @@ public class DescriptorSerializer {
     }
 
     @NotNull
-    private DescriptorSerializer createChildSerializer() {
-        return new DescriptorSerializer(new Interner<TypeParameterDescriptor>(typeParameters), extension, typeTable, false);
+    private DescriptorSerializer createChildSerializer(@NotNull CallableDescriptor callable) {
+        return new DescriptorSerializer(callable, new Interner<TypeParameterDescriptor>(typeParameters), extension, typeTable, false);
     }
 
     @NotNull
@@ -189,7 +193,7 @@ public class DescriptorSerializer {
     public ProtoBuf.Property.Builder propertyProto(@NotNull PropertyDescriptor descriptor) {
         ProtoBuf.Property.Builder builder = ProtoBuf.Property.newBuilder();
 
-        DescriptorSerializer local = createChildSerializer();
+        DescriptorSerializer local = createChildSerializer(descriptor);
 
         boolean hasGetter = false;
         boolean hasSetter = false;
@@ -226,8 +230,9 @@ public class DescriptorSerializer {
             }
 
             if (!setter.isDefault()) {
+                DescriptorSerializer setterLocal = local.createChildSerializer(setter);
                 for (ValueParameterDescriptor valueParameterDescriptor : setter.getValueParameters()) {
-                    builder.setSetterValueParameter(local.valueParameter(valueParameterDescriptor));
+                    builder.setSetterValueParameter(setterLocal.valueParameter(valueParameterDescriptor));
                 }
             }
         }
@@ -272,7 +277,7 @@ public class DescriptorSerializer {
     public ProtoBuf.Function.Builder functionProto(@NotNull FunctionDescriptor descriptor) {
         ProtoBuf.Function.Builder builder = ProtoBuf.Function.newBuilder();
 
-        DescriptorSerializer local = createChildSerializer();
+        DescriptorSerializer local = createChildSerializer(descriptor);
 
         int flags = Flags.getFunctionFlags(
                 hasAnnotations(descriptor), descriptor.getVisibility(), descriptor.getModality(), descriptor.getKind(),
@@ -327,7 +332,7 @@ public class DescriptorSerializer {
     public ProtoBuf.Constructor.Builder constructorProto(@NotNull ConstructorDescriptor descriptor) {
         ProtoBuf.Constructor.Builder builder = ProtoBuf.Constructor.newBuilder();
 
-        DescriptorSerializer local = createChildSerializer();
+        DescriptorSerializer local = createChildSerializer(descriptor);
 
         int flags = Flags.getConstructorFlags(hasAnnotations(descriptor), descriptor.getVisibility(), !descriptor.isPrimary());
         if (flags != builder.getFlags()) {
@@ -457,7 +462,13 @@ public class DescriptorSerializer {
             builder.setClassName(getClassId((ClassDescriptor) descriptor));
         }
         if (descriptor instanceof TypeParameterDescriptor) {
-            builder.setTypeParameter(getTypeParameterId((TypeParameterDescriptor) descriptor));
+            TypeParameterDescriptor typeParameter = (TypeParameterDescriptor) descriptor;
+            if (typeParameter.getContainingDeclaration() == containingDeclaration) {
+                builder.setTypeParameterName(getSimpleNameIndex(typeParameter.getName()));
+            }
+            else {
+                builder.setTypeParameter(getTypeParameterId(typeParameter));
+            }
         }
 
         for (TypeProjection projection : type.getArguments()) {
