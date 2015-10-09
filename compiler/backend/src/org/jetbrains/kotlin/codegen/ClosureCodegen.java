@@ -222,7 +222,7 @@ public class ClosureCodegen extends MemberCodegen<JetElement> {
         writeKotlinSyntheticClassAnnotation(v, state);
 
         DescriptorSerializer serializer =
-                DescriptorSerializer.createTopLevel(new JvmSerializerExtension(v.getSerializationBindings(), typeMapper));
+                DescriptorSerializer.createForLambda(new JvmSerializerExtension(v.getSerializationBindings(), typeMapper));
 
         ProtoBuf.Function functionProto = serializer.functionProto(funDescriptor).build();
 
