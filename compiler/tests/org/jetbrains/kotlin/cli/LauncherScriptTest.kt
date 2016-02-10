@@ -32,7 +32,7 @@ class LauncherScriptTest : TestCaseWithTmpdir() {
             vararg args: String,
             expectedStdout: String = "",
             expectedStderr: String = "",
-            expectedExitCode: Int = 0,
+            expectedExitCode: Int = ExitCode.OK.code,
             workDirectory: File? = null
     ) {
         val executableFileName = if (SystemInfo.isWindows) "$executableName.bat" else executableName
@@ -42,8 +42,8 @@ class LauncherScriptTest : TestCaseWithTmpdir() {
         val cmd = GeneralCommandLine(launcherFile.absolutePath, *args)
         workDirectory?.let(cmd::withWorkDirectory)
         val processOutput = ExecUtil.execAndGetOutput(cmd)
-        val stdout = StringUtil.convertLineSeparators(processOutput.stdout)
-        val stderr = StringUtil.convertLineSeparators(processOutput.stderr)
+        val stdout = StringUtil.convertLineSeparators(processOutput.stdout).trim()
+        val stderr = StringUtil.convertLineSeparators(processOutput.stderr).trim()
         val exitCode = processOutput.exitCode
 
         try {
@@ -112,16 +112,78 @@ class LauncherScriptTest : TestCaseWithTmpdir() {
                 "-d", tmpdir.path
         )
 
-        runProcess("kotlin", "test.HelloWorldKt", expectedStdout = "Hello!\n", workDirectory = tmpdir)
+        runProcess("kotlin", "test.HelloWorldKt", expectedStdout = "Hello!", workDirectory = tmpdir)
 
         val emptyDir = KotlinTestUtils.tmpDirForTest(this)
         runProcess(
                 "kotlin",
                 "-cp", emptyDir.path,
                 "test.HelloWorldKt",
-                expectedStderr = "error: could not find or load main class test.HelloWorldKt\n",
+                expectedStderr = "error: could not find or load main class test.HelloWorldKt",
                 expectedExitCode = 1,
                 workDirectory = tmpdir
+        )
+    }
+
+    fun testKotlinSimple() {
+        runProcess("kotlinc", "$testDataDirectory/helloWorld.kt", "-d", tmpdir.path)
+        runProcess(
+                "kotlin",
+                "-cp", tmpdir.path,
+                "test.HelloWorldKt",
+                expectedStdout = "Hello!"
+        )
+    }
+
+    fun testKotlinFromJar() {
+        val jarFile = File(tmpdir, "out.jar").path
+        runProcess("kotlinc", "$testDataDirectory/helloWorld.kt", "-d", jarFile)
+        runProcess(
+                "kotlin",
+                "-cp", jarFile,
+                "test.HelloWorldKt",
+                expectedStdout = "Hello!"
+        )
+    }
+
+    fun testPassSystemProperties() {
+        runProcess("kotlinc", "$testDataDirectory/systemProperties.kt", "-d", tmpdir.path)
+        runProcess(
+                "kotlin",
+                "-cp", tmpdir.path,
+                "-Dfoo.name=foo.value",
+                "-J-Dbar.name=bar.value",
+                "test.SystemPropertiesKt",
+                expectedStdout = "foo.name=foo.value\nbar.name=bar.value"
+        )
+    }
+
+    fun testSanitizedStackTrace() {
+        runProcess("kotlinc", "$testDataDirectory/throwException.kt", "-d", tmpdir.path)
+        runProcess(
+                "kotlin",
+                "-cp", tmpdir.path,
+                "test.ThrowExceptionKt",
+                expectedExitCode = 1,
+                expectedStderr = """
+Exception in thread "main" java.lang.RuntimeException: RE
+	at test.ThrowExceptionKt.f7(throwException.kt:40)
+	at test.ThrowExceptionKt.f8(throwException.kt:45)
+	at test.ThrowExceptionKt.f9(throwException.kt:49)
+	at test.ThrowExceptionKt.main(throwException.kt:53)
+Caused by: java.lang.IllegalStateException: ISE
+	at test.ThrowExceptionKt.f4(throwException.kt:23)
+	at test.ThrowExceptionKt.f5(throwException.kt:28)
+	at test.ThrowExceptionKt.f6(throwException.kt:32)
+	at test.ThrowExceptionKt.f7(throwException.kt:37)
+	... 3 more
+Caused by: java.lang.AssertionError: assert
+	at test.ThrowExceptionKt.f1(throwException.kt:7)
+	at test.ThrowExceptionKt.f2(throwException.kt:11)
+	at test.ThrowExceptionKt.f3(throwException.kt:15)
+	at test.ThrowExceptionKt.f4(throwException.kt:20)
+	... 6 more
+""".trim()
         )
     }
 }
