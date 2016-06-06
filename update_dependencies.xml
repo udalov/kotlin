@@ -186,6 +186,10 @@
         <mkdir dir="${dependencies}/download"/>
     </target>
 
+    <target name="protobuf">
+        <get-maven-library prefix="com/google/protobuf/nano" lib="protobuf-javanano" version="3.0.0-alpha-5" target.jar.name.base="protobuf-javanano"/>
+    </target>
+
     <target name="fetch-third-party" depends="make-dependency-dirs, make-native-platform-uberjar, fetch-idea-artifacts-for-compiler-tests">
         <antcall target="override-version"/>
 

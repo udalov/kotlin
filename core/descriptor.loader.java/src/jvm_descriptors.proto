@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+syntax = "proto2";
+
 package org.jetbrains.kotlin.serialization.jvm;
 
 import "core/deserialization/src/ext_options.proto";

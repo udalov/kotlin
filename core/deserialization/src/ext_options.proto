@@ -1,3 +1,5 @@
+syntax = "proto2";
+
 package org.jetbrains.kotlin.serialization;
 
 import "google/protobuf/descriptor.proto";

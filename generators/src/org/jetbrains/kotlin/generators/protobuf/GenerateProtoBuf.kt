@@ -29,7 +29,7 @@ import java.util.regex.Pattern
 // * You can also download source and build it yourself (https://code.google.com/p/protobuf/downloads/list)
 //
 // You may need to provide custom path to protoc executable, just modify this constant:
-val PROTOC_EXE = "protoc"
+private const val PROTOC_EXE = "protoc"
 
 class ProtoPath(val file: String) {
     val outPath: String = File(file).parent
@@ -64,7 +64,7 @@ fun main(args: Array<String>) {
         modifyAndExecProtoc(EXT_OPTIONS_PROTO_PATH)
 
         for (protoPath in PROTO_PATHS) {
-            execProtoc(protoPath.file, protoPath.outPath)
+            execProtoc(ProtoBufRunMode.NANO, protoPath.file, protoPath.outPath)
             modifyAndExecProtoc(protoPath)
         }
 
@@ -80,35 +80,59 @@ fun main(args: Array<String>) {
     }
 }
 
-fun checkVersion() {
+private fun checkVersion() {
     val processOutput = ExecUtil.execAndGetOutput(listOf(PROTOC_EXE, "--version"), null)
 
     val version = processOutput.stdout.trim()
     if (version.isEmpty()) {
         throw AssertionError("Output is empty, stderr: ${processOutput.stderr}")
     }
+/*
     if (version != "libprotoc 2.5.0") {
         throw AssertionError("Expected protoc 2.5.0, but was: $version")
     }
+*/
 }
 
-fun execProtoc(protoPath: String, outPath: String) {
-    val processOutput = ExecUtil.execAndGetOutput(listOf(PROTOC_EXE, protoPath, "--java_out=$outPath") + PROTOBUF_PROTO_PATHS.map { "--proto_path=$it" }, null)
+private enum class ProtoBufRunMode {
+    NANO,
+    DEBUG,
+}
+
+private fun execProtoc(mode: ProtoBufRunMode, protoPath: String, outPath: String) {
+    val language =
+            when (mode) {
+                ProtoBufRunMode.NANO -> "javanano"
+                ProtoBufRunMode.DEBUG -> "java"
+            }
+    val options =
+            when (mode) {
+                ProtoBufRunMode.NANO -> listOf(
+                        "store_unknown_fields" to "true",
+                        "optional_field_style" to "accessors",
+                        "enum_style" to "java"
+                )
+                ProtoBufRunMode.DEBUG -> listOf()
+            }.joinToString(separator = ",", postfix = ":") { "${it.first}=${it.second}" }
+    val args = listOf(PROTOC_EXE, protoPath, "--${language}_out=$options$outPath") +
+               PROTOBUF_PROTO_PATHS.map { "--proto_path=$it" }
+    println("running: $args")
+    val processOutput = ExecUtil.execAndGetOutput(args, null)
     print(processOutput.stdout)
     if (processOutput.stderr.isNotEmpty()) {
         throw AssertionError(processOutput.stderr)
     }
 }
 
-fun modifyAndExecProtoc(protoPath: ProtoPath) {
+private fun modifyAndExecProtoc(protoPath: ProtoPath) {
     val debugProtoFile = File(protoPath.file.replace(".proto", ".debug.proto"))
     debugProtoFile.writeText(modifyForDebug(protoPath))
     debugProtoFile.deleteOnExit()
 
-    execProtoc(debugProtoFile.path, "build-common/test")
+    // execProtoc(ProtoBufRunMode.DEBUG, debugProtoFile.path, "build-common/test")
 }
 
-fun modifyForDebug(protoPath: ProtoPath): String {
+private fun modifyForDebug(protoPath: ProtoPath): String {
     var text = File(protoPath.file).readText()
             .replace("option java_outer_classname = \"${protoPath.className}\"",
                      "option java_outer_classname = \"${protoPath.debugClassName}\"") // give different name for class
