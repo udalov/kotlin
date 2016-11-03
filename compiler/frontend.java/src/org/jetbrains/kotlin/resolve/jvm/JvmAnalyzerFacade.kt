@@ -19,6 +19,8 @@ package org.jetbrains.kotlin.resolve.jvm
 import com.intellij.openapi.diagnostic.Logger
 import com.intellij.psi.search.GlobalSearchScope
 import org.jetbrains.kotlin.analyzer.*
+import org.jetbrains.kotlin.builtins.JvmBuiltInsPackageFragmentProvider
+import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.config.LanguageVersionSettingsImpl
 import org.jetbrains.kotlin.container.get
 import org.jetbrains.kotlin.context.ModuleContext
@@ -29,6 +31,7 @@ import org.jetbrains.kotlin.frontend.java.di.createContainerForLazyResolveWithJa
 import org.jetbrains.kotlin.incremental.components.LookupTracker
 import org.jetbrains.kotlin.load.java.lazy.ModuleClassResolverImpl
 import org.jetbrains.kotlin.load.java.structure.JavaClass
+import org.jetbrains.kotlin.resolve.BindingTrace
 import org.jetbrains.kotlin.resolve.CodeAnalyzerInitializer
 import org.jetbrains.kotlin.resolve.TargetEnvironment
 import org.jetbrains.kotlin.resolve.TargetPlatform
@@ -36,10 +39,20 @@ import org.jetbrains.kotlin.resolve.jvm.extensions.PackageFragmentProviderExtens
 import org.jetbrains.kotlin.resolve.jvm.platform.JvmPlatform
 import org.jetbrains.kotlin.resolve.lazy.ResolveSession
 import org.jetbrains.kotlin.resolve.lazy.declarations.DeclarationProviderFactoryService
+import org.jetbrains.kotlin.utils.addToStdlib.check
 
 class JvmPlatformParameters(
+        val trace: BindingTrace?,
+        val languageVersionSettings: LanguageVersionSettings,
+        val lookupTracker: LookupTracker,
+        val useBuiltInsProvider: Boolean, // TODO: load built-ins from module dependencies in IDE
+        val useLazyResolve: Boolean,
         val moduleByJavaClass: (JavaClass) -> ModuleInfo?
-) : PlatformAnalysisParameters
+) : PlatformAnalysisParameters {
+    constructor(moduleByJavaClass: (JavaClass) -> ModuleInfo?) : this(
+            null, LanguageVersionSettingsImpl.DEFAULT /* TODO: see KT-12410 */, LookupTracker.DO_NOTHING, false, true, moduleByJavaClass
+    )
+}
 
 
 object JvmAnalyzerFacade : AnalyzerFacade<JvmPlatformParameters>() {
@@ -78,7 +91,7 @@ object JvmAnalyzerFacade : AnalyzerFacade<JvmPlatformParameters>() {
             resolverForModule.componentProvider.get<JavaDescriptorResolver>()
         }
 
-        val trace = CodeAnalyzerInitializer.getInstance(project).createTrace()
+        val trace = platformParameters.trace ?: CodeAnalyzerInitializer.getInstance(project).createTrace()
         val container = createContainerForLazyResolveWithJava(
                 moduleContext,
                 trace,
@@ -86,11 +99,11 @@ object JvmAnalyzerFacade : AnalyzerFacade<JvmPlatformParameters>() {
                 moduleContentScope,
                 moduleClassResolver,
                 targetEnvironment,
-                LookupTracker.DO_NOTHING,
+                platformParameters.lookupTracker,
                 packagePartProvider,
-                LanguageVersionSettingsImpl.DEFAULT, // TODO: see KT-12410
-                useBuiltInsProvider = false, // TODO: load built-ins from module dependencies in IDE
-                useLazyResolve = true
+                platformParameters.languageVersionSettings,
+                platformParameters.useBuiltInsProvider,
+                platformParameters.useLazyResolve
         )
         val resolveSession = container.get<ResolveSession>()
         val javaDescriptorResolver = container.get<JavaDescriptorResolver>()
@@ -98,6 +111,11 @@ object JvmAnalyzerFacade : AnalyzerFacade<JvmPlatformParameters>() {
         val providersForModule = arrayListOf(
                 resolveSession.packageFragmentProvider,
                 javaDescriptorResolver.packageFragmentProvider)
+
+        val isDependencyModule = moduleInfo.dependencies().size == 1 // TODO: something else
+        if (platformParameters.useBuiltInsProvider && isDependencyModule) {
+            providersForModule += container.get<JvmBuiltInsPackageFragmentProvider>()
+        }
 
         providersForModule += PackageFragmentProviderExtension.getInstances(project)
                 .mapNotNull { it.getPackageFragmentProvider(project, moduleDescriptor, moduleContext.storageManager, trace, moduleInfo) }
