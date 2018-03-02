@@ -13,11 +13,13 @@ class SourceSetsBuilder(val project: Project) {
 
     inline operator fun String.invoke(crossinline body: SourceSet.() -> Unit) {
         val sourceSetName = this
-        project.configure<JavaPluginConvention>
-        {
-            sourceSets.matching { it.name == sourceSetName }.forEach {
+        project.configure<JavaPluginConvention> {
+            val sources =
+                sourceSets.matching { it.name == sourceSetName }.takeIf(Collection<*>::isNotEmpty)
+                ?: listOf(sourceSets.create(sourceSetName))
+            for (sourceSet in sources) {
                 none()
-                it.body()
+                sourceSet.body()
             }
         }
     }
