@@ -218,6 +218,15 @@ fun Annotated.getAnnotationRetention(): KotlinRetention? {
     return KotlinRetention.valueOf(retentionArgumentValue.enumEntryName.asString())
 }
 
+val Annotated.nonSourceAnnotations: List<AnnotationDescriptor>
+    get() = annotations.filterOutSourceAnnotations()
+
+fun Iterable<AnnotationDescriptor>.filterOutSourceAnnotations(): List<AnnotationDescriptor> =
+    filterNot { annotation ->
+        val classDescriptor = annotation.annotationClass
+        classDescriptor == null || classDescriptor.getAnnotationRetention() == KotlinRetention.SOURCE
+    }
+
 val DeclarationDescriptor.parentsWithSelf: Sequence<DeclarationDescriptor>
     get() = generateSequence(this, { it.containingDeclaration })
 

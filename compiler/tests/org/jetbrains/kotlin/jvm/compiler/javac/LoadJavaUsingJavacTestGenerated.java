@@ -2257,6 +2257,12 @@ public class LoadJavaUsingJavacTestGenerated extends AbstractLoadJavaUsingJavacT
                     doTestCompiledKotlin(fileName);
                 }
 
+                @TestMetadata("SourceRetention.kt")
+                public void testSourceRetention() throws Exception {
+                    String fileName = KotlinTestUtils.navigationMetadata("compiler/testData/loadJava/compiledKotlin/annotations/types/SourceRetention.kt");
+                    doTestCompiledKotlin(fileName);
+                }
+
                 @TestMetadata("SupertypesAndBounds.kt")
                 public void testSupertypesAndBounds() throws Exception {
                     String fileName = KotlinTestUtils.navigationMetadata("compiler/testData/loadJava/compiledKotlin/annotations/types/SupertypesAndBounds.kt");
