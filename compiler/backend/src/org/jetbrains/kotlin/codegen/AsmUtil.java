@@ -25,7 +25,7 @@ import org.jetbrains.kotlin.descriptors.*;
 import org.jetbrains.kotlin.lexer.KtTokens;
 import org.jetbrains.kotlin.load.java.JavaVisibilities;
 import org.jetbrains.kotlin.load.java.JvmAnnotationNames;
-import org.jetbrains.kotlin.metadata.jvm.deserialization.BitEncoding;
+import org.jetbrains.kotlin.metadata.jvm.deserialization.JvmProtoBufUtil;
 import org.jetbrains.kotlin.metadata.jvm.serialization.JvmStringTable;
 import org.jetbrains.kotlin.name.ClassId;
 import org.jetbrains.kotlin.name.FqName;
@@ -888,11 +888,12 @@ public class AsmUtil {
     public static void writeAnnotationData(
             @NotNull AnnotationVisitor av, @NotNull MessageLite message, @NotNull JvmStringTable stringTable
     ) {
-        writeAnnotationData(av, BitEncoding.encodeBytes(DescriptorSerializer.serialize(message, stringTable)), stringTable.getStrings());
+        kotlin.Pair<String[], String[]> data = JvmProtoBufUtil.writeData(message, stringTable);
+        writeAnnotationData(av, data.getFirst(), data.getSecond());
     }
 
     public static void writeAnnotationData(
-            @NotNull AnnotationVisitor av, @NotNull String[] data, @NotNull List<String> strings
+            @NotNull AnnotationVisitor av, @NotNull String[] data, @NotNull String[] strings
     ) {
         AnnotationVisitor dataVisitor = av.visitArray(JvmAnnotationNames.METADATA_DATA_FIELD_NAME);
         for (String string : data) {
