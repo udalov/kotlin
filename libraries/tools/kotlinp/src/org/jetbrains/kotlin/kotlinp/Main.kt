@@ -40,6 +40,7 @@ object Main {
                 when (file.extension) {
                     "class" -> kotlinp.renderClassFile(kotlinp.readClassFile(file))
                     "kotlin_module" -> kotlinp.renderModuleFile(kotlinp.readModuleFile(file))
+                    "kotlin_metadata" -> kotlinp.renderKotlinMetadataClassFile(file)
                     else -> throw KotlinpException("only .class and .kotlin_module files are supported")
                 }
             } catch (e: IOException) {

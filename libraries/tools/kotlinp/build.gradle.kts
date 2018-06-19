@@ -10,6 +10,7 @@ val shadows by configurations.creating
 shadows.extendsFrom(configurations.getByName("compile"))
 
 dependencies {
+    compile(project(":core:metadata"))
     compile(project(":kotlinx-metadata"))
     compile(project(":kotlinx-metadata-jvm"))
     compile("org.ow2.asm:asm:6.0")

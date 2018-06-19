@@ -628,7 +628,11 @@ class ClassPrinter(private val settings: KotlinpSettings) : KmClassVisitor(), Ab
     }
 
     override fun print(klass: KotlinClassMetadata.Class): String {
-        klass.accept(this)
+        return print(klass::accept)
+    }
+
+    fun print(accept: (ClassPrinter) -> Unit): String {
+        accept(this)
         return result.toString()
     }
 }
