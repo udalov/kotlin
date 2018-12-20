@@ -8,15 +8,17 @@ package org.jetbrains.kotlin.idea.highlighter;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.kotlin.analyzer.AnalysisResult;
+import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys;
+import org.jetbrains.kotlin.cli.js.config.JsLibraryRootKt;
 import org.jetbrains.kotlin.cli.jvm.compiler.EnvironmentConfigFiles;
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment;
 import org.jetbrains.kotlin.config.*;
 import org.jetbrains.kotlin.idea.test.PluginTestCaseBase;
 import org.jetbrains.kotlin.js.analyze.TopDownAnalyzerFacadeForJS;
-import org.jetbrains.kotlin.js.config.JSConfigurationKeys;
 import org.jetbrains.kotlin.js.config.JsConfig;
 import org.jetbrains.kotlin.js.resolve.diagnostics.ErrorsJs;
 import org.jetbrains.kotlin.psi.KtFile;
+import org.jetbrains.kotlin.test.JsTestUtilsKt;
 import org.jetbrains.kotlin.test.KotlinTestUtils;
 
 import java.lang.reflect.Field;
@@ -52,7 +54,7 @@ public abstract class AbstractDiagnosticMessageJsTest extends AbstractDiagnostic
     private JsConfig getConfig(@Nullable LanguageVersion explicitLanguageVersion) {
         CompilerConfiguration configuration = getEnvironment().getConfiguration().copy();
         configuration.put(CommonConfigurationKeys.MODULE_NAME, KotlinTestUtils.TEST_MODULE_NAME);
-        configuration.put(JSConfigurationKeys.LIBRARIES, JsConfig.JS_STDLIB);
+        configuration.add(CLIConfigurationKeys.CONTENT_ROOTS, JsTestUtilsKt.JS_STDLIB);
         configuration.put(CommonConfigurationKeys.DISABLE_INLINE, true);
         if (explicitLanguageVersion != null) {
             CommonConfigurationKeysKt.setLanguageVersionSettings(
@@ -60,6 +62,6 @@ public abstract class AbstractDiagnosticMessageJsTest extends AbstractDiagnostic
                     new LanguageVersionSettingsImpl(explicitLanguageVersion, LanguageVersionSettingsImpl.DEFAULT.getApiVersion())
             );
         }
-        return new JsConfig(getProject(), configuration);
+        return new JsConfig(getProject(), configuration, JsLibraryRootKt.getJsLibraries(configuration));
     }
 }

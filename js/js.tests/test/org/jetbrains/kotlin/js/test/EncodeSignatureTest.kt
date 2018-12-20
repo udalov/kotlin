@@ -20,18 +20,20 @@ import com.intellij.mock.MockVirtualFileSystem
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.util.Disposer
 import com.intellij.psi.PsiManager
+import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
+import org.jetbrains.kotlin.cli.js.config.jsLibraries
 import org.jetbrains.kotlin.cli.jvm.compiler.EnvironmentConfigFiles
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
 import org.jetbrains.kotlin.config.CommonConfigurationKeys
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.js.analyze.TopDownAnalyzerFacadeForJS
-import org.jetbrains.kotlin.js.config.JSConfigurationKeys
 import org.jetbrains.kotlin.js.config.JsConfig
 import org.jetbrains.kotlin.js.naming.encodeSignature
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.resolve.scopes.MemberScope
+import org.jetbrains.kotlin.test.JS_STDLIB
 import org.jetbrains.kotlin.test.testFramework.KtUsefulTestCase
 import org.junit.Assert
 import org.junit.Test
@@ -208,10 +210,11 @@ class EncodeSignatureTest {
             val psiFile = psiManager.findFile(file) as KtFile
 
             val configuration = environment.configuration.copy()
-            configuration.put(JSConfigurationKeys.LIBRARIES, JsConfig.JS_STDLIB)
+            configuration.add(CLIConfigurationKeys.CONTENT_ROOTS, JS_STDLIB)
             configuration.put(CommonConfigurationKeys.MODULE_NAME, "sample")
 
-            val analysisResult = TopDownAnalyzerFacadeForJS.analyzeFiles(listOf(psiFile), JsConfig(project, configuration))
+            val config = JsConfig(project, configuration, configuration.jsLibraries)
+            val analysisResult = TopDownAnalyzerFacadeForJS.analyzeFiles(listOf(psiFile), config)
             val module = analysisResult.moduleDescriptor
             val rootPackage = module.getPackage(FqName.ROOT)
 

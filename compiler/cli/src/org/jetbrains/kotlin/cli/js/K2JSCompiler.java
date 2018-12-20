@@ -37,12 +37,15 @@ import org.jetbrains.kotlin.cli.common.CommonCompilerPerformanceManager;
 import org.jetbrains.kotlin.cli.common.ExitCode;
 import org.jetbrains.kotlin.cli.common.arguments.K2JSCompilerArguments;
 import org.jetbrains.kotlin.cli.common.arguments.K2JsArgumentConstants;
+import org.jetbrains.kotlin.cli.common.config.ContentRoot;
 import org.jetbrains.kotlin.cli.common.config.ContentRootsKt;
 import org.jetbrains.kotlin.cli.common.messages.AnalyzerWithCompilerReport;
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity;
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector;
 import org.jetbrains.kotlin.cli.common.messages.MessageUtil;
 import org.jetbrains.kotlin.cli.common.output.OutputUtilsKt;
+import org.jetbrains.kotlin.cli.js.config.JsLibraryRoot;
+import org.jetbrains.kotlin.cli.js.config.JsLibraryRootKt;
 import org.jetbrains.kotlin.cli.jvm.compiler.EnvironmentConfigFiles;
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment;
 import org.jetbrains.kotlin.cli.jvm.plugins.PluginCliParser;
@@ -188,7 +191,7 @@ public class K2JSCompiler extends CLICompiler<K2JSCompilerArguments> {
                 PluginCliParser.loadPluginsSafe(arguments.getPluginClasspaths(), arguments.getPluginOptions(), configuration);
         if (pluginLoadResult != ExitCode.OK) return pluginLoadResult;
 
-        configuration.put(JSConfigurationKeys.LIBRARIES, configureLibraries(arguments, paths, messageCollector));
+        configuration.addAll(CLIConfigurationKeys.CONTENT_ROOTS, configureLibraries(arguments, paths, messageCollector));
 
         String[] commonSourcesArray = arguments.getCommonSources();
         Set<String> commonSources = commonSourcesArray == null ? Collections.emptySet() : SetsKt.setOf(commonSourcesArray);
@@ -228,7 +231,7 @@ public class K2JSCompiler extends CLICompiler<K2JSCompilerArguments> {
 
         configuration.put(CommonConfigurationKeys.MODULE_NAME, FileUtil.getNameWithoutExtension(outputFile));
 
-        JsConfig config = new JsConfig(project, configuration);
+        JsConfig config = new JsConfig(project, configuration, JsLibraryRootKt.getJsLibraries(configuration));
         JsConfig.Reporter reporter = new JsConfig.Reporter() {
             @Override
             public void error(@NotNull String message) {
@@ -472,24 +475,30 @@ public class K2JSCompiler extends CLICompiler<K2JSCompilerArguments> {
     }
 
     @NotNull
-    private static List<String> configureLibraries(
+    private static List<ContentRoot> configureLibraries(
             @NotNull K2JSCompilerArguments arguments,
             @Nullable KotlinPaths paths,
             @NotNull MessageCollector messageCollector
     ) {
-        List<String> libraries = new SmartList<>();
+        List<ContentRoot> roots = new SmartList<>();
         if (!arguments.getNoStdlib()) {
             File stdlibJar = getLibraryFromHome(
-                    paths, KotlinPaths::getJsStdLibJarPath, PathUtil.JS_LIB_JAR_NAME, messageCollector, "'-no-stdlib'");
+                    paths, KotlinPaths::getJsStdLibJarPath, PathUtil.JS_LIB_JAR_NAME, messageCollector, "'-no-stdlib'"
+            );
             if (stdlibJar != null) {
-                libraries.add(stdlibJar.getAbsolutePath());
+                roots.add(new JsLibraryRoot(stdlibJar));
             }
         }
 
         if (arguments.getLibraries() != null) {
-            libraries.addAll(ArraysKt.filterNot(arguments.getLibraries().split(File.pathSeparator), String::isEmpty));
+            for (String path : arguments.getLibraries().split(File.pathSeparator)) {
+                if (!path.isEmpty()) {
+                    roots.add(new JsLibraryRoot(new File(path)));
+                }
+            }
         }
-        return libraries;
+
+        return roots;
     }
 
     @NotNull

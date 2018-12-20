@@ -28,9 +28,6 @@ public class JSConfigurationKeys {
     public static final CompilerConfigurationKey<List<String>> TRANSITIVE_LIBRARIES =
             CompilerConfigurationKey.create("library files for transitive dependencies");
 
-    public static final CompilerConfigurationKey<List<String>> LIBRARIES =
-            CompilerConfigurationKey.create("library file paths");
-
     public static final CompilerConfigurationKey<Boolean> SOURCE_MAP =
             CompilerConfigurationKey.create("generate source map");
 

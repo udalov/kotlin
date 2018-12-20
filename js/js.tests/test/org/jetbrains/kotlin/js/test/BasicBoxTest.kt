@@ -14,10 +14,13 @@ import com.intellij.psi.PsiManager
 import junit.framework.TestCase
 import org.jetbrains.kotlin.checkers.CompilerTestLanguageVersionSettings
 import org.jetbrains.kotlin.checkers.parseLanguageVersionSettings
+import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
 import org.jetbrains.kotlin.cli.common.messages.AnalyzerWithCompilerReport
 import org.jetbrains.kotlin.cli.common.messages.MessageRenderer
 import org.jetbrains.kotlin.cli.common.messages.PrintingMessageCollector
 import org.jetbrains.kotlin.cli.common.output.writeAllTo
+import org.jetbrains.kotlin.cli.js.config.JsLibraryRoot
+import org.jetbrains.kotlin.cli.js.config.jsLibraries
 import org.jetbrains.kotlin.cli.jvm.compiler.EnvironmentConfigFiles
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
 import org.jetbrains.kotlin.config.*
@@ -55,11 +58,8 @@ import org.jetbrains.kotlin.serialization.js.JsModuleDescriptor
 import org.jetbrains.kotlin.serialization.js.JsSerializerProtocol
 import org.jetbrains.kotlin.serialization.js.KotlinJavascriptSerializationUtil
 import org.jetbrains.kotlin.serialization.js.ModuleKind
-import org.jetbrains.kotlin.test.InTextDirectivesUtils
-import org.jetbrains.kotlin.test.KotlinTestUtils
+import org.jetbrains.kotlin.test.*
 import org.jetbrains.kotlin.test.KotlinTestUtils.TestFileFactory
-import org.jetbrains.kotlin.test.KotlinTestWithEnvironment
-import org.jetbrains.kotlin.test.TargetBackend
 import org.jetbrains.kotlin.utils.DFS
 import org.jetbrains.kotlin.utils.JsMetadataVersion
 import org.jetbrains.kotlin.utils.KotlinJavascriptMetadata
@@ -619,13 +619,12 @@ abstract class BasicBoxTest(
             configuration.languageVersionSettings = languageVersionSettings
         }
 
-        val libraries = when (targetBackend) {
-            TargetBackend.JS_IR -> dependencies
-            TargetBackend.JS -> JsConfig.JS_STDLIB + JsConfig.JS_KOTLIN_TEST + dependencies
-            else -> error("Unsupported target backend: $targetBackend")
+        if (targetBackend == TargetBackend.JS) {
+            configuration.add(CLIConfigurationKeys.CONTENT_ROOTS, JS_STDLIB)
+            configuration.add(CLIConfigurationKeys.CONTENT_ROOTS, JS_KOTLIN_TEST)
         }
 
-        configuration.put(JSConfigurationKeys.LIBRARIES, libraries)
+        configuration.addAll(CLIConfigurationKeys.CONTENT_ROOTS, dependencies.map { JsLibraryRoot(File(it)) })
         configuration.put(JSConfigurationKeys.TRANSITIVE_LIBRARIES, allDependencies)
         configuration.put(JSConfigurationKeys.FRIEND_PATHS, friends)
 
@@ -652,7 +651,9 @@ abstract class BasicBoxTest(
 
         configuration.put(JSConfigurationKeys.TYPED_ARRAYS_ENABLED, typedArraysEnabled)
 
-        return JsConfig(project, configuration, METADATA_CACHE, (JsConfig.JS_STDLIB + JsConfig.JS_KOTLIN_TEST).toSet())
+        return JsConfig(
+            project, configuration, configuration.jsLibraries, METADATA_CACHE, setOf(JS_STDLIB.file.path, JS_KOTLIN_TEST.file.path)
+        )
     }
 
     private fun minifyAndRun(
@@ -805,8 +806,8 @@ abstract class BasicBoxTest(
             KotlinCoreEnvironment.createForTests(testRootDisposable, CompilerConfiguration(), EnvironmentConfigFiles.JS_CONFIG_FILES)
 
     companion object {
-        val METADATA_CACHE = (JsConfig.JS_STDLIB + JsConfig.JS_KOTLIN_TEST).flatMap { path ->
-            KotlinJavascriptMetadataUtils.loadMetadata(path).map { metadata ->
+        val METADATA_CACHE = listOf(JS_STDLIB, JS_KOTLIN_TEST).flatMap { root ->
+            KotlinJavascriptMetadataUtils.loadMetadata(root.file.path).map { metadata ->
                 val parts = KotlinJavascriptSerializationUtil.readModuleAsProto(metadata.body, metadata.version)
                 JsModuleDescriptor(metadata.moduleName, parts.kind, parts.importedModules, parts)
             }

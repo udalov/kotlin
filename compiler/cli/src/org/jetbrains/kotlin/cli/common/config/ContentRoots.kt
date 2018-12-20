@@ -7,13 +7,18 @@ package org.jetbrains.kotlin.cli.common.config
 
 import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
 import org.jetbrains.kotlin.config.CompilerConfiguration
+import java.io.File
 
 interface ContentRoot
+
+interface FileBasedContentRoot : ContentRoot {
+    val file: File
+}
 
 /**
  * @param isCommon whether this source root contains sources of a common module in a multi-platform project
  */
-data class KotlinSourceRoot(val path: String, val isCommon: Boolean): ContentRoot
+data class KotlinSourceRoot(val path: String, val isCommon: Boolean) : ContentRoot
 
 @JvmOverloads
 fun CompilerConfiguration.addKotlinSourceRoot(path: String, isCommon: Boolean = false) {

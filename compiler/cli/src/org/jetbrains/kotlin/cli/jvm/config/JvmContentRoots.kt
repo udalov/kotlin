@@ -17,14 +17,12 @@
 package org.jetbrains.kotlin.cli.jvm.config
 
 import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
-import org.jetbrains.kotlin.cli.common.config.ContentRoot
+import org.jetbrains.kotlin.cli.common.config.FileBasedContentRoot
 import org.jetbrains.kotlin.cli.common.config.KotlinSourceRoot
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import java.io.File
 
-interface JvmContentRoot : ContentRoot {
-    val file: File
-}
+interface JvmContentRoot : FileBasedContentRoot
 
 data class JvmClasspathRoot(override val file: File) : JvmContentRoot
 

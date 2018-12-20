@@ -10,9 +10,12 @@ import com.intellij.openapi.vfs.StandardFileSystems
 import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.psi.PsiManager
 import junit.framework.TestCase
+import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
 import org.jetbrains.kotlin.cli.common.messages.AnalyzerWithCompilerReport
 import org.jetbrains.kotlin.cli.common.messages.MessageRenderer
 import org.jetbrains.kotlin.cli.common.messages.PrintingMessageCollector
+import org.jetbrains.kotlin.cli.js.config.JsLibraryRoot
+import org.jetbrains.kotlin.cli.js.config.jsLibraries
 import org.jetbrains.kotlin.cli.jvm.compiler.EnvironmentConfigFiles
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
 import org.jetbrains.kotlin.config.CommonConfigurationKeys
@@ -30,6 +33,8 @@ import org.jetbrains.kotlin.js.test.utils.LineOutputToStringVisitor
 import org.jetbrains.kotlin.js.util.TextOutputImpl
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.serialization.js.ModuleKind
+import org.jetbrains.kotlin.test.JS_KOTLIN_TEST
+import org.jetbrains.kotlin.test.JS_STDLIB
 import org.jetbrains.kotlin.test.KotlinTestUtils
 import org.jetbrains.kotlin.test.KotlinTestWithEnvironment
 import org.jetbrains.kotlin.utils.DFS
@@ -110,12 +115,14 @@ abstract class AbstractJsLineNumberTest : KotlinTestWithEnvironment() {
 
     private fun createConfig(module: TestModule, inputFile: File, modules: Map<String, TestModule>): JsConfig {
         val dependencies = module.dependencies
-                .mapNotNull { modules[it]?.outputFileName(inputFile) }
-                .map { "$it.meta.js" }
+            .mapNotNull { modules[it]?.outputFileName(inputFile) }
+            .map { JsLibraryRoot(File("$it.meta.js")) }
 
         val configuration = environment.configuration.copy()
 
-        configuration.put(JSConfigurationKeys.LIBRARIES, JsConfig.JS_STDLIB + JsConfig.JS_KOTLIN_TEST + dependencies)
+        configuration.add(CLIConfigurationKeys.CONTENT_ROOTS, JS_STDLIB)
+        configuration.add(CLIConfigurationKeys.CONTENT_ROOTS, JS_KOTLIN_TEST)
+        configuration.addAll(CLIConfigurationKeys.CONTENT_ROOTS, dependencies)
 
         configuration.put(CommonConfigurationKeys.MODULE_NAME, module.name)
         configuration.put(JSConfigurationKeys.MODULE_KIND, ModuleKind.PLAIN)
@@ -124,7 +131,7 @@ abstract class AbstractJsLineNumberTest : KotlinTestWithEnvironment() {
         configuration.put(JSConfigurationKeys.SOURCE_MAP, true)
         configuration.put(JSConfigurationKeys.META_INFO, true)
 
-        return JsConfig(project, configuration)
+        return JsConfig(project, configuration, configuration.jsLibraries)
     }
 
     private fun createPsiFile(fileName: String): KtFile {

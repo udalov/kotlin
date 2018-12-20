@@ -42,20 +42,14 @@ import org.jetbrains.kotlin.utils.KotlinJavascriptMetadataUtils;
 import java.io.File;
 import java.util.*;
 
-import static org.jetbrains.kotlin.utils.PathUtil.getKotlinPathsForDistDirectory;
-
 public class JsConfig {
-    public static final List<String> JS_STDLIB =
-            Collections.singletonList(getKotlinPathsForDistDirectory().getJsStdLibJarPath().getAbsolutePath());
-
-    public static final List<String> JS_KOTLIN_TEST =
-            Collections.singletonList(getKotlinPathsForDistDirectory().getJsKotlinTestJarPath().getAbsolutePath());
-
     public static final String UNKNOWN_EXTERNAL_MODULE_NAME = "<unknown>";
 
     private final Project project;
     private final CompilerConfiguration configuration;
     private final LockBasedStorageManager storageManager = new LockBasedStorageManager("JsConfig");
+
+    private final List<File> libraries;
 
     private final List<KotlinJavascriptMetadata> metadata = new SmartList<>();
     private final List<KotlinJavascriptMetadata> friends = new SmartList<>();
@@ -71,15 +65,20 @@ public class JsConfig {
     @Nullable
     private final Set<String> librariesToSkip;
 
-    public JsConfig(@NotNull Project project, @NotNull CompilerConfiguration configuration) {
-        this(project, configuration, null, null);
+    public JsConfig(@NotNull Project project, @NotNull CompilerConfiguration configuration, @NotNull List<File> libraries) {
+        this(project, configuration, libraries, null, null);
     }
 
-    public JsConfig(@NotNull Project project, @NotNull CompilerConfiguration configuration,
+    public JsConfig(
+            @NotNull Project project,
+            @NotNull CompilerConfiguration configuration,
+            @NotNull List<File> libraries,
             @Nullable List<JsModuleDescriptor<KotlinJavaScriptLibraryParts>> metadataCache,
-            @Nullable Set<String> librariesToSkip) {
+            @Nullable Set<String> librariesToSkip
+    ) {
         this.project = project;
         this.configuration = configuration.copy();
+        this.libraries = libraries;
         this.metadataCache = metadataCache;
         this.librariesToSkip = librariesToSkip;
     }
@@ -95,6 +94,11 @@ public class JsConfig {
     }
 
     @NotNull
+    public List<File> getLibraries() {
+        return libraries;
+    }
+
+    @NotNull
     public String getModuleId() {
         return configuration.getNotNull(CommonConfigurationKeys.MODULE_NAME);
     }
@@ -102,11 +106,6 @@ public class JsConfig {
     @NotNull
     public ModuleKind getModuleKind() {
         return configuration.get(JSConfigurationKeys.MODULE_KIND, ModuleKind.PLAIN);
-    }
-
-    @NotNull
-    public List<String> getLibraries() {
-        return getConfiguration().getList(JSConfigurationKeys.LIBRARIES);
     }
 
     @NotNull
@@ -153,13 +152,6 @@ public class JsConfig {
     }
 
     public boolean checkLibFilesAndReportErrors(@NotNull JsConfig.Reporter report) {
-        return checkLibFilesAndReportErrors(getLibraries(), report);
-    }
-
-    private boolean checkLibFilesAndReportErrors(
-            @NotNull Collection<String> libraries,
-            @NotNull JsConfig.Reporter report
-    ) {
         if (libraries.isEmpty()) {
             return false;
         }
@@ -171,25 +163,21 @@ public class JsConfig {
 
         boolean skipMetadataVersionCheck = getLanguageVersionSettings().getFlag(AnalysisFlags.getSkipMetadataVersionCheck());
 
-        for (String path : libraries) {
+        for (File file : libraries) {
+            String path = file.getPath();
             if (librariesToSkip != null && librariesToSkip.contains(path)) continue;
 
-            VirtualFile file;
-
-            File filePath = new File(path);
-            if (!filePath.exists()) {
+            if (!file.exists()) {
                 report.error("Path '" + path + "' does not exist");
                 return true;
             }
 
-            if (path.endsWith(".jar") || path.endsWith(".zip")) {
-                file = jarFileSystem.findFileByPath(path + URLUtil.JAR_SEPARATOR);
-            }
-            else {
-                file = fileSystem.findFileByPath(path);
-            }
+            VirtualFile virtualFile =
+                    path.endsWith(".jar") || path.endsWith(".zip")
+                    ? jarFileSystem.findFileByPath(path + URLUtil.JAR_SEPARATOR)
+                    : fileSystem.findFileByPath(path);
 
-            if (file == null) {
+            if (virtualFile == null) {
                 report.error("File '" + path + "' does not exist or could not be read");
                 return true;
             }

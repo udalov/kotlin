@@ -5,7 +5,10 @@
 
 package org.jetbrains.kotlin.serialization.js
 
+import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
 import org.jetbrains.kotlin.cli.common.output.writeAllTo
+import org.jetbrains.kotlin.cli.js.config.JsLibraryRoot
+import org.jetbrains.kotlin.cli.js.config.jsLibraries
 import org.jetbrains.kotlin.cli.jvm.compiler.EnvironmentConfigFiles
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
 import org.jetbrains.kotlin.config.ApiVersion
@@ -27,6 +30,7 @@ import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.resolve.BindingTraceContext
 import org.jetbrains.kotlin.serialization.AbstractVersionRequirementTest
 import org.jetbrains.kotlin.test.ConfigurationKind
+import org.jetbrains.kotlin.test.JS_STDLIB
 import org.jetbrains.kotlin.test.KotlinTestUtils
 import org.jetbrains.kotlin.test.TestJdkKind
 import java.io.File
@@ -43,7 +47,8 @@ class JsVersionRequirementTest : AbstractVersionRequirementTest() {
         // There are INVISIBLE_REFERENCE errors on RequireKotlin and K2JSTranslator refuses to translate the code otherwise
         trace.clearDiagnostics()
 
-        val result = K2JSTranslator(JsConfig(environment.project, environment.configuration)).translate(
+        val config = JsConfig(environment.project, environment.configuration, environment.configuration.jsLibraries)
+        val result = K2JSTranslator(config).translate(
             object : JsConfig.Reporter() {}, ktFiles, MainCallParameters.noCall(), analysisResult
         ) as TranslationResult.Success
         result.getOutputFiles(File(outputDirectory, "lib.js"), null, null).writeAllTo(outputDirectory)
@@ -63,7 +68,8 @@ class JsVersionRequirementTest : AbstractVersionRequirementTest() {
         KotlinCoreEnvironment.createForTests(
             testRootDisposable,
             KotlinTestUtils.newConfiguration(ConfigurationKind.ALL, TestJdkKind.MOCK_JDK).apply {
-                put(JSConfigurationKeys.LIBRARIES, extraDependencies.map(File::getPath) + JsConfig.JS_STDLIB)
+                addAll(CLIConfigurationKeys.CONTENT_ROOTS, extraDependencies.map(::JsLibraryRoot))
+                add(CLIConfigurationKeys.CONTENT_ROOTS, JS_STDLIB)
                 put(JSConfigurationKeys.META_INFO, true)
 
                 if (languageVersion != null) {
@@ -75,7 +81,7 @@ class JsVersionRequirementTest : AbstractVersionRequirementTest() {
         )
 
     private fun createModule(environment: KotlinCoreEnvironment): MutableModuleContext {
-        val config = JsConfig(environment.project, environment.configuration)
+        val config = JsConfig(environment.project, environment.configuration, environment.configuration.jsLibraries)
         return ContextForNewModule(ProjectContext(environment.project), Name.special("<test>"), JsPlatform.builtIns, null).apply {
             setDependencies(listOf(module) + config.moduleDescriptors + module.builtIns.builtInsModule)
         }

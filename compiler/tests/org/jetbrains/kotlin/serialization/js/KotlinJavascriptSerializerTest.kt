@@ -21,6 +21,7 @@ import com.intellij.openapi.util.io.FileUtil
 import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
 import org.jetbrains.kotlin.cli.common.config.addKotlinSourceRoots
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
+import org.jetbrains.kotlin.cli.js.config.jsLibraries
 import org.jetbrains.kotlin.cli.jvm.compiler.EnvironmentConfigFiles
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
 import org.jetbrains.kotlin.config.CommonConfigurationKeys
@@ -29,13 +30,13 @@ import org.jetbrains.kotlin.config.languageVersionSettings
 import org.jetbrains.kotlin.descriptors.impl.ModuleDescriptorImpl
 import org.jetbrains.kotlin.incremental.components.LookupTracker
 import org.jetbrains.kotlin.js.analyze.TopDownAnalyzerFacadeForJS
-import org.jetbrains.kotlin.js.config.JSConfigurationKeys
 import org.jetbrains.kotlin.js.config.JsConfig
 import org.jetbrains.kotlin.js.resolve.JsPlatform
 import org.jetbrains.kotlin.jvm.compiler.LoadDescriptorUtil.TEST_PACKAGE_FQNAME
 import org.jetbrains.kotlin.serialization.deserialization.DeserializationConfiguration
 import org.jetbrains.kotlin.serialization.js.KotlinJavascriptSerializationUtil.readModuleAsProto
 import org.jetbrains.kotlin.storage.LockBasedStorageManager
+import org.jetbrains.kotlin.test.JS_STDLIB
 import org.jetbrains.kotlin.test.KotlinTestUtils
 import org.jetbrains.kotlin.test.TestCaseWithTmpdir
 import org.jetbrains.kotlin.test.util.RecursiveDescriptorComparator
@@ -55,7 +56,7 @@ class KotlinJavascriptSerializerTest : TestCaseWithTmpdir() {
 
         val configuration = KotlinTestUtils.newConfiguration()
         configuration.put(CLIConfigurationKeys.MESSAGE_COLLECTOR_KEY, MessageCollector.NONE)
-        configuration.put(JSConfigurationKeys.LIBRARIES, JsConfig.JS_STDLIB)
+        configuration.add(CLIConfigurationKeys.CONTENT_ROOTS, JS_STDLIB)
 
         configuration.addKotlinSourceRoots(srcDirs.map { it.path })
 
@@ -74,7 +75,7 @@ class KotlinJavascriptSerializerTest : TestCaseWithTmpdir() {
         try {
             val environment = KotlinCoreEnvironment.createForTests(rootDisposable, configuration, EnvironmentConfigFiles.JS_CONFIG_FILES)
             val files = environment.getSourceFiles()
-            val config = JsConfig(environment.project, environment.configuration)
+            val config = JsConfig(environment.project, environment.configuration, environment.configuration.jsLibraries)
             val analysisResult = TopDownAnalyzerFacadeForJS.analyzeFiles(files, config)
             val description = JsModuleDescriptor(
                     name = KotlinTestUtils.TEST_MODULE_NAME,

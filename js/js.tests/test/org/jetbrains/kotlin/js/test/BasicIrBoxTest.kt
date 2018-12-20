@@ -73,7 +73,7 @@ abstract class BasicIrBoxTest(
 
         val runtimeKlibs = if (needsFullIrRuntime) listOf(fullRuntimeKlib, kotlinTestKLib) else listOf(defaultRuntimeKlib)
 
-        val libraries = config.configuration[JSConfigurationKeys.LIBRARIES]!!.map { File(it).name }
+        val libraries = config.libraries.map(File::getName)
         val transitiveLibraries = config.configuration[JSConfigurationKeys.TRANSITIVE_LIBRARIES]!!.map { File(it).name }
 
         // TODO: Add proper depencencies

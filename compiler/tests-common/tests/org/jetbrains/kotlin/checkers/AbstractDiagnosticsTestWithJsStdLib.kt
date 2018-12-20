@@ -6,6 +6,8 @@
 package org.jetbrains.kotlin.checkers
 
 import com.intellij.openapi.util.text.StringUtil
+import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
+import org.jetbrains.kotlin.cli.js.config.jsLibraries
 import org.jetbrains.kotlin.cli.jvm.compiler.EnvironmentConfigFiles
 import org.jetbrains.kotlin.config.CommonConfigurationKeys
 import org.jetbrains.kotlin.config.JvmTarget
@@ -16,7 +18,6 @@ import org.jetbrains.kotlin.descriptors.ModuleDescriptor
 import org.jetbrains.kotlin.descriptors.impl.ModuleDescriptorImpl
 import org.jetbrains.kotlin.js.analyze.TopDownAnalyzerFacadeForJS
 import org.jetbrains.kotlin.js.analyzer.JsAnalysisResult
-import org.jetbrains.kotlin.js.config.JSConfigurationKeys
 import org.jetbrains.kotlin.js.config.JsConfig
 import org.jetbrains.kotlin.js.resolve.JsPlatform
 import org.jetbrains.kotlin.js.resolve.MODULE_KIND
@@ -25,15 +26,17 @@ import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.resolve.BindingTrace
 import org.jetbrains.kotlin.serialization.js.ModuleKind
 import org.jetbrains.kotlin.storage.StorageManager
+import org.jetbrains.kotlin.test.JS_STDLIB
 import org.jetbrains.kotlin.test.KotlinTestUtils
 import java.util.*
 
 abstract class AbstractDiagnosticsTestWithJsStdLib : AbstractDiagnosticsTest() {
     private var lazyConfig: Lazy<JsConfig>? = lazy(LazyThreadSafetyMode.NONE) {
-        JsConfig(project, environment.configuration.copy().apply {
+        val configuration = environment.configuration.copy().apply {
             put(CommonConfigurationKeys.MODULE_NAME, KotlinTestUtils.TEST_MODULE_NAME)
-            put(JSConfigurationKeys.LIBRARIES, JsConfig.JS_STDLIB)
-        })
+            add(CLIConfigurationKeys.CONTENT_ROOTS, JS_STDLIB)
+        }
+        JsConfig(project, configuration, configuration.jsLibraries)
     }
 
     protected val config: JsConfig get() = lazyConfig!!.value
