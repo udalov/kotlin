@@ -619,11 +619,6 @@ abstract class BasicBoxTest(
             configuration.languageVersionSettings = languageVersionSettings
         }
 
-        if (targetBackend == TargetBackend.JS) {
-            configuration.add(CLIConfigurationKeys.CONTENT_ROOTS, JS_STDLIB)
-            configuration.add(CLIConfigurationKeys.CONTENT_ROOTS, JS_KOTLIN_TEST)
-        }
-
         configuration.addAll(CLIConfigurationKeys.CONTENT_ROOTS, dependencies.map { JsLibraryRoot(File(it)) })
         configuration.put(JSConfigurationKeys.TRANSITIVE_LIBRARIES, allDependencies)
         configuration.put(JSConfigurationKeys.FRIEND_PATHS, friends)
@@ -652,7 +647,8 @@ abstract class BasicBoxTest(
         configuration.put(JSConfigurationKeys.TYPED_ARRAYS_ENABLED, typedArraysEnabled)
 
         return JsConfig(
-            project, configuration, configuration.jsLibraries, METADATA_CACHE, setOf(JS_STDLIB.file.path, JS_KOTLIN_TEST.file.path)
+            project, configuration, configuration.jsLibraries, METADATA_CACHE, setOf(JS_STDLIB.file.path, JS_KOTLIN_TEST.file.path),
+            targetBackend != TargetBackend.JS_IR
         )
     }
 
@@ -802,8 +798,13 @@ abstract class BasicBoxTest(
         val hasFilesToRecompile get() = files.any { it.recompile }
     }
 
-    override fun createEnvironment() =
-            KotlinCoreEnvironment.createForTests(testRootDisposable, CompilerConfiguration(), EnvironmentConfigFiles.JS_CONFIG_FILES)
+    override fun createEnvironment(): KotlinCoreEnvironment =
+        KotlinCoreEnvironment.createForTests(testRootDisposable, CompilerConfiguration().apply {
+            if (targetBackend == TargetBackend.JS) {
+                add(CLIConfigurationKeys.CONTENT_ROOTS, JS_STDLIB)
+                add(CLIConfigurationKeys.CONTENT_ROOTS, JS_KOTLIN_TEST)
+            }
+        }, EnvironmentConfigFiles.JS_CONFIG_FILES)
 
     companion object {
         val METADATA_CACHE = listOf(JS_STDLIB, JS_KOTLIN_TEST).flatMap { root ->

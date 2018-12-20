@@ -55,7 +55,11 @@ object TopDownAnalyzerFacadeForJS {
         val builtIns = when {
             thisIsBuiltInsModule -> DefaultBuiltIns(loadBuiltInsFromCurrentClassLoader = false)
             customBuiltInsModule != null -> customBuiltInsModule.builtIns
-            else -> JsPlatform.builtIns
+            else -> {
+                // In old JS backend, builtins should be the same in all dependency modules (see JsConfig), so taking the first one is OK.
+                // In other scenarios, the first module should be the standard library.
+                moduleDescriptors.firstOrNull()?.builtIns ?: JsPlatform.builtIns
+            }
         }
 
         val moduleName = configuration[CommonConfigurationKeys.MODULE_NAME]!!

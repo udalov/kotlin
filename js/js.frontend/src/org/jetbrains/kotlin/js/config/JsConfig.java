@@ -16,24 +16,33 @@
 
 package org.jetbrains.kotlin.js.config;
 
+import com.intellij.openapi.components.ServiceManager;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.vfs.StandardFileSystems;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.openapi.vfs.VirtualFileManager;
 import com.intellij.openapi.vfs.VirtualFileSystem;
+import com.intellij.psi.search.GlobalSearchScope;
 import com.intellij.util.SmartList;
 import com.intellij.util.io.URLUtil;
 import kotlin.Pair;
 import kotlin.collections.CollectionsKt;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.kotlin.builtins.DefaultBuiltIns;
+import org.jetbrains.kotlin.builtins.KotlinBuiltIns;
+import org.jetbrains.kotlin.builtins.js.JsBuiltInsPackageFragmentProvider;
 import org.jetbrains.kotlin.config.*;
+import org.jetbrains.kotlin.descriptors.NotFoundClasses;
 import org.jetbrains.kotlin.descriptors.PackageFragmentProvider;
+import org.jetbrains.kotlin.descriptors.impl.CompositePackageFragmentProvider;
 import org.jetbrains.kotlin.descriptors.impl.ModuleDescriptorImpl;
 import org.jetbrains.kotlin.incremental.components.LookupTracker;
 import org.jetbrains.kotlin.js.resolve.JsPlatform;
+import org.jetbrains.kotlin.load.kotlin.MetadataFinderFactory;
 import org.jetbrains.kotlin.name.Name;
 import org.jetbrains.kotlin.resolve.CompilerDeserializationConfiguration;
+import org.jetbrains.kotlin.serialization.deserialization.KotlinMetadataFinder;
 import org.jetbrains.kotlin.serialization.js.*;
 import org.jetbrains.kotlin.storage.LockBasedStorageManager;
 import org.jetbrains.kotlin.utils.JsMetadataVersion;
@@ -45,6 +54,8 @@ import java.util.*;
 
 public class JsConfig {
     public static final String UNKNOWN_EXTERNAL_MODULE_NAME = "<unknown>";
+
+    private static final String KOTLIN_STDLIB_MODULE_NAME = "kotlin";
 
     private final Project project;
     private final CompilerConfiguration configuration;
@@ -58,6 +69,8 @@ public class JsConfig {
     private List<ModuleDescriptorImpl> moduleDescriptors;
     private List<ModuleDescriptorImpl> friendModuleDescriptors;
 
+    private final boolean loadBuiltInsFromStdlib;
+
     private boolean initialized = false;
 
     @Nullable
@@ -67,21 +80,30 @@ public class JsConfig {
     private final Set<String> librariesToSkip;
 
     public JsConfig(@NotNull Project project, @NotNull CompilerConfiguration configuration, @NotNull List<File> libraries) {
-        this(project, configuration, libraries, null, null);
+        this(project, configuration, libraries, null, null, true);
     }
 
+    /**
+     * @param loadBuiltInsFromStdlib whether descriptors for built-in declarations ([kotlin.Any], [kotlin.Unit], ...) should be loaded from
+     * `.kotlin_builtins` files from the standard library, as opposed to from `.kotlin_builtins` files from the compiler itself (which may
+     * not correspond to the rest of the standard library in cases when compiler/stdlib versions do not match). The standard library is
+     * defined as the first dependency module with the name `<kotlin>`. If there's no standard library in dependencies, built-ins are loaded
+     * from the compiler anyway, even if [loadBuiltInsFromStdlib] is true.
+     */
     public JsConfig(
             @NotNull Project project,
             @NotNull CompilerConfiguration configuration,
             @NotNull List<File> libraries,
             @Nullable List<JsModuleDescriptor<KotlinJavaScriptLibraryParts>> metadataCache,
-            @Nullable Set<String> librariesToSkip
+            @Nullable Set<String> librariesToSkip,
+            boolean loadBuiltInsFromStdlib
     ) {
         this.project = project;
         this.configuration = configuration.copy();
         this.libraries = libraries;
         this.metadataCache = metadataCache;
         this.librariesToSkip = librariesToSkip;
+        this.loadBuiltInsFromStdlib = loadBuiltInsFromStdlib;
     }
 
     @NotNull
@@ -233,6 +255,12 @@ public class JsConfig {
     private Pair<List<ModuleDescriptorImpl>, List<ModuleDescriptorImpl>> createModuleDescriptors() {
         LanguageVersionSettings languageVersionSettings = CommonConfigurationKeysKt.getLanguageVersionSettings(configuration);
 
+        // TODO: in case loadBuiltInsFromStdlib is true and stdlibMetadataEntry is null, report error on any builtins usage
+        KotlinJavascriptMetadata stdlibMetadataEntry =
+                CollectionsKt.firstOrNull(metadata, entry -> entry.getModuleName().equals(KOTLIN_STDLIB_MODULE_NAME));
+        KotlinBuiltIns builtIns =
+                loadBuiltInsFromStdlib && stdlibMetadataEntry != null ? new DefaultBuiltIns(false) : JsPlatform.INSTANCE.getBuiltIns();
+
         List<ModuleDescriptorImpl> moduleDescriptors = new SmartList<>();
         List<ModuleDescriptorImpl> friendModuleDescriptors = new SmartList<>();
         for (KotlinJavascriptMetadata metadataEntry : metadata) {
@@ -243,7 +271,8 @@ public class JsConfig {
 
             ModuleDescriptorImpl descriptor = createModuleDescriptor(
                     metadataEntry.getModuleName(),
-                    KotlinJavascriptSerializationUtil.readModuleAsProto(metadataEntry.getBody(), metadataEntry.getVersion())
+                    KotlinJavascriptSerializationUtil.readModuleAsProto(metadataEntry.getBody(), metadataEntry.getVersion()),
+                    builtIns
             );
 
             moduleDescriptors.add(descriptor);
@@ -251,16 +280,24 @@ public class JsConfig {
             if (friends.contains(metadataEntry)) {
                 friendModuleDescriptors.add(descriptor);
             }
+
+            if (metadataEntry == stdlibMetadataEntry) {
+                builtIns.setBuiltInsModule(descriptor);
+            }
         }
 
         if (metadataCache != null) {
             for (JsModuleDescriptor<KotlinJavaScriptLibraryParts> cached : metadataCache) {
-                moduleDescriptors.add(createModuleDescriptor(cached.getName(), cached.getData()));
+                moduleDescriptors.add(createModuleDescriptor(cached.getName(), cached.getData(), builtIns));
             }
         }
 
+        List<ModuleDescriptorImpl> dependencies =
+                loadBuiltInsFromStdlib && stdlibMetadataEntry != null
+                ? moduleDescriptors
+                : CollectionsKt.plus(moduleDescriptors, builtIns.getBuiltInsModule());
         for (ModuleDescriptorImpl module : moduleDescriptors) {
-            module.setDependencies(CollectionsKt.plus(moduleDescriptors, JsPlatform.INSTANCE.getBuiltIns().getBuiltInsModule()));
+            module.setDependencies(dependencies);
         }
 
         return new Pair<>(Collections.unmodifiableList(moduleDescriptors), Collections.unmodifiableList(friendModuleDescriptors));
@@ -292,9 +329,12 @@ public class JsConfig {
     }
 
     @NotNull
-    private ModuleDescriptorImpl createModuleDescriptor(@NotNull String moduleName, @NotNull KotlinJavaScriptLibraryParts parts) {
-        ModuleDescriptorImpl module =
-                new ModuleDescriptorImpl(Name.special("<" + moduleName + ">"), storageManager, JsPlatform.INSTANCE.getBuiltIns());
+    private ModuleDescriptorImpl createModuleDescriptor(
+            @NotNull String moduleName,
+            @NotNull KotlinJavaScriptLibraryParts parts,
+            @NotNull KotlinBuiltIns builtIns
+    ) {
+        ModuleDescriptorImpl module = new ModuleDescriptorImpl(Name.special("<" + moduleName + ">"), storageManager, builtIns);
 
         LanguageVersionSettings languageVersionSettings = CommonConfigurationKeysKt.getLanguageVersionSettings(configuration);
         LookupTracker lookupTracker = configuration.get(CommonConfigurationKeys.LOOKUP_TRACKER, LookupTracker.DO_NOTHING.INSTANCE);
@@ -303,7 +343,20 @@ public class JsConfig {
                 new CompilerDeserializationConfiguration(languageVersionSettings), lookupTracker
         );
 
-        module.initialize(provider);
+        KotlinMetadataFinder finder =
+                ServiceManager.getService(project, MetadataFinderFactory.class).create(GlobalSearchScope.allScope(project));
+
+        if (moduleName.equals(KOTLIN_STDLIB_MODULE_NAME)) {
+            module.initialize(new CompositePackageFragmentProvider(Arrays.asList(
+                    provider,
+                    new JsBuiltInsPackageFragmentProvider(
+                            storageManager, finder, module, new NotFoundClasses(storageManager, module),
+                            new CompilerDeserializationConfiguration(languageVersionSettings)
+                    )
+            )));
+        } else {
+            module.initialize(provider);
+        }
 
         return module;
     }

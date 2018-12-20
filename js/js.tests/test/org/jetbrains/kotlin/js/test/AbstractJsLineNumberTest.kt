@@ -111,7 +111,10 @@ abstract class AbstractJsLineNumberTest : KotlinTestWithEnvironment() {
     private fun outputPath(file: File) = File(OUT_PATH, file.relativeTo(File(BASE_PATH)).path.removeSuffix(".kt")).path
 
     override fun createEnvironment(): KotlinCoreEnvironment =
-            KotlinCoreEnvironment.createForTests(testRootDisposable, CompilerConfiguration(), EnvironmentConfigFiles.JS_CONFIG_FILES)
+        KotlinCoreEnvironment.createForTests(testRootDisposable, CompilerConfiguration().apply {
+            add(CLIConfigurationKeys.CONTENT_ROOTS, JS_STDLIB)
+            add(CLIConfigurationKeys.CONTENT_ROOTS, JS_KOTLIN_TEST)
+        }, EnvironmentConfigFiles.JS_CONFIG_FILES)
 
     private fun createConfig(module: TestModule, inputFile: File, modules: Map<String, TestModule>): JsConfig {
         val dependencies = module.dependencies
@@ -120,8 +123,6 @@ abstract class AbstractJsLineNumberTest : KotlinTestWithEnvironment() {
 
         val configuration = environment.configuration.copy()
 
-        configuration.add(CLIConfigurationKeys.CONTENT_ROOTS, JS_STDLIB)
-        configuration.add(CLIConfigurationKeys.CONTENT_ROOTS, JS_KOTLIN_TEST)
         configuration.addAll(CLIConfigurationKeys.CONTENT_ROOTS, dependencies)
 
         configuration.put(CommonConfigurationKeys.MODULE_NAME, module.name)

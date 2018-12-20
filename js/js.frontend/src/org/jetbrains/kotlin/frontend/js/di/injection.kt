@@ -33,37 +33,30 @@ import org.jetbrains.kotlin.resolve.*
 import org.jetbrains.kotlin.resolve.lazy.KotlinCodeAnalyzer
 import org.jetbrains.kotlin.resolve.lazy.ResolveSession
 import org.jetbrains.kotlin.resolve.lazy.declarations.DeclarationProviderFactory
-import org.jetbrains.kotlin.serialization.deserialization.DeserializationConfiguration
-import org.jetbrains.kotlin.serialization.js.KotlinJavascriptSerializationUtil
-import org.jetbrains.kotlin.serialization.js.PackagesWithHeaderMetadata
 
 fun createTopDownAnalyzerForJs(
-        moduleContext: ModuleContext,
-        bindingTrace: BindingTrace,
-        declarationProviderFactory: DeclarationProviderFactory,
-        languageVersionSettings: LanguageVersionSettings,
-        lookupTracker: LookupTracker,
-        expectActualTracker: ExpectActualTracker,
-        additionalPackages: List<PackageFragmentProvider>
-): LazyTopDownAnalyzer {
-    val storageComponentContainer = createContainer("TopDownAnalyzerForJs", JsPlatform) {
-        configureModule(moduleContext, JsPlatform, TargetPlatformVersion.NoVersion, bindingTrace)
+    moduleContext: ModuleContext,
+    bindingTrace: BindingTrace,
+    declarationProviderFactory: DeclarationProviderFactory,
+    languageVersionSettings: LanguageVersionSettings,
+    lookupTracker: LookupTracker,
+    expectActualTracker: ExpectActualTracker,
+    additionalPackages: List<PackageFragmentProvider>
+): LazyTopDownAnalyzer = createContainer("TopDownAnalyzerForJs", JsPlatform) {
+    configureModule(moduleContext, JsPlatform, TargetPlatformVersion.NoVersion, bindingTrace)
 
-        useInstance(declarationProviderFactory)
-        useImpl<AnnotationResolverImpl>()
+    useInstance(declarationProviderFactory)
+    useImpl<AnnotationResolverImpl>()
 
-        CompilerEnvironment.configure(this)
-        useInstance(lookupTracker)
-        useInstance(expectActualTracker)
+    CompilerEnvironment.configure(this)
+    useInstance(lookupTracker)
+    useInstance(expectActualTracker)
 
-        useInstance(languageVersionSettings)
-        useImpl<ResolveSession>()
-        useImpl<LazyTopDownAnalyzer>()
-    }.apply {
-        val packagePartProviders = mutableListOf(get<KotlinCodeAnalyzer>().packageFragmentProvider)
-        val moduleDescriptor = get<ModuleDescriptorImpl>()
-        packagePartProviders += additionalPackages
-        moduleDescriptor.initialize(CompositePackageFragmentProvider(packagePartProviders))
-    }
-    return storageComponentContainer.get<LazyTopDownAnalyzer>()
-}
+    useInstance(languageVersionSettings)
+    useImpl<ResolveSession>()
+    useImpl<LazyTopDownAnalyzer>()
+}.apply {
+    get<ModuleDescriptorImpl>().initialize(
+        CompositePackageFragmentProvider(listOf(get<KotlinCodeAnalyzer>().packageFragmentProvider) + additionalPackages)
+    )
+}.get<LazyTopDownAnalyzer>()

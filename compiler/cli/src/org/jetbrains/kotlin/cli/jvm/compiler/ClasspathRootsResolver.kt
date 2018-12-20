@@ -23,14 +23,15 @@ import com.intellij.psi.PsiJavaModule
 import com.intellij.psi.PsiManager
 import com.intellij.psi.impl.light.LightJavaModule
 import org.jetbrains.kotlin.cli.common.config.ContentRoot
+import org.jetbrains.kotlin.cli.common.config.FileBasedContentRoot
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageLocation
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity.*
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.cli.common.messages.MessageUtil
+import org.jetbrains.kotlin.cli.js.config.JsLibraryRoot
 import org.jetbrains.kotlin.cli.jvm.config.JavaSourceRoot
 import org.jetbrains.kotlin.cli.jvm.config.JvmClasspathRoot
-import org.jetbrains.kotlin.cli.jvm.config.JvmContentRoot
 import org.jetbrains.kotlin.cli.jvm.config.JvmModulePathRoot
 import org.jetbrains.kotlin.cli.jvm.index.JavaRoot
 import org.jetbrains.kotlin.cli.jvm.modules.CliJavaModuleFinder
@@ -49,7 +50,7 @@ class ClasspathRootsResolver(
     private val psiManager: PsiManager,
     private val messageCollector: MessageCollector?,
     private val additionalModules: List<String>,
-    private val contentRootToVirtualFile: (JvmContentRoot) -> VirtualFile?,
+    private val contentRootToVirtualFile: (FileBasedContentRoot) -> VirtualFile?,
     private val javaModuleFinder: CliJavaModuleFinder,
     private val requireStdlibModule: Boolean,
     private val outputDirectory: VirtualFile?
@@ -66,11 +67,11 @@ class ClasspathRootsResolver(
         val jvmModulePathRoots = mutableListOf<VirtualFile>()
 
         for (contentRoot in contentRoots) {
-            if (contentRoot !is JvmContentRoot) continue
+            if (contentRoot !is FileBasedContentRoot) continue
             val root = contentRootToVirtualFile(contentRoot) ?: continue
             when (contentRoot) {
                 is JavaSourceRoot -> javaSourceRoots += RootWithPrefix(root, contentRoot.packagePrefix)
-                is JvmClasspathRoot -> jvmClasspathRoots += root
+                is JvmClasspathRoot, is JsLibraryRoot -> jvmClasspathRoots += root
                 is JvmModulePathRoot -> jvmModulePathRoots += root
                 else -> error("Unknown root type: $contentRoot")
             }

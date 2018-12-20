@@ -72,6 +72,7 @@ import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
 import org.jetbrains.kotlin.cli.common.CliModuleVisibilityManagerImpl
 import org.jetbrains.kotlin.cli.common.KOTLIN_COMPILER_ENVIRONMENT_KEEPALIVE_PROPERTY
 import org.jetbrains.kotlin.cli.common.config.ContentRoot
+import org.jetbrains.kotlin.cli.common.config.FileBasedContentRoot
 import org.jetbrains.kotlin.cli.common.config.KotlinSourceRoot
 import org.jetbrains.kotlin.cli.common.config.kotlinSourceRoots
 import org.jetbrains.kotlin.cli.common.extensions.ScriptEvaluationExtension
@@ -81,6 +82,7 @@ import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity.ERROR
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity.STRONG_WARNING
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.cli.common.toBooleanLenient
+import org.jetbrains.kotlin.cli.js.config.JsLibraryRoot
 import org.jetbrains.kotlin.cli.jvm.JvmRuntimeVersionsConsistencyChecker
 import org.jetbrains.kotlin.cli.jvm.config.*
 import org.jetbrains.kotlin.cli.jvm.index.*
@@ -363,7 +365,7 @@ class KotlinCoreEnvironment private constructor(
         }.orEmpty()
     }
 
-    private fun contentRootToVirtualFile(root: JvmContentRoot): VirtualFile? =
+    private fun contentRootToVirtualFile(root: FileBasedContentRoot): VirtualFile? =
         when (root) {
             is JvmClasspathRoot ->
                 if (root.file.isFile) findJarRoot(root.file) else findExistingRoot(root, "Classpath entry")
@@ -371,6 +373,9 @@ class KotlinCoreEnvironment private constructor(
                 if (root.file.isFile) findJarRoot(root.file) else findExistingRoot(root, "Java module root")
             is JavaSourceRoot ->
                 findExistingRoot(root, "Java source root")
+            is JsLibraryRoot ->
+                // Not using findExistingRoot here because an error is reported in Kotlin/JS in this case anyway
+                if (root.file.isFile && root.file.extension == "jar") findJarRoot(root.file) else findLocalFile(root.file.absolutePath)
             else ->
                 throw IllegalStateException("Unexpected root: $root")
         }
@@ -378,7 +383,7 @@ class KotlinCoreEnvironment private constructor(
     internal fun findLocalFile(path: String): VirtualFile? =
         applicationEnvironment.localFileSystem.findFileByPath(path)
 
-    private fun findExistingRoot(root: JvmContentRoot, rootDescription: String): VirtualFile? {
+    private fun findExistingRoot(root: FileBasedContentRoot, rootDescription: String): VirtualFile? {
         return findLocalFile(root.file.absolutePath).also {
             if (it == null) {
                 report(STRONG_WARNING, "$rootDescription points to a non-existent location: ${root.file}")
