@@ -35,11 +35,7 @@ import org.jetbrains.kotlin.utils.JsMetadataVersion
 
 object TopDownAnalyzerFacadeForJS {
     @JvmStatic
-    fun analyzeFiles(
-        files: Collection<KtFile>,
-        config: JsConfig
-    ): JsAnalysisResult {
-        config.init()
+    fun analyzeFiles(files: Collection<KtFile>, config: JsConfig): JsAnalysisResult {
         return analyzeFiles(files, config.project, config.configuration, config.moduleDescriptors, config.friendModuleDescriptors)
     }
 
