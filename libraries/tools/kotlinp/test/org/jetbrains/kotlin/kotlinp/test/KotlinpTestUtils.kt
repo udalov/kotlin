@@ -7,30 +7,44 @@ package org.jetbrains.kotlin.kotlinp.test
 
 import com.intellij.openapi.Disposable
 import junit.framework.TestCase.assertEquals
+import kotlinx.metadata.Flag
+import kotlinx.metadata.isLocal
 import kotlinx.metadata.jvm.KotlinClassMetadata
 import kotlinx.metadata.jvm.KotlinModuleMetadata
 import org.jetbrains.kotlin.checkers.setupLanguageVersionSettingsForCompilerTests
+import org.jetbrains.kotlin.checkers.utils.CheckerTestUtil
 import org.jetbrains.kotlin.cli.jvm.compiler.EnvironmentConfigFiles
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
+import org.jetbrains.kotlin.cli.jvm.config.addJavaSourceRoot
+import org.jetbrains.kotlin.codegen.CodegenTestCase
 import org.jetbrains.kotlin.codegen.GenerationUtils
+import org.jetbrains.kotlin.config.JVMConfigurationKeys
 import org.jetbrains.kotlin.jvm.compiler.AbstractLoadJavaTest
 import org.jetbrains.kotlin.kotlinp.Kotlinp
 import org.jetbrains.kotlin.kotlinp.KotlinpSettings
-import org.jetbrains.kotlin.test.ConfigurationKind
 import org.jetbrains.kotlin.test.InTextDirectivesUtils
+import org.jetbrains.kotlin.test.KotlinBaseTest
 import org.jetbrains.kotlin.test.KotlinTestUtils
-import org.jetbrains.kotlin.test.TestJdkKind
+import org.jetbrains.kotlin.test.TargetBackend
 import java.io.File
 import kotlin.test.fail
 
-fun compileAndPrintAllFiles(file: File, disposable: Disposable, tmpdir: File, compareWithTxt: Boolean, readWriteAndCompare: Boolean) {
+fun compileAndPrintAllFiles(
+    file: File,
+    disposable: Disposable,
+    tmpdir: File,
+    compareWithTxt: Boolean,
+    readWriteAndCompare: Boolean,
+    useIr: Boolean = false,
+    skipNonPublicAPI: Boolean = false,
+): String? {
     val main = StringBuilder()
     val afterVisitors = StringBuilder()
     val afterNodes = StringBuilder()
 
     val kotlinp = Kotlinp(KotlinpSettings(isVerbose = true))
 
-    compile(file, disposable, tmpdir) { outputFile ->
+    compile(file, disposable, tmpdir, useIr) { outputFile ->
         when (outputFile.extension) {
             "kotlin_module" -> {
                 val moduleFile = kotlinp.readModuleFile(outputFile)!!
@@ -46,14 +60,16 @@ fun compileAndPrintAllFiles(file: File, disposable: Disposable, tmpdir: File, co
             }
             "class" -> {
                 val classFile = kotlinp.readClassFile(outputFile)!!
-                val classFile2 = transformClassFileWithReadWriteVisitors(classFile)
-                val classFile3 = transformClassFileWithNodes(classFile)
+                if (!skipNonPublicAPI || isPublicAPI(classFile)) {
+                    val classFile2 = transformClassFileWithReadWriteVisitors(classFile)
+                    val classFile3 = transformClassFileWithNodes(classFile)
 
-                for ((sb, classFileToRender) in listOf(
-                    main to classFile, afterVisitors to classFile2, afterNodes to classFile3
-                )) {
-                    sb.appendFileName(outputFile.relativeTo(tmpdir))
-                    sb.append(kotlinp.renderClassFile(classFileToRender))
+                    for ((sb, classFileToRender) in listOf(
+                        main to classFile, afterVisitors to classFile2, afterNodes to classFile3
+                    )) {
+                        sb.appendFileName(outputFile.relativeTo(tmpdir))
+                        sb.append(kotlinp.renderClassFile(classFileToRender))
+                    }
                 }
             }
             else -> fail("Unknown file: $outputFile")
@@ -68,18 +84,62 @@ fun compileAndPrintAllFiles(file: File, disposable: Disposable, tmpdir: File, co
         assertEquals("Metadata is different after transformation with visitors.", main.toString(), afterVisitors.toString())
         assertEquals("Metadata is different after transformation with nodes.", main.toString(), afterNodes.toString())
     }
+
+    return main.toString()
 }
 
-private fun compile(file: File, disposable: Disposable, tmpdir: File, forEachOutputFile: (File) -> Unit) {
-    val content = file.readText()
-    val configuration = KotlinTestUtils.newConfiguration(ConfigurationKind.ALL, TestJdkKind.MOCK_JDK)
-    AbstractLoadJavaTest.updateConfigurationWithDirectives(content, configuration)
-    val environment = KotlinCoreEnvironment.createForTests(disposable, configuration, EnvironmentConfigFiles.JVM_CONFIG_FILES)
-    setupLanguageVersionSettingsForCompilerTests(content, environment)
-    val ktFile = KotlinTestUtils.createFile(file.name, content, environment.project)
-    GenerationUtils.compileFileTo(ktFile, environment, tmpdir)
+private fun isPublicAPI(classFile: KotlinClassMetadata): Boolean {
+    if (classFile is KotlinClassMetadata.SyntheticClass) return false
+    if (classFile is KotlinClassMetadata.Class) {
+        val klass = classFile.toKmClass()
+        if (klass.name.isLocal) return false
 
-    for (outputFile in tmpdir.walkTopDown().sortedBy { it.nameWithoutExtension }) {
+        // Temporarily ignore inline classes because it's an experimental feature, and there are known differences in ABI
+        // in equals/equals-impl, hashCode/hashCode-impl, toString/toString-impl.
+        if (Flag.Class.IS_INLINE(klass.flags)) return false
+    }
+
+    return true
+}
+
+private fun compile(wholeFile: File, disposable: Disposable, tmpdir: File, useIr: Boolean, forEachOutputFile: (File) -> Unit) {
+    val wholeContent = wholeFile.readText().replace("COROUTINES_PACKAGE", "kotlin.coroutines")
+    val files = CodegenTestCase.createTestFilesFromFile(
+        wholeFile, wholeContent, "kotlin.coroutines", false, if (useIr) TargetBackend.JVM_IR else TargetBackend.JVM
+    )
+
+    val javaFiles = files.filter { it.name.endsWith(".java") }
+    val javaFilesDir =
+        if (javaFiles.isEmpty()) null
+        else File(tmpdir, "java-sources").also { dir ->
+            for (javaFile in javaFiles) {
+                File(dir, javaFile.name).apply { parentFile.mkdirs() }.writeText(javaFile.content)
+            }
+        }
+
+    val configurationKind = KotlinBaseTest.extractConfigurationKind(files)
+    val testJdkKind = KotlinBaseTest.getTestJdkKind(files)
+
+    val configuration = KotlinTestUtils.newConfiguration(configurationKind, testJdkKind).apply {
+        if (useIr) put(JVMConfigurationKeys.IR, true)
+        javaFilesDir?.let(::addJavaSourceRoot)
+        KotlinBaseTest.updateConfigurationByDirectivesInTestFiles(files, this)
+        AbstractLoadJavaTest.updateConfigurationWithDirectives(wholeContent, this)
+    }
+    val environment = KotlinCoreEnvironment.createForTests(disposable, configuration, EnvironmentConfigFiles.JVM_CONFIG_FILES)
+
+    setupLanguageVersionSettingsForCompilerTests(wholeContent, environment)
+
+    val output = File(tmpdir, "output").apply { mkdirs() }
+    GenerationUtils.compileFilesTo(
+        files.filter { it.name.endsWith(".kt") }.map { file ->
+            val content = CheckerTestUtil.parseDiagnosedRanges(file.content, ArrayList(0))
+            KotlinTestUtils.createFile(file.name, content, environment.project)
+        },
+        environment, output
+    )
+
+    for (outputFile in output.walkTopDown().sortedBy { it.nameWithoutExtension }) {
         if (outputFile.isFile) {
             forEachOutputFile(outputFile)
         }
