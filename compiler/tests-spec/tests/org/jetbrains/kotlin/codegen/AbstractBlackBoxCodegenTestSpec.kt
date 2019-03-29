@@ -38,7 +38,7 @@ abstract class AbstractBlackBoxCodegenTestSpec : AbstractBlackBoxCodegenTest() {
             val filename = "$it.kt"
             val helperContent = FileUtil.loadFile(File("$HELPERS_PATH/$filename"), true)
             files.add(
-                TestFile(filename, addPackageDirectiveToHelperFile(helperContent, packageName))
+                TestFile(filename, addPackageDirectiveToHelperFile(helperContent, packageName), TestModule.DEFAULT_MODULE)
             )
         }
     }

@@ -114,7 +114,7 @@ public abstract class AbstractCompileKotlinAgainstKotlinTest extends CodegenTest
         String commonHeader = StringsKt.substringBefore(files.get(0).content, "FILE:", "");
         CompilerConfiguration configuration = createConfiguration(
                 ConfigurationKind.ALL, getJdkKind(files), Lists.newArrayList(KotlinTestUtils.getAnnotationsJar(), aDir),
-                Collections.emptyList(), Lists.newArrayList(testFile, new TestFile("header", commonHeader))
+                Collections.emptyList(), Lists.newArrayList(testFile, new TestFile("header", commonHeader, TestModule.DEFAULT_MODULE))
         );
 
         configuration.put(CommonConfigurationKeys.MODULE_NAME, "b");

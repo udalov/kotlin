@@ -19,7 +19,7 @@ class Java9CodegenTest : AbstractBlackBoxCodegenTest() {
     override fun setUp() {
         super.setUp()
         val fileName = KotlinTestUtils.getTestDataPathBase() + "/codegen/" + prefix + "/" + getTestName(true) + ".kt"
-        val testFile = TestFile(fileName, File(fileName).readText())
+        val testFile = TestFile(fileName, File(fileName).readText(), TestModule.DEFAULT_MODULE)
         createEnvironmentWithMockJdkAndIdeaAnnotations(ConfigurationKind.NO_KOTLIN_REFLECT, listOf(testFile), TestJdkKind.FULL_JDK_9)
     }
 

@@ -6,6 +6,9 @@
 package org.jetbrains.kotlin.codegen;
 
 import com.intellij.openapi.util.io.FileUtil;
+import kotlin.Pair;
+import kotlin.collections.CollectionsKt;
+import kotlin.collections.MapsKt;
 import kotlin.io.FilesKt;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -15,11 +18,13 @@ import org.jetbrains.kotlin.fileClasses.JvmFileClassUtil;
 import org.jetbrains.kotlin.psi.KtFile;
 import org.jetbrains.kotlin.test.InTextDirectivesUtils;
 import org.jetbrains.kotlin.test.TargetBackend;
+import org.jetbrains.kotlin.utils.DFS;
 import org.jetbrains.kotlin.utils.ExceptionUtilsKt;
 
 import java.io.File;
 import java.lang.reflect.Method;
 import java.util.List;
+import java.util.Map;
 
 import static org.jetbrains.kotlin.codegen.TestUtilsKt.clearReflectionCache;
 import static org.jetbrains.kotlin.test.KotlinTestUtils.assertEqualsToFile;
@@ -31,7 +36,24 @@ public abstract class AbstractBlackBoxCodegenTest extends CodegenTestCase {
     protected void doMultiFileTest(@NotNull File wholeFile, @NotNull List<TestFile> files) throws Exception {
         boolean isIgnored = InTextDirectivesUtils.isIgnoredTarget(getBackend(), wholeFile);
 
-        compile(files, !isIgnored);
+        List<TestModule> distinctModules = CollectionsKt.distinct(CollectionsKt.map(files, file -> file.module));
+        Map<String, TestModule> moduleByName = MapsKt.toMap(CollectionsKt.map(distinctModules, module -> new Pair<>(module.name, module)));
+
+        List<TestModule> orderedModules = DFS.topologicalOrder(
+                moduleByName.values(),
+                module -> CollectionsKt.map(module.dependencies, moduleByName::get)
+        );
+
+        if (orderedModules.size() == 1) {
+            compile(files, !isIgnored);
+        }
+        else {
+            for (TestModule module : CollectionsKt.asReversed(orderedModules)) {
+                List<TestFile> moduleFiles = CollectionsKt.filter(files, file -> file.module.equals(module));
+                assert !moduleFiles.isEmpty() : "No files in module " + module.name;
+                compile(moduleFiles, !isIgnored);
+            }
+        }
 
         try {
             blackBox(!isIgnored);

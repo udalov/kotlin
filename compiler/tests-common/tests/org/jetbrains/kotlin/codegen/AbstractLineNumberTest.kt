@@ -159,7 +159,8 @@ abstract class AbstractLineNumberTest : CodegenTestCase() {
         private fun createLineNumberDeclaration() =
             TestFile(
                 "$LINE_NUMBER_FUN.kt",
-                "package test;\n\npublic fun $LINE_NUMBER_FUN(): Int = 0\n"
+                "package test;\n\npublic fun $LINE_NUMBER_FUN(): Int = 0\n",
+                TestModule.DEFAULT_MODULE
             )
 
         private fun getActualLineNumbersAsString(lines: List<String>) =

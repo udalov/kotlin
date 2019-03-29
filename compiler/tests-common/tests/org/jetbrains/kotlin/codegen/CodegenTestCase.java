@@ -33,6 +33,8 @@ import org.jetbrains.kotlin.codegen.state.GenerationState;
 import org.jetbrains.kotlin.config.*;
 import org.jetbrains.kotlin.fileClasses.JvmFileClassUtil;
 import org.jetbrains.kotlin.name.FqName;
+import org.jetbrains.kotlin.name.Name;
+import org.jetbrains.kotlin.name.NameUtils;
 import org.jetbrains.kotlin.psi.KtFile;
 import org.jetbrains.kotlin.scripting.definitions.ScriptDependenciesProvider;
 import org.jetbrains.kotlin.test.ConfigurationKind;
@@ -61,10 +63,7 @@ import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -352,7 +351,7 @@ public abstract class CodegenTestCase extends KtUsefulTestCase {
 
     @NotNull
     public static CodegenTestFiles loadMultiFiles(@NotNull List<TestFile> files, @NotNull Project project) {
-        Collections.sort(files);
+        files.sort(Comparator.comparing(TestFile::toString));
 
         List<KtFile> ktFiles = new ArrayList<>(files.size());
         for (TestFile file : files) {
@@ -647,6 +646,10 @@ public abstract class CodegenTestCase extends KtUsefulTestCase {
     }
 
     protected void compile(@NotNull List<TestFile> files, boolean reportProblems) {
+        compile(files, reportProblems, Collections.emptyList());
+    }
+
+    protected void compile(@NotNull List<TestFile> files, boolean reportProblems, @NotNull List<File> extraClasspath) {
         File javaSourceDir = writeJavaFiles(files);
 
         configurationKind = extractConfigurationKind(files);
@@ -740,18 +743,15 @@ public abstract class CodegenTestCase extends KtUsefulTestCase {
         }
     }
 
-    public static class TestFile implements Comparable<TestFile> {
+    public static class TestFile {
         public final String name;
         public final String content;
+        public final TestModule module;
 
-        public TestFile(@NotNull String name, @NotNull String content) {
+        public TestFile(@NotNull String name, @NotNull String content, @NotNull TestModule module) {
             this.name = name;
             this.content = content;
-        }
-
-        @Override
-        public int compareTo(@NotNull TestFile o) {
-            return name.compareTo(o.name);
+            this.module = module;
         }
 
         @Override
@@ -762,6 +762,35 @@ public abstract class CodegenTestCase extends KtUsefulTestCase {
         @Override
         public boolean equals(Object obj) {
             return obj instanceof TestFile && ((TestFile) obj).name.equals(name);
+        }
+
+        @Override
+        public String toString() {
+            return module == TestModule.DEFAULT_MODULE ? name : module.toString() + ":" + name;
+        }
+    }
+
+    public static class TestModule {
+        public static final TestModule DEFAULT_MODULE = new TestModule("<main>", Collections.emptyList(), Collections.emptyList());
+
+        public final String name;
+        public final List<String> dependencies;
+        public final List<String> friends;
+
+        private TestModule(@NotNull String name, @NotNull List<String> dependencies, @NotNull List<String> friends) {
+            this.name = name;
+            this.dependencies = dependencies;
+            this.friends = friends;
+        }
+
+        @Override
+        public int hashCode() {
+            return name.hashCode();
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            return obj instanceof TestModule && ((TestModule) obj).name.equals(name);
         }
 
         @Override
@@ -789,12 +818,19 @@ public abstract class CodegenTestCase extends KtUsefulTestCase {
     }
 
     @NotNull
-    private static List<TestFile> createTestFiles(File file, String expectedText, String coroutinesPackage) {
-        return KotlinTestUtils.createTestFiles(file.getName(), expectedText, new KotlinTestUtils.TestFileFactoryNoModules<TestFile>() {
+    protected static List<TestFile> createTestFiles(File file, String expectedText, String coroutinesPackage) {
+        return KotlinTestUtils.createTestFiles(file.getName(), expectedText, new KotlinTestUtils.TestFileFactory<TestModule, TestFile>() {
             @NotNull
             @Override
-            public TestFile create(@NotNull String fileName, @NotNull String text, @NotNull Map<String, String> directives) {
-                return new TestFile(fileName, text);
+            public TestFile createFile(
+                    @Nullable TestModule module, @NotNull String fileName, @NotNull String text, @NotNull Map<String, String> directives
+            ) {
+                return new TestFile(fileName, text, module != null ? module : TestModule.DEFAULT_MODULE);
+            }
+
+            @Override
+            public TestModule createModule(@NotNull String name, @NotNull List<String> dependencies, @NotNull List<String> friends) {
+                return new TestModule(name, dependencies, friends);
             }
         }, coroutinesPackage);
     }
@@ -806,7 +842,8 @@ public abstract class CodegenTestCase extends KtUsefulTestCase {
 
         File dir;
         try {
-            dir = KotlinTestUtils.tmpDir("java-files");
+            TestModule module = CollectionsKt.single(CollectionsKt.map(files, file -> file.module));
+            dir = KotlinTestUtils.tmpDir("java-files-" + NameUtils.sanitizeAsJavaIdentifier(module.name));
         }
         catch (IOException e) {
             throw ExceptionUtilsKt.rethrow(e);
