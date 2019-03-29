@@ -123,7 +123,7 @@ abstract class AbstractParcelBoxTest : CodegenTestCase() {
     }
 
     override fun doMultiFileTest(wholeFile: File, files: List<TestFile>) {
-        compile(files + TestFile(LIBRARY_KT.name, LIBRARY_KT.readText()))
+        compile(files + TestFile(LIBRARY_KT.name, LIBRARY_KT.readText(), TestModule.DEFAULT_MODULE))
 
         val javaBin = File(System.getProperty("java.home").takeIf { it.isNotEmpty() } ?: error("JAVA_HOME is not set"), "bin")
         val javaExe = File(javaBin, "java.exe").takeIf { it.exists() } ?: File(javaBin, "java")

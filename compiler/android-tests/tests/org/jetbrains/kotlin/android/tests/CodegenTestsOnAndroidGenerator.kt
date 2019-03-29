@@ -217,7 +217,7 @@ class CodegenTestsOnAndroidGenerator private constructor(private val pathManager
                 if (fullFileText.contains("// SKIP_JDK6")) continue
 
                 if (hasBoxMethod(fullFileText)) {
-                    val testFiles = createTestFiles(file, fullFileText)
+                    val testFiles = createTestFiles(file, fullFileText, "kotlin.coroutines")
                     val kind = extractConfigurationKind(testFiles)
                     val jdkKind = getJdkKind(testFiles)
                     val keyConfiguration = CompilerConfiguration()
@@ -244,19 +244,6 @@ class CodegenTestsOnAndroidGenerator private constructor(private val pathManager
             }
         }
     }
-
-    private fun createTestFiles(file: File, expectedText: String): List<CodegenTestCase.TestFile> =
-        KotlinTestUtils.createTestFiles(
-            file.name,
-            expectedText,
-            object : KotlinTestUtils.TestFileFactoryNoModules<CodegenTestCase.TestFile>() {
-                override fun create(fileName: String, text: String, directives: Map<String, String>): CodegenTestCase.TestFile {
-                    return CodegenTestCase.TestFile(fileName, text)
-                }
-            }, false,
-            "kotlin.coroutines"
-        )
-
 
     private fun generateTestName(fileName: String): String {
         var result = NameUtils.sanitizeAsJavaIdentifier(FileUtil.getNameWithoutExtension(StringUtil.capitalize(fileName)))
