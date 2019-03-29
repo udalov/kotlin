@@ -769,6 +769,18 @@ public abstract class CodegenTestCase extends KtUsefulTestCase {
         }
     }
 
+    public static class TestModule {
+        public final String name;
+        public final List<String> dependencies;
+        public final List<String> friends;
+
+        public TestModule(@NotNull String name, @NotNull List<String> dependencies, @NotNull List<String> friends) {
+            this.name = name;
+            this.dependencies = dependencies;
+            this.friends = friends;
+        }
+    }
+
     protected void doTest(String filePath) throws Exception {
         File file = new File(filePath);
         Ref<File> javaFilesDir = Ref.create();
@@ -790,10 +802,12 @@ public abstract class CodegenTestCase extends KtUsefulTestCase {
 
     @NotNull
     private static List<TestFile> createTestFiles(File file, String expectedText, Ref<File> javaFilesDir, String coroutinesPackage) {
-        return KotlinTestUtils.createTestFiles(file.getName(), expectedText, new KotlinTestUtils.TestFileFactoryNoModules<TestFile>() {
+        return KotlinTestUtils.createTestFiles(file.getName(), expectedText, new KotlinTestUtils.TestFileFactory<TestModule, TestFile>() {
             @NotNull
             @Override
-            public TestFile create(@NotNull String fileName, @NotNull String text, @NotNull Map<String, String> directives) {
+            public TestFile createFile(
+                    @Nullable TestModule module, @NotNull String fileName, @NotNull String text, @NotNull Map<String, String> directives
+            ) {
                 if (fileName.endsWith(".java")) {
                     if (javaFilesDir.isNull()) {
                         try {
@@ -813,6 +827,11 @@ public abstract class CodegenTestCase extends KtUsefulTestCase {
                 File file = new File(targetDir, fileName);
                 KotlinTestUtils.mkdirs(file.getParentFile());
                 FilesKt.writeText(file, content, Charsets.UTF_8);
+            }
+
+            @Override
+            public TestModule createModule(@NotNull String name, @NotNull List<String> dependencies, @NotNull List<String> friends) {
+                return new TestModule(name, dependencies, friends);
             }
         }, coroutinesPackage);
     }
