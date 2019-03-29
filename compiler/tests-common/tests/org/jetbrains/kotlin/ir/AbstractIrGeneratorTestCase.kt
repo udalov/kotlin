@@ -21,7 +21,7 @@ import org.jetbrains.kotlin.analyzer.AnalysisResult
 import org.jetbrains.kotlin.backend.jvm.JvmGeneratorExtensions
 import org.jetbrains.kotlin.cli.jvm.compiler.EnvironmentConfigFiles
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
-import org.jetbrains.kotlin.codegen.CodegenTestCase
+import org.jetbrains.kotlin.codegen.MutableCodegenTestCase
 import org.jetbrains.kotlin.config.languageVersionSettings
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
@@ -40,7 +40,7 @@ import java.io.FileWriter
 import java.io.PrintWriter
 import java.util.*
 
-abstract class AbstractIrGeneratorTestCase : CodegenTestCase() {
+abstract class AbstractIrGeneratorTestCase : MutableCodegenTestCase() {
     override fun doMultiFileTest(wholeFile: File, files: List<TestFile>, javaFilesDir: File?) {
         setupEnvironment(files, javaFilesDir)
 

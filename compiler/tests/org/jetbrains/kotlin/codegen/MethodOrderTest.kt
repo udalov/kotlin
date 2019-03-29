@@ -176,9 +176,9 @@ class MethodOrderTest : CodegenTestCase() {
 
     private fun doTest(sourceText: String, classSuffix: String, expectedOrder: List<String>) {
         createEnvironmentWithMockJdkAndIdeaAnnotations(ConfigurationKind.JDK_ONLY)
-        myFiles = CodegenTestFiles.create("file.kt", sourceText, myEnvironment!!.project)
+        val myFiles = CodegenTestFiles.create("file.kt", sourceText, myEnvironment!!.project)
 
-        val classFileForObject = generateClassesInFile().asList().first { it.relativePath.endsWith("$classSuffix.class") }
+        val classFileForObject = generateClassesInFile(myFiles, true).asList().first { it.relativePath.endsWith("$classSuffix.class") }
         val classReader = ClassReader(classFileForObject.asByteArray())
 
         val methodNames = ArrayList<String>()

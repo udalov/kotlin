@@ -28,7 +28,7 @@ import java.lang.reflect.Field;
 
 import static org.jetbrains.kotlin.script.ScriptTestUtilKt.loadScriptingPlugin;
 
-public abstract class AbstractScriptCodegenTest extends CodegenTestCase {
+public abstract class AbstractScriptCodegenTest extends MutableCodegenTestCase {
     @Override
     protected void setUp() throws Exception {
         super.setUp();

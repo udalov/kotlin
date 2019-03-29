@@ -26,7 +26,7 @@ import java.lang.reflect.*;
 import static org.jetbrains.kotlin.codegen.CodegenTestUtil.findDeclaredMethodByName;
 import static org.jetbrains.kotlin.codegen.CodegenTestUtil.findDeclaredMethodByNameOrNull;
 
-public class PropertyGenTest extends CodegenTestCase {
+public class PropertyGenTest extends MutableCodegenTestCase {
     @Override
     protected void setUp() throws Exception {
         super.setUp();

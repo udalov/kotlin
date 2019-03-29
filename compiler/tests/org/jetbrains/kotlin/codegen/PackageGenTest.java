@@ -26,7 +26,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-public class PackageGenTest extends CodegenTestCase {
+public class PackageGenTest extends MutableCodegenTestCase {
 
     @Override
     protected void setUp() throws Exception {

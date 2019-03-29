@@ -6,7 +6,6 @@
 package org.jetbrains.kotlin.android.synthetic.test
 
 import com.intellij.openapi.util.io.FileUtil
-import com.intellij.util.ArrayUtil
 import org.jetbrains.kotlin.cli.jvm.config.jvmClasspathRoots
 import org.jetbrains.kotlin.codegen.AbstractBlackBoxCodegenTest
 import org.jetbrains.kotlin.codegen.CodegenTestFiles
@@ -89,11 +88,11 @@ abstract class AbstractAndroidBoxTest : AbstractBlackBoxCodegenTest() {
         if (additionalFiles != null) {
             files.addAll(additionalFiles)
         }
-        myFiles = CodegenTestFiles.create(
+        val myFiles = CodegenTestFiles.create(
             myEnvironment!!.project,
-            ArrayUtil.toStringArray(files),
+            files.toTypedArray(),
             KotlinTestUtils.getHomeDirectory() + "/plugins/android-extensions/android-extensions-compiler/testData"
         )
-        blackBox(true)
+        blackBox(myFiles, true)
     }
 }

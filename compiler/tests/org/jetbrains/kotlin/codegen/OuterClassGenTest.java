@@ -34,7 +34,7 @@ import org.jetbrains.org.objectweb.asm.Opcodes;
 import java.io.File;
 import java.util.Collections;
 
-public class OuterClassGenTest extends CodegenTestCase {
+public class OuterClassGenTest extends MutableCodegenTestCase {
     @NotNull
     @Override
     protected String getPrefix() {

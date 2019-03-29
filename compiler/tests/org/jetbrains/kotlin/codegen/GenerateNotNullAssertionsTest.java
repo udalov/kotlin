@@ -40,7 +40,7 @@ import java.io.File;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Collections;
 
-public class GenerateNotNullAssertionsTest extends CodegenTestCase {
+public class GenerateNotNullAssertionsTest extends MutableCodegenTestCase {
     @NotNull
     @Override
     protected String getPrefix() {

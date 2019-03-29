@@ -18,7 +18,7 @@ package org.jetbrains.kotlin.codegen
 
 import org.jetbrains.kotlin.test.ConfigurationKind
 
-class ReflectionClassLoaderTest : CodegenTestCase() {
+class ReflectionClassLoaderTest : MutableCodegenTestCase() {
     override fun getPrefix() = "reflection/classLoaders"
 
     override fun setUp() {

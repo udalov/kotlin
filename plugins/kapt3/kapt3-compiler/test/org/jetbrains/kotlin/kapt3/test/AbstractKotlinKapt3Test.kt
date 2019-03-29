@@ -93,7 +93,7 @@ abstract class AbstractKotlinKapt3Test : CodegenTestCase() {
         return Files.createTempDirectory(prefix).toFile().apply { tempFiles += this }
     }
 
-    override fun loadMultiFiles(files: List<TestFile>) {
+    override fun loadMultiFiles(files: List<TestFile>): CodegenTestFiles {
         val project = myEnvironment.project
         val psiManager = PsiManager.getInstance(project)
 
@@ -110,7 +110,7 @@ abstract class AbstractKotlinKapt3Test : CodegenTestCase() {
             }
         }
 
-        myFiles = CodegenTestFiles.create(ktFiles)
+        return CodegenTestFiles.create(ktFiles)
     }
 
     override fun doMultiFileTest(wholeFile: File, files: List<TestFile>, javaFilesDir: File?) {
@@ -124,7 +124,7 @@ abstract class AbstractKotlinKapt3Test : CodegenTestCase() {
         AnalysisHandlerExtension.registerExtension(project, PartialAnalysisHandlerExtension())
         StorageComponentContainerContributor.registerExtension(project, KaptComponentContributor())
 
-        loadMultiFiles(files)
+        val myFiles = loadMultiFiles(files)
 
         val txtFile = File(wholeFile.parentFile, wholeFile.nameWithoutExtension + ".txt")
         val classBuilderFactory = OriginCollectingClassBuilderFactory(ClassBuilderMode.KAPT3)

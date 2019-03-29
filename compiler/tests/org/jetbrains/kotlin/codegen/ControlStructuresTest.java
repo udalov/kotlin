@@ -22,7 +22,7 @@ import java.lang.reflect.Method;
 
 import static org.jetbrains.kotlin.codegen.CodegenTestUtil.assertThrows;
 
-public class ControlStructuresTest extends CodegenTestCase {
+public class ControlStructuresTest extends MutableCodegenTestCase {
     @Override
     protected void setUp() throws Exception {
         super.setUp();

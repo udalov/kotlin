@@ -40,7 +40,7 @@ abstract class LowLevelDebuggerTestBase : CodegenTestCase() {
 
         val skipLoadingClasses = skipLoadingClasses(options)
 
-        loadMultiFiles(files)
+        val myFiles = loadMultiFiles(files)
         val classBuilderFactory = OriginCollectingClassBuilderFactory(ClassBuilderMode.FULL)
         val generationState = GenerationUtils.compileFiles(myFiles.psiFiles, myEnvironment, classBuilderFactory)
         classFileFactory = generationState.factory

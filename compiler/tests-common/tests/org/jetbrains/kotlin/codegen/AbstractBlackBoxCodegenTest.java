@@ -39,16 +39,16 @@ public abstract class AbstractBlackBoxCodegenTest extends CodegenTestCase {
     ) throws Exception {
         boolean isIgnored = IGNORE_EXPECTED_FAILURES && InTextDirectivesUtils.isIgnoredTarget(getBackend(), wholeFile);
 
-        compile(files, javaFilesDir, !isIgnored);
+        CompilationResult result = compile(files, javaFilesDir, !isIgnored);
 
         try {
-            blackBox(!isIgnored);
+            blackBox(result.myFiles, !isIgnored);
         }
         catch (Throwable t) {
             if (!isIgnored) {
                 try {
                     // To create .txt file in case of failure
-                    doBytecodeListingTest(wholeFile);
+                    doBytecodeListingTest(result.classFileFactory, wholeFile);
                 }
                 catch (Throwable ignored) {
                 }
@@ -57,10 +57,10 @@ public abstract class AbstractBlackBoxCodegenTest extends CodegenTestCase {
             throw new TestsRuntimeError(t);
         }
 
-        doBytecodeListingTest(wholeFile);
+        doBytecodeListingTest(result.classFileFactory, wholeFile);
     }
 
-    private void doBytecodeListingTest(@NotNull File wholeFile) throws Exception {
+    private void doBytecodeListingTest(@NotNull ClassFileFactory classFileFactory, @NotNull File wholeFile) throws Exception {
         if (!InTextDirectivesUtils.isDirectiveDefined(FileUtil.loadFile(wholeFile), "CHECK_BYTECODE_LISTING")) return;
 
         String suffix =
@@ -98,7 +98,7 @@ public abstract class AbstractBlackBoxCodegenTest extends CodegenTestCase {
         assertEqualsToFile(expectedFile, text, s -> s.replace("COROUTINES_PACKAGE", coroutinesPackage));
     }
 
-    protected void blackBox(boolean reportProblems) {
+    protected void blackBox(@NotNull CodegenTestFiles myFiles, boolean reportProblems) {
         // If there are many files, the first 'box(): String' function will be executed.
         GeneratedClassLoader generatedClassLoader = generateAndCreateClassLoader(reportProblems);
         for (KtFile firstFile : myFiles.getPsiFiles()) {
@@ -114,7 +114,7 @@ public abstract class AbstractBlackBoxCodegenTest extends CodegenTestCase {
             }
             catch (Throwable e) {
                 if (reportProblems) {
-                    System.out.println(generateToText());
+                    System.out.println(generateToText(myFiles));
                 }
                 throw ExceptionUtilsKt.rethrow(e);
             }

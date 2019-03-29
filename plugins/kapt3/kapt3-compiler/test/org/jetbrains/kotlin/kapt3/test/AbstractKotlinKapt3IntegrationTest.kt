@@ -25,12 +25,14 @@ import org.jetbrains.kotlin.codegen.CodegenTestCase
 import org.jetbrains.kotlin.codegen.GenerationUtils
 import org.jetbrains.kotlin.codegen.OriginCollectingClassBuilderFactory
 import org.jetbrains.kotlin.config.CompilerConfiguration
-import org.jetbrains.kotlin.kapt3.*
+import org.jetbrains.kotlin.kapt3.AbstractKapt3Extension
+import org.jetbrains.kotlin.kapt3.KaptContextForStubGeneration
 import org.jetbrains.kotlin.kapt3.base.KaptContext
 import org.jetbrains.kotlin.kapt3.base.LoadedProcessors
 import org.jetbrains.kotlin.kapt3.base.incremental.DeclaredProcType
 import org.jetbrains.kotlin.kapt3.base.incremental.IncrementalProcessor
 import org.jetbrains.kotlin.kapt3.javac.KaptJavaFileObject
+import org.jetbrains.kotlin.kapt3.prettyPrint
 import org.jetbrains.kotlin.kapt3.stubs.ClassFileToSourceStubConverter
 import org.jetbrains.kotlin.kapt3.stubs.ClassFileToSourceStubConverter.KaptStub
 import org.jetbrains.kotlin.kapt3.util.MessageCollectorBackedKaptLogger
@@ -150,7 +152,7 @@ abstract class AbstractKotlinKapt3IntegrationTest : CodegenTestCase() {
         AnalysisHandlerExtension.registerExtension(project, kapt3Extension)
 
         try {
-            loadMultiFiles(files)
+            val myFiles = loadMultiFiles(files)
 
             val classBuilderFactory = OriginCollectingClassBuilderFactory(ClassBuilderMode.KAPT3)
             GenerationUtils.compileFiles(myFiles.psiFiles, myEnvironment, classBuilderFactory).factory

@@ -34,7 +34,7 @@ import org.jetbrains.org.objectweb.asm.Opcodes
 import java.io.File
 import kotlin.script.templates.ScriptTemplateDefinition
 
-class ScriptGenTest : CodegenTestCase() {
+class ScriptGenTest : MutableCodegenTestCase() {
     companion object {
         private val FIB_SCRIPT_DEFINITION = KotlinScriptDefinitionFromAnnotatedTemplate(ScriptWithIntParam::class)
         private val NO_PARAM_SCRIPT_DEFINITION = KotlinScriptDefinitionFromAnnotatedTemplate(Any::class)

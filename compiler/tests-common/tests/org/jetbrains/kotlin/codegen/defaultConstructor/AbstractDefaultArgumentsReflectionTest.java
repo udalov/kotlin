@@ -17,7 +17,7 @@
 package org.jetbrains.kotlin.codegen.defaultConstructor;
 
 import com.intellij.openapi.util.io.FileUtil;
-import org.jetbrains.kotlin.codegen.CodegenTestCase;
+import org.jetbrains.kotlin.codegen.MutableCodegenTestCase;
 import org.jetbrains.kotlin.test.ConfigurationKind;
 
 import java.io.File;
@@ -27,7 +27,7 @@ import java.util.List;
 
 import static org.jetbrains.kotlin.test.InTextDirectivesUtils.findListWithPrefixes;
 
-public abstract class AbstractDefaultArgumentsReflectionTest extends CodegenTestCase {
+public abstract class AbstractDefaultArgumentsReflectionTest extends MutableCodegenTestCase {
     @Override
     public void setUp() throws Exception {
         super.setUp();

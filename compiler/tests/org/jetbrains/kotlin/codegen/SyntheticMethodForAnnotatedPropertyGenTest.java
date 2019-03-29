@@ -25,7 +25,7 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 
-public class SyntheticMethodForAnnotatedPropertyGenTest extends CodegenTestCase {
+public class SyntheticMethodForAnnotatedPropertyGenTest extends MutableCodegenTestCase {
     @Override
     protected void setUp() throws Exception {
         super.setUp();

@@ -23,7 +23,7 @@ import kotlin.reflect.KClass
 import kotlin.script.experimental.annotations.KotlinScript
 import kotlin.script.experimental.jvm.util.scriptCompilationClasspathFromContextOrStdlib
 
-class CustomScriptCodegenTest : CodegenTestCase() {
+class CustomScriptCodegenTest : MutableCodegenTestCase() {
 
     fun testAnnotatedDefinition() {
         createScriptTestEnvironment("org.jetbrains.kotlin.codegen.TestScriptWithAnnotatedBaseClass")

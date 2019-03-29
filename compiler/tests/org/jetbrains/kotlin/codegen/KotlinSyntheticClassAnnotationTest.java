@@ -32,7 +32,7 @@ import java.util.List;
 import static org.jetbrains.kotlin.load.java.JvmAnnotationNames.METADATA_FQ_NAME;
 import static org.jetbrains.kotlin.load.java.JvmAnnotationNames.METADATA_VERSION_FIELD_NAME;
 
-public class KotlinSyntheticClassAnnotationTest extends CodegenTestCase {
+public class KotlinSyntheticClassAnnotationTest extends MutableCodegenTestCase {
     private static final FqName PACKAGE_NAME = new FqName("test");
 
     @Override

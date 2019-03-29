@@ -23,7 +23,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Arrays;
 
-public class VarArgTest extends CodegenTestCase {
+public class VarArgTest extends MutableCodegenTestCase {
     @Override
     protected void setUp() throws Exception {
         super.setUp();

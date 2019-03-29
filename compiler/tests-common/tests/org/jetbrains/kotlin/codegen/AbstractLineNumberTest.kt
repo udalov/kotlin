@@ -35,21 +35,21 @@ abstract class AbstractLineNumberTest : CodegenTestCase() {
         if (!isCustomTest) {
             files.add(createLineNumberDeclaration())
         }
-        compile(files, javaFilesDir)
+        val result = compile(files, javaFilesDir)
 
-        val psiFile = myFiles.psiFiles.single { file -> file.name == wholeFile.name }
+        val psiFile = result.myFiles.psiFiles.single { file -> file.name == wholeFile.name }
 
         try {
             if (isCustomTest) {
                 compareCustom(psiFile, wholeFile)
             } else {
                 val expectedLineNumbers = extractSelectedLineNumbersFromSource(psiFile)
-                val actualLineNumbers = extractActualLineNumbersFromBytecode(classFileFactory, true)
+                val actualLineNumbers = extractActualLineNumbersFromBytecode(result.classFileFactory, true)
                 assertFalse("Missed 'lineNumbers' calls in test data", expectedLineNumbers.isEmpty())
                 KtUsefulTestCase.assertSameElements(actualLineNumbers, expectedLineNumbers)
             }
         } catch (e: Throwable) {
-            println(classFileFactory.createText())
+            println(result.classFileFactory.createText())
             throw e
         }
     }

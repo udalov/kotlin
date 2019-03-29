@@ -12,6 +12,7 @@ import org.jetbrains.kotlin.script.loadScriptingPlugin
 import org.jetbrains.kotlin.scripting.compiler.plugin.configureScriptDefinitions
 import org.jetbrains.kotlin.test.ConfigurationKind
 import org.jetbrains.kotlin.test.InTextDirectivesUtils
+import org.jetbrains.kotlin.test.KotlinTestUtils
 import org.jetbrains.kotlin.test.TestJdkKind
 import org.jetbrains.kotlin.utils.PathUtil
 import org.jetbrains.kotlin.utils.PathUtil.KOTLIN_SCRIPTING_COMMON_JAR
@@ -26,7 +27,7 @@ import kotlin.script.experimental.api.implicitReceivers
 import kotlin.script.experimental.api.providedProperties
 import kotlin.script.experimental.jvm.util.scriptCompilationClasspathFromContextOrStdlib
 
-abstract class AbstractCustomScriptCodegenTest : CodegenTestCase() {
+abstract class AbstractCustomScriptCodegenTest : MutableCodegenTestCase() {
     private lateinit var scriptDefinitions: List<String>
 
     override fun setUp() {
@@ -45,13 +46,9 @@ abstract class AbstractCustomScriptCodegenTest : CodegenTestCase() {
         loadScriptingPlugin(configuration)
     }
 
-    override fun doMultiFileTest(wholeFile: File, files: MutableList<TestFile>, javaFilesDir: File?) {
-        if (files.size > 1) {
-            throw UnsupportedOperationException("Multiple files are not yet supported in this test")
-        }
-
-        val file = files.single()
-        val content = file.content
+    override fun doTest(filePath: String) {
+        val content = KotlinTestUtils.doLoadFile(File(filePath))
+        val file = TestFile(filePath, content)
 
         scriptDefinitions = InTextDirectivesUtils.findListWithPrefixes(content, "KOTLIN_SCRIPT_DEFINITION:")
         if (scriptDefinitions.isNotEmpty()) {
@@ -66,7 +63,7 @@ abstract class AbstractCustomScriptCodegenTest : CodegenTestCase() {
                         }
         }
 
-        createEnvironmentWithMockJdkAndIdeaAnnotations(configurationKind, files, TestJdkKind.FULL_JDK)
+        createEnvironmentWithMockJdkAndIdeaAnnotations(configurationKind, listOf(file), TestJdkKind.FULL_JDK)
 
         myFiles = CodegenTestFiles.create(file.name, content, myEnvironment.project)
 
@@ -82,7 +79,7 @@ abstract class AbstractCustomScriptCodegenTest : CodegenTestCase() {
             val expectedFields = extractAllKeyValPairs(content, "expected:")
             checkExpectedFields(expectedFields, scriptClass, scriptInstance)
         } catch (e: Throwable) {
-            println(generateToText())
+            println(generateToText(myFiles))
             throw e
         }
     }

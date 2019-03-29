@@ -19,7 +19,7 @@ package org.jetbrains.kotlin.codegen
 import org.jetbrains.kotlin.test.ConfigurationKind
 import org.jetbrains.kotlin.test.testFramework.KtUsefulTestCase
 
-class CustomBytecodeTextTest : AbstractBytecodeTextTest() {
+class CustomBytecodeTextTest : MutableCodegenTestCase() {
     fun testEnumMapping() {
         createEnvironmentWithMockJdkAndIdeaAnnotations(ConfigurationKind.ALL)
         myFiles = CodegenTestFiles.create(

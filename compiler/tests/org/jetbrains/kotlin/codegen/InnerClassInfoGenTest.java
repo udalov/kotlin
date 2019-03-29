@@ -33,7 +33,7 @@ import java.util.List;
 
 import static org.jetbrains.org.objectweb.asm.Opcodes.*;
 
-public class InnerClassInfoGenTest extends CodegenTestCase {
+public class InnerClassInfoGenTest extends MutableCodegenTestCase {
     @Override
     protected void setUp() throws Exception {
         super.setUp();

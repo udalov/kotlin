@@ -20,7 +20,7 @@ import org.jetbrains.kotlin.test.ConfigurationKind;
 
 import java.lang.reflect.Method;
 
-public class PrimitiveTypesTest extends CodegenTestCase {
+public class PrimitiveTypesTest extends MutableCodegenTestCase {
 
     @Override
     protected void setUp() throws Exception {

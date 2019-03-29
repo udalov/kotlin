@@ -22,7 +22,7 @@ import org.jetbrains.org.objectweb.asm.ClassReader;
 import org.jetbrains.org.objectweb.asm.ClassVisitor;
 import org.jetbrains.org.objectweb.asm.Opcodes;
 
-public class SourceInfoGenTest extends CodegenTestCase {
+public class SourceInfoGenTest extends MutableCodegenTestCase {
 
     private static final String TEST_FOLDER = "sourceInfo/";
 

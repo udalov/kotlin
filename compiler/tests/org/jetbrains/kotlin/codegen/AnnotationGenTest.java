@@ -23,7 +23,7 @@ import org.jetbrains.kotlin.test.ConfigurationKind;
 import java.lang.annotation.*;
 import java.lang.reflect.*;
 
-public class AnnotationGenTest extends CodegenTestCase {
+public class AnnotationGenTest extends MutableCodegenTestCase {
     @Override
     protected void setUp() throws Exception {
         super.setUp();

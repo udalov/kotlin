@@ -9,8 +9,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.util.Ref;
-import com.intellij.openapi.util.io.FileUtil;
-import com.intellij.testFramework.TestDataFile;
 import kotlin.collections.ArraysKt;
 import kotlin.collections.CollectionsKt;
 import kotlin.io.FilesKt;
@@ -78,7 +76,6 @@ import static org.jetbrains.kotlin.test.clientserver.TestProcessServerKt.getBoxM
 import static org.jetbrains.kotlin.test.clientserver.TestProcessServerKt.getGeneratedClass;
 
 public abstract class CodegenTestCase extends KtUsefulTestCase {
-    private static final String DEFAULT_TEST_FILE_NAME = "a_test";
     private static final String DEFAULT_JVM_TARGET_FOR_TEST = "kotlin.test.default.jvm.target";
     private static final String JAVA_COMPILATION_TARGET = "kotlin.test.java.compilation.target";
     private static final String RUN_BOX_TEST_IN_SEPARATE_PROCESS_PORT = "kotlin.test.box.in.separate.process.port";
@@ -319,39 +316,14 @@ public abstract class CodegenTestCase extends KtUsefulTestCase {
         super.tearDown();
     }
 
-    protected void loadText(@NotNull String text) {
-        myFiles = CodegenTestFiles.create(DEFAULT_TEST_FILE_NAME + ".kt", text, myEnvironment.getProject());
+    @NotNull
+    protected CodegenTestFiles loadFiles(@NotNull String... names) {
+        return CodegenTestFiles.create(myEnvironment.getProject(), names);
     }
 
     @NotNull
-    protected String loadFile(@NotNull @TestDataFile String name) {
-        return loadFileByFullPath(KotlinTestUtils.getTestDataPathBase() + "/codegen/" + name);
-    }
-
-    @NotNull
-    protected String loadFileByFullPath(@NotNull String fullPath) {
-        try {
-            File file = new File(fullPath);
-            String content = FileUtil.loadFile(file, Charsets.UTF_8.name(), true);
-            assert myFiles == null : "Should not initialize myFiles twice";
-            myFiles = CodegenTestFiles.create(file.getName(), content, myEnvironment.getProject());
-            return content;
-        }
-        catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    protected void loadFiles(@NotNull String... names) {
-        myFiles = CodegenTestFiles.create(myEnvironment.getProject(), names);
-    }
-
-    protected void loadFile() {
-        loadFile(getPrefix() + "/" + getTestName(true) + ".kt");
-    }
-
-    protected void loadMultiFiles(@NotNull List<TestFile> files) {
-        myFiles = loadMultiFiles(files, myEnvironment.getProject());
+    protected CodegenTestFiles loadMultiFiles(@NotNull List<TestFile> files) {
+        return loadMultiFiles(files, myEnvironment.getProject());
     }
 
     @NotNull
@@ -458,12 +430,12 @@ public abstract class CodegenTestCase extends KtUsefulTestCase {
     }
 
     @NotNull
-    protected String generateToText() {
-        return generateToText(null);
+    protected String generateToText(@NotNull CodegenTestFiles myFiles) {
+        return generateToText(myFiles, null);
     }
 
     @NotNull
-    protected String generateToText(@Nullable String ignorePathPrefix) {
+    protected String generateToText(@NotNull CodegenTestFiles myFiles, @Nullable String ignorePathPrefix) {
         if (classFileFactory == null) {
             classFileFactory = generateFiles(myEnvironment, myFiles);
         }
@@ -507,6 +479,11 @@ public abstract class CodegenTestCase extends KtUsefulTestCase {
 
     @NotNull
     private ClassFileFactory generateClassesInFile(boolean reportProblems) {
+        return generateClassesInFile(myFiles, reportProblems);
+    }
+
+    @NotNull
+    protected ClassFileFactory generateClassesInFile(@NotNull CodegenTestFiles myFiles, boolean reportProblems) {
         if (classFileFactory != null) return classFileFactory;
 
         try {
@@ -605,7 +582,7 @@ public abstract class CodegenTestCase extends KtUsefulTestCase {
             return findTheOnlyMethod(aClass);
         }
         catch (Error e) {
-            System.out.println(generateToText());
+            System.out.println(generateToText(myFiles));
             throw e;
         }
     }
@@ -636,14 +613,16 @@ public abstract class CodegenTestCase extends KtUsefulTestCase {
         }
     }
 
-    protected void compile(
+    @NotNull
+    protected CompilationResult compile(
             @NotNull List<TestFile> files,
             @Nullable File javaSourceDir
     ) {
-        compile(files, javaSourceDir, true);
+        return compile(files, javaSourceDir, true);
     }
 
-    protected void compile(
+    @NotNull
+    protected CompilationResult compile(
             @NotNull List<TestFile> files,
             @Nullable File javaSourceDir,
             boolean reportProblems
@@ -673,9 +652,9 @@ public abstract class CodegenTestCase extends KtUsefulTestCase {
         );
         setupEnvironment(myEnvironment);
 
-        loadMultiFiles(files);
+        CodegenTestFiles myFiles = loadMultiFiles(files);
 
-        generateClassesInFile(reportProblems);
+        generateClassesInFile(myFiles, reportProblems);
 
         if (javaSourceDir != null) {
             // If there are Java files, they should be compiled against the class files produced by Kotlin, so we dump them to the disk
@@ -700,8 +679,19 @@ public abstract class CodegenTestCase extends KtUsefulTestCase {
                     findJavaSourcesInDirectory(javaSourceDir), javaClasspath, javacOptions
             );
         }
+
+        return new CompilationResult(myFiles, classFileFactory);
     }
 
+    protected static class CompilationResult {
+        public final CodegenTestFiles myFiles;
+        public final ClassFileFactory classFileFactory;
+
+        public CompilationResult(@NotNull CodegenTestFiles myFiles, @NotNull ClassFileFactory classFileFactory) {
+            this.myFiles = myFiles;
+            this.classFileFactory = classFileFactory;
+        }
+    }
 
     protected ConfigurationKind extractConfigurationKind(@NotNull List<TestFile> files) {
         boolean addRuntime = false;

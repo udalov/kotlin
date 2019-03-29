@@ -23,13 +23,13 @@ abstract class AbstractBytecodeTextTest : CodegenTestCase() {
             TestJdkKind.MOCK_JDK,
             *listOfNotNull(javaFilesDir).toTypedArray()
         )
-        loadMultiFiles(files)
+        val myFiles = loadMultiFiles(files)
 
         if (isMultiFileTest(files) && !InTextDirectivesUtils.isDirectiveDefined(wholeFile.readText(), "TREAT_AS_ONE_FILE")) {
             doTestMultiFile(files)
         } else {
             val expected = readExpectedOccurrences(wholeFile.path)
-            val actual = generateToText("helpers/")
+            val actual = generateToText(myFiles, "helpers/")
             checkGeneratedTextAgainstExpectedOccurrences(actual, expected)
         }
     }
@@ -49,20 +49,6 @@ abstract class AbstractBytecodeTextTest : CodegenTestCase() {
         }
     }
 
-    protected fun readExpectedOccurrences(filename: String): List<OccurrenceInfo> {
-        val result = ArrayList<OccurrenceInfo>()
-        val lines = File(filename).readLines().dropLastWhile(String::isEmpty)
-
-        for (line in lines) {
-            val matcher = EXPECTED_OCCURRENCES_PATTERN.matcher(line)
-            if (matcher.matches()) {
-                result.add(parseOccurrenceInfo(matcher))
-            }
-        }
-
-        return result
-    }
-
     class OccurrenceInfo constructor(private val numberOfOccurrences: Int, private val needle: String) {
         fun getActualOccurrence(text: String): String? {
             val actualCount = StringUtil.findMatches(text, Pattern.compile("($needle)")).size
@@ -77,6 +63,20 @@ abstract class AbstractBytecodeTextTest : CodegenTestCase() {
     companion object {
         private val AT_OUTPUT_FILE_PATTERN = Pattern.compile("^\\s*//\\s*@(.*):$")
         private val EXPECTED_OCCURRENCES_PATTERN = Pattern.compile("^\\s*//\\s*(\\d+)\\s*(.*)$")
+
+        fun readExpectedOccurrences(filename: String): List<OccurrenceInfo> {
+            val result = ArrayList<OccurrenceInfo>()
+            val lines = File(filename).readLines().dropLastWhile(String::isEmpty)
+
+            for (line in lines) {
+                val matcher = EXPECTED_OCCURRENCES_PATTERN.matcher(line)
+                if (matcher.matches()) {
+                    result.add(parseOccurrenceInfo(matcher))
+                }
+            }
+
+            return result
+        }
 
         private fun isMultiFileTest(files: List<TestFile>): Boolean {
             var kotlinFiles = 0

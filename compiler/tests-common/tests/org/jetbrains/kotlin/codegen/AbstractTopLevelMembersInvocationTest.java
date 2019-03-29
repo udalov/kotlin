@@ -58,10 +58,12 @@ public abstract class AbstractTopLevelMembersInvocationTest extends AbstractByte
                 ),
                 EnvironmentConfigFiles.JVM_CONFIG_FILES);
 
-        loadFiles(ArrayUtil.toStringArray(sourceFiles));
+        CodegenTestFiles myFiles = loadFiles(ArrayUtil.toStringArray(sourceFiles));
 
-        List<OccurrenceInfo> expected = readExpectedOccurrences(KotlinTestUtils.getTestDataPathBase() + "/codegen/" + sourceFiles.get(0));
-        String actual = generateToText();
+        List<OccurrenceInfo> expected = AbstractBytecodeTextTest.Companion.readExpectedOccurrences(
+                KotlinTestUtils.getTestDataPathBase() + "/codegen/" + sourceFiles.get(0)
+        );
+        String actual = generateToText(myFiles);
         Companion.checkGeneratedTextAgainstExpectedOccurrences(actual, expected);
     }
 }
