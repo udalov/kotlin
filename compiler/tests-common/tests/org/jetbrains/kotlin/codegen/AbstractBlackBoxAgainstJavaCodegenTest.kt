@@ -22,12 +22,13 @@ import org.jetbrains.kotlin.config.JVMConfigurationKeys
 import java.io.File
 
 abstract class AbstractBlackBoxAgainstJavaCodegenTest : AbstractBlackBoxCodegenTest() {
-    override fun doMultiFileTest(wholeFile: File, files: MutableList<TestFile>, javaFilesDir: File?) {
-        javaClassesOutputDirectory = javaFilesDir!!.let { directory ->
+    override fun doMultiFileTest(wholeFile: File, files: MutableList<TestFile>) {
+        val (javaFiles, kotlinFiles) = files.partition { it.name.endsWith(".java") }
+        javaClassesOutputDirectory = writeJavaFiles(javaFiles)!!.let { directory ->
             CodegenTestUtil.compileJava(CodegenTestUtil.findJavaSourcesInDirectory(directory), emptyList(), extractJavacOptions(files))
         }
 
-        super.doMultiFileTest(wholeFile, files, null)
+        super.doMultiFileTest(wholeFile, kotlinFiles)
     }
 
     override fun updateConfiguration(configuration: CompilerConfiguration) {
