@@ -17,12 +17,14 @@ import org.jetbrains.kotlin.backend.common.CodegenUtil;
 import org.jetbrains.kotlin.fileClasses.JvmFileClassUtil;
 import org.jetbrains.kotlin.psi.KtFile;
 import org.jetbrains.kotlin.test.InTextDirectivesUtils;
+import org.jetbrains.kotlin.test.KotlinTestUtils;
 import org.jetbrains.kotlin.test.TargetBackend;
 import org.jetbrains.kotlin.utils.DFS;
 import org.jetbrains.kotlin.utils.ExceptionUtilsKt;
 
 import java.io.File;
 import java.lang.reflect.Method;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -39,21 +41,18 @@ public abstract class AbstractBlackBoxCodegenTest extends CodegenTestCase {
         List<TestModule> distinctModules = CollectionsKt.distinct(CollectionsKt.map(files, file -> file.module));
         Map<String, TestModule> moduleByName = MapsKt.toMap(CollectionsKt.map(distinctModules, module -> new Pair<>(module.name, module)));
 
-        List<TestModule> orderedModules = DFS.topologicalOrder(
-                moduleByName.values(),
-                module -> CollectionsKt.map(module.dependencies, moduleByName::get)
-        );
-
-        if (orderedModules.size() == 1) {
-            compile(files, !isIgnored);
+        if (moduleByName.size() == 1) {
+            doSingleModuleTest(wholeFile, files, isIgnored);
         }
         else {
-            for (TestModule module : CollectionsKt.asReversed(orderedModules)) {
-                List<TestFile> moduleFiles = CollectionsKt.filter(files, file -> file.module.equals(module));
-                assert !moduleFiles.isEmpty() : "No files in module " + module.name;
-                compile(moduleFiles, !isIgnored);
-            }
+            doMultiModuleTest(files, isIgnored, moduleByName);
+            assert !InTextDirectivesUtils.isDirectiveDefined(FileUtil.loadFile(wholeFile), "CHECK_BYTECODE_LISTING") :
+                    "Bytecode listing is not yet supported in multi-module black box codegen tests";
         }
+    }
+
+    private void doSingleModuleTest(@NotNull File wholeFile, @NotNull List<TestFile> files, boolean isIgnored) throws Exception {
+        compile(files, !isIgnored);
 
         try {
             blackBox(!isIgnored);
@@ -72,6 +71,36 @@ public abstract class AbstractBlackBoxCodegenTest extends CodegenTestCase {
         }
 
         doBytecodeListingTest(wholeFile);
+    }
+
+    private void doMultiModuleTest(@NotNull List<TestFile> files, boolean isIgnored, @NotNull Map<String, TestModule> moduleByName) throws Exception {
+        List<TestModule> orderedModules = DFS.topologicalOrder(
+                moduleByName.values(),
+                module -> CollectionsKt.map(module.dependencies, moduleByName::get)
+        );
+
+        Map<TestModule, File> moduleOutput = new HashMap<>();
+
+        for (TestModule module : CollectionsKt.asReversed(orderedModules)) {
+            List<TestFile> moduleFiles = CollectionsKt.filter(files, file -> file.module.equals(module));
+            assert !moduleFiles.isEmpty() : "No files in module " + module.name;
+
+            File javaSourceDir = writeJavaFiles(files);
+            File outputDirectory = KotlinTestUtils.tmpDir(toString());
+            moduleOutput.put(module, outputDirectory);
+
+            List<File> dependencies = CollectionsKt.map(module.dependencies, m -> moduleOutput.get(moduleByName.get(m)));
+
+            compile(moduleFiles, dependencies, javaSourceDir, outputDirectory, !isIgnored);
+        }
+
+        try {
+            // We're assuming that the 'box' method will be found in the last module.
+            blackBox(!isIgnored);
+        }
+        catch (Throwable t) {
+            throw new TestsRuntimeError(t);
+        }
     }
 
     private void doBytecodeListingTest(@NotNull File wholeFile) throws Exception {

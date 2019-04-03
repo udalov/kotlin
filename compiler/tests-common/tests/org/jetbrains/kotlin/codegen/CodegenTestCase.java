@@ -33,7 +33,6 @@ import org.jetbrains.kotlin.codegen.state.GenerationState;
 import org.jetbrains.kotlin.config.*;
 import org.jetbrains.kotlin.fileClasses.JvmFileClassUtil;
 import org.jetbrains.kotlin.name.FqName;
-import org.jetbrains.kotlin.name.Name;
 import org.jetbrains.kotlin.name.NameUtils;
 import org.jetbrains.kotlin.psi.KtFile;
 import org.jetbrains.kotlin.scripting.definitions.ScriptDependenciesProvider;
@@ -646,19 +645,36 @@ public abstract class CodegenTestCase extends KtUsefulTestCase {
     }
 
     protected void compile(@NotNull List<TestFile> files, boolean reportProblems) {
-        compile(files, reportProblems, Collections.emptyList());
-    }
-
-    protected void compile(@NotNull List<TestFile> files, boolean reportProblems, @NotNull List<File> extraClasspath) {
         File javaSourceDir = writeJavaFiles(files);
 
+        File outputDirectory = null;
+        if (javaSourceDir != null) {
+            // If there are Java files, they should be compiled against the class files produced by Kotlin, so we dump them to the disk
+            try {
+                outputDirectory = KotlinTestUtils.tmpDir(toString());
+            }
+            catch (IOException e) {
+                throw ExceptionUtilsKt.rethrow(e);
+            }
+        }
+
+        compile(files, Collections.emptyList(), javaSourceDir, outputDirectory, reportProblems);
+    }
+
+    protected void compile(
+            @NotNull List<TestFile> files,
+            @NotNull List<File> extraClasspath,
+            @Nullable File javaSourceDir,
+            @Nullable File outputDirectory,
+            boolean reportProblems
+    ) {
         configurationKind = extractConfigurationKind(files);
         boolean loadAndroidAnnotations = files.stream().anyMatch(
                 it -> InTextDirectivesUtils.isDirectiveDefined(it.content, "ANDROID_ANNOTATIONS")
         );
 
         List<String> javacOptions = extractJavacOptions(files);
-        List<File> classpath = new ArrayList<>();
+        List<File> classpath = new ArrayList<>(extraClasspath);
         classpath.add(getAnnotationsJar());
 
         if (loadAndroidAnnotations) {
@@ -681,20 +697,14 @@ public abstract class CodegenTestCase extends KtUsefulTestCase {
 
         generateClassesInFile(reportProblems);
 
+        if (outputDirectory != null) {
+            OutputUtilsKt.writeAllTo(classFileFactory, outputDirectory);
+        }
+
         if (javaSourceDir != null && javaClassesOutputDirectory == null) {
-            // If there are Java files, they should be compiled against the class files produced by Kotlin, so we dump them to the disk
-            File kotlinOut;
-            try {
-                kotlinOut = KotlinTestUtils.tmpDir(toString());
-            }
-            catch (IOException e) {
-                throw ExceptionUtilsKt.rethrow(e);
-            }
-
-            OutputUtilsKt.writeAllTo(classFileFactory, kotlinOut);
-
+            assert outputDirectory != null : "Output directory should exist if javaSourceDir != null";
             List<String> javaClasspath = new ArrayList<>();
-            javaClasspath.add(kotlinOut.getPath());
+            javaClasspath.add(outputDirectory.getPath());
 
             if (loadAndroidAnnotations) {
                 javaClasspath.add(ForTestCompileRuntime.androidAnnotationsForTests().getPath());
