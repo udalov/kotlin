@@ -1,5 +1,7 @@
 // TARGET_BACKEND: JVM
 // IGNORE_BACKEND: JVM_IR
+// WITH_REFLECT
+// MODULE: m1
 // FILE: A.kt
 
 package lib
@@ -22,6 +24,7 @@ class A {
 
 annotation class Anno(@get:JvmName("uglyJvmName") val value: String)
 
+// MODULE: m2(m1)
 // FILE: B.kt
 
 import lib.*

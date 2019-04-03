@@ -173,11 +173,6 @@ public class CompileKotlinAgainstKotlinTestGenerated extends AbstractCompileKotl
         runTest("compiler/testData/compileKotlinAgainstKotlin/jvmFieldInInterfaceCompanion.kt");
     }
 
-    @TestMetadata("jvmNames.kt")
-    public void testJvmNames() throws Exception {
-        runTest("compiler/testData/compileKotlinAgainstKotlin/jvmNames.kt");
-    }
-
     @TestMetadata("jvmPackageName.kt")
     public void testJvmPackageName() throws Exception {
         runTest("compiler/testData/compileKotlinAgainstKotlin/jvmPackageName.kt");
