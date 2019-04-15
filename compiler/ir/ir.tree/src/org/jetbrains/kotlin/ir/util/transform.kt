@@ -38,14 +38,15 @@ inline fun <T> MutableList<T>.transformFlat(transformation: (T) -> List<T>?) {
 
         val transformed = transformation(item)
 
-        if (transformed == null) {
-            i++
-            continue
+        when {
+            transformed == null -> i++
+            transformed.isEmpty() -> removeAt(i)
+            else -> {
+                set(i, transformed.first())
+                addAll(i + 1, transformed.subList(1, transformed.size))
+                i += transformed.size
+            }
         }
-
-        addAll(i, transformed)
-        i += transformed.size
-        removeAt(i)
     }
 }
 
