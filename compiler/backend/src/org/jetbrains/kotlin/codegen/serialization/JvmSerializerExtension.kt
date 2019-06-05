@@ -15,7 +15,9 @@ import org.jetbrains.kotlin.codegen.state.KotlinTypeMapperBase
 import org.jetbrains.kotlin.config.ApiVersion
 import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.descriptors.*
+import org.jetbrains.kotlin.descriptors.annotations.Annotated
 import org.jetbrains.kotlin.load.java.JvmAbi
+import org.jetbrains.kotlin.load.java.components.ThrowsAnnotationDescriptor
 import org.jetbrains.kotlin.load.java.lazy.types.RawTypeImpl
 import org.jetbrains.kotlin.load.kotlin.NON_EXISTENT_CLASS_NAME
 import org.jetbrains.kotlin.metadata.ProtoBuf
@@ -362,4 +364,7 @@ class JvmSerializerExtension @JvmOverloads constructor(
     override fun releaseCoroutines(): Boolean {
         return languageVersionSettings.supportsFeature(LanguageFeature.ReleaseCoroutines)
     }
+
+    override fun hasAnnotations(descriptor: Annotated): Boolean =
+        super.hasAnnotations(descriptor) || descriptor.annotations.hasAnnotation(ThrowsAnnotationDescriptor.FQ_NAME)
 }

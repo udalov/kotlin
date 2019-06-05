@@ -57,6 +57,8 @@ abstract class AbstractBinaryClassAnnotationAndConstantLoader<A : Any, C : Any>(
 
     protected abstract fun loadTypeAnnotation(proto: ProtoBuf.Annotation, nameResolver: NameResolver): A
 
+    protected abstract fun createThrowsAnnotation(classIds: List<ClassId>): A
+
     private fun loadAnnotationIfNotSpecial(
         annotationClassId: ClassId,
         source: SourceElement,
@@ -302,9 +304,11 @@ abstract class AbstractBinaryClassAnnotationAndConstantLoader<A : Any, C : Any>(
         val propertyConstants = HashMap<MemberSignature, C>()
 
         kotlinClass.visitMembers(object : KotlinJvmBinaryClass.MemberVisitor {
-            override fun visitMethod(name: String, desc: String): KotlinJvmBinaryClass.MethodAnnotationVisitor? {
-                return AnnotationVisitorForMethod(MemberSignature.fromMethodNameAndDesc(name, desc))
-            }
+            override fun visitMethod(
+                name: String, desc: String, thrownExceptions: List<ClassId>
+            ): KotlinJvmBinaryClass.MethodAnnotationVisitor = AnnotationVisitorForMethod(
+                MemberSignature.fromMethodNameAndDesc(name, desc), thrownExceptions
+            )
 
             override fun visitField(name: String, desc: String, initializer: Any?): KotlinJvmBinaryClass.AnnotationVisitor? {
                 val signature = MemberSignature.fromFieldNameAndDesc(name, desc)
@@ -318,9 +322,9 @@ abstract class AbstractBinaryClassAnnotationAndConstantLoader<A : Any, C : Any>(
                 return MemberAnnotationVisitor(signature)
             }
 
-            inner class AnnotationVisitorForMethod(signature: MemberSignature) : MemberAnnotationVisitor(signature),
-                KotlinJvmBinaryClass.MethodAnnotationVisitor {
-
+            inner class AnnotationVisitorForMethod(
+                signature: MemberSignature, val thrownExceptions: List<ClassId>
+            ) : MemberAnnotationVisitor(signature), KotlinJvmBinaryClass.MethodAnnotationVisitor {
                 override fun visitParameterAnnotation(
                     index: Int, classId: ClassId, source: SourceElement
                 ): KotlinJvmBinaryClass.AnnotationArgumentVisitor? {
@@ -331,6 +335,14 @@ abstract class AbstractBinaryClassAnnotationAndConstantLoader<A : Any, C : Any>(
                         memberAnnotations[paramSignature] = result
                     }
                     return loadAnnotationIfNotSpecial(classId, source, result)
+                }
+
+                override fun visitEnd() {
+                    super.visitEnd()
+
+                    if (thrownExceptions.isNotEmpty()) {
+                        memberAnnotations.getOrPut(signature) { ArrayList(1) }.add(createThrowsAnnotation(thrownExceptions))
+                    }
                 }
             }
 

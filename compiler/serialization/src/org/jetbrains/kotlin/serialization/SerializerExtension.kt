@@ -6,10 +6,12 @@
 package org.jetbrains.kotlin.serialization
 
 import org.jetbrains.kotlin.descriptors.*
+import org.jetbrains.kotlin.descriptors.annotations.Annotated
 import org.jetbrains.kotlin.metadata.ProtoBuf
 import org.jetbrains.kotlin.metadata.deserialization.BinaryVersion
 import org.jetbrains.kotlin.metadata.serialization.MutableVersionRequirementTable
 import org.jetbrains.kotlin.name.FqName
+import org.jetbrains.kotlin.resolve.descriptorUtil.nonSourceAnnotations
 import org.jetbrains.kotlin.types.FlexibleType
 import org.jetbrains.kotlin.types.KotlinType
 
@@ -92,4 +94,7 @@ abstract class SerializerExtension {
     }
 
     open fun releaseCoroutines(): Boolean = false
+
+    open fun hasAnnotations(descriptor: Annotated): Boolean =
+        descriptor.nonSourceAnnotations.isNotEmpty()
 }

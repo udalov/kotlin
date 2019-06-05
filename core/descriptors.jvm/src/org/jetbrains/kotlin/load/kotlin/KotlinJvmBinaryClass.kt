@@ -37,7 +37,7 @@ interface KotlinJvmBinaryClass {
     val classHeader: KotlinClassHeader
 
     interface MemberVisitor {
-        fun visitMethod(name: String, desc: String): MethodAnnotationVisitor?
+        fun visitMethod(name: String, desc: String, thrownExceptions: List<ClassId>): MethodAnnotationVisitor?
 
         fun visitField(name: String, desc: String, initializer: Any?): AnnotationVisitor?
     }

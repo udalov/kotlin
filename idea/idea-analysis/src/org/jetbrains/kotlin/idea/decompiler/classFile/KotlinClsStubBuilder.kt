@@ -14,6 +14,7 @@ import com.intellij.util.indexing.FileContent
 import org.jetbrains.kotlin.descriptors.SourceElement
 import org.jetbrains.kotlin.idea.caches.IDEKotlinBinaryClassCache
 import org.jetbrains.kotlin.idea.decompiler.stubBuilder.*
+import org.jetbrains.kotlin.load.java.components.ThrowsAnnotationDescriptor
 import org.jetbrains.kotlin.load.kotlin.*
 import org.jetbrains.kotlin.load.kotlin.header.KotlinClassHeader
 import org.jetbrains.kotlin.metadata.ProtoBuf
@@ -133,9 +134,11 @@ class AnnotationLoaderForClassFileStubBuilder(
 
     override fun loadTypeAnnotation(proto: ProtoBuf.Annotation, nameResolver: NameResolver): ClassId = nameResolver.getClassId(proto.id)
 
-    override fun loadConstant(desc: String, initializer: Any) = null
+    override fun loadConstant(desc: String, initializer: Any): Unit? = null
 
-    override fun transformToUnsignedConstant(constant: Unit) = null
+    override fun transformToUnsignedConstant(constant: Unit): Unit? = null
+
+    override fun createThrowsAnnotation(classIds: List<ClassId>): ClassId = ClassId.topLevel(ThrowsAnnotationDescriptor.FQ_NAME)
 
     override fun loadAnnotation(
         annotationClassId: ClassId, source: SourceElement, result: MutableList<ClassId>

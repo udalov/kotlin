@@ -20,6 +20,7 @@ import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.descriptors.annotations.AnnotationDescriptor
 import org.jetbrains.kotlin.descriptors.annotations.AnnotationDescriptorImpl
 import org.jetbrains.kotlin.load.java.components.DescriptorResolverUtils
+import org.jetbrains.kotlin.load.java.components.ThrowsAnnotationDescriptor
 import org.jetbrains.kotlin.load.kotlin.KotlinJvmBinaryClass.AnnotationArrayArgumentVisitor
 import org.jetbrains.kotlin.metadata.ProtoBuf
 import org.jetbrains.kotlin.metadata.deserialization.NameResolver
@@ -70,6 +71,9 @@ class BinaryClassAnnotationAndConstantLoaderImpl(
             else -> constant
         }
     }
+
+    override fun createThrowsAnnotation(classIds: List<ClassId>): AnnotationDescriptor =
+        ThrowsAnnotationDescriptor(module, classIds)
 
     override fun loadAnnotation(
         annotationClassId: ClassId,

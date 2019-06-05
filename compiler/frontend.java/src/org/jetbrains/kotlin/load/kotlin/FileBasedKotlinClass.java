@@ -17,6 +17,7 @@
 package org.jetbrains.kotlin.load.kotlin;
 
 import com.intellij.openapi.util.Ref;
+import kotlin.collections.ArraysKt;
 import kotlin.jvm.functions.Function4;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -249,9 +250,13 @@ public abstract class FileBasedKotlinClass implements KotlinJvmBinaryClass {
 
             @Override
             public MethodVisitor visitMethod(
-                    int access, @NotNull String name, @NotNull String desc, String signature, String[] exceptions
+                    int access, @NotNull String name, @NotNull String desc, String signature, @Nullable String[] exceptions
             ) {
-                MethodAnnotationVisitor v = memberVisitor.visitMethod(name, desc);
+                MethodAnnotationVisitor v = memberVisitor.visitMethod(
+                        name, desc, exceptions == null
+                                    ? Collections.emptyList()
+                                    : ArraysKt.map(exceptions, (internalName) -> resolveNameByInternalName(internalName, innerClasses))
+                );
                 if (v == null) return null;
 
                 int methodParamCount = Type.getArgumentTypes(desc).length;

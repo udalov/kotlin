@@ -1629,11 +1629,11 @@ public class LoadJavaUsingJavacTestGenerated extends AbstractLoadJavaUsingJavacT
         @RunWith(JUnit3RunnerWithInners.class)
         public static class Throws extends AbstractLoadJavaUsingJavacTest {
             private void runTest(String testDataFilePath) throws Exception {
-                KotlinTestUtils.runTest(this::doTestCompiledJava, TargetBackend.ANY, testDataFilePath);
+                KotlinTestUtils.runTest(this::doTestCompiledJava, this, testDataFilePath);
             }
 
             public void testAllFilesPresentInThrows() throws Exception {
-                KotlinTestUtils.assertAllTestsPresentByMetadata(this.getClass(), new File("compiler/testData/loadJava/compiledJava/throws"), Pattern.compile("^(.+)\\.java$"), TargetBackend.ANY, true);
+                KotlinTestUtils.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/loadJava/compiledJava/throws"), Pattern.compile("^(.+)\\.java$"), null, true);
             }
 
             @TestMetadata("Throws.java")
@@ -4643,6 +4643,11 @@ public class LoadJavaUsingJavacTestGenerated extends AbstractLoadJavaUsingJavacT
             @TestMetadata("JvmFieldInInterfaceCompanion.kt")
             public void testJvmFieldInInterfaceCompanion() throws Exception {
                 runTest("compiler/testData/loadJava/compiledKotlinWithStdlib/annotations/JvmFieldInInterfaceCompanion.kt");
+            }
+
+            @TestMetadata("Throws.kt")
+            public void testThrows() throws Exception {
+                runTest("compiler/testData/loadJava/compiledKotlinWithStdlib/annotations/Throws.kt");
             }
 
             @TestMetadata("WithUnsignedTypeParameters.kt")

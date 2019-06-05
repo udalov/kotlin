@@ -1,0 +1,9 @@
+package test
+
+public final class C {
+    @kotlin.jvm.Throws(exceptionClasses = {java.io.IOException::class}) public constructor C()
+    public final var property: kotlin.Int
+        @kotlin.jvm.Throws(exceptionClasses = {java.lang.Exception::class}) public final fun <get-property>(): kotlin.Int
+        @kotlin.jvm.Throws(exceptionClasses = {java.lang.Exception::class}) public final fun <set-property>(/*0*/ <set-?>: kotlin.Int): kotlin.Unit
+    @kotlin.jvm.Throws(exceptionClasses = {java.lang.Exception::class}) public final fun method(): kotlin.Unit
+}

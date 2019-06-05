@@ -740,6 +740,9 @@ class DescriptorSerializer private constructor(
         accessor.isInline
     )
 
+    private fun hasAnnotations(descriptor: Annotated?): Boolean =
+        descriptor != null && extension.hasAnnotations(descriptor)
+
     companion object {
         @JvmStatic
         fun createTopLevel(extension: SerializerExtension): DescriptorSerializer =
@@ -794,9 +797,6 @@ class DescriptorSerializer private constructor(
             Variance.IN_VARIANCE -> ProtoBuf.Type.Argument.Projection.IN
             Variance.OUT_VARIANCE -> ProtoBuf.Type.Argument.Projection.OUT
         }
-
-        private fun hasAnnotations(descriptor: Annotated?): Boolean =
-            descriptor != null && descriptor.nonSourceAnnotations.isNotEmpty()
 
         fun <T : DeclarationDescriptor> sort(descriptors: Collection<T>): List<T> =
             ArrayList(descriptors).apply {

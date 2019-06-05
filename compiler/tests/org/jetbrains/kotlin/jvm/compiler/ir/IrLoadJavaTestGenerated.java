@@ -1634,7 +1634,7 @@ public class IrLoadJavaTestGenerated extends AbstractIrLoadJavaTest {
             }
 
             public void testAllFilesPresentInThrows() throws Exception {
-                KotlinTestUtils.assertAllTestsPresentByMetadata(this.getClass(), new File("compiler/testData/loadJava/compiledJava/throws"), Pattern.compile("^(.+)\\.java$"), TargetBackend.JVM_IR, true);
+                KotlinTestUtils.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/loadJava/compiledJava/throws"), Pattern.compile("^(.+)\\.java$"), null, TargetBackend.JVM_IR, true);
             }
 
             @TestMetadata("Throws.java")
@@ -4644,6 +4644,11 @@ public class IrLoadJavaTestGenerated extends AbstractIrLoadJavaTest {
             @TestMetadata("JvmFieldInInterfaceCompanion.kt")
             public void testJvmFieldInInterfaceCompanion() throws Exception {
                 runTest("compiler/testData/loadJava/compiledKotlinWithStdlib/annotations/JvmFieldInInterfaceCompanion.kt");
+            }
+
+            @TestMetadata("Throws.kt")
+            public void testThrows() throws Exception {
+                runTest("compiler/testData/loadJava/compiledKotlinWithStdlib/annotations/Throws.kt");
             }
 
             @TestMetadata("WithUnsignedTypeParameters.kt")
