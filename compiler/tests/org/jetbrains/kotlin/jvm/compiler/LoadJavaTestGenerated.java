@@ -1624,6 +1624,24 @@ public class LoadJavaTestGenerated extends AbstractLoadJavaTest {
             }
         }
 
+        @TestMetadata("compiler/testData/loadJava/compiledJava/throws")
+        @TestDataPath("$PROJECT_ROOT")
+        @RunWith(JUnit3RunnerWithInners.class)
+        public static class Throws extends AbstractLoadJavaTest {
+            private void runTest(String testDataFilePath) throws Exception {
+                KotlinTestUtils.runTest(this::doTestCompiledJava, TargetBackend.ANY, testDataFilePath);
+            }
+
+            public void testAllFilesPresentInThrows() throws Exception {
+                KotlinTestUtils.assertAllTestsPresentByMetadata(this.getClass(), new File("compiler/testData/loadJava/compiledJava/throws"), Pattern.compile("^(.+)\\.java$"), TargetBackend.ANY, true);
+            }
+
+            @TestMetadata("Throws.java")
+            public void testThrows() throws Exception {
+                runTest("compiler/testData/loadJava/compiledJava/throws/Throws.java");
+            }
+        }
+
         @TestMetadata("compiler/testData/loadJava/compiledJava/vararg")
         @TestDataPath("$PROJECT_ROOT")
         @RunWith(JUnit3RunnerWithInners.class)

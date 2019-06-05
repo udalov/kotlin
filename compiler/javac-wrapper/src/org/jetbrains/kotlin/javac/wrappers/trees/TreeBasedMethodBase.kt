@@ -12,6 +12,7 @@ import org.jetbrains.kotlin.load.java.structure.JavaClass
 import org.jetbrains.kotlin.load.java.structure.JavaMethodBase
 import org.jetbrains.kotlin.load.java.structure.JavaTypeParameter
 import org.jetbrains.kotlin.load.java.structure.JavaValueParameter
+import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.Name
 
 abstract class TreeBasedMethodBase(
@@ -28,4 +29,7 @@ abstract class TreeBasedMethodBase(
 
     override val valueParameters: List<JavaValueParameter>
         get() = tree.parameters.map { TreeBasedValueParameter(it, compilationUnit, javac, this) }
+
+    override val thrownExceptions: List<ClassId>
+        get() = emptyList() // TODO
 }

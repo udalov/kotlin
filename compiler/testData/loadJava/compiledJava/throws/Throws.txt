@@ -1,0 +1,27 @@
+package test
+
+public open class Throws {
+    @kotlin.jvm.Throws(exceptionClasses = {java.lang.Error::class, java.lang.AssertionError::class}) public constructor Throws()
+    @kotlin.jvm.Throws(exceptionClasses = {java.lang.RuntimeException::class}) public/*package*/ open fun </*0*/ E : java.lang.RuntimeException!> throwsGenericRuntimeException(): kotlin.Unit where E : kotlin.Cloneable!
+    @kotlin.jvm.Throws(exceptionClasses = {java.lang.Throwable::class}) public/*package*/ open fun </*0*/ F : kotlin.Throwable!, /*1*/ G : F!> throwsGenericThrowable(): kotlin.Unit
+    @kotlin.jvm.Throws(exceptionClasses = {test.Throws.Nested::class}) public/*package*/ open fun throwsNested(): kotlin.Unit
+
+    public/*package*/ open class Nested : java.lang.Exception {
+        public/*package*/ constructor Nested()
+        public open override /*1*/ /*fake_override*/ val cause: kotlin.Throwable?
+        public open override /*1*/ /*fake_override*/ val message: kotlin.String?
+        public final override /*1*/ /*fake_override*/ fun addSuppressed(/*0*/ exception: kotlin.Throwable!): kotlin.Unit
+        public open override /*1*/ /*fake_override*/ fun fillInStackTrace(): kotlin.Throwable!
+        public open override /*1*/ /*fake_override*/ fun getLocalizedMessage(): kotlin.String!
+        public open override /*1*/ /*fake_override*/ fun getStackTrace(): kotlin.Array<(out) java.lang.StackTraceElement!>!
+        public final override /*1*/ /*fake_override*/ fun getSuppressed(): kotlin.Array<(out) kotlin.Throwable!>!
+        public open override /*1*/ /*fake_override*/ fun initCause(/*0*/ cause: kotlin.Throwable!): kotlin.Throwable!
+        public open override /*1*/ /*fake_override*/ fun printStackTrace(): kotlin.Unit
+        public open override /*1*/ /*fake_override*/ fun printStackTrace(/*0*/ s: java.io.PrintStream!): kotlin.Unit
+        public open override /*1*/ /*fake_override*/ fun printStackTrace(/*0*/ s: java.io.PrintWriter!): kotlin.Unit
+        public open override /*1*/ /*fake_override*/ fun setStackTrace(/*0*/ stackTrace: kotlin.Array<(out) java.lang.StackTraceElement!>!): kotlin.Unit
+
+        // Static members
+        invisible_fake const final override /*1*/ /*fake_override*/ val serialVersionUID: kotlin.Long = -3387516993124229948.toLong()
+    }
+}

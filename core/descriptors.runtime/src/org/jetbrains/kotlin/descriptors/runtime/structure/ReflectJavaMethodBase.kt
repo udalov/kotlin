@@ -6,6 +6,14 @@
 package org.jetbrains.kotlin.descriptors.runtime.structure
 
 import org.jetbrains.kotlin.load.java.structure.JavaMethodBase
+import org.jetbrains.kotlin.name.ClassId
 import java.lang.reflect.Member
 
-abstract class ReflectJavaMethodBase<M : Member>(override val member: M) : ReflectJavaMember(), JavaMethodBase
+abstract class ReflectJavaMethodBase<M : Member>(override val member: M) : ReflectJavaMember(), JavaMethodBase {
+    override val thrownExceptions: List<ClassId>
+        get() {
+            // @Throws annotations that are constructed from this data are useless in reflection (Throws has SOURCE retention),
+            // so we don't bother extracting the list of thrown exception types here
+            return emptyList()
+        }
+}

@@ -105,6 +105,7 @@ interface JavaMember : JavaModifierListOwner, JavaAnnotationOwner, JavaNamedElem
 
 interface JavaMethodBase : JavaMember, JavaTypeParameterListOwner {
     val valueParameters: List<JavaValueParameter>
+    val thrownExceptions: List<ClassId>
 }
 
 interface JavaMethod : JavaMethodBase {

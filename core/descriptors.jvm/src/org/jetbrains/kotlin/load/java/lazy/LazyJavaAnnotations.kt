@@ -17,10 +17,13 @@
 package org.jetbrains.kotlin.load.java.lazy
 
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns
+import org.jetbrains.kotlin.descriptors.annotations.AnnotationDescriptor
 import org.jetbrains.kotlin.descriptors.annotations.Annotations
 import org.jetbrains.kotlin.load.java.components.JavaAnnotationMapper
+import org.jetbrains.kotlin.load.java.components.ThrowsAnnotationDescriptor
 import org.jetbrains.kotlin.load.java.structure.JavaAnnotation
 import org.jetbrains.kotlin.load.java.structure.JavaAnnotationOwner
+import org.jetbrains.kotlin.load.java.structure.JavaMethodBase
 import org.jetbrains.kotlin.name.FqName
 
 class LazyJavaAnnotations(
@@ -31,19 +34,21 @@ class LazyJavaAnnotations(
         JavaAnnotationMapper.mapOrResolveJavaAnnotation(annotation, c)
     }
 
-    override fun findAnnotation(fqName: FqName) =
+    override fun findAnnotation(fqName: FqName): AnnotationDescriptor? =
         annotationOwner.findAnnotation(fqName)?.let(annotationDescriptors)
             ?: JavaAnnotationMapper.findMappedJavaAnnotation(fqName, annotationOwner, c)
 
-    override fun iterator() =
+    override fun iterator(): Iterator<AnnotationDescriptor> =
         (annotationOwner.annotations.asSequence().map(annotationDescriptors) +
-                JavaAnnotationMapper.findMappedJavaAnnotation(
-                    KotlinBuiltIns.FQ_NAMES.deprecated,
-                    annotationOwner,
-                    c
-                )).filterNotNull().iterator()
+                JavaAnnotationMapper.findMappedJavaAnnotation(KotlinBuiltIns.FQ_NAMES.deprecated, annotationOwner, c) +
+                (if (annotationOwner is JavaMethodBase)
+                    sequenceOf(JavaAnnotationMapper.findMappedJavaAnnotation(ThrowsAnnotationDescriptor.FQ_NAME, annotationOwner, c))
+                else emptySequence())
+                ).filterNotNull().iterator()
 
-    override fun isEmpty() = annotationOwner.annotations.isEmpty() && !annotationOwner.isDeprecatedInJavaDoc
+    override fun isEmpty(): Boolean =
+        annotationOwner.annotations.isEmpty() && !annotationOwner.isDeprecatedInJavaDoc &&
+                (annotationOwner !is JavaMethodBase || annotationOwner.thrownExceptions.isEmpty())
 }
 
 fun LazyJavaResolverContext.resolveAnnotations(annotationsOwner: JavaAnnotationOwner): Annotations =

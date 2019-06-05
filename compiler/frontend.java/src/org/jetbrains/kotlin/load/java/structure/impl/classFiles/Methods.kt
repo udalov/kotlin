@@ -19,6 +19,7 @@ package org.jetbrains.kotlin.load.java.structure.impl.classFiles
 import com.intellij.util.cls.ClsFormatException
 import com.intellij.util.containers.ContainerUtil
 import org.jetbrains.kotlin.load.java.structure.*
+import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.name.SpecialNames
 import org.jetbrains.kotlin.utils.compact
@@ -33,6 +34,7 @@ abstract class BinaryJavaMethodBase(
     override val containingClass: JavaClass,
     override val valueParameters: List<BinaryJavaValueParameter>,
     override val typeParameters: List<JavaTypeParameter>,
+    override val thrownExceptions: List<ClassId>,
     override val name: Name
 ) : JavaMethodBase, MapBasedJavaAnnotationOwner, BinaryJavaModifierListOwner {
     override val annotationsByFqName by buildLazyValueForMap()
@@ -51,6 +53,7 @@ abstract class BinaryJavaMethodBase(
             access: Int,
             desc: String,
             signature: String?,
+            thrownInternalNames: List<String>,
             containingClass: JavaClass,
             parentContext: ClassifierResolutionContext,
             signatureParser: BinaryClassSignatureParser
@@ -89,13 +92,15 @@ abstract class BinaryJavaMethodBase(
                 parameterList.add(BinaryJavaValueParameter(type, isEllipsisParam))
             }
 
-            val member: BinaryJavaMethodBase =
-                if (isConstructor)
-                    BinaryJavaConstructor(access, containingClass, parameterList, info.typeParameters)
-                else
-                    BinaryJavaMethod(
-                        access, containingClass, parameterList.compact(), info.typeParameters, Name.identifier(name), info.returnType
-                    )
+            val thrownExceptions = thrownInternalNames.map(parentContext::mapInternalNameToClassId)
+
+            val member: BinaryJavaMethodBase = if (isConstructor)
+                BinaryJavaConstructor(access, containingClass, parameterList, info.typeParameters, thrownExceptions)
+            else
+                BinaryJavaMethod(
+                    access, containingClass, parameterList.compact(), info.typeParameters, thrownExceptions,
+                    Name.identifier(name), info.returnType
+                )
 
             val paramIgnoreCount = when {
                 isEnumConstructor -> 2
@@ -155,10 +160,11 @@ class BinaryJavaMethod(
     containingClass: JavaClass,
     valueParameters: List<BinaryJavaValueParameter>,
     typeParameters: List<JavaTypeParameter>,
+    thrownExceptions: List<ClassId>,
     name: Name,
     override val returnType: JavaType
 ) : BinaryJavaMethodBase(
-    flags, containingClass, valueParameters, typeParameters, name
+    flags, containingClass, valueParameters, typeParameters, thrownExceptions, name
 ), JavaMethod {
     override var annotationParameterDefaultValue: JavaAnnotationArgument? = null
         internal set(value) {
@@ -175,8 +181,8 @@ class BinaryJavaConstructor(
     flags: Int,
     containingClass: JavaClass,
     valueParameters: List<BinaryJavaValueParameter>,
-    typeParameters: List<JavaTypeParameter>
+    typeParameters: List<JavaTypeParameter>,
+    thrownExceptions: List<ClassId>
 ) : BinaryJavaMethodBase(
-    flags, containingClass, valueParameters, typeParameters,
-    SpecialNames.NO_NAME_PROVIDED
+    flags, containingClass, valueParameters, typeParameters, thrownExceptions, SpecialNames.NO_NAME_PROVIDED
 ), JavaConstructor

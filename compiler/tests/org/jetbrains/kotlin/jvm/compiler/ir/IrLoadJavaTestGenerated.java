@@ -1625,6 +1625,24 @@ public class IrLoadJavaTestGenerated extends AbstractIrLoadJavaTest {
             }
         }
 
+        @TestMetadata("compiler/testData/loadJava/compiledJava/throws")
+        @TestDataPath("$PROJECT_ROOT")
+        @RunWith(JUnit3RunnerWithInners.class)
+        public static class Throws extends AbstractIrLoadJavaTest {
+            private void runTest(String testDataFilePath) throws Exception {
+                KotlinTestUtils.runTest(this::doTestCompiledJava, TargetBackend.JVM_IR, testDataFilePath);
+            }
+
+            public void testAllFilesPresentInThrows() throws Exception {
+                KotlinTestUtils.assertAllTestsPresentByMetadata(this.getClass(), new File("compiler/testData/loadJava/compiledJava/throws"), Pattern.compile("^(.+)\\.java$"), TargetBackend.JVM_IR, true);
+            }
+
+            @TestMetadata("Throws.java")
+            public void testThrows() throws Exception {
+                runTest("compiler/testData/loadJava/compiledJava/throws/Throws.java");
+            }
+        }
+
         @TestMetadata("compiler/testData/loadJava/compiledJava/vararg")
         @TestDataPath("$PROJECT_ROOT")
         @RunWith(JUnit3RunnerWithInners.class)

@@ -1622,6 +1622,24 @@ public class LoadJavaWithPsiClassReadingTestGenerated extends AbstractLoadJavaWi
         }
     }
 
+    @TestMetadata("compiler/testData/loadJava/compiledJava/throws")
+    @TestDataPath("$PROJECT_ROOT")
+    @RunWith(JUnit3RunnerWithInners.class)
+    public static class Throws extends AbstractLoadJavaWithPsiClassReadingTest {
+        private void runTest(String testDataFilePath) throws Exception {
+            KotlinTestUtils.runTest(this::doTestCompiledJava, this, testDataFilePath);
+        }
+
+        public void testAllFilesPresentInThrows() throws Exception {
+            KotlinTestUtils.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/loadJava/compiledJava/throws"), Pattern.compile("^(.+)\\.java$"), null, true);
+        }
+
+        @TestMetadata("Throws.java")
+        public void testThrows() throws Exception {
+            runTest("compiler/testData/loadJava/compiledJava/throws/Throws.java");
+        }
+    }
+
     @TestMetadata("compiler/testData/loadJava/compiledJava/vararg")
     @TestDataPath("$PROJECT_ROOT")
     @RunWith(JUnit3RunnerWithInners.class)

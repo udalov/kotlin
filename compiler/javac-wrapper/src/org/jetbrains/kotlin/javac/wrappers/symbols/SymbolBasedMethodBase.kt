@@ -10,6 +10,7 @@ import org.jetbrains.kotlin.load.java.structure.JavaClass
 import org.jetbrains.kotlin.load.java.structure.JavaMethodBase
 import org.jetbrains.kotlin.load.java.structure.JavaTypeParameter
 import org.jetbrains.kotlin.load.java.structure.JavaValueParameter
+import org.jetbrains.kotlin.name.ClassId
 import javax.lang.model.element.ExecutableElement
 
 abstract class SymbolBasedMethodBase(
@@ -22,4 +23,7 @@ abstract class SymbolBasedMethodBase(
 
     override val valueParameters: List<JavaValueParameter>
         get() = element.valueParameters(javac)
+
+    override val thrownExceptions: List<ClassId>
+        get() = emptyList() // TODO
 }

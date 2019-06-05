@@ -88,7 +88,9 @@ class BinaryJavaClass(
             if (name == "valueOf" && desc.startsWith("(Ljava/lang/String;)")) return null
         }
 
-        val (member, visitor) = BinaryJavaMethodBase.create(name, access, desc, signature, this, context.copyForMember(), signatureParser)
+        val (member, visitor) = BinaryJavaMethodBase.create(
+            name, access, desc, signature, exceptions?.toList().orEmpty(), this, context.copyForMember(), signatureParser
+        )
 
         when (member) {
             is JavaMethod -> methods.add(member)

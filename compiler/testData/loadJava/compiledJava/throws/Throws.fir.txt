@@ -1,0 +1,10 @@
+public open class Throws : R|kotlin/Any| {
+    public/*package*/ open operator fun throwsNested(): R|kotlin/Unit|
+
+    public/*package*/ open operator fun <E : R|java/lang/RuntimeException|, R|kotlin/Cloneable|> throwsGenericRuntimeException(): R|kotlin/Unit|
+
+    public/*package*/ open operator fun <F : R|kotlin/Throwable|, G : R|F|> throwsGenericThrowable(): R|kotlin/Unit|
+
+    public constructor(): R|test/Throws|
+
+}
