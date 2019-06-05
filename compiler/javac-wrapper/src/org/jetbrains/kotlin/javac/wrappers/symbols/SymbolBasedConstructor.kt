@@ -19,20 +19,10 @@ package org.jetbrains.kotlin.javac.wrappers.symbols
 import org.jetbrains.kotlin.javac.JavacWrapper
 import org.jetbrains.kotlin.load.java.structure.JavaClass
 import org.jetbrains.kotlin.load.java.structure.JavaConstructor
-import org.jetbrains.kotlin.load.java.structure.JavaTypeParameter
-import org.jetbrains.kotlin.load.java.structure.JavaValueParameter
 import javax.lang.model.element.ExecutableElement
 
 class SymbolBasedConstructor(
-        element: ExecutableElement,
-        containingClass: JavaClass,
-        javac: JavacWrapper
-) : SymbolBasedMember<ExecutableElement>(element, containingClass, javac), JavaConstructor {
-
-    override val typeParameters: List<JavaTypeParameter>
-        get() = element.typeParameters.map { SymbolBasedTypeParameter(it, javac) }
-
-    override val valueParameters: List<JavaValueParameter>
-        get() = element.valueParameters(javac)
-
-}
+    element: ExecutableElement,
+    containingClass: JavaClass,
+    javac: JavacWrapper
+) : SymbolBasedMethodBase(element, containingClass, javac), JavaConstructor

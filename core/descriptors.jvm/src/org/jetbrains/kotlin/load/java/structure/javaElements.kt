@@ -103,8 +103,11 @@ interface JavaMember : JavaModifierListOwner, JavaAnnotationOwner, JavaNamedElem
     val containingClass: JavaClass
 }
 
-interface JavaMethod : JavaMember, JavaTypeParameterListOwner {
+interface JavaMethodBase : JavaMember, JavaTypeParameterListOwner {
     val valueParameters: List<JavaValueParameter>
+}
+
+interface JavaMethod : JavaMethodBase {
     val returnType: JavaType
 
     // WARNING: computing the default value may lead to an exception in the compiler because of IDEA-207252.
@@ -115,15 +118,13 @@ interface JavaMethod : JavaMember, JavaTypeParameterListOwner {
         get() = annotationParameterDefaultValue != null
 }
 
+interface JavaConstructor : JavaMethodBase
+
 interface JavaField : JavaMember {
     val isEnumEntry: Boolean
     val type: JavaType
     val initializerValue: Any?
     val hasConstantNotNullInitializer: Boolean
-}
-
-interface JavaConstructor : JavaMember, JavaTypeParameterListOwner {
-    val valueParameters: List<JavaValueParameter>
 }
 
 interface JavaValueParameter : JavaAnnotationOwner {

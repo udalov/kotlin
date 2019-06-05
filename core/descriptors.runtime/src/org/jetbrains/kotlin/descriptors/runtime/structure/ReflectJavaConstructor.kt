@@ -21,7 +21,7 @@ import org.jetbrains.kotlin.load.java.structure.JavaValueParameter
 import java.lang.reflect.Constructor
 import java.lang.reflect.Modifier
 
-class ReflectJavaConstructor(override val member: Constructor<*>) : ReflectJavaMember(), JavaConstructor {
+class ReflectJavaConstructor(member: Constructor<*>) : ReflectJavaMethodBase<Constructor<*>>(member), JavaConstructor {
     // TODO: test local/anonymous classes
     override val valueParameters: List<JavaValueParameter>
         get() {

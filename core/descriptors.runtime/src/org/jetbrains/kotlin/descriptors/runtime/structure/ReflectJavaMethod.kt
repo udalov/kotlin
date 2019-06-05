@@ -21,7 +21,7 @@ import org.jetbrains.kotlin.load.java.structure.JavaMethod
 import org.jetbrains.kotlin.load.java.structure.JavaValueParameter
 import java.lang.reflect.Method
 
-class ReflectJavaMethod(override val member: Method) : ReflectJavaMember(), JavaMethod {
+class ReflectJavaMethod(member: Method) : ReflectJavaMethodBase<Method>(member), JavaMethod {
     override val valueParameters: List<JavaValueParameter>
         get() = getValueParameters(member.genericParameterTypes, member.parameterAnnotations, member.isVarArgs)
 

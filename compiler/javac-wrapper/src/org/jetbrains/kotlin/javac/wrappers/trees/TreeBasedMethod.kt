@@ -21,19 +21,18 @@ import com.sun.tools.javac.tree.JCTree
 import org.jetbrains.kotlin.descriptors.Visibilities
 import org.jetbrains.kotlin.descriptors.Visibility
 import org.jetbrains.kotlin.javac.JavacWrapper
-import org.jetbrains.kotlin.load.java.structure.*
+import org.jetbrains.kotlin.load.java.structure.JavaAnnotationArgument
+import org.jetbrains.kotlin.load.java.structure.JavaClass
+import org.jetbrains.kotlin.load.java.structure.JavaMethod
+import org.jetbrains.kotlin.load.java.structure.JavaType
 import org.jetbrains.kotlin.name.Name
 
 class TreeBasedMethod(
-        tree: JCTree.JCMethodDecl,
-        compilationUnit: CompilationUnitTree,
-        containingClass: JavaClass,
-        javac: JavacWrapper
-) : TreeBasedMember<JCTree.JCMethodDecl>(tree, compilationUnit, containingClass, javac), JavaMethod {
-
-    override val name: Name
-        get() = Name.identifier(tree.name.toString())
-
+    tree: JCTree.JCMethodDecl,
+    compilationUnit: CompilationUnitTree,
+    containingClass: JavaClass,
+    javac: JavacWrapper
+) : TreeBasedMethodBase(tree, compilationUnit, containingClass, javac), JavaMethod {
     override val isAbstract: Boolean
         get() = (containingClass.isInterface && !tree.modifiers.hasDefaultModifier && !isStatic) || tree.modifiers.isAbstract
 
@@ -45,12 +44,6 @@ class TreeBasedMethod(
 
     override val visibility: Visibility
         get() = if (containingClass.isInterface) Visibilities.PUBLIC else tree.modifiers.visibility
-
-    override val typeParameters: List<JavaTypeParameter>
-        get() = tree.typeParameters.map { TreeBasedTypeParameter(it, compilationUnit, javac, this) }
-
-    override val valueParameters: List<JavaValueParameter>
-        get() = tree.parameters.map { TreeBasedValueParameter(it, compilationUnit, javac, this) }
 
     override val returnType: JavaType
         get() = TreeBasedType.create(tree.returnType, compilationUnit, javac, annotations, this)

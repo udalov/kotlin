@@ -22,15 +22,12 @@ import com.intellij.psi.PsiMethod;
 import com.intellij.psi.PsiType;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.jetbrains.kotlin.load.java.structure.*;
+import org.jetbrains.kotlin.load.java.structure.JavaAnnotationArgument;
+import org.jetbrains.kotlin.load.java.structure.JavaMethod;
+import org.jetbrains.kotlin.load.java.structure.JavaType;
 import org.jetbrains.kotlin.name.Name;
 
-import java.util.List;
-
-import static org.jetbrains.kotlin.load.java.structure.impl.JavaElementCollectionFromPsiArrayUtil.typeParameters;
-import static org.jetbrains.kotlin.load.java.structure.impl.JavaElementCollectionFromPsiArrayUtil.valueParameters;
-
-public class JavaMethodImpl extends JavaMemberImpl<PsiMethod> implements JavaMethod {
+public class JavaMethodImpl extends JavaMethodBaseImpl implements JavaMethod {
     public JavaMethodImpl(@NotNull PsiMethod psiMethod) {
         super(psiMethod);
         assert !psiMethod.isConstructor() :
@@ -41,18 +38,6 @@ public class JavaMethodImpl extends JavaMemberImpl<PsiMethod> implements JavaMet
     @Override
     public Name getName() {
         return Name.identifier(getPsi().getName());
-    }
-
-    @NotNull
-    @Override
-    public List<JavaTypeParameter> getTypeParameters() {
-        return typeParameters(getPsi().getTypeParameters());
-    }
-
-    @Override
-    @NotNull
-    public List<JavaValueParameter> getValueParameters() {
-        return valueParameters(getPsi().getParameterList().getParameters());
     }
 
     @Override

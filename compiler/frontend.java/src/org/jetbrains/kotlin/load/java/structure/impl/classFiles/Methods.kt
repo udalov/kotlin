@@ -31,10 +31,10 @@ import java.text.StringCharacterIterator
 abstract class BinaryJavaMethodBase(
     override val access: Int,
     override val containingClass: JavaClass,
-    val valueParameters: List<BinaryJavaValueParameter>,
-    val typeParameters: List<JavaTypeParameter>,
+    override val valueParameters: List<BinaryJavaValueParameter>,
+    override val typeParameters: List<JavaTypeParameter>,
     override val name: Name
-) : JavaMember, MapBasedJavaAnnotationOwner, BinaryJavaModifierListOwner {
+) : JavaMethodBase, MapBasedJavaAnnotationOwner, BinaryJavaModifierListOwner {
     override val annotationsByFqName by buildLazyValueForMap()
 
     override val annotations: Collection<JavaAnnotation> = ContainerUtil.newSmartList()
