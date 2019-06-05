@@ -28,11 +28,11 @@ import java.io.FileNotFoundException
 import java.io.IOException
 
 class VirtualFileKotlinClass private constructor(
-        val file: VirtualFile,
-        className: ClassId,
-        classVersion: Int,
-        classHeader: KotlinClassHeader,
-        innerClasses: InnerClassesInfo
+    val file: VirtualFile,
+    className: ClassId,
+    classVersion: Int,
+    classHeader: KotlinClassHeader,
+    innerClasses: InnerClassesInfo
 ) : FileBasedKotlinClass(className, classVersion, classHeader, innerClasses) {
 
     override val location: String
@@ -41,8 +41,7 @@ class VirtualFileKotlinClass private constructor(
     override fun getFileContents(): ByteArray {
         try {
             return file.contentsToByteArray()
-        }
-        catch (e: IOException) {
+        } catch (e: IOException) {
             LOG.error(renderFileReadingErrorMessage(file), e)
             throw rethrow(e)
         }
@@ -64,18 +63,16 @@ class VirtualFileKotlinClass private constructor(
                 try {
                     val byteContent = fileContent ?: file.contentsToByteArray(false)
                     if (!byteContent.isEmpty()) {
-                        val kotlinJvmBinaryClass = FileBasedKotlinClass.create(byteContent) { name, classVersion, header, innerClasses ->
+                        val kotlinJvmBinaryClass = create(byteContent) { name, classVersion, header, innerClasses ->
                             VirtualFileKotlinClass(file, name, classVersion, header, innerClasses)
                         }
 
                         return@time kotlinJvmBinaryClass?.let(::KotlinClass)
                             ?: KotlinClassFinder.Result.ClassFileContent(byteContent)
                     }
-                }
-                catch (e: FileNotFoundException) {
+                } catch (e: FileNotFoundException) {
                     // Valid situation. User can delete jar file.
-                }
-                catch (e: Throwable) {
+                } catch (e: Throwable) {
                     LOG.warn(renderFileReadingErrorMessage(file))
                 }
                 null
@@ -83,6 +80,6 @@ class VirtualFileKotlinClass private constructor(
         }
 
         private fun renderFileReadingErrorMessage(file: VirtualFile): String =
-                "Could not read file: ${file.path}; size in bytes: ${file.length}; file type: ${file.fileType.name}"
+            "Could not read file: ${file.path}; size in bytes: ${file.length}; file type: ${file.fileType.name}"
     }
 }

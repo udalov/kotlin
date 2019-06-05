@@ -23,7 +23,7 @@ import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 
 class JavaPackageImpl(
-        psiPackage: PsiPackage, private val scope: GlobalSearchScope
+    psiPackage: PsiPackage, private val scope: GlobalSearchScope
 ) : JavaElementImpl<PsiPackage>(psiPackage), JavaPackage, MapBasedJavaAnnotationOwner {
 
     override fun getClasses(nameFilter: (Name) -> Boolean): Collection<JavaClass> {
@@ -41,7 +41,7 @@ class JavaPackageImpl(
         get() = FqName(psi.qualifiedName)
 
     override val annotations: Collection<JavaAnnotation>
-        get() = org.jetbrains.kotlin.load.java.structure.impl.annotations(psi.annotationList?.annotations.orEmpty())
+        get() = annotations(psi.annotationList?.annotations.orEmpty())
 
     override val annotationsByFqName: Map<FqName?, JavaAnnotation> by buildLazyValueForMap()
 }

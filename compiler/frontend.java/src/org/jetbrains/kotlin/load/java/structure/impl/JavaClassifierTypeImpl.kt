@@ -19,8 +19,7 @@ package org.jetbrains.kotlin.load.java.structure.impl
 import com.intellij.psi.*
 import org.jetbrains.kotlin.load.java.structure.JavaClassifierType
 import org.jetbrains.kotlin.load.java.structure.JavaType
-
-import java.util.ArrayList
+import java.util.*
 
 class JavaClassifierTypeImpl(psiClassType: PsiClassType) : JavaTypeImpl<PsiClassType>(psiClassType), JavaClassifierType {
 
@@ -52,7 +51,7 @@ class JavaClassifierTypeImpl(psiClassType: PsiClassType) : JavaTypeImpl<PsiClass
             val result = ArrayList<JavaType?>(parameters.size)
             for (typeParameter in parameters) {
                 val substitutedType = substitutor.substitute(typeParameter)
-                result.add(substitutedType?.let { JavaTypeImpl.create(it) })
+                result.add(substitutedType?.let(::create))
             }
 
             return result

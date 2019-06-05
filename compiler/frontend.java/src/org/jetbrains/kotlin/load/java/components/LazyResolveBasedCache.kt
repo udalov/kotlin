@@ -49,5 +49,4 @@ class LazyResolveBasedCache(resolveSession: ResolveSession) : AbstractJavaResolv
     override fun recordClass(javaClass: JavaClass, descriptor: ClassDescriptor) {
         trace.record(CLASS, (javaClass as? JavaClassImpl)?.psi ?: return, descriptor)
     }
-
 }

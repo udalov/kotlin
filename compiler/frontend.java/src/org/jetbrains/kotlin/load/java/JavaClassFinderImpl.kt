@@ -24,7 +24,6 @@ import org.jetbrains.kotlin.resolve.jvm.KotlinJavaPsiFacade
 import javax.inject.Inject
 
 class JavaClassFinderImpl : AbstractJavaClassFinder() {
-
     private lateinit var javaFacade: KotlinJavaPsiFacade
 
     @Inject
@@ -39,5 +38,4 @@ class JavaClassFinderImpl : AbstractJavaClassFinder() {
         javaFacade.findPackage(fqName.asString(), javaSearchScope)?.let { JavaPackageImpl(it, javaSearchScope) }
 
     override fun knownClassNamesInPackage(packageFqName: FqName): Set<String>? = javaFacade.knownClassNamesInPackage(packageFqName)
-
 }

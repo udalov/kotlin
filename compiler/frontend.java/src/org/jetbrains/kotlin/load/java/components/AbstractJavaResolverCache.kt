@@ -25,7 +25,6 @@ import org.jetbrains.kotlin.resolve.lazy.ResolveSession
 import org.jetbrains.kotlin.resolve.lazy.ResolveSessionUtils
 
 abstract class AbstractJavaResolverCache(private val resolveSession: ResolveSession) : JavaResolverCache {
-
     protected val trace: BindingTrace get() = resolveSession.trace
 
     override fun getClassResolvedFromSource(fqName: FqName): ClassDescriptor? {
@@ -49,5 +48,4 @@ abstract class AbstractJavaResolverCache(private val resolveSession: ResolveSess
 
         return null
     }
-
 }

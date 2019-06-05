@@ -52,25 +52,25 @@ public abstract class JavaTypeImpl<Psi extends PsiType> implements JavaType, Jav
                 throw new UnsupportedOperationException("Unsupported PsiType: " + type);
             }
 
-            @Nullable
+            @NotNull
             @Override
             public JavaTypeImpl<?> visitPrimitiveType(@NotNull PsiPrimitiveType primitiveType) {
                 return new JavaPrimitiveTypeImpl(primitiveType);
             }
 
-            @Nullable
+            @NotNull
             @Override
             public JavaTypeImpl<?> visitArrayType(@NotNull PsiArrayType arrayType) {
                 return new JavaArrayTypeImpl(arrayType);
             }
 
-            @Nullable
+            @NotNull
             @Override
             public JavaTypeImpl<?> visitClassType(@NotNull PsiClassType classType) {
                 return new JavaClassifierTypeImpl(classType);
             }
 
-            @Nullable
+            @NotNull
             @Override
             public JavaTypeImpl<?> visitWildcardType(@NotNull PsiWildcardType wildcardType) {
                 return new JavaWildcardTypeImpl(wildcardType);

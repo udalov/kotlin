@@ -37,27 +37,24 @@ interface ModuleVisibilityManager {
         get() = true
 
     object SERVICE {
-        @JvmStatic fun getInstance(project: Project): ModuleVisibilityManager =
-                ServiceManager.getService(project, ModuleVisibilityManager::class.java)
+        @JvmStatic
+        fun getInstance(project: Project): ModuleVisibilityManager =
+            ServiceManager.getService(project, ModuleVisibilityManager::class.java)
     }
 }
 
 fun isContainedByCompiledPartOfOurModule(descriptor: DeclarationDescriptor, friendPath: File?): Boolean {
     if (friendPath == null) return false
 
-    val packageFragment = DescriptorUtils.getParentOfType(descriptor, PackageFragmentDescriptor::class.java, false)
-    if (packageFragment !is LazyJavaPackageFragment) return false
+    if (DescriptorUtils.getParentOfType(descriptor, PackageFragmentDescriptor::class.java, false) !is LazyJavaPackageFragment) return false
 
-    val source = getSourceElement(descriptor)
-
-    val binaryClass = when (source) {
+    val binaryClass = when (val source = getSourceElement(descriptor)) {
         is KotlinJvmBinarySourceElement ->
             source.binaryClass
         is KotlinJvmBinaryPackageSourceElement ->
             if (descriptor is DeserializedMemberDescriptor) {
                 source.getContainingBinaryClass(descriptor) ?: source.getRepresentativeBinaryClass()
-            }
-            else {
+            } else {
                 source.getRepresentativeBinaryClass()
             }
         else ->
@@ -82,14 +79,14 @@ fun isContainedByCompiledPartOfOurModule(descriptor: DeclarationDescriptor, frie
 }
 
 fun getSourceElement(descriptor: DeclarationDescriptor): SourceElement =
-        when {
-            descriptor is CallableMemberDescriptor && descriptor.source === SourceElement.NO_SOURCE ->
-                getSourceElement(descriptor.containingDeclaration)
-            descriptor is DeserializedTypeAliasDescriptor ->
-                getSourceElement(descriptor.containingDeclaration)
-            else ->
-                descriptor.toSourceElement
-        }
+    when {
+        descriptor is CallableMemberDescriptor && descriptor.source === SourceElement.NO_SOURCE ->
+            getSourceElement(descriptor.containingDeclaration)
+        descriptor is DeserializedTypeAliasDescriptor ->
+            getSourceElement(descriptor.containingDeclaration)
+        else ->
+            descriptor.toSourceElement
+    }
 
 val DeclarationDescriptor.toSourceElement: SourceElement
     get() = if (this is DeclarationDescriptorWithSource) source else SourceElement.NO_SOURCE

@@ -25,11 +25,11 @@ import org.jetbrains.org.objectweb.asm.*
 import java.lang.reflect.Array
 
 internal class AnnotationsAndParameterCollectorMethodVisitor(
-        private val member: BinaryJavaMethodBase,
-        private val context: ClassifierResolutionContext,
-        private val signatureParser: BinaryClassSignatureParser,
-        private val parametersToSkipNumber: Int,
-        private val parametersCountInMethodDesc: Int
+    private val member: BinaryJavaMethodBase,
+    private val context: ClassifierResolutionContext,
+    private val signatureParser: BinaryClassSignatureParser,
+    private val parametersToSkipNumber: Int,
+    private val parametersCountInMethodDesc: Int
 ) : MethodVisitor(ASM_API_VERSION_FOR_CLASS_READING) {
     private var parameterIndex = 0
 
@@ -56,10 +56,10 @@ internal class AnnotationsAndParameterCollectorMethodVisitor(
     }
 
     override fun visitAnnotation(desc: String, visible: Boolean) =
-            BinaryJavaAnnotation.addAnnotation(
-                    member.annotations as MutableCollection<JavaAnnotation>,
-                    desc, context, signatureParser
-            )
+        BinaryJavaAnnotation.addAnnotation(
+            member.annotations as MutableCollection<JavaAnnotation>,
+            desc, context, signatureParser
+        )
 
     @Suppress("NOTHING_TO_OVERRIDE")
     override fun visitAnnotableParameterCount(parameterCount: Int, visible: Boolean) {
@@ -77,7 +77,7 @@ internal class AnnotationsAndParameterCollectorMethodVisitor(
         if (index < 0) return null
 
         val annotations =
-                member.valueParameters[index].annotations as MutableCollection<JavaAnnotation>?
+            member.valueParameters[index].annotations as MutableCollection<JavaAnnotation>?
                 ?: return null
 
         return BinaryJavaAnnotation.addAnnotation(annotations, desc, context, signatureParser)
@@ -95,10 +95,10 @@ internal class AnnotationsAndParameterCollectorMethodVisitor(
             }
 
             TypeReference.METHOD_FORMAL_PARAMETER ->
-                    BinaryJavaAnnotation.addTypeAnnotation(
-                            member.valueParameters[typeReference.formalParameterIndex].type,
-                            desc, context, signatureParser
-                    )
+                BinaryJavaAnnotation.addTypeAnnotation(
+                    member.valueParameters[typeReference.formalParameterIndex].type,
+                    desc, context, signatureParser
+                )
 
             else -> null
         }
@@ -106,17 +106,17 @@ internal class AnnotationsAndParameterCollectorMethodVisitor(
 }
 
 class BinaryJavaAnnotation private constructor(
-        desc: String,
-        private val context: ClassifierResolutionContext,
-        override val arguments: Collection<JavaAnnotationArgument>
+    desc: String,
+    private val context: ClassifierResolutionContext,
+    override val arguments: Collection<JavaAnnotationArgument>
 ) : JavaAnnotation {
 
     companion object {
 
         fun createAnnotationAndVisitor(
-                desc: String,
-                context: ClassifierResolutionContext,
-                signatureParser: BinaryClassSignatureParser
+            desc: String,
+            context: ClassifierResolutionContext,
+            signatureParser: BinaryClassSignatureParser
         ): Pair<JavaAnnotation, AnnotationVisitor> {
             val arguments = mutableListOf<JavaAnnotationArgument>()
             val annotation = BinaryJavaAnnotation(desc, context, arguments)
@@ -125,10 +125,10 @@ class BinaryJavaAnnotation private constructor(
         }
 
         fun addAnnotation(
-                annotations: MutableCollection<JavaAnnotation>,
-                desc: String,
-                context: ClassifierResolutionContext,
-                signatureParser: BinaryClassSignatureParser
+            annotations: MutableCollection<JavaAnnotation>,
+            desc: String,
+            context: ClassifierResolutionContext,
+            signatureParser: BinaryClassSignatureParser
         ): AnnotationVisitor {
             val (javaAnnotation, annotationVisitor) = createAnnotationAndVisitor(desc, context, signatureParser)
             annotations.add(javaAnnotation)
@@ -137,12 +137,12 @@ class BinaryJavaAnnotation private constructor(
         }
 
         fun addTypeAnnotation(
-                type: JavaType,
-                desc: String,
-                context: ClassifierResolutionContext,
-                signatureParser: BinaryClassSignatureParser
+            type: JavaType,
+            desc: String,
+            context: ClassifierResolutionContext,
+            signatureParser: BinaryClassSignatureParser
         ): AnnotationVisitor? {
-            type as? PlainJavaClassifierType ?: return null
+            if (type !is PlainJavaClassifierType) return null
 
             val (javaAnnotation, annotationVisitor) = createAnnotationAndVisitor(desc, context, signatureParser)
             type.addAnnotation(javaAnnotation)
@@ -157,7 +157,7 @@ class BinaryJavaAnnotation private constructor(
 
     override val classId: ClassId?
         get() = classifierResolutionResult.classifier.safeAs<JavaClass>()?.classId
-                ?: ClassId.topLevel(FqName(classifierResolutionResult.qualifiedName))
+            ?: ClassId.topLevel(FqName(classifierResolutionResult.qualifiedName))
 
     override fun resolve() = classifierResolutionResult.classifier as? JavaClass
 }
@@ -224,37 +224,37 @@ abstract class PlainJavaAnnotationArgument(name: String?) : JavaAnnotationArgume
 }
 
 class PlainJavaLiteralAnnotationArgument(
-        name: String?,
-        override val value: Any?
+    name: String?,
+    override val value: Any?
 ) : PlainJavaAnnotationArgument(name), JavaLiteralAnnotationArgument
 
 class PlainJavaClassObjectAnnotationArgument(
-        name: String?,
-        private val type: Type,
-        private val signatureParser: BinaryClassSignatureParser,
-        private val context: ClassifierResolutionContext
+    name: String?,
+    private val type: Type,
+    private val signatureParser: BinaryClassSignatureParser,
+    private val context: ClassifierResolutionContext
 ) : PlainJavaAnnotationArgument(name), JavaClassObjectAnnotationArgument {
     override fun getReferencedType() = signatureParser.mapAsmType(type, context)
 }
 
 class PlainJavaArrayAnnotationArgument(
-        name: String?,
-        private val elements: List<JavaAnnotationArgument>
+    name: String?,
+    private val elements: List<JavaAnnotationArgument>
 ) : PlainJavaAnnotationArgument(name), JavaArrayAnnotationArgument {
     override fun getElements(): List<JavaAnnotationArgument> = elements
 }
 
 class PlainJavaAnnotationAsAnnotationArgument(
-        name: String?,
-        private val annotation: JavaAnnotation
+    name: String?,
+    private val annotation: JavaAnnotation
 ) : PlainJavaAnnotationArgument(name), JavaAnnotationAsAnnotationArgument {
     override fun getAnnotation() = annotation
 }
 
 class PlainJavaEnumValueAnnotationArgument(
-        name: String?,
-        override val enumClassId: ClassId,
-        entryName: String
+    name: String?,
+    override val enumClassId: ClassId,
+    entryName: String
 ) : PlainJavaAnnotationArgument(name), JavaEnumValueAnnotationArgument {
     override val entryName = Name.identifier(entryName)
 }

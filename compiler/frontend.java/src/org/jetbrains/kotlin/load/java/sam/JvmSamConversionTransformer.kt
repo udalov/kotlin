@@ -29,7 +29,8 @@ class JvmSamConversionTransformer(
 
         val functionDescriptor = candidate.original as? FunctionDescriptor ?: return false
         if (functionDescriptor is TypeAliasConstructorDescriptor &&
-            functionDescriptor.underlyingConstructorDescriptor is JavaClassConstructorDescriptor) return true
+            functionDescriptor.underlyingConstructorDescriptor is JavaClassConstructorDescriptor
+        ) return true
 
         return functionDescriptor.hasJavaOriginInHierarchy()
     }

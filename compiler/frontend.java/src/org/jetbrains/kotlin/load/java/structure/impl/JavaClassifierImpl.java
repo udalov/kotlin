@@ -26,7 +26,8 @@ import org.jetbrains.kotlin.name.FqName;
 
 import java.util.Collection;
 
-public abstract class JavaClassifierImpl<Psi extends PsiClass> extends JavaElementImpl<Psi> implements JavaClassifier, JavaAnnotationOwnerImpl {
+public abstract class JavaClassifierImpl<Psi extends PsiClass> extends JavaElementImpl<Psi>
+        implements JavaClassifier, JavaAnnotationOwnerImpl {
     protected JavaClassifierImpl(@NotNull Psi psiClass) {
         super(psiClass);
     }

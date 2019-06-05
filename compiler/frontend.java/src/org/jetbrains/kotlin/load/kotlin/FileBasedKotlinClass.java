@@ -248,7 +248,9 @@ public abstract class FileBasedKotlinClass implements KotlinJvmBinaryClass {
             }
 
             @Override
-            public MethodVisitor visitMethod(int access, @NotNull String name, @NotNull String desc, String signature, String[] exceptions) {
+            public MethodVisitor visitMethod(
+                    int access, @NotNull String name, @NotNull String desc, String signature, String[] exceptions
+            ) {
                 MethodAnnotationVisitor v = memberVisitor.visitMethod(Name.identifier(name), desc);
                 if (v == null) return null;
 
@@ -264,15 +266,21 @@ public abstract class FileBasedKotlinClass implements KotlinJvmBinaryClass {
                     }
 
                     @Override
-                    public org.jetbrains.org.objectweb.asm.AnnotationVisitor visitParameterAnnotation(int parameter, @NotNull String desc, boolean visible) {
-                        int parameterIndex = parameter + methodParamCount - (visible ? visibleAnnotableParameterCount : invisibleAnnotableParameterCount);
-                        AnnotationArgumentVisitor av = v.visitParameterAnnotation(parameterIndex, resolveNameByDesc(desc, innerClasses), SourceElement.NO_SOURCE);
+                    public org.jetbrains.org.objectweb.asm.AnnotationVisitor visitParameterAnnotation(
+                            int parameter, @NotNull String desc, boolean visible
+                    ) {
+                        int parameterIndex = parameter + methodParamCount -
+                                             (visible ? visibleAnnotableParameterCount : invisibleAnnotableParameterCount);
+                        AnnotationArgumentVisitor av =
+                                v.visitParameterAnnotation(parameterIndex, resolveNameByDesc(desc, innerClasses), SourceElement.NO_SOURCE);
                         return av == null ? null : convertAnnotationVisitor(av, innerClasses);
                     }
 
+                    @SuppressWarnings("override")
                     public void visitAnnotableParameterCount(int parameterCount, boolean visible) {
-                        if (visible)
+                        if (visible) {
                             visibleAnnotableParameterCount = parameterCount;
+                        }
                         else {
                             invisibleAnnotableParameterCount = parameterCount;
                         }
@@ -321,7 +329,7 @@ public abstract class FileBasedKotlinClass implements KotlinJvmBinaryClass {
 
         List<String> classes = new ArrayList<>(1);
         boolean local = false;
-        
+
         while (true) {
             OuterAndInnerName outer = innerClasses.get(name);
             if (outer == null) break;

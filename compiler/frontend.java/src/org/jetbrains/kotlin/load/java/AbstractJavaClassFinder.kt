@@ -28,10 +28,8 @@ import javax.annotation.PostConstruct
 import javax.inject.Inject
 
 abstract class AbstractJavaClassFinder : JavaClassFinder {
-
     protected lateinit var project: Project
     protected lateinit var javaSearchScope: GlobalSearchScope
-
 
     @Inject
     fun setScope(scope: GlobalSearchScope) {
@@ -49,8 +47,8 @@ abstract class AbstractJavaClassFinder : JavaClassFinder {
     }
 
     inner class FilterOutKotlinSourceFilesScope(baseScope: GlobalSearchScope) : DelegatingGlobalSearchScope(baseScope) {
-
-        override fun contains(file: VirtualFile) = myBaseScope.contains(file) && (file.isDirectory || file.fileType !== KotlinFileType.INSTANCE)
+        override fun contains(file: VirtualFile) =
+            myBaseScope.contains(file) && (file.isDirectory || file.fileType !== KotlinFileType.INSTANCE)
 
         val base: GlobalSearchScope = myBaseScope
 
@@ -58,6 +56,5 @@ abstract class AbstractJavaClassFinder : JavaClassFinder {
         override fun getProject(): Project = this@AbstractJavaClassFinder.project
 
         override fun toString() = "JCFI: $myBaseScope"
-
     }
 }

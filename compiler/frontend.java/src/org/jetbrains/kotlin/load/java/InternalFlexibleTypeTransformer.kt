@@ -20,7 +20,9 @@ import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.resolve.DescriptorUtils
 import org.jetbrains.kotlin.resolve.TypeResolver.TypeTransformerForTests
-import org.jetbrains.kotlin.types.*
+import org.jetbrains.kotlin.types.KotlinType
+import org.jetbrains.kotlin.types.KotlinTypeFactory
+import org.jetbrains.kotlin.types.SimpleType
 
 object InternalFlexibleTypeTransformer : TypeTransformerForTests() {
     // This is a "magic" classifier: when type resolver sees it in the code, e.g. ft<Foo, Foo?>, instead of creating a normal type,
@@ -33,8 +35,12 @@ object InternalFlexibleTypeTransformer : TypeTransformerForTests() {
     override fun transformType(kotlinType: KotlinType): KotlinType? {
         val descriptor = kotlinType.constructor.declarationDescriptor
         if (descriptor != null && FLEXIBLE_TYPE_CLASSIFIER.asSingleFqName().toUnsafe() == DescriptorUtils.getFqName(descriptor)
-            && kotlinType.arguments.size == 2) {
-            return KotlinTypeFactory.flexibleType(kotlinType.arguments[0].type.unwrap() as SimpleType, kotlinType.arguments[1].type.unwrap() as SimpleType)
+            && kotlinType.arguments.size == 2
+        ) {
+            return KotlinTypeFactory.flexibleType(
+                kotlinType.arguments[0].type.unwrap() as SimpleType,
+                kotlinType.arguments[1].type.unwrap() as SimpleType
+            )
         }
         return null
     }

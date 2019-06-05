@@ -27,6 +27,6 @@ interface VirtualFileFinderFactory : MetadataFinderFactory {
 
     companion object SERVICE {
         fun getInstance(project: Project): VirtualFileFinderFactory =
-                ServiceManager.getService(project, VirtualFileFinderFactory::class.java)
+            ServiceManager.getService(project, VirtualFileFinderFactory::class.java)
     }
 }

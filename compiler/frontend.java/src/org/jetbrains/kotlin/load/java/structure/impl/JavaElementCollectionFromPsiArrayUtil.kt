@@ -25,60 +25,60 @@ import org.jetbrains.kotlin.load.java.structure.*
 import org.jetbrains.kotlin.name.Name
 
 private inline fun <Psi, Java> Array<Psi>.convert(factory: (Psi) -> Java): List<Java> =
-        when (size) {
-            0 -> emptyList()
-            1 -> listOf(factory(first()))
-            else -> map(factory)
-        }
+    when (size) {
+        0 -> emptyList()
+        1 -> listOf(factory(first()))
+        else -> map(factory)
+    }
 
 private fun <Psi, Java> Collection<Psi>.convert(factory: (Psi) -> Java): List<Java> =
-        when (size) {
-            0 -> emptyList()
-            1 -> listOf(factory(first()))
-            else -> map(factory)
-        }
+    when (size) {
+        0 -> emptyList()
+        1 -> listOf(factory(first()))
+        else -> map(factory)
+    }
 
 internal fun classes(classes: Array<PsiClass>): Collection<JavaClass> =
-        classes.convert(::JavaClassImpl)
+    classes.convert(::JavaClassImpl)
 
 internal fun classes(classes: Collection<PsiClass>): Collection<JavaClass> =
-        classes.convert(::JavaClassImpl)
+    classes.convert(::JavaClassImpl)
 
 internal fun packages(packages: Array<PsiPackage>, scope: GlobalSearchScope): Collection<JavaPackage> =
-        packages.convert { psi -> JavaPackageImpl(psi, scope) }
+    packages.convert { psi -> JavaPackageImpl(psi, scope) }
 
 internal fun methods(methods: Collection<PsiMethod>): Collection<JavaMethod> =
-        methods.convert(::JavaMethodImpl)
+    methods.convert(::JavaMethodImpl)
 
 internal fun constructors(methods: Collection<PsiMethod>): Collection<JavaConstructor> =
-        methods.convert(::JavaConstructorImpl)
+    methods.convert(::JavaConstructorImpl)
 
 internal fun fields(fields: Collection<PsiField>): Collection<JavaField> =
-        fields.convert(::JavaFieldImpl)
+    fields.convert(::JavaFieldImpl)
 
 internal fun valueParameters(parameters: Array<PsiParameter>): List<JavaValueParameter> =
-        parameters.convert(::JavaValueParameterImpl)
+    parameters.convert(::JavaValueParameterImpl)
 
 internal fun typeParameters(typeParameters: Array<PsiTypeParameter>): List<JavaTypeParameter> =
-        typeParameters.convert(::JavaTypeParameterImpl)
+    typeParameters.convert(::JavaTypeParameterImpl)
 
 internal fun classifierTypes(classTypes: Array<PsiClassType>): Collection<JavaClassifierType> =
-        classTypes.convert(::JavaClassifierTypeImpl)
+    classTypes.convert(::JavaClassifierTypeImpl)
 
 internal fun annotations(annotations: Array<out PsiAnnotation>): Collection<JavaAnnotation> =
-        annotations.convert(::JavaAnnotationImpl)
+    annotations.convert(::JavaAnnotationImpl)
 
 internal fun nullabilityAnnotations(annotations: Array<out PsiAnnotation>): Collection<JavaAnnotation> =
-        annotations.convert(::JavaAnnotationImpl)
-                .filter { annotation ->
-                    val fqName = annotation.classId?.asSingleFqName() ?: return@filter false
-                    fqName in NULLABILITY_ANNOTATIONS
-                }
+    annotations.convert(::JavaAnnotationImpl)
+        .filter { annotation ->
+            val fqName = annotation.classId?.asSingleFqName() ?: return@filter false
+            fqName in NULLABILITY_ANNOTATIONS
+        }
 
 
 internal fun namedAnnotationArguments(nameValuePairs: Array<PsiNameValuePair>): Collection<JavaAnnotationArgument> =
-        nameValuePairs.convert { psi ->
-            val name = psi.name?.let(Name::identifier)
-            val value = psi.value ?: error("Annotation argument value cannot be null: $name")
-            JavaAnnotationArgumentImpl.create(value, name)
-        }
+    nameValuePairs.convert { psi ->
+        val name = psi.name?.let(Name::identifier)
+        val value = psi.value ?: error("Annotation argument value cannot be null: $name")
+        JavaAnnotationArgumentImpl.create(value, name)
+    }

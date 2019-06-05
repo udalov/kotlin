@@ -28,9 +28,12 @@ import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.KtPsiUtil
 
-class JavaClassImpl(psiClass: PsiClass) : JavaClassifierImpl<PsiClass>(psiClass), VirtualFileBoundJavaClass, JavaAnnotationOwnerImpl, JavaModifierListOwnerImpl {
+class JavaClassImpl(psiClass: PsiClass) : JavaClassifierImpl<PsiClass>(psiClass), VirtualFileBoundJavaClass, JavaAnnotationOwnerImpl,
+    JavaModifierListOwnerImpl {
     init {
-        assert(psiClass !is PsiTypeParameter) { "PsiTypeParameter should be wrapped in JavaTypeParameter, not JavaClass: use JavaClassifier.create()" }
+        assert(psiClass !is PsiTypeParameter) {
+            "PsiTypeParameter should be wrapped in JavaTypeParameterImpl, not JavaClassImpl: use JavaClassifierImpl.create()"
+        }
     }
 
     override val innerClassNames: Collection<Name>
@@ -111,7 +114,7 @@ class JavaClassImpl(psiClass: PsiClass) : JavaClassifierImpl<PsiClass>(psiClass)
         get() = (psi as? KtLightClassMarker)?.originKind
 
     override val virtualFile: VirtualFile?
-        get() =  psi.containingFile?.virtualFile
+        get() = psi.containingFile?.virtualFile
 
     override fun isFromSourceCodeInScope(scope: SearchScope): Boolean = psi.containingFile.virtualFile in scope
 
@@ -121,7 +124,8 @@ class JavaClassImpl(psiClass: PsiClass) : JavaClassifierImpl<PsiClass>(psiClass)
         val psiClass = psi
         if (psiClass !is KtLightClassMarker) return
 
-        val message = "Querying members of JavaClass created for $psiClass of type ${psiClass::class.java} defined in file ${psiClass.containingFile?.virtualFile?.canonicalPath}"
+        val message =
+            "Querying members of JavaClass created for $psiClass of type ${psiClass::class.java} defined in file ${psiClass.containingFile?.virtualFile?.canonicalPath}"
         LOGGER.error(message)
     }
 

@@ -22,15 +22,16 @@ import org.jetbrains.kotlin.storage.StorageManager
 import org.jetbrains.kotlin.types.SimpleType
 
 class SamConversionResolverImpl(
-        storageManager: StorageManager,
-        private val samWithReceiverResolvers: Iterable<SamWithReceiverResolver>
-): SamConversionResolver {
+    storageManager: StorageManager,
+    private val samWithReceiverResolvers: Iterable<SamWithReceiverResolver>
+) : SamConversionResolver {
     private val functionTypesForSamInterfaces = storageManager.createCacheWithNullableValues<JavaClassDescriptor, SimpleType>()
 
     override fun resolveFunctionTypeIfSamInterface(classDescriptor: JavaClassDescriptor): SimpleType? {
         return functionTypesForSamInterfaces.computeIfAbsent(classDescriptor) {
             val abstractMethod = SingleAbstractMethodUtils.getSingleAbstractMethodOrNull(classDescriptor) ?: return@computeIfAbsent null
-            val shouldConvertFirstParameterToDescriptor = samWithReceiverResolvers.any { it.shouldConvertFirstSamParameterToReceiver(abstractMethod) }
+            val shouldConvertFirstParameterToDescriptor =
+                samWithReceiverResolvers.any { it.shouldConvertFirstSamParameterToReceiver(abstractMethod) }
             SingleAbstractMethodUtils.getFunctionTypeForAbstractMethod(abstractMethod, shouldConvertFirstParameterToDescriptor)
         }
     }
