@@ -302,12 +302,12 @@ abstract class AbstractBinaryClassAnnotationAndConstantLoader<A : Any, C : Any>(
         val propertyConstants = HashMap<MemberSignature, C>()
 
         kotlinClass.visitMembers(object : KotlinJvmBinaryClass.MemberVisitor {
-            override fun visitMethod(name: Name, desc: String): KotlinJvmBinaryClass.MethodAnnotationVisitor? {
-                return AnnotationVisitorForMethod(MemberSignature.fromMethodNameAndDesc(name.asString(), desc))
+            override fun visitMethod(name: String, desc: String): KotlinJvmBinaryClass.MethodAnnotationVisitor? {
+                return AnnotationVisitorForMethod(MemberSignature.fromMethodNameAndDesc(name, desc))
             }
 
-            override fun visitField(name: Name, desc: String, initializer: Any?): KotlinJvmBinaryClass.AnnotationVisitor? {
-                val signature = MemberSignature.fromFieldNameAndDesc(name.asString(), desc)
+            override fun visitField(name: String, desc: String, initializer: Any?): KotlinJvmBinaryClass.AnnotationVisitor? {
+                val signature = MemberSignature.fromFieldNameAndDesc(name, desc)
 
                 if (initializer != null) {
                     val constant = loadConstant(desc, initializer)

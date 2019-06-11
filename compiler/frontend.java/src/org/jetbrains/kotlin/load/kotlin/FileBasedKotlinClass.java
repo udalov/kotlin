@@ -231,7 +231,7 @@ public abstract class FileBasedKotlinClass implements KotlinJvmBinaryClass {
         new ClassReader(fileContents).accept(new ClassVisitor(API_VERSION) {
             @Override
             public FieldVisitor visitField(int access, @NotNull String name, @NotNull String desc, String signature, Object value) {
-                AnnotationVisitor v = memberVisitor.visitField(Name.identifier(name), desc, value);
+                AnnotationVisitor v = memberVisitor.visitField(name, desc, value);
                 if (v == null) return null;
 
                 return new FieldVisitor(API_VERSION) {
@@ -251,7 +251,7 @@ public abstract class FileBasedKotlinClass implements KotlinJvmBinaryClass {
             public MethodVisitor visitMethod(
                     int access, @NotNull String name, @NotNull String desc, String signature, String[] exceptions
             ) {
-                MethodAnnotationVisitor v = memberVisitor.visitMethod(Name.identifier(name), desc);
+                MethodAnnotationVisitor v = memberVisitor.visitMethod(name, desc);
                 if (v == null) return null;
 
                 int methodParamCount = Type.getArgumentTypes(desc).length;

@@ -94,7 +94,7 @@ private object ReflectClassStructure {
 
     private fun loadMethodAnnotations(klass: Class<*>, memberVisitor: KotlinJvmBinaryClass.MemberVisitor) {
         for (method in klass.declaredMethods) {
-            val visitor = memberVisitor.visitMethod(Name.identifier(method.name), SignatureSerializer.methodDesc(method)) ?: continue
+            val visitor = memberVisitor.visitMethod(method.name, SignatureSerializer.methodDesc(method)) ?: continue
 
             for (annotation in method.declaredAnnotations) {
                 processAnnotation(visitor, annotation)
@@ -115,7 +115,7 @@ private object ReflectClassStructure {
 
     private fun loadConstructorAnnotations(klass: Class<*>, memberVisitor: KotlinJvmBinaryClass.MemberVisitor) {
         for (constructor in klass.declaredConstructors) {
-            val visitor = memberVisitor.visitMethod(Name.special("<init>"), SignatureSerializer.constructorDesc(constructor)) ?: continue
+            val visitor = memberVisitor.visitMethod("<init>", SignatureSerializer.constructorDesc(constructor)) ?: continue
 
             for (annotation in constructor.declaredAnnotations) {
                 processAnnotation(visitor, annotation)
@@ -149,7 +149,7 @@ private object ReflectClassStructure {
 
     private fun loadFieldAnnotations(klass: Class<*>, memberVisitor: KotlinJvmBinaryClass.MemberVisitor) {
         for (field in klass.declaredFields) {
-            val visitor = memberVisitor.visitField(Name.identifier(field.name), SignatureSerializer.fieldDesc(field), null) ?: continue
+            val visitor = memberVisitor.visitField(field.name, SignatureSerializer.fieldDesc(field), null) ?: continue
 
             for (annotation in field.declaredAnnotations) {
                 processAnnotation(visitor, annotation)
