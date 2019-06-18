@@ -83,6 +83,8 @@ class IrClassImpl(
 
     override var metadata: MetadataSource? = null
 
+    override var attributes: MutableMap<IrAttributeKey<*>, Any>? = null
+
     override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R =
         visitor.visitClass(this, data)
 

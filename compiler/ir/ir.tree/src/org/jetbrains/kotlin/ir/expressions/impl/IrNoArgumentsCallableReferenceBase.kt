@@ -16,6 +16,7 @@
 
 package org.jetbrains.kotlin.ir.expressions.impl
 
+import org.jetbrains.kotlin.ir.declarations.IrAttributeKey
 import org.jetbrains.kotlin.ir.expressions.IrCallableReference
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrStatementOrigin
@@ -40,5 +41,6 @@ abstract class IrNoArgumentsCallableReferenceBase(
     override fun putValueArgument(index: Int, valueArgument: IrExpression?) = throwNoValueArguments()
 
     override fun removeValueArgument(index: Int) = throwNoValueArguments()
-}
 
+    override var attributes: MutableMap<IrAttributeKey<*>, Any>? = null
+}
