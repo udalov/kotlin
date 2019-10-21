@@ -336,7 +336,7 @@ internal class PropertyReferenceLowering(val context: JvmBackendContext) : Class
                 }
             })
 
-            context.localDelegatedProperties[irClass.attributeOwnerId as IrClass] =
+            context.localDelegatedProperties[irClass.attributeOwnerId] =
                 kProperties.keys.filterIsInstance<IrLocalDelegatedPropertySymbol>()
         }
     }

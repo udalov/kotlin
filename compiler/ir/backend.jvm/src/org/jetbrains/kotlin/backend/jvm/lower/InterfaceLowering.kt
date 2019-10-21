@@ -120,10 +120,11 @@ internal class InterfaceLowering(val context: JvmBackendContext) : IrElementTran
         }
 
         // Move metadata for local delegated properties from the interface to DefaultImpls, since this is where kotlin-reflect looks for it.
-        val localDelegatedProperties = context.localDelegatedProperties[irClass.attributeOwnerId as IrClass]
+        val localDelegatedProperties = context.localDelegatedProperties[irClass.attributeOwnerId]
         if (localDelegatedProperties != null) {
-            context.localDelegatedProperties[defaultImplsIrClass.attributeOwnerId as IrClass] = localDelegatedProperties
-            context.localDelegatedProperties[irClass.attributeOwnerId as IrClass] = emptyList<IrLocalDelegatedPropertySymbol>()
+            context.localDelegatedProperties[defaultImplsIrClass.attributeOwnerId] = localDelegatedProperties
+            context.localDelegatedProperties[irClass.attributeOwnerId] =
+                @Suppress("RemoveExplicitTypeArguments") emptyList<IrLocalDelegatedPropertySymbol>()
         }
 
         // Move $$delegatedProperties array

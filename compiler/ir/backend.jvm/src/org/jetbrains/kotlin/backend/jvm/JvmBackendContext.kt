@@ -86,7 +86,7 @@ class JvmBackendContext(
     //      will overwrite the other's regenerated copy. (Or don't recompile the inline function for every call.)
     internal val regeneratedObjectNameGenerators = mutableMapOf<Pair<IrClass, Name>, NameGenerator>()
 
-    internal val localDelegatedProperties = mutableMapOf<IrClass, List<IrLocalDelegatedPropertySymbol>>()
+    internal val localDelegatedProperties = mutableMapOf<IrAttributeContainer, List<IrLocalDelegatedPropertySymbol>>()
 
     internal val multifileFacadesToAdd = mutableMapOf<JvmClassName, MutableList<IrClass>>()
     internal val multifileFacadeForPart = mutableMapOf<IrClass, JvmClassName>()
