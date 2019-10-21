@@ -87,10 +87,11 @@ open class ClassCodegen protected constructor(
 
     private val serializerExtension = JvmSerializerExtension(visitor.serializationBindings, state, typeMapper)
     private val serializer: DescriptorSerializer? =
-        metadataInfo.getClass(irClass)?.let { descriptor ->
-            DescriptorSerializer.create(descriptor, serializerExtension, parentClassCodegen?.serializer)
-        } ?: if (irClass.metadata is MetadataSource.File) DescriptorSerializer.createTopLevel(serializerExtension)
-        else null
+        metadataInfo.getClassMetadata(irClass)?.let {
+            DescriptorSerializer.create(it, serializerExtension, parentClassCodegen?.serializer)
+        } ?: metadataInfo.getFileMetadata(irClass)?.let {
+            DescriptorSerializer.createTopLevel(serializerExtension)
+        }
 
     fun getRegeneratedObjectNameGenerator(function: IrFunction): NameGenerator {
         val name = if (function.name.isSpecial) Name.identifier("special") else function.name
@@ -208,7 +209,7 @@ open class ClassCodegen protected constructor(
             state.bindingTrace.record(DELEGATED_PROPERTIES_WITH_METADATA, type, localDelegatedProperties.map { it.descriptor })
         }
 
-        val classDescriptor = metadataInfo.getClass(irClass)
+        val classDescriptor = metadataInfo.getClassMetadata(irClass)
         if (classDescriptor != null) {
             val classProto = serializer!!.classProto(classDescriptor).build()
             writeKotlinMetadata(visitor, state, KotlinClassHeader.Kind.CLASS, 0) {
@@ -217,39 +218,38 @@ open class ClassCodegen protected constructor(
             return
         }
 
-        when (val metadata = irClass.metadata) {
-            is MetadataSource.File -> {
-                val packageFqName = irClass.getPackageFragment()!!.fqName
-                val packageProto = serializer!!.packagePartProto(packageFqName, metadata.descriptors)
+        val fileDescriptors = metadataInfo.getFileMetadata(irClass)
+        if (fileDescriptors != null) {
+            val packageFqName = irClass.getPackageFragment()!!.fqName
+            val packageProto = serializer!!.packagePartProto(packageFqName, fileDescriptors)
 
-                serializerExtension.serializeJvmPackage(packageProto, type)
+            serializerExtension.serializeJvmPackage(packageProto, type)
 
-                val facadeClassName = context.multifileFacadeForPart[irClass.attributeOwnerId]
-                val kind = if (facadeClassName != null) KotlinClassHeader.Kind.MULTIFILE_CLASS_PART else KotlinClassHeader.Kind.FILE_FACADE
-                writeKotlinMetadata(visitor, state, kind, 0) { av ->
-                    AsmUtil.writeAnnotationData(av, serializer, packageProto.build())
+            val facadeClassName = context.multifileFacadeForPart[irClass.attributeOwnerId as IrFile]
+            val kind = if (facadeClassName != null) KotlinClassHeader.Kind.MULTIFILE_CLASS_PART else KotlinClassHeader.Kind.FILE_FACADE
+            writeKotlinMetadata(visitor, state, kind, 0) { av ->
+                AsmUtil.writeAnnotationData(av, serializer, packageProto.build())
 
-                    if (facadeClassName != null) {
-                        av.visit(JvmAnnotationNames.METADATA_MULTIFILE_CLASS_NAME_FIELD_NAME, facadeClassName.internalName)
-                    }
-
-                    // TODO: JvmPackageName
+                if (facadeClassName != null) {
+                    av.visit(JvmAnnotationNames.METADATA_MULTIFILE_CLASS_NAME_FIELD_NAME, facadeClassName.internalName)
                 }
+
+                // TODO: JvmPackageName
             }
-            else -> {
-                val entry = irClass.fileParent.fileEntry
-                if (entry is MultifileFacadeFileEntry) {
-                    val partInternalNames = entry.partFiles.mapNotNull { partFile ->
-                        val fileClass = partFile.declarations.singleOrNull { it.origin == IrDeclarationOrigin.FILE_CLASS } as IrClass?
-                        if (fileClass != null) typeMapper.mapClass(fileClass).internalName else null
-                    }
-                    MultifileClassCodegenImpl.writeMetadata(
-                        visitor, state, 0 /* TODO */, partInternalNames, type, irClass.fqNameWhenAvailable!!.parent()
-                    )
-                } else {
-                    writeSyntheticClassMetadata(visitor, state)
-                }
+            return
+        }
+
+        val entry = irClass.fileParent.fileEntry
+        if (entry is MultifileFacadeFileEntry) {
+            val partInternalNames = entry.partFiles.mapNotNull { partFile ->
+                val fileClass = partFile.declarations.singleOrNull { it.origin == IrDeclarationOrigin.FILE_CLASS } as IrClass?
+                if (fileClass != null) typeMapper.mapClass(fileClass).internalName else null
             }
+            MultifileClassCodegenImpl.writeMetadata(
+                visitor, state, 0 /* TODO */, partInternalNames, type, irClass.fqNameWhenAvailable!!.parent()
+            )
+        } else {
+            writeSyntheticClassMetadata(visitor, state)
         }
     }
 

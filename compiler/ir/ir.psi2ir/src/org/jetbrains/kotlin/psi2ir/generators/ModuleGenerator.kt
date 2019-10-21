@@ -16,11 +16,9 @@
 
 package org.jetbrains.kotlin.psi2ir.generators
 
-import org.jetbrains.kotlin.backend.common.CodegenUtil
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
-import org.jetbrains.kotlin.ir.declarations.MetadataSource
 import org.jetbrains.kotlin.ir.declarations.impl.IrFileImpl
 import org.jetbrains.kotlin.ir.declarations.impl.IrModuleFragmentImpl
 import org.jetbrains.kotlin.ir.util.ExternalDependenciesGenerator
@@ -89,9 +87,7 @@ class ModuleGenerator(override val context: GeneratorContext) : Generator {
     private fun createEmptyIrFile(ktFile: KtFile): IrFileImpl {
         val fileEntry = context.sourceManager.getOrCreateFileEntry(ktFile)
         val packageFragmentDescriptor = context.moduleDescriptor.findPackageFragmentForFile(ktFile)!!
-        val irFile = IrFileImpl(fileEntry, packageFragmentDescriptor).apply {
-            metadata = MetadataSource.File(CodegenUtil.getMemberDescriptorsToGenerate(ktFile, context.bindingContext))
-        }
+        val irFile = IrFileImpl(fileEntry, packageFragmentDescriptor)
         context.sourceManager.putFileEntry(irFile, fileEntry)
         return irFile
     }

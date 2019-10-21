@@ -115,7 +115,7 @@ private fun generateMultifileFacades(
         file.declarations.add(facadeClass)
 
         for (partClass in partClasses) {
-            context.multifileFacadeForPart[partClass.attributeOwnerId as IrClass] = jvmClassName
+            context.multifileFacadeForPart[partClass.attributeOwnerId as IrFile] = jvmClassName
 
             moveFieldsOfConstProperties(partClass, facadeClass, movedFields)
 

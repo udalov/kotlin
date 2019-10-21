@@ -82,7 +82,7 @@ object JvmBackendFacade {
         ).generateUnboundSymbolsAsDependencies()
 
         // This needs to be created before lowerings
-        val metadataInfo = MetadataInfo(irModuleFragment)
+        val metadataInfo = MetadataInfo(irModuleFragment, sourceManager, state.bindingContext)
 
         for (irFile in irModuleFragment.files) {
             for (extension in IrGenerationExtension.getInstances(context.state.project)) {

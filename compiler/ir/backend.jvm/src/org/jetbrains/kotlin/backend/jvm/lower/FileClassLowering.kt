@@ -21,6 +21,7 @@ import org.jetbrains.kotlin.backend.common.descriptors.WrappedClassDescriptor
 import org.jetbrains.kotlin.backend.common.ir.createImplicitParameterDeclarationWithWrappedDescriptor
 import org.jetbrains.kotlin.backend.common.phaser.makeIrModulePhase
 import org.jetbrains.kotlin.backend.jvm.JvmBackendContext
+import org.jetbrains.kotlin.backend.jvm.getMemberDescriptors
 import org.jetbrains.kotlin.codegen.AsmUtil
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.Modality
@@ -59,7 +60,9 @@ private class FileClassLowering(val context: JvmBackendContext) : FileLoweringPa
                 fileClassMembers.add(it)
         }
 
-        if (fileClassMembers.isEmpty() && irFile.metadata?.descriptors.isNullOrEmpty()) return
+        if (fileClassMembers.isEmpty() &&
+            irFile.getMemberDescriptors(context.psiSourceManager, context.state.bindingContext).isEmpty()
+        ) return
 
         val irFileClass = createFileClass(irFile, fileClassMembers)
         classes.add(irFileClass)
@@ -104,8 +107,7 @@ private class FileClassLowering(val context: JvmBackendContext) : FileLoweringPa
             }
 
             annotations += irFile.annotations
-
-            metadata = irFile.metadata
+            copyAttributes(irFile)
 
             val partClassType = AsmUtil.asmTypeByFqNameWithoutInnerClasses(fileClassInfo.fileClassFqName)
             val facadeClassType =
