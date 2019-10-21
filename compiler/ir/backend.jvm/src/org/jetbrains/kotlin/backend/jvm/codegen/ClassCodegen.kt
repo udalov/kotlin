@@ -7,6 +7,7 @@ package org.jetbrains.kotlin.backend.jvm.codegen
 
 import org.jetbrains.kotlin.backend.jvm.JvmBackendContext
 import org.jetbrains.kotlin.backend.jvm.JvmLoweredDeclarationOrigin
+import org.jetbrains.kotlin.backend.jvm.MetadataInfo
 import org.jetbrains.kotlin.backend.jvm.lower.MultifileFacadeFileEntry
 import org.jetbrains.kotlin.backend.jvm.lower.buildAssertionsDisabledField
 import org.jetbrains.kotlin.backend.jvm.lower.hasAssertionsDisabledField
@@ -51,6 +52,7 @@ import java.io.File
 open class ClassCodegen protected constructor(
     internal val irClass: IrClass,
     val context: JvmBackendContext,
+    internal val metadataInfo: MetadataInfo,
     private val parentClassCodegen: ClassCodegen? = null,
     private val parentFunction: IrFunction? = null,
     private val withinInline: Boolean = false
@@ -100,8 +102,9 @@ open class ClassCodegen protected constructor(
 
     private val serializerExtension = JvmSerializerExtension(visitor.serializationBindings, state, typeMapper)
     private val serializer: DescriptorSerializer? =
-        when (val metadata = irClass.metadata) {
-            is MetadataSource.Class -> DescriptorSerializer.create(metadata.descriptor, serializerExtension, parentClassCodegen?.serializer)
+        metadataInfo.getClass(irClass)?.let { descriptor ->
+            DescriptorSerializer.create(descriptor, serializerExtension, parentClassCodegen?.serializer)
+        } ?: when (val metadata = irClass.metadata) {
             is MetadataSource.File -> DescriptorSerializer.createTopLevel(serializerExtension)
             is MetadataSource.Function -> DescriptorSerializer.createForLambda(serializerExtension)
             else -> null
@@ -150,7 +153,7 @@ open class ClassCodegen protected constructor(
 
         val nestedClasses = irClass.declarations.mapNotNull { declaration ->
             if (declaration is IrClass) {
-                ClassCodegen(declaration, context, this, withinInline = withinInline)
+                ClassCodegen(declaration, context, metadataInfo, this, withinInline = withinInline)
             } else null
         }
 
@@ -236,17 +239,19 @@ open class ClassCodegen protected constructor(
             extraFlags += JvmAnnotationNames.METADATA_JVM_IR_STABLE_ABI_FLAG
         }
 
-        when (val metadata = irClass.metadata) {
-            is MetadataSource.Class -> {
-                val classProto = serializer!!.classProto(metadata.descriptor).build()
-                writeKotlinMetadata(visitor, state, KotlinClassHeader.Kind.CLASS, extraFlags) {
-                    AsmUtil.writeAnnotationData(it, serializer, classProto)
-                }
-
-                assert(irClass !in context.classNameOverride) {
-                    "JvmPackageName is not supported for classes: ${irClass.render()}"
-                }
+        val classDescriptor = metadataInfo.getClass(irClass)
+        if (classDescriptor != null) {
+            val classProto = serializer!!.classProto(classDescriptor).build()
+            writeKotlinMetadata(visitor, state, KotlinClassHeader.Kind.CLASS, extraFlags) {
+                AsmUtil.writeAnnotationData(it, serializer, classProto)
             }
+            assert(irClass !in context.classNameOverride) {
+                "JvmPackageName is not supported for classes: ${irClass.render()}"
+            }
+            return
+        }
+
+        when (val metadata = irClass.metadata) {
             is MetadataSource.File -> {
                 val packageFqName = irClass.getPackageFragment()!!.fqName
                 val packageProto = serializer!!.packagePartProto(packageFqName, metadata.descriptors)
@@ -315,8 +320,8 @@ open class ClassCodegen protected constructor(
     }
 
     companion object {
-        fun generate(irClass: IrClass, context: JvmBackendContext) {
-            ClassCodegen(irClass, context).generate()
+        fun generate(irClass: IrClass, context: JvmBackendContext, metadataInfo: MetadataInfo) {
+            ClassCodegen(irClass, context, metadataInfo).generate()
         }
 
         private fun JvmClassSignature.hasInvalidName() =
@@ -341,7 +346,9 @@ open class ClassCodegen protected constructor(
     }
 
     fun generateLocalClass(klass: IrClass, parentFunction: IrFunction): ReifiedTypeParametersUsages {
-        return ClassCodegen(klass, context, this, parentFunction, withinInline = withinInline || parentFunction.isInline).generate()
+        return ClassCodegen(
+            klass, context, metadataInfo, this, parentFunction, withinInline = withinInline || parentFunction.isInline
+        ).generate()
     }
 
     private fun generateField(field: IrField) {

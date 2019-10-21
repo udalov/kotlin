@@ -367,7 +367,7 @@ open class SymbolTable(val signaturer: IdSignatureComposer) : ReferenceSymbolTab
         startOffset: Int, endOffset: Int, origin: IrDeclarationOrigin, descriptor: ClassDescriptor,
         modality: Modality = descriptor.modality, visibility: Visibility = descriptor.visibility,
         classFactory: (IrClassSymbol) -> IrClass = {
-            IrClassImpl(startOffset, endOffset, origin, it, modality, visibility).apply { metadata = MetadataSource.Class(it.descriptor) }
+            IrClassImpl(startOffset, endOffset, origin, it, modality, visibility)
         }
     ): IrClass {
         return classSymbolTable.declare(

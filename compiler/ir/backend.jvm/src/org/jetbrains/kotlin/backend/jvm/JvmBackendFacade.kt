@@ -13,8 +13,8 @@ import org.jetbrains.kotlin.backend.jvm.codegen.ClassCodegen
 import org.jetbrains.kotlin.backend.jvm.lower.MultifileFacadeFileEntry
 import org.jetbrains.kotlin.backend.jvm.serialization.JvmIdSignatureDescriptor
 import org.jetbrains.kotlin.codegen.state.GenerationState
-import org.jetbrains.kotlin.idea.MainFunctionDetector
 import org.jetbrains.kotlin.descriptors.konan.KlibModuleOrigin
+import org.jetbrains.kotlin.idea.MainFunctionDetector
 import org.jetbrains.kotlin.ir.backend.jvm.serialization.EmptyLoggingContext
 import org.jetbrains.kotlin.ir.backend.jvm.serialization.JvmIrLinker
 import org.jetbrains.kotlin.ir.backend.jvm.serialization.JvmManglerDesc
@@ -97,6 +97,9 @@ object JvmBackendFacade {
             context.typeMapper.mapType(context.referenceClass(descriptor).defaultType)
         }
 
+        // This needs to be created before lowerings
+        val metadataInfo = MetadataInfo(irModuleFragment)
+
         JvmLower(context).lower(irModuleFragment)
 
         for (generateMultifileFacade in listOf(true, false)) {
@@ -113,7 +116,7 @@ object JvmBackendFacade {
                             throw AssertionError("File-level declaration should be IrClass after JvmLower, got: " + loweredClass.render())
                         }
 
-                        ClassCodegen.generate(loweredClass, context)
+                        ClassCodegen.generate(loweredClass, context, metadataInfo)
                     }
                     state.afterIndependentPart()
                 } catch (e: Throwable) {

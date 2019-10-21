@@ -5,14 +5,12 @@
 
 package org.jetbrains.kotlin.ir.declarations
 
-import org.jetbrains.kotlin.descriptors.ClassDescriptor
 import org.jetbrains.kotlin.descriptors.DeclarationDescriptor
 import org.jetbrains.kotlin.descriptors.FunctionDescriptor
 import org.jetbrains.kotlin.descriptors.PropertyDescriptor
 
+// TODO: get rid of MetadataSource completely and use attributes stored with IrAttributeContainer to keep metadata of original descriptors.
 interface MetadataSource {
-    class Class(val descriptor: ClassDescriptor) : MetadataSource
-
     class File(val descriptors: List<DeclarationDescriptor>) : MetadataSource
 
     class Function(val descriptor: FunctionDescriptor) : MetadataSource
