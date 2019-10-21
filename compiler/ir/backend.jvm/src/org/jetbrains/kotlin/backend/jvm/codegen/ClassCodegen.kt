@@ -102,10 +102,11 @@ open class ClassCodegen protected constructor(
 
     private val serializerExtension = JvmSerializerExtension(visitor.serializationBindings, state, typeMapper)
     private val serializer: DescriptorSerializer? =
-        metadataInfo.getClass(irClass)?.let { descriptor ->
+        metadataInfo.getClassMetadata(irClass)?.let { descriptor ->
             DescriptorSerializer.create(descriptor, serializerExtension, parentClassCodegen?.serializer)
+        } ?: metadataInfo.getFileMetadata(irClass)?.let {
+            DescriptorSerializer.createTopLevel(serializerExtension)
         } ?: when (val metadata = irClass.metadata) {
-            is MetadataSource.File -> DescriptorSerializer.createTopLevel(serializerExtension)
             is MetadataSource.Function -> DescriptorSerializer.createForLambda(serializerExtension)
             else -> null
         }
@@ -239,7 +240,7 @@ open class ClassCodegen protected constructor(
             extraFlags += JvmAnnotationNames.METADATA_JVM_IR_STABLE_ABI_FLAG
         }
 
-        val classDescriptor = metadataInfo.getClass(irClass)
+        val classDescriptor = metadataInfo.getClassMetadata(irClass)
         if (classDescriptor != null) {
             val classProto = serializer!!.classProto(classDescriptor).build()
             writeKotlinMetadata(visitor, state, KotlinClassHeader.Kind.CLASS, extraFlags) {
@@ -251,27 +252,30 @@ open class ClassCodegen protected constructor(
             return
         }
 
-        when (val metadata = irClass.metadata) {
-            is MetadataSource.File -> {
-                val packageFqName = irClass.getPackageFragment()!!.fqName
-                val packageProto = serializer!!.packagePartProto(packageFqName, metadata.descriptors)
+        val fileDescriptors = metadataInfo.getFileMetadata(irClass)
+        if (fileDescriptors != null) {
+            val packageFqName = irClass.getPackageFragment()!!.fqName
+            val packageProto = serializer!!.packagePartProto(packageFqName, fileDescriptors)
 
-                serializerExtension.serializeJvmPackage(packageProto, type)
+            serializerExtension.serializeJvmPackage(packageProto, type)
 
-                val facadeClassName = context.multifileFacadeForPart[irClass.attributeOwnerId]
-                val kind = if (facadeClassName != null) KotlinClassHeader.Kind.MULTIFILE_CLASS_PART else KotlinClassHeader.Kind.FILE_FACADE
-                writeKotlinMetadata(visitor, state, kind, extraFlags) { av ->
-                    AsmUtil.writeAnnotationData(av, serializer, packageProto.build())
+            val facadeClassName = context.multifileFacadeForPart[irClass.attributeOwnerId as IrFile]
+            val kind = if (facadeClassName != null) KotlinClassHeader.Kind.MULTIFILE_CLASS_PART else KotlinClassHeader.Kind.FILE_FACADE
+            writeKotlinMetadata(visitor, state, kind, extraFlags) { av ->
+                AsmUtil.writeAnnotationData(av, serializer, packageProto.build())
 
-                    if (facadeClassName != null) {
-                        av.visit(JvmAnnotationNames.METADATA_MULTIFILE_CLASS_NAME_FIELD_NAME, facadeClassName.internalName)
-                    }
+                if (facadeClassName != null) {
+                    av.visit(JvmAnnotationNames.METADATA_MULTIFILE_CLASS_NAME_FIELD_NAME, facadeClassName.internalName)
+                }
 
-                    if (irClass in context.classNameOverride) {
-                        av.visit(JvmAnnotationNames.METADATA_PACKAGE_NAME_FIELD_NAME, irClass.fqNameWhenAvailable!!.parent().asString())
-                    }
+                if (irClass in context.classNameOverride) {
+                    av.visit(JvmAnnotationNames.METADATA_PACKAGE_NAME_FIELD_NAME, irClass.fqNameWhenAvailable!!.parent().asString())
                 }
             }
+            return
+        }
+
+        when (val metadata = irClass.metadata) {
             is MetadataSource.Function -> {
                 val fakeDescriptor = createFreeFakeLambdaDescriptor(metadata.descriptor)
                 val functionProto = serializer!!.functionProto(fakeDescriptor)?.build()

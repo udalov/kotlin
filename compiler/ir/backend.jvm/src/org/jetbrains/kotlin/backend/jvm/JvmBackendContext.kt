@@ -101,8 +101,8 @@ class JvmBackendContext(
     internal val localDelegatedProperties = mutableMapOf<IrAttributeContainer, List<IrLocalDelegatedPropertySymbol>>()
 
     internal val multifileFacadesToAdd = mutableMapOf<JvmClassName, MutableList<IrClass>>()
-    internal val multifileFacadeForPart = mutableMapOf<IrClass, JvmClassName>()
-    internal val multifileFacadeClassForPart = mutableMapOf<IrClass, IrClass>()
+    internal val multifileFacadeForPart = mutableMapOf<IrFile, JvmClassName>()
+    internal val multifileFacadeClassForPart = mutableMapOf<IrFile, IrClass>()
     internal val multifileFacadeMemberToPartMember = mutableMapOf<IrFunction, IrFunction>()
 
     internal val hiddenConstructors = mutableMapOf<IrConstructor, IrConstructorImpl>()

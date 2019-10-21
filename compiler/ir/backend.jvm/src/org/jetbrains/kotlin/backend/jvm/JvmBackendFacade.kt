@@ -98,7 +98,7 @@ object JvmBackendFacade {
         }
 
         // This needs to be created before lowerings
-        val metadataInfo = MetadataInfo(irModuleFragment)
+        val metadataInfo = MetadataInfo(irModuleFragment, sourceManager, state.bindingContext)
 
         JvmLower(context).lower(irModuleFragment)
 
