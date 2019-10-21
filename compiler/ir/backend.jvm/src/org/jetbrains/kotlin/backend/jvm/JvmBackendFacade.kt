@@ -81,6 +81,9 @@ object JvmBackendFacade {
             facadeClassGenerator = ::facadeClassGenerator
         ).generateUnboundSymbolsAsDependencies()
 
+        // This needs to be created before lowerings
+        val metadataInfo = MetadataInfo(irModuleFragment)
+
         for (irFile in irModuleFragment.files) {
             for (extension in IrGenerationExtension.getInstances(context.state.project)) {
                 extension.generate(irFile, context, context.state.bindingContext)
@@ -107,7 +110,7 @@ object JvmBackendFacade {
                             throw AssertionError("File-level declaration should be IrClass after JvmLower, got: " + loweredClass.render())
                         }
 
-                        ClassCodegen.generate(loweredClass, context)
+                        ClassCodegen.generate(loweredClass, context, metadataInfo)
                     }
                     state.afterIndependentPart()
                 } catch (e: Throwable) {

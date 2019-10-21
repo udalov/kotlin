@@ -253,7 +253,7 @@ open class SymbolTable : ReferenceSymbolTable {
         startOffset: Int, endOffset: Int, origin: IrDeclarationOrigin, descriptor: ClassDescriptor,
         modality: Modality = descriptor.modality,
         classFactory: (IrClassSymbol) -> IrClass = {
-            IrClassImpl(startOffset, endOffset, origin, it, modality).apply { metadata = MetadataSource.Class(it.descriptor) }
+            IrClassImpl(startOffset, endOffset, origin, it, modality)
         }
     ): IrClass {
         return classSymbolTable.declare(

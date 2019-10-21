@@ -263,6 +263,11 @@ public class IrCompileKotlinAgainstKotlinTestGenerated extends AbstractIrCompile
         runTest("compiler/testData/compileKotlinAgainstKotlin/platformTypes.kt");
     }
 
+    @TestMetadata("privateMemberInSuperClassReturnsAnonymousObject.kt")
+    public void testPrivateMemberInSuperClassReturnsAnonymousObject() throws Exception {
+        runTest("compiler/testData/compileKotlinAgainstKotlin/privateMemberInSuperClassReturnsAnonymousObject.kt");
+    }
+
     @TestMetadata("propertyReference.kt")
     public void testPropertyReference() throws Exception {
         runTest("compiler/testData/compileKotlinAgainstKotlin/propertyReference.kt");
