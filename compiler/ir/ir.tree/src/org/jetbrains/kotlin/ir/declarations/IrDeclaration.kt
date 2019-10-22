@@ -32,7 +32,7 @@ interface IrMetadataSourceOwner : IrElement {
     val metadata: MetadataSource?
 }
 
-interface IrDeclaration : IrStatement, IrMutableAnnotationContainer, IrMetadataSourceOwner {
+interface IrDeclaration : IrStatement, IrMutableAnnotationContainer {
     val descriptor: DeclarationDescriptor
     var origin: IrDeclarationOrigin
 

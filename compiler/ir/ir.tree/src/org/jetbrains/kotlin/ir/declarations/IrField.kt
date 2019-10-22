@@ -13,7 +13,7 @@ import org.jetbrains.kotlin.ir.types.IrType
 
 interface IrField :
     IrSymbolDeclaration<IrFieldSymbol>, IrOverridableDeclaration<IrFieldSymbol>,
-    IrDeclarationWithName, IrDeclarationWithVisibility, IrDeclarationParent {
+    IrDeclarationWithName, IrDeclarationWithVisibility, IrDeclarationParent, IrMetadataSourceOwner {
 
     override val descriptor: PropertyDescriptor
 

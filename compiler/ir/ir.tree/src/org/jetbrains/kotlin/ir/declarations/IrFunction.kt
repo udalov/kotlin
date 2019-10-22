@@ -24,7 +24,8 @@ import org.jetbrains.kotlin.ir.symbols.IrFunctionSymbol
 import org.jetbrains.kotlin.ir.types.IrType
 
 interface IrFunction :
-    IrDeclarationWithName, IrDeclarationWithVisibility, IrTypeParametersContainer, IrSymbolOwner, IrDeclarationParent, IrReturnTarget {
+    IrDeclarationWithName, IrDeclarationWithVisibility, IrTypeParametersContainer, IrSymbolOwner, IrDeclarationParent, IrReturnTarget,
+    IrMetadataSourceOwner {
 
     override val descriptor: FunctionDescriptor
     override val symbol: IrFunctionSymbol

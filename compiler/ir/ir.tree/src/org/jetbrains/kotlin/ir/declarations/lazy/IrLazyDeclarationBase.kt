@@ -51,7 +51,8 @@ abstract class IrLazyDeclarationBase(
         descriptor.annotations.mapNotNull(typeTranslator.constantValueGenerator::generateAnnotationConstructorCall).toMutableList()
     }
 
-    override var metadata: Nothing?
+    // An indirect implementation of MetadataSourceOwner.metadata
+    var metadata: Nothing?
         get() = null
         set(_) = error("We should never need to store metadata of external declarations.")
 
