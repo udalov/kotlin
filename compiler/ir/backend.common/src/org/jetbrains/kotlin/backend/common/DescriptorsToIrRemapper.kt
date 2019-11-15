@@ -13,6 +13,7 @@ import org.jetbrains.kotlin.ir.util.DescriptorsRemapper
 import org.jetbrains.kotlin.ir.util.parentAsClass
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
+import org.jetbrains.kotlin.serialization.deserialization.descriptors.DescriptorWithContainerSource
 
 object DescriptorsToIrRemapper : DescriptorsRemapper {
     override fun remapDeclaredClass(descriptor: ClassDescriptor) =
@@ -27,8 +28,9 @@ object DescriptorsToIrRemapper : DescriptorsRemapper {
     override fun remapDeclaredField(descriptor: PropertyDescriptor) =
         WrappedFieldDescriptor(descriptor.annotations, descriptor.source)
 
-    override fun remapDeclaredSimpleFunction(descriptor: FunctionDescriptor) =
+    override fun remapDeclaredSimpleFunction(descriptor: FunctionDescriptor): WrappedSimpleFunctionDescriptor =
         when (descriptor) {
+            is DescriptorWithContainerSource -> WrappedFunctionDescriptorWithContainerSource(descriptor.containerSource)
             is PropertyGetterDescriptor -> WrappedPropertyGetterDescriptor(descriptor.annotations, descriptor.source)
             is PropertySetterDescriptor -> WrappedPropertySetterDescriptor(descriptor.annotations, descriptor.source)
             else -> WrappedSimpleFunctionDescriptor(descriptor.annotations, descriptor.source)
