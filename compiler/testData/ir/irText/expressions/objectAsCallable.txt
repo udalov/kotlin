@@ -78,18 +78,18 @@ FILE fqName:<root> fileName:/objectAsCallable.kt
     $receiver: VALUE_PARAMETER name:<this> type:<root>.A
     VALUE_PARAMETER name:i index:0 type:kotlin.Int
     BLOCK_BODY
-      RETURN type=kotlin.Nothing from='public final fun invoke (i: kotlin.Int): kotlin.Int [operator] declared in <root>'
+      RETURN type=kotlin.Nothing from='public final fun invoke (<this>: <root>.A, i: kotlin.Int): kotlin.Int [operator] declared in <root>'
         GET_VAR 'i: kotlin.Int declared in <root>.invoke' type=kotlin.Int origin=null
   FUN name:invoke visibility:public modality:FINAL <> ($receiver:<root>.En, i:kotlin.Int) returnType:kotlin.Int [operator]
     $receiver: VALUE_PARAMETER name:<this> type:<root>.En
     VALUE_PARAMETER name:i index:0 type:kotlin.Int
     BLOCK_BODY
-      RETURN type=kotlin.Nothing from='public final fun invoke (i: kotlin.Int): kotlin.Int [operator] declared in <root>'
+      RETURN type=kotlin.Nothing from='public final fun invoke (<this>: <root>.En, i: kotlin.Int): kotlin.Int [operator] declared in <root>'
         GET_VAR 'i: kotlin.Int declared in <root>.invoke' type=kotlin.Int origin=null
   PROPERTY name:test1 visibility:public modality:FINAL [val]
     FIELD PROPERTY_BACKING_FIELD name:test1 type:kotlin.Int visibility:private [final,static]
       EXPRESSION_BODY
-        CALL 'public final fun invoke (i: kotlin.Int): kotlin.Int [operator] declared in <root>' type=kotlin.Int origin=INVOKE
+        CALL 'public final fun invoke (<this>: <root>.A, i: kotlin.Int): kotlin.Int [operator] declared in <root>' type=kotlin.Int origin=INVOKE
           $receiver: GET_OBJECT 'CLASS OBJECT name:A modality:FINAL visibility:public superTypes:[kotlin.Any]' type=<root>.A
           i: CONST Int type=kotlin.Int value=42
     FUN DEFAULT_PROPERTY_ACCESSOR name:<get-test1> visibility:public modality:FINAL <> () returnType:kotlin.Int
@@ -100,7 +100,7 @@ FILE fqName:<root> fileName:/objectAsCallable.kt
   PROPERTY name:test2 visibility:public modality:FINAL [val]
     FIELD PROPERTY_BACKING_FIELD name:test2 type:kotlin.Int visibility:private [final,static]
       EXPRESSION_BODY
-        CALL 'public final fun invoke (i: kotlin.Int): kotlin.Int [operator] declared in <root>' type=kotlin.Int origin=INVOKE
+        CALL 'public final fun invoke (<this>: <root>.En, i: kotlin.Int): kotlin.Int [operator] declared in <root>' type=kotlin.Int origin=INVOKE
           $receiver: GET_ENUM 'ENUM_ENTRY name:X' type=<root>.En
           i: CONST Int type=kotlin.Int value=42
     FUN DEFAULT_PROPERTY_ACCESSOR name:<get-test2> visibility:public modality:FINAL <> () returnType:kotlin.Int

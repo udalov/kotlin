@@ -185,7 +185,7 @@ FILE fqName:<root> fileName:/floatingPointEquals.kt
     $receiver: VALUE_PARAMETER name:<this> type:kotlin.Float
     VALUE_PARAMETER name:x index:0 type:kotlin.Float
     BLOCK_BODY
-      RETURN type=kotlin.Nothing from='public final fun test1fr (x: kotlin.Float): kotlin.Boolean declared in <root>'
+      RETURN type=kotlin.Nothing from='public final fun test1fr (<this>: kotlin.Float, x: kotlin.Float): kotlin.Boolean declared in <root>'
         CALL 'public open fun equals (other: kotlin.Any?): kotlin.Boolean [operator] declared in kotlin.Any' type=kotlin.Boolean origin=null
           $this: GET_VAR '<this>: kotlin.Float declared in <root>.test1fr' type=kotlin.Float origin=null
           other: GET_VAR 'x: kotlin.Float declared in <root>.test1fr' type=kotlin.Float origin=null
@@ -193,7 +193,7 @@ FILE fqName:<root> fileName:/floatingPointEquals.kt
     $receiver: VALUE_PARAMETER name:<this> type:kotlin.Float
     VALUE_PARAMETER name:x index:0 type:kotlin.Float?
     BLOCK_BODY
-      RETURN type=kotlin.Nothing from='public final fun test2fr (x: kotlin.Float?): kotlin.Boolean declared in <root>'
+      RETURN type=kotlin.Nothing from='public final fun test2fr (<this>: kotlin.Float, x: kotlin.Float?): kotlin.Boolean declared in <root>'
         CALL 'public open fun equals (other: kotlin.Any?): kotlin.Boolean [operator] declared in kotlin.Any' type=kotlin.Boolean origin=null
           $this: GET_VAR '<this>: kotlin.Float declared in <root>.test2fr' type=kotlin.Float origin=null
           other: GET_VAR 'x: kotlin.Float? declared in <root>.test2fr' type=kotlin.Float? origin=null
@@ -201,7 +201,7 @@ FILE fqName:<root> fileName:/floatingPointEquals.kt
     $receiver: VALUE_PARAMETER name:<this> type:kotlin.Float
     VALUE_PARAMETER name:x index:0 type:kotlin.Any
     BLOCK_BODY
-      RETURN type=kotlin.Nothing from='public final fun test3fr (x: kotlin.Any): kotlin.Boolean declared in <root>'
+      RETURN type=kotlin.Nothing from='public final fun test3fr (<this>: kotlin.Float, x: kotlin.Any): kotlin.Boolean declared in <root>'
         CALL 'public open fun equals (other: kotlin.Any?): kotlin.Boolean [operator] declared in kotlin.Any' type=kotlin.Boolean origin=null
           $this: GET_VAR '<this>: kotlin.Float declared in <root>.test3fr' type=kotlin.Float origin=null
           other: GET_VAR 'x: kotlin.Any declared in <root>.test3fr' type=kotlin.Any origin=null
@@ -209,7 +209,7 @@ FILE fqName:<root> fileName:/floatingPointEquals.kt
     $receiver: VALUE_PARAMETER name:<this> type:kotlin.Float
     VALUE_PARAMETER name:x index:0 type:kotlin.Number
     BLOCK_BODY
-      RETURN type=kotlin.Nothing from='public final fun test4fr (x: kotlin.Number): kotlin.Boolean declared in <root>'
+      RETURN type=kotlin.Nothing from='public final fun test4fr (<this>: kotlin.Float, x: kotlin.Number): kotlin.Boolean declared in <root>'
         CALL 'public open fun equals (other: kotlin.Any?): kotlin.Boolean [operator] declared in kotlin.Any' type=kotlin.Boolean origin=null
           $this: GET_VAR '<this>: kotlin.Float declared in <root>.test4fr' type=kotlin.Float origin=null
           other: GET_VAR 'x: kotlin.Number declared in <root>.test4fr' type=kotlin.Number origin=null
@@ -217,7 +217,7 @@ FILE fqName:<root> fileName:/floatingPointEquals.kt
     $receiver: VALUE_PARAMETER name:<this> type:kotlin.Float
     VALUE_PARAMETER name:x index:0 type:kotlin.Any
     BLOCK_BODY
-      RETURN type=kotlin.Nothing from='public final fun test5fr (x: kotlin.Any): kotlin.Boolean declared in <root>'
+      RETURN type=kotlin.Nothing from='public final fun test5fr (<this>: kotlin.Float, x: kotlin.Any): kotlin.Boolean declared in <root>'
         WHEN type=kotlin.Boolean origin=ANDAND
           BRANCH
             if: TYPE_OP type=kotlin.Boolean origin=INSTANCEOF typeOperand=kotlin.Float
@@ -232,7 +232,7 @@ FILE fqName:<root> fileName:/floatingPointEquals.kt
     $receiver: VALUE_PARAMETER name:<this> type:kotlin.Float
     VALUE_PARAMETER name:x index:0 type:kotlin.Any
     BLOCK_BODY
-      RETURN type=kotlin.Nothing from='public final fun test6fr (x: kotlin.Any): kotlin.Boolean declared in <root>'
+      RETURN type=kotlin.Nothing from='public final fun test6fr (<this>: kotlin.Float, x: kotlin.Any): kotlin.Boolean declared in <root>'
         WHEN type=kotlin.Boolean origin=ANDAND
           BRANCH
             if: TYPE_OP type=kotlin.Boolean origin=INSTANCEOF typeOperand=kotlin.Double

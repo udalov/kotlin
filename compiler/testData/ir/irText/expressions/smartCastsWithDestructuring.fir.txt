@@ -32,12 +32,12 @@ FILE fqName:<root> fileName:/smartCastsWithDestructuring.kt
   FUN name:component1 visibility:public modality:FINAL <> ($receiver:<root>.I1) returnType:kotlin.Int [operator]
     $receiver: VALUE_PARAMETER name:<this> type:<root>.I1
     BLOCK_BODY
-      RETURN type=kotlin.Nothing from='public final fun component1 (): kotlin.Int [operator] declared in <root>'
+      RETURN type=kotlin.Nothing from='public final fun component1 (<this>: <root>.I1): kotlin.Int [operator] declared in <root>'
         CONST Int type=kotlin.Int value=1
   FUN name:component2 visibility:public modality:FINAL <> ($receiver:<root>.I2) returnType:kotlin.String [operator]
     $receiver: VALUE_PARAMETER name:<this> type:<root>.I2
     BLOCK_BODY
-      RETURN type=kotlin.Nothing from='public final fun component2 (): kotlin.String [operator] declared in <root>'
+      RETURN type=kotlin.Nothing from='public final fun component2 (<this>: <root>.I2): kotlin.String [operator] declared in <root>'
         CONST String type=kotlin.String value=""
   FUN name:test visibility:public modality:FINAL <> (x:<root>.I1) returnType:kotlin.Unit
     VALUE_PARAMETER name:x index:0 type:<root>.I1
@@ -51,8 +51,8 @@ FILE fqName:<root> fileName:/smartCastsWithDestructuring.kt
       VAR IR_TEMPORARY_VARIABLE name:tmp_0 type:<root>.I2 [val]
         GET_VAR 'x: <root>.I1 declared in <root>.test' type=<root>.I2 origin=null
       VAR name:c1 type:kotlin.Int [val]
-        CALL 'public final fun component1 (): kotlin.Int [operator] declared in <root>' type=kotlin.Int origin=null
+        CALL 'public final fun component1 (<this>: <root>.I1): kotlin.Int [operator] declared in <root>' type=kotlin.Int origin=null
           $receiver: GET_VAR 'val tmp_0: <root>.I2 [val] declared in <root>.test' type=<root>.I2 origin=null
       VAR name:c2 type:kotlin.String [val]
-        CALL 'public final fun component2 (): kotlin.String [operator] declared in <root>' type=kotlin.String origin=null
+        CALL 'public final fun component2 (<this>: <root>.I2): kotlin.String [operator] declared in <root>' type=kotlin.String origin=null
           $receiver: GET_VAR 'val tmp_0: <root>.I2 [val] declared in <root>.test' type=<root>.I2 origin=null

@@ -5,7 +5,7 @@ FILE fqName:<root> fileName:/builtinMap.kt
     $receiver: VALUE_PARAMETER name:<this> type:kotlin.collections.Map<out K1 of <root>.plus, V1 of <root>.plus>
     VALUE_PARAMETER name:pair index:0 type:kotlin.Pair<K1 of <root>.plus, V1 of <root>.plus>
     BLOCK_BODY
-      RETURN type=kotlin.Nothing from='public final fun plus <K1, V1> (pair: kotlin.Pair<K1 of <root>.plus, V1 of <root>.plus>): kotlin.collections.Map<K1 of <root>.plus, V1 of <root>.plus> declared in <root>'
+      RETURN type=kotlin.Nothing from='public final fun plus <K1, V1> (<this>: kotlin.collections.Map<out K1 of <root>.plus, V1 of <root>.plus>, pair: kotlin.Pair<K1 of <root>.plus, V1 of <root>.plus>): kotlin.collections.Map<K1 of <root>.plus, V1 of <root>.plus> declared in <root>'
         WHEN type=kotlin.collections.Map<K1 of <root>.plus, V1 of <root>.plus> origin=IF
           BRANCH
             if: CALL 'public abstract fun isEmpty (): kotlin.Boolean declared in kotlin.collections.Map' type=kotlin.Boolean origin=null
@@ -16,7 +16,7 @@ FILE fqName:<root> fileName:/builtinMap.kt
               pair: GET_VAR 'pair: kotlin.Pair<K1 of <root>.plus, V1 of <root>.plus> declared in <root>.plus' type=kotlin.Pair<K1 of <root>.plus, V1 of <root>.plus> origin=null
           BRANCH
             if: CONST Boolean type=kotlin.Boolean value=true
-            then: CALL 'public final fun apply <T> (block: kotlin.Function1<T of kotlin.apply, kotlin.Unit>): T of kotlin.apply [inline] declared in kotlin' type=java.util.LinkedHashMap<K1 of <root>.plus, V1 of <root>.plus> origin=null
+            then: CALL 'public final fun apply <T> (<this>: T of kotlin.apply, block: kotlin.Function1<T of kotlin.apply, kotlin.Unit>): T of kotlin.apply [inline] declared in kotlin' type=java.util.LinkedHashMap<K1 of <root>.plus, V1 of <root>.plus> origin=null
               <T>: java.util.LinkedHashMap<K1 of <root>.plus, V1 of <root>.plus>
               $receiver: CONSTRUCTOR_CALL 'public constructor <init> (p0: kotlin.collections.Map<out K of <uninitialized parent>, out V of <uninitialized parent>>?) declared in java.util.LinkedHashMap' type=java.util.LinkedHashMap<K1 of <root>.plus, V1 of <root>.plus> origin=null
                 <class: K>: K1 of <root>.plus

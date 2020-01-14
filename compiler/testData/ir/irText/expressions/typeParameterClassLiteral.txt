@@ -8,7 +8,7 @@ FILE fqName:<root> fileName:/typeParameterClassLiteral.kt
     TYPE_PARAMETER name:T index:0 variance: superTypes:[kotlin.Any]
     $receiver: VALUE_PARAMETER name:<this> type:kotlin.Any
     BLOCK_BODY
-      RETURN type=kotlin.Nothing from='public final fun classRefExtFun <T> (): kotlin.reflect.KClass<T of <root>.classRefExtFun> [inline] declared in <root>'
+      RETURN type=kotlin.Nothing from='public final fun classRefExtFun <T> (<this>: kotlin.Any): kotlin.reflect.KClass<T of <root>.classRefExtFun> [inline] declared in <root>'
         CLASS_REFERENCE 'TYPE_PARAMETER name:T index:0 variance: superTypes:[kotlin.Any]' type=kotlin.reflect.KClass<T of <root>.classRefExtFun>
   PROPERTY name:classRefExtVal visibility:public modality:FINAL [val]
     FUN name:<get-classRefExtVal> visibility:public modality:FINAL <T> ($receiver:T of <root>.<get-classRefExtVal>) returnType:kotlin.reflect.KClass<T of <root>.<get-classRefExtVal>> [inline]
@@ -16,7 +16,7 @@ FILE fqName:<root> fileName:/typeParameterClassLiteral.kt
       TYPE_PARAMETER name:T index:0 variance: superTypes:[kotlin.Any]
       $receiver: VALUE_PARAMETER name:<this> type:T of <root>.<get-classRefExtVal>
       BLOCK_BODY
-        RETURN type=kotlin.Nothing from='public final fun <get-classRefExtVal> <T> (): kotlin.reflect.KClass<T of <root>.<get-classRefExtVal>> [inline] declared in <root>'
+        RETURN type=kotlin.Nothing from='public final fun <get-classRefExtVal> <T> (<this>: T of <root>.<get-classRefExtVal>): kotlin.reflect.KClass<T of <root>.<get-classRefExtVal>> [inline] declared in <root>'
           CLASS_REFERENCE 'TYPE_PARAMETER name:T index:0 variance: superTypes:[kotlin.Any]' type=kotlin.reflect.KClass<T of <root>.<get-classRefExtVal>>
   CLASS CLASS name:Host modality:FINAL visibility:public superTypes:[kotlin.Any]
     $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:<root>.Host
@@ -35,7 +35,7 @@ FILE fqName:<root> fileName:/typeParameterClassLiteral.kt
       $this: VALUE_PARAMETER name:<this> type:<root>.Host
       $receiver: VALUE_PARAMETER name:<this> type:kotlin.Any
       BLOCK_BODY
-        RETURN type=kotlin.Nothing from='public final fun classRefGenericMemberExtFun <TF> (): kotlin.reflect.KClass<TF of <root>.Host.classRefGenericMemberExtFun> [inline] declared in <root>.Host'
+        RETURN type=kotlin.Nothing from='public final fun classRefGenericMemberExtFun <TF> (<this>: kotlin.Any): kotlin.reflect.KClass<TF of <root>.Host.classRefGenericMemberExtFun> [inline] declared in <root>.Host'
           CLASS_REFERENCE 'TYPE_PARAMETER name:TF index:0 variance: superTypes:[kotlin.Any]' type=kotlin.reflect.KClass<TF of <root>.Host.classRefGenericMemberExtFun>
     PROPERTY name:classRefGenericMemberExtVal visibility:public modality:FINAL [val]
       FUN name:<get-classRefGenericMemberExtVal> visibility:public modality:FINAL <TV> ($this:<root>.Host, $receiver:TV of <root>.Host.<get-classRefGenericMemberExtVal>) returnType:kotlin.reflect.KClass<TV of <root>.Host.<get-classRefGenericMemberExtVal>> [inline]
@@ -44,7 +44,7 @@ FILE fqName:<root> fileName:/typeParameterClassLiteral.kt
         $this: VALUE_PARAMETER name:<this> type:<root>.Host
         $receiver: VALUE_PARAMETER name:<this> type:TV of <root>.Host.<get-classRefGenericMemberExtVal>
         BLOCK_BODY
-          RETURN type=kotlin.Nothing from='public final fun <get-classRefGenericMemberExtVal> <TV> (): kotlin.reflect.KClass<TV of <root>.Host.<get-classRefGenericMemberExtVal>> [inline] declared in <root>.Host'
+          RETURN type=kotlin.Nothing from='public final fun <get-classRefGenericMemberExtVal> <TV> (<this>: TV of <root>.Host.<get-classRefGenericMemberExtVal>): kotlin.reflect.KClass<TV of <root>.Host.<get-classRefGenericMemberExtVal>> [inline] declared in <root>.Host'
             CLASS_REFERENCE 'TYPE_PARAMETER name:TV index:0 variance: superTypes:[kotlin.Any]' type=kotlin.reflect.KClass<TV of <root>.Host.<get-classRefGenericMemberExtVal>>
     FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
       overridden:

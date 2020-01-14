@@ -25,7 +25,7 @@ FILE fqName:<root> fileName:/receiverParameterWithAnnotations.kt
       $this: VALUE_PARAMETER name:<this> type:<root>.A
       $receiver: VALUE_PARAMETER name:<this> type:kotlin.String
       BLOCK_BODY
-        RETURN type=kotlin.Nothing from='public final fun f (): kotlin.String declared in <root>.A'
+        RETURN type=kotlin.Nothing from='public final fun f (<this>: kotlin.String): kotlin.String declared in <root>.A'
           CONST String type=kotlin.String value=""
     PROPERTY name:p visibility:public modality:FINAL [val]
       FUN name:<get-p> visibility:public modality:FINAL <> ($this:<root>.A) returnType:kotlin.String
@@ -50,7 +50,7 @@ FILE fqName:<root> fileName:/receiverParameterWithAnnotations.kt
   FUN name:topLevelF visibility:public modality:FINAL <> ($receiver:kotlin.String?) returnType:kotlin.String
     $receiver: VALUE_PARAMETER name:<this> type:kotlin.String?
     BLOCK_BODY
-      RETURN type=kotlin.Nothing from='public final fun topLevelF (): kotlin.String declared in <root>'
+      RETURN type=kotlin.Nothing from='public final fun topLevelF (<this>: kotlin.String?): kotlin.String declared in <root>'
         CONST String type=kotlin.String value=""
   PROPERTY name:topLevelP visibility:public modality:FINAL [val]
     FUN name:<get-topLevelP> visibility:public modality:FINAL <> () returnType:kotlin.String

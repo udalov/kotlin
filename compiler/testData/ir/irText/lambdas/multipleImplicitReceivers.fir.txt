@@ -65,7 +65,7 @@ FILE fqName:<root> fileName:/multipleImplicitReceivers.kt
       $this: VALUE_PARAMETER name:<this> type:<root>.IInvoke
       $receiver: VALUE_PARAMETER name:<this> type:<root>.B
       BLOCK_BODY
-        RETURN type=kotlin.Nothing from='public open fun invoke (): kotlin.Int [operator] declared in <root>.IInvoke'
+        RETURN type=kotlin.Nothing from='public open fun invoke (<this>: <root>.B): kotlin.Int [operator] declared in <root>.IInvoke'
           CONST Int type=kotlin.Int value=42
     FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
       overridden:
@@ -108,5 +108,5 @@ FILE fqName:<root> fileName:/multipleImplicitReceivers.kt
                           FUN LOCAL_FUNCTION_FOR_LAMBDA name:<anonymous> visibility:local modality:FINAL <> ($receiver:<root>.IInvoke) returnType:kotlin.Int
                             $receiver: VALUE_PARAMETER name:<this> type:<root>.IInvoke
                             BLOCK_BODY
-                              CALL 'public open fun invoke (): kotlin.Int [operator] declared in <root>.IInvoke' type=kotlin.Int origin=null
+                              CALL 'public open fun invoke (<this>: <root>.B): kotlin.Int [operator] declared in <root>.IInvoke' type=kotlin.Int origin=null
                                 $this: GET_VAR '<this>: <root>.IInvoke declared in special.<anonymous>' type=<root>.IInvoke origin=null

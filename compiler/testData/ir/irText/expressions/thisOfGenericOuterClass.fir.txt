@@ -65,7 +65,7 @@ FILE fqName:<root> fileName:/thisOfGenericOuterClass.kt
   FUN name:test visibility:public modality:FINAL <> ($receiver:<root>.Outer<kotlin.Int>) returnType:<uninitialized parent>.<anonymous>
     $receiver: VALUE_PARAMETER name:<this> type:<root>.Outer<kotlin.Int>
     BLOCK_BODY
-      RETURN type=kotlin.Nothing from='public final fun test (): <uninitialized parent>.<anonymous> declared in <root>'
+      RETURN type=kotlin.Nothing from='public final fun test (<this>: <root>.Outer<kotlin.Int>): <uninitialized parent>.<anonymous> declared in <root>'
         BLOCK type=<root>.test.<no name provided> origin=OBJECT_LITERAL
           CLASS OBJECT name:<no name provided> modality:FINAL visibility:local superTypes:[<root>.Outer.Inner<kotlin.Int>]
             $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:<root>.test.<no name provided>

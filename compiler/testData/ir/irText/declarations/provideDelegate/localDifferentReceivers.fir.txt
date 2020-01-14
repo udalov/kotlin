@@ -35,7 +35,7 @@ FILE fqName:<root> fileName:/localDifferentReceivers.kt
     VALUE_PARAMETER name:host index:0 type:kotlin.Any?
     VALUE_PARAMETER name:p index:1 type:kotlin.Any
     BLOCK_BODY
-      RETURN type=kotlin.Nothing from='public final fun provideDelegate (host: kotlin.Any?, p: kotlin.Any): kotlin.String [operator] declared in <root>'
+      RETURN type=kotlin.Nothing from='public final fun provideDelegate (<this>: <root>.MyClass, host: kotlin.Any?, p: kotlin.Any): kotlin.String [operator] declared in <root>'
         CALL 'public final fun <get-value> (): kotlin.String declared in <root>.MyClass' type=kotlin.String origin=null
           $this: GET_VAR '<this>: <root>.MyClass declared in <root>.provideDelegate' type=<root>.MyClass origin=null
   FUN name:getValue visibility:public modality:FINAL <> ($receiver:kotlin.String, receiver:kotlin.Any?, p:kotlin.Any) returnType:kotlin.String [operator]
@@ -43,7 +43,7 @@ FILE fqName:<root> fileName:/localDifferentReceivers.kt
     VALUE_PARAMETER name:receiver index:0 type:kotlin.Any?
     VALUE_PARAMETER name:p index:1 type:kotlin.Any
     BLOCK_BODY
-      RETURN type=kotlin.Nothing from='public final fun getValue (receiver: kotlin.Any?, p: kotlin.Any): kotlin.String [operator] declared in <root>'
+      RETURN type=kotlin.Nothing from='public final fun getValue (<this>: kotlin.String, receiver: kotlin.Any?, p: kotlin.Any): kotlin.String [operator] declared in <root>'
         GET_VAR '<this>: kotlin.String declared in <root>.getValue' type=kotlin.String origin=null
   FUN name:box visibility:public modality:FINAL <> () returnType:kotlin.String
     BLOCK_BODY

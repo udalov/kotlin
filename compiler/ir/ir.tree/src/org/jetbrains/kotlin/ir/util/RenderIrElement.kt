@@ -233,7 +233,8 @@ class RenderIrElementVisitor(private val normalizeNames: Boolean = false) : IrEl
 
                 renderTypeParameters(declaration)
 
-                appendListWith(declaration.valueParameters, "(", ")", ", ") { valueParameter ->
+                val parameters = listOfNotNull(declaration.extensionReceiverParameter) + declaration.valueParameters
+                appendListWith(parameters, "(", ")", ", ") { valueParameter ->
                     val varargElementType = valueParameter.varargElementType
                     if (varargElementType != null) {
                         append("vararg ")

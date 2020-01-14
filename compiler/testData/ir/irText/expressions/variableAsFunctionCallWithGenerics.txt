@@ -5,7 +5,7 @@ FILE fqName:<root> fileName:/variableAsFunctionCallWithGenerics.kt
       TYPE_PARAMETER name:T index:0 variance: superTypes:[kotlin.CharSequence]
       $receiver: VALUE_PARAMETER name:<this> type:T of <root>.<get-gk>
       BLOCK_BODY
-        RETURN type=kotlin.Nothing from='public final fun <get-gk> <T> (): kotlin.Function0<T of <root>.<get-gk>> declared in <root>'
+        RETURN type=kotlin.Nothing from='public final fun <get-gk> <T> (<this>: T of <root>.<get-gk>): kotlin.Function0<T of <root>.<get-gk>> declared in <root>'
           FUN_EXPR type=kotlin.Function0<T of <root>.<get-gk>> origin=LAMBDA
             FUN LOCAL_FUNCTION_FOR_LAMBDA name:<anonymous> visibility:local modality:FINAL <> () returnType:T of <root>.<get-gk>
               BLOCK_BODY
@@ -16,7 +16,7 @@ FILE fqName:<root> fileName:/variableAsFunctionCallWithGenerics.kt
     BLOCK_BODY
       RETURN type=kotlin.Nothing from='public final fun testGeneric1 (x: kotlin.String): kotlin.String declared in <root>'
         CALL 'public abstract fun invoke (): R of kotlin.Function0 [operator] declared in kotlin.Function0' type=kotlin.String origin=INVOKE
-          $this: CALL 'public final fun <get-gk> <T> (): kotlin.Function0<T of <root>.<get-gk>> declared in <root>' type=kotlin.Function0<kotlin.String> origin=GET_PROPERTY
+          $this: CALL 'public final fun <get-gk> <T> (<this>: T of <root>.<get-gk>): kotlin.Function0<T of <root>.<get-gk>> declared in <root>' type=kotlin.Function0<kotlin.String> origin=GET_PROPERTY
             <T>: kotlin.String
             $receiver: GET_VAR 'x: kotlin.String declared in <root>.testGeneric1' type=kotlin.String origin=null
   PROPERTY name:kt26531Val visibility:public modality:FINAL [val]
@@ -25,7 +25,7 @@ FILE fqName:<root> fileName:/variableAsFunctionCallWithGenerics.kt
       TYPE_PARAMETER name:T index:0 variance: superTypes:[kotlin.Any?]
       $receiver: VALUE_PARAMETER name:<this> type:T of <root>.<get-kt26531Val>
       BLOCK_BODY
-        RETURN type=kotlin.Nothing from='public final fun <get-kt26531Val> <T> (): kotlin.Function0<T of <root>.<get-kt26531Val>> declared in <root>'
+        RETURN type=kotlin.Nothing from='public final fun <get-kt26531Val> <T> (<this>: T of <root>.<get-kt26531Val>): kotlin.Function0<T of <root>.<get-kt26531Val>> declared in <root>'
           FUN_EXPR type=kotlin.Function0<T of <root>.<get-kt26531Val>> origin=ANONYMOUS_FUNCTION
             FUN name:<no name provided> visibility:local modality:FINAL <> () returnType:T of <root>.<get-kt26531Val>
               BLOCK_BODY
@@ -35,6 +35,6 @@ FILE fqName:<root> fileName:/variableAsFunctionCallWithGenerics.kt
     BLOCK_BODY
       RETURN type=kotlin.Nothing from='public final fun kt26531 (): kotlin.Int declared in <root>'
         CALL 'public abstract fun invoke (): R of kotlin.Function0 [operator] declared in kotlin.Function0' type=kotlin.Int origin=INVOKE
-          $this: CALL 'public final fun <get-kt26531Val> <T> (): kotlin.Function0<T of <root>.<get-kt26531Val>> declared in <root>' type=kotlin.Function0<kotlin.Int> origin=GET_PROPERTY
+          $this: CALL 'public final fun <get-kt26531Val> <T> (<this>: T of <root>.<get-kt26531Val>): kotlin.Function0<T of <root>.<get-kt26531Val>> declared in <root>' type=kotlin.Function0<kotlin.Int> origin=GET_PROPERTY
             <T>: kotlin.Int
             $receiver: CONST Int type=kotlin.Int value=7

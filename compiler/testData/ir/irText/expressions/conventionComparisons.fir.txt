@@ -38,26 +38,26 @@ FILE fqName:<root> fileName:/conventionComparisons.kt
     VALUE_PARAMETER name:a1 index:0 type:<root>.IA
     VALUE_PARAMETER name:a2 index:1 type:<root>.IA
     BLOCK_BODY
-      RETURN type=kotlin.Nothing from='public final fun test1 (a1: <root>.IA, a2: <root>.IA): kotlin.Boolean declared in <root>'
+      RETURN type=kotlin.Nothing from='public final fun test1 (<this>: <root>.IB, a1: <root>.IA, a2: <root>.IA): kotlin.Boolean declared in <root>'
         ERROR_CALL 'Comparison of arguments with unsupported type: /IA' type=kotlin.Boolean
   FUN name:test2 visibility:public modality:FINAL <> ($receiver:<root>.IB, a1:<root>.IA, a2:<root>.IA) returnType:kotlin.Boolean
     $receiver: VALUE_PARAMETER name:<this> type:<root>.IB
     VALUE_PARAMETER name:a1 index:0 type:<root>.IA
     VALUE_PARAMETER name:a2 index:1 type:<root>.IA
     BLOCK_BODY
-      RETURN type=kotlin.Nothing from='public final fun test2 (a1: <root>.IA, a2: <root>.IA): kotlin.Boolean declared in <root>'
+      RETURN type=kotlin.Nothing from='public final fun test2 (<this>: <root>.IB, a1: <root>.IA, a2: <root>.IA): kotlin.Boolean declared in <root>'
         ERROR_CALL 'Comparison of arguments with unsupported type: /IA' type=kotlin.Boolean
   FUN name:test3 visibility:public modality:FINAL <> ($receiver:<root>.IB, a1:<root>.IA, a2:<root>.IA) returnType:kotlin.Boolean
     $receiver: VALUE_PARAMETER name:<this> type:<root>.IB
     VALUE_PARAMETER name:a1 index:0 type:<root>.IA
     VALUE_PARAMETER name:a2 index:1 type:<root>.IA
     BLOCK_BODY
-      RETURN type=kotlin.Nothing from='public final fun test3 (a1: <root>.IA, a2: <root>.IA): kotlin.Boolean declared in <root>'
+      RETURN type=kotlin.Nothing from='public final fun test3 (<this>: <root>.IB, a1: <root>.IA, a2: <root>.IA): kotlin.Boolean declared in <root>'
         ERROR_CALL 'Comparison of arguments with unsupported type: /IA' type=kotlin.Boolean
   FUN name:test4 visibility:public modality:FINAL <> ($receiver:<root>.IB, a1:<root>.IA, a2:<root>.IA) returnType:kotlin.Boolean
     $receiver: VALUE_PARAMETER name:<this> type:<root>.IB
     VALUE_PARAMETER name:a1 index:0 type:<root>.IA
     VALUE_PARAMETER name:a2 index:1 type:<root>.IA
     BLOCK_BODY
-      RETURN type=kotlin.Nothing from='public final fun test4 (a1: <root>.IA, a2: <root>.IA): kotlin.Boolean declared in <root>'
+      RETURN type=kotlin.Nothing from='public final fun test4 (<this>: <root>.IB, a1: <root>.IA, a2: <root>.IA): kotlin.Boolean declared in <root>'
         ERROR_CALL 'Comparison of arguments with unsupported type: /IA' type=kotlin.Boolean

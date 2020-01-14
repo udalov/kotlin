@@ -45,7 +45,7 @@ FILE fqName:<root> fileName:/safeCalls.kts
         $this: VALUE_PARAMETER name:<this> type:<root>.SafeCalls.IHost
         $receiver: VALUE_PARAMETER name:<this> type:kotlin.String
         BLOCK_BODY
-          RETURN type=kotlin.Nothing from='public open fun extLength (): kotlin.Int declared in <root>.SafeCalls.IHost'
+          RETURN type=kotlin.Nothing from='public open fun extLength (<this>: kotlin.String): kotlin.Int declared in <root>.SafeCalls.IHost'
             CALL 'public open fun <get-length> (): kotlin.Int declared in kotlin.String' type=kotlin.Int origin=GET_PROPERTY
               $this: GET_VAR '<this>: kotlin.String declared in <root>.SafeCalls.IHost.extLength' type=kotlin.String origin=null
       FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
@@ -141,7 +141,7 @@ FILE fqName:<root> fileName:/safeCalls.kts
       $receiver: VALUE_PARAMETER name:<this> type:<root>.SafeCalls.IHost
       VALUE_PARAMETER name:s index:0 type:kotlin.String?
       BLOCK_BODY
-        RETURN type=kotlin.Nothing from='public final fun test5 (s: kotlin.String?): kotlin.Int? declared in <root>.SafeCalls'
+        RETURN type=kotlin.Nothing from='public final fun test5 (<this>: <root>.SafeCalls.IHost, s: kotlin.String?): kotlin.Int? declared in <root>.SafeCalls'
           BLOCK type=kotlin.Int? origin=SAFE_CALL
             VAR IR_TEMPORARY_VARIABLE name:tmp_4 type:kotlin.String? [val]
               GET_VAR 's: kotlin.String? declared in <root>.SafeCalls.test5' type=kotlin.String? origin=null
@@ -153,14 +153,14 @@ FILE fqName:<root> fileName:/safeCalls.kts
                 then: CONST Null type=kotlin.Nothing? value=null
               BRANCH
                 if: CONST Boolean type=kotlin.Boolean value=true
-                then: CALL 'public open fun extLength (): kotlin.Int declared in <root>.SafeCalls.IHost' type=kotlin.Int origin=null
+                then: CALL 'public open fun extLength (<this>: kotlin.String): kotlin.Int declared in <root>.SafeCalls.IHost' type=kotlin.Int origin=null
                   $this: GET_VAR '<this>: <root>.SafeCalls.IHost declared in <root>.SafeCalls.test5' type=<root>.SafeCalls.IHost origin=null
                   $receiver: GET_VAR 'val tmp_4: kotlin.String? [val] declared in <root>.SafeCalls.test5' type=kotlin.String? origin=null
     FUN name:foo visibility:public modality:FINAL <> ($this:<root>.SafeCalls, $receiver:kotlin.Int) returnType:kotlin.Int
       $this: VALUE_PARAMETER name:<this> type:<root>.SafeCalls
       $receiver: VALUE_PARAMETER name:<this> type:kotlin.Int
       BLOCK_BODY
-        RETURN type=kotlin.Nothing from='public final fun foo (): kotlin.Int declared in <root>.SafeCalls'
+        RETURN type=kotlin.Nothing from='public final fun foo (<this>: kotlin.Int): kotlin.Int declared in <root>.SafeCalls'
           CONST Int type=kotlin.Int value=239
     FUN name:box visibility:public modality:FINAL <> ($this:<root>.SafeCalls) returnType:kotlin.Unit
       $this: VALUE_PARAMETER name:<this> type:<root>.SafeCalls
@@ -177,7 +177,7 @@ FILE fqName:<root> fileName:/safeCalls.kts
                 then: CONST Null type=kotlin.Nothing? value=null
               BRANCH
                 if: CONST Boolean type=kotlin.Boolean value=true
-                then: CALL 'public final fun foo (): kotlin.Int declared in <root>.SafeCalls' type=kotlin.Int origin=null
+                then: CALL 'public final fun foo (<this>: kotlin.Int): kotlin.Int declared in <root>.SafeCalls' type=kotlin.Int origin=null
                   $this: GET_VAR '<this>: <root>.SafeCalls declared in <root>.SafeCalls.box' type=<root>.SafeCalls origin=null
                   $receiver: GET_VAR 'val tmp_5: kotlin.Int [val] declared in <root>.SafeCalls.box' type=kotlin.Int origin=null
     VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:<root>.SafeCalls

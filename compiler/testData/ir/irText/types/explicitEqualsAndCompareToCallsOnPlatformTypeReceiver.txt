@@ -2,7 +2,7 @@ FILE fqName:<root> fileName:/explicitEqualsAndCompareToCallsOnPlatformTypeReceiv
   FUN name:testPlatformEqualsPlatform visibility:public modality:FINAL <> ($receiver:<root>.JavaClass) returnType:kotlin.Boolean
     $receiver: VALUE_PARAMETER name:<this> type:<root>.JavaClass
     BLOCK_BODY
-      RETURN type=kotlin.Nothing from='public final fun testPlatformEqualsPlatform (): kotlin.Boolean declared in <root>'
+      RETURN type=kotlin.Nothing from='public final fun testPlatformEqualsPlatform (<this>: <root>.JavaClass): kotlin.Boolean declared in <root>'
         CALL 'public open fun equals (other: kotlin.Any?): kotlin.Boolean [fake_override,operator] declared in kotlin.Double' type=kotlin.Boolean origin=null
           $this: TYPE_OP type=kotlin.Double origin=IMPLICIT_NOTNULL typeOperand=kotlin.Double
             CALL 'public open fun null0 (): kotlin.Double? declared in <root>.JavaClass' type=kotlin.Double? origin=null
@@ -12,7 +12,7 @@ FILE fqName:<root> fileName:/explicitEqualsAndCompareToCallsOnPlatformTypeReceiv
   FUN name:testPlatformEqualsKotlin visibility:public modality:FINAL <> ($receiver:<root>.JavaClass) returnType:kotlin.Boolean
     $receiver: VALUE_PARAMETER name:<this> type:<root>.JavaClass
     BLOCK_BODY
-      RETURN type=kotlin.Nothing from='public final fun testPlatformEqualsKotlin (): kotlin.Boolean declared in <root>'
+      RETURN type=kotlin.Nothing from='public final fun testPlatformEqualsKotlin (<this>: <root>.JavaClass): kotlin.Boolean declared in <root>'
         CALL 'public open fun equals (other: kotlin.Any?): kotlin.Boolean [fake_override,operator] declared in kotlin.Double' type=kotlin.Boolean origin=null
           $this: TYPE_OP type=kotlin.Double origin=IMPLICIT_NOTNULL typeOperand=kotlin.Double
             CALL 'public open fun null0 (): kotlin.Double? declared in <root>.JavaClass' type=kotlin.Double? origin=null
@@ -21,7 +21,7 @@ FILE fqName:<root> fileName:/explicitEqualsAndCompareToCallsOnPlatformTypeReceiv
   FUN name:testKotlinEqualsPlatform visibility:public modality:FINAL <> ($receiver:<root>.JavaClass) returnType:kotlin.Boolean
     $receiver: VALUE_PARAMETER name:<this> type:<root>.JavaClass
     BLOCK_BODY
-      RETURN type=kotlin.Nothing from='public final fun testKotlinEqualsPlatform (): kotlin.Boolean declared in <root>'
+      RETURN type=kotlin.Nothing from='public final fun testKotlinEqualsPlatform (<this>: <root>.JavaClass): kotlin.Boolean declared in <root>'
         CALL 'public open fun equals (other: kotlin.Any?): kotlin.Boolean [fake_override,operator] declared in kotlin.Double' type=kotlin.Boolean origin=null
           $this: CONST Double type=kotlin.Double value=0.0
           other: CALL 'public open fun null0 (): kotlin.Double? declared in <root>.JavaClass' type=kotlin.Double? origin=null
@@ -29,7 +29,7 @@ FILE fqName:<root> fileName:/explicitEqualsAndCompareToCallsOnPlatformTypeReceiv
   FUN name:testPlatformCompareToPlatform visibility:public modality:FINAL <> ($receiver:<root>.JavaClass) returnType:kotlin.Int
     $receiver: VALUE_PARAMETER name:<this> type:<root>.JavaClass
     BLOCK_BODY
-      RETURN type=kotlin.Nothing from='public final fun testPlatformCompareToPlatform (): kotlin.Int declared in <root>'
+      RETURN type=kotlin.Nothing from='public final fun testPlatformCompareToPlatform (<this>: <root>.JavaClass): kotlin.Int declared in <root>'
         CALL 'public open fun compareTo (other: kotlin.Double): kotlin.Int [operator] declared in kotlin.Double' type=kotlin.Int origin=null
           $this: TYPE_OP type=kotlin.Double origin=IMPLICIT_NOTNULL typeOperand=kotlin.Double
             CALL 'public open fun null0 (): kotlin.Double? declared in <root>.JavaClass' type=kotlin.Double? origin=null
@@ -40,7 +40,7 @@ FILE fqName:<root> fileName:/explicitEqualsAndCompareToCallsOnPlatformTypeReceiv
   FUN name:testPlatformCompareToKotlin visibility:public modality:FINAL <> ($receiver:<root>.JavaClass) returnType:kotlin.Int
     $receiver: VALUE_PARAMETER name:<this> type:<root>.JavaClass
     BLOCK_BODY
-      RETURN type=kotlin.Nothing from='public final fun testPlatformCompareToKotlin (): kotlin.Int declared in <root>'
+      RETURN type=kotlin.Nothing from='public final fun testPlatformCompareToKotlin (<this>: <root>.JavaClass): kotlin.Int declared in <root>'
         CALL 'public open fun compareTo (other: kotlin.Double): kotlin.Int [operator] declared in kotlin.Double' type=kotlin.Int origin=null
           $this: TYPE_OP type=kotlin.Double origin=IMPLICIT_NOTNULL typeOperand=kotlin.Double
             CALL 'public open fun null0 (): kotlin.Double? declared in <root>.JavaClass' type=kotlin.Double? origin=null
@@ -49,7 +49,7 @@ FILE fqName:<root> fileName:/explicitEqualsAndCompareToCallsOnPlatformTypeReceiv
   FUN name:testKotlinCompareToPlatform visibility:public modality:FINAL <> ($receiver:<root>.JavaClass) returnType:kotlin.Int
     $receiver: VALUE_PARAMETER name:<this> type:<root>.JavaClass
     BLOCK_BODY
-      RETURN type=kotlin.Nothing from='public final fun testKotlinCompareToPlatform (): kotlin.Int declared in <root>'
+      RETURN type=kotlin.Nothing from='public final fun testKotlinCompareToPlatform (<this>: <root>.JavaClass): kotlin.Int declared in <root>'
         CALL 'public open fun compareTo (other: kotlin.Double): kotlin.Int [operator] declared in kotlin.Double' type=kotlin.Int origin=null
           $this: CONST Double type=kotlin.Double value=0.0
           other: TYPE_OP type=kotlin.Double origin=IMPLICIT_NOTNULL typeOperand=kotlin.Double

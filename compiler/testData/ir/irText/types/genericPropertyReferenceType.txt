@@ -45,7 +45,7 @@ FILE fqName:<root> fileName:/genericPropertyReferenceType.kt
       TYPE_PARAMETER name:T index:0 variance: superTypes:[kotlin.Any?]
       $receiver: VALUE_PARAMETER name:<this> type:<root>.C<T of <root>.<get-y>>
       BLOCK_BODY
-        RETURN type=kotlin.Nothing from='public final fun <get-y> <T> (): T of <root>.<get-y> declared in <root>'
+        RETURN type=kotlin.Nothing from='public final fun <get-y> <T> (<this>: <root>.C<T of <root>.<get-y>>): T of <root>.<get-y> declared in <root>'
           CALL 'public final fun <get-x> (): T of <root>.C declared in <root>.C' type=T of <root>.<get-y> origin=GET_PROPERTY
             $this: GET_VAR '<this>: <root>.C<T of <root>.<get-y>> declared in <root>.<get-y>' type=<root>.C<T of <root>.<get-y>> origin=null
     FUN name:<set-y> visibility:public modality:FINAL <T> ($receiver:<root>.C<T of <root>.<set-y>>, v:T of <root>.<set-y>) returnType:kotlin.Unit
@@ -63,7 +63,7 @@ FILE fqName:<root> fileName:/genericPropertyReferenceType.kt
   FUN name:test1 visibility:public modality:FINAL <> () returnType:kotlin.Unit
     BLOCK_BODY
       CALL 'public final fun use (p: kotlin.reflect.KMutableProperty<kotlin.String>): kotlin.Unit declared in <root>' type=kotlin.Unit origin=null
-        p: PROPERTY_REFERENCE 'public final y: T of <root>.<get-y> [var]' field=null getter='public final fun <get-y> <T> (): T of <root>.<get-y> declared in <root>' setter='public final fun <set-y> <T> (v: T of <root>.<set-y>): kotlin.Unit declared in <root>' type=kotlin.reflect.KMutableProperty0<kotlin.String> origin=null
+        p: PROPERTY_REFERENCE 'public final y: T of <root>.<get-y> [var]' field=null getter='public final fun <get-y> <T> (<this>: <root>.C<T of <root>.<get-y>>): T of <root>.<get-y> declared in <root>' setter='public final fun <set-y> <T> (<this>: <root>.C<T of <root>.<set-y>>, v: T of <root>.<set-y>): kotlin.Unit declared in <root>' type=kotlin.reflect.KMutableProperty0<kotlin.String> origin=null
           <1>: kotlin.String
           $receiver: CONSTRUCTOR_CALL 'public constructor <init> (x: T of <root>.C) [primary] declared in <root>.C' type=<root>.C<kotlin.String> origin=null
             <class: T>: kotlin.String
@@ -75,7 +75,7 @@ FILE fqName:<root> fileName:/genericPropertyReferenceType.kt
         TYPE_OP type=<root>.C<kotlin.String> origin=CAST typeOperand=<root>.C<kotlin.String>
           GET_VAR 'a: kotlin.Any declared in <root>.test2' type=kotlin.Any origin=null
       CALL 'public final fun use (p: kotlin.reflect.KMutableProperty<kotlin.String>): kotlin.Unit declared in <root>' type=kotlin.Unit origin=null
-        p: PROPERTY_REFERENCE 'public final y: T of <root>.<get-y> [var]' field=null getter='public final fun <get-y> <T> (): T of <root>.<get-y> declared in <root>' setter='public final fun <set-y> <T> (v: T of <root>.<set-y>): kotlin.Unit declared in <root>' type=kotlin.reflect.KMutableProperty0<kotlin.String> origin=null
+        p: PROPERTY_REFERENCE 'public final y: T of <root>.<get-y> [var]' field=null getter='public final fun <get-y> <T> (<this>: <root>.C<T of <root>.<get-y>>): T of <root>.<get-y> declared in <root>' setter='public final fun <set-y> <T> (<this>: <root>.C<T of <root>.<set-y>>, v: T of <root>.<set-y>): kotlin.Unit declared in <root>' type=kotlin.reflect.KMutableProperty0<kotlin.String> origin=null
           <1>: kotlin.String
           $receiver: TYPE_OP type=<root>.C<kotlin.String> origin=IMPLICIT_CAST typeOperand=<root>.C<kotlin.String>
             GET_VAR 'a: kotlin.Any declared in <root>.test2' type=kotlin.Any origin=null

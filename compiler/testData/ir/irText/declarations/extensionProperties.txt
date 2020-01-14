@@ -4,14 +4,14 @@ FILE fqName:<root> fileName:/extensionProperties.kt
       correspondingProperty: PROPERTY name:test1 visibility:public modality:FINAL [val]
       $receiver: VALUE_PARAMETER name:<this> type:kotlin.String
       BLOCK_BODY
-        RETURN type=kotlin.Nothing from='public final fun <get-test1> (): kotlin.Int declared in <root>'
+        RETURN type=kotlin.Nothing from='public final fun <get-test1> (<this>: kotlin.String): kotlin.Int declared in <root>'
           CONST Int type=kotlin.Int value=42
   PROPERTY name:test2 visibility:public modality:FINAL [var]
     FUN name:<get-test2> visibility:public modality:FINAL <> ($receiver:kotlin.String) returnType:kotlin.Int
       correspondingProperty: PROPERTY name:test2 visibility:public modality:FINAL [var]
       $receiver: VALUE_PARAMETER name:<this> type:kotlin.String
       BLOCK_BODY
-        RETURN type=kotlin.Nothing from='public final fun <get-test2> (): kotlin.Int declared in <root>'
+        RETURN type=kotlin.Nothing from='public final fun <get-test2> (<this>: kotlin.String): kotlin.Int declared in <root>'
           CONST Int type=kotlin.Int value=42
     FUN name:<set-test2> visibility:public modality:FINAL <> ($receiver:kotlin.String, value:kotlin.Int) returnType:kotlin.Unit
       correspondingProperty: PROPERTY name:test2 visibility:public modality:FINAL [var]
@@ -30,7 +30,7 @@ FILE fqName:<root> fileName:/extensionProperties.kt
         $this: VALUE_PARAMETER name:<this> type:<root>.Host
         $receiver: VALUE_PARAMETER name:<this> type:kotlin.String
         BLOCK_BODY
-          RETURN type=kotlin.Nothing from='public final fun <get-test3> (): kotlin.Int declared in <root>.Host'
+          RETURN type=kotlin.Nothing from='public final fun <get-test3> (<this>: kotlin.String): kotlin.Int declared in <root>.Host'
             CONST Int type=kotlin.Int value=42
     PROPERTY name:test4 visibility:public modality:FINAL [var]
       FUN name:<get-test4> visibility:public modality:FINAL <> ($this:<root>.Host, $receiver:kotlin.String) returnType:kotlin.Int
@@ -38,7 +38,7 @@ FILE fqName:<root> fileName:/extensionProperties.kt
         $this: VALUE_PARAMETER name:<this> type:<root>.Host
         $receiver: VALUE_PARAMETER name:<this> type:kotlin.String
         BLOCK_BODY
-          RETURN type=kotlin.Nothing from='public final fun <get-test4> (): kotlin.Int declared in <root>.Host'
+          RETURN type=kotlin.Nothing from='public final fun <get-test4> (<this>: kotlin.String): kotlin.Int declared in <root>.Host'
             CONST Int type=kotlin.Int value=42
       FUN name:<set-test4> visibility:public modality:FINAL <> ($this:<root>.Host, $receiver:kotlin.String, value:kotlin.Int) returnType:kotlin.Unit
         correspondingProperty: PROPERTY name:test4 visibility:public modality:FINAL [var]

@@ -7,7 +7,7 @@ FILE fqName:<root> fileName:/useImportedMember.kt
       $this: VALUE_PARAMETER name:<this> type:<root>.I
       $receiver: VALUE_PARAMETER name:<this> type:T of <root>.I.fromInterface
       BLOCK_BODY
-        RETURN type=kotlin.Nothing from='public open fun fromInterface <T> (): T of <root>.I.fromInterface declared in <root>.I'
+        RETURN type=kotlin.Nothing from='public open fun fromInterface <T> (<this>: T of <root>.I.fromInterface): T of <root>.I.fromInterface declared in <root>.I'
           GET_VAR '<this>: T of <root>.I.fromInterface declared in <root>.I.fromInterface' type=T of <root>.I.fromInterface origin=null
     FUN name:genericFromSuper visibility:public modality:OPEN <> ($this:<root>.I, g:G of <root>.I) returnType:G of <root>.I
       $this: VALUE_PARAMETER name:<this> type:<root>.I
@@ -76,7 +76,7 @@ FILE fqName:<root> fileName:/useImportedMember.kt
       $this: VALUE_PARAMETER name:<this> type:<root>.C
       $receiver: VALUE_PARAMETER name:<this> type:kotlin.Boolean
       BLOCK_BODY
-        RETURN type=kotlin.Nothing from='public final fun f (): kotlin.Int declared in <root>.C'
+        RETURN type=kotlin.Nothing from='public final fun f (<this>: kotlin.Boolean): kotlin.Int declared in <root>.C'
           CONST Int type=kotlin.Int value=3
     PROPERTY name:p visibility:public modality:FINAL [var]
       FIELD PROPERTY_BACKING_FIELD name:p type:kotlin.Int visibility:private
@@ -139,7 +139,7 @@ FILE fqName:<root> fileName:/useImportedMember.kt
       $this: VALUE_PARAMETER name:<this> type:kotlin.Any
     FUN FAKE_OVERRIDE name:fromInterface visibility:public modality:OPEN <T> ($this:<root>.I, $receiver:T of <root>.C.fromInterface) returnType:T of <root>.C.fromInterface [fake_override]
       overridden:
-        public open fun fromInterface <T> (): T of <root>.I.fromInterface declared in <root>.I
+        public open fun fromInterface <T> (<this>: T of <root>.I.fromInterface): T of <root>.I.fromInterface declared in <root>.I
       TYPE_PARAMETER name:T index:0 variance: superTypes:[kotlin.Any?]
       $this: VALUE_PARAMETER name:<this> type:<root>.I
       $receiver: VALUE_PARAMETER name:<this> type:T of <root>.C.fromInterface
@@ -174,7 +174,7 @@ FILE fqName:<root> fileName:/useImportedMember.kt
         BRANCH
           if: CALL 'public final fun not (): kotlin.Boolean [operator] declared in kotlin.Boolean' type=kotlin.Boolean origin=EXCLEQ
             $this: CALL 'public final fun EQEQ (arg0: kotlin.Any?, arg1: kotlin.Any?): kotlin.Boolean declared in kotlin.internal.ir' type=kotlin.Boolean origin=EXCLEQ
-              arg0: CALL 'public final fun f (): kotlin.Int declared in <root>.C' type=kotlin.Int origin=null
+              arg0: CALL 'public final fun f (<this>: kotlin.Boolean): kotlin.Int declared in <root>.C' type=kotlin.Int origin=null
                 $this: CONST Boolean type=kotlin.Boolean value=true
               arg1: CONST Int type=kotlin.Int value=3
           then: RETURN type=kotlin.Nothing from='public final fun box (): kotlin.String declared in <root>'
@@ -233,7 +233,7 @@ FILE fqName:<root> fileName:/useImportedMember.kt
         BRANCH
           if: CALL 'public final fun not (): kotlin.Boolean [operator] declared in kotlin.Boolean' type=kotlin.Boolean origin=EXCLEQ
             $this: CALL 'public final fun EQEQ (arg0: kotlin.Any?, arg1: kotlin.Any?): kotlin.Boolean declared in kotlin.internal.ir' type=kotlin.Boolean origin=EXCLEQ
-              arg0: CALL 'public open fun fromInterface <T> (): T of <root>.I.fromInterface declared in <root>.I' type=kotlin.Int origin=null
+              arg0: CALL 'public open fun fromInterface <T> (<this>: T of <root>.I.fromInterface): T of <root>.I.fromInterface declared in <root>.I' type=kotlin.Int origin=null
                 <T>: kotlin.Int
                 $this: CONST Int type=kotlin.Int value=9
               arg1: CONST Int type=kotlin.Int value=9

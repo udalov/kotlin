@@ -74,11 +74,11 @@ FILE fqName:<root> fileName:/genericPropertyRef.kt
       TYPE_PARAMETER name:T index:0 variance: superTypes:[kotlin.Any?]
       $receiver: VALUE_PARAMETER name:<this> type:<root>.Value<T of <root>.<get-additionalText>>
       BLOCK_BODY
-        RETURN type=kotlin.Nothing from='public final fun <get-additionalText> <T> (): kotlin.Int declared in <root>'
+        RETURN type=kotlin.Nothing from='public final fun <get-additionalText> <T> (<this>: <root>.Value<T of <root>.<get-additionalText>>): kotlin.Int declared in <root>'
           CALL 'public final fun getValue (t: kotlin.Any?, p: kotlin.Any): kotlin.Int [operator] declared in <root>.DVal' type=kotlin.Int origin=null
             $this: GET_FIELD 'FIELD DELEGATE name:additionalText$delegate type:<root>.DVal visibility:private [final,static]' type=<root>.DVal origin=null
             t: GET_VAR '<this>: <root>.Value<T of <root>.<get-additionalText>> declared in <root>.<get-additionalText>' type=<root>.Value<T of <root>.<get-additionalText>> origin=null
-            p: PROPERTY_REFERENCE 'public final additionalText: kotlin.Int [delegated,val]' field=null getter='public final fun <get-additionalText> <T> (): kotlin.Int declared in <root>' setter=null type=kotlin.reflect.KProperty1<<root>.Value<T of <root>.<get-additionalText>>, kotlin.Int> origin=PROPERTY_REFERENCE_FOR_DELEGATE
+            p: PROPERTY_REFERENCE 'public final additionalText: kotlin.Int [delegated,val]' field=null getter='public final fun <get-additionalText> <T> (<this>: <root>.Value<T of <root>.<get-additionalText>>): kotlin.Int declared in <root>' setter=null type=kotlin.reflect.KProperty1<<root>.Value<T of <root>.<get-additionalText>>, kotlin.Int> origin=PROPERTY_REFERENCE_FOR_DELEGATE
               <1>: <none>
   PROPERTY name:additionalValue visibility:public modality:FINAL [delegated,val]
     FIELD DELEGATE name:additionalValue$delegate type:<root>.DVal visibility:private [final,static]
@@ -90,11 +90,11 @@ FILE fqName:<root> fileName:/genericPropertyRef.kt
       TYPE_PARAMETER name:T index:0 variance: superTypes:[kotlin.Any?]
       $receiver: VALUE_PARAMETER name:<this> type:<root>.Value<T of <root>.<get-additionalValue>>
       BLOCK_BODY
-        RETURN type=kotlin.Nothing from='public final fun <get-additionalValue> <T> (): kotlin.Int declared in <root>'
+        RETURN type=kotlin.Nothing from='public final fun <get-additionalValue> <T> (<this>: <root>.Value<T of <root>.<get-additionalValue>>): kotlin.Int declared in <root>'
           CALL 'public final fun getValue (t: kotlin.Any?, p: kotlin.Any): kotlin.Int [operator] declared in <root>.DVal' type=kotlin.Int origin=null
             $this: GET_FIELD 'FIELD DELEGATE name:additionalValue$delegate type:<root>.DVal visibility:private [final,static]' type=<root>.DVal origin=null
             t: GET_VAR '<this>: <root>.Value<T of <root>.<get-additionalValue>> declared in <root>.<get-additionalValue>' type=<root>.Value<T of <root>.<get-additionalValue>> origin=null
-            p: PROPERTY_REFERENCE 'public final additionalValue: kotlin.Int [delegated,val]' field=null getter='public final fun <get-additionalValue> <T> (): kotlin.Int declared in <root>' setter=null type=kotlin.reflect.KProperty1<<root>.Value<T of <root>.<get-additionalValue>>, kotlin.Int> origin=PROPERTY_REFERENCE_FOR_DELEGATE
+            p: PROPERTY_REFERENCE 'public final additionalValue: kotlin.Int [delegated,val]' field=null getter='public final fun <get-additionalValue> <T> (<this>: <root>.Value<T of <root>.<get-additionalValue>>): kotlin.Int declared in <root>' setter=null type=kotlin.reflect.KProperty1<<root>.Value<T of <root>.<get-additionalValue>>, kotlin.Int> origin=PROPERTY_REFERENCE_FOR_DELEGATE
               <1>: <none>
   CLASS CLASS name:DVal modality:FINAL visibility:public superTypes:[kotlin.Any]
     $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:<root>.DVal
@@ -170,7 +170,7 @@ FILE fqName:<root> fileName:/genericPropertyRef.kt
       TYPE_PARAMETER name:T index:0 variance: superTypes:[kotlin.Any?]
       $receiver: VALUE_PARAMETER name:<this> type:T of <root>.<get-bar>
       BLOCK_BODY
-        RETURN type=kotlin.Nothing from='public final fun <get-bar> <T> (): T of <root>.<get-bar> declared in <root>'
+        RETURN type=kotlin.Nothing from='public final fun <get-bar> <T> (<this>: T of <root>.<get-bar>): T of <root>.<get-bar> declared in <root>'
           GET_VAR '<this>: T of <root>.<get-bar> declared in <root>.<get-bar>' type=T of <root>.<get-bar> origin=null
     FUN name:<set-bar> visibility:public modality:FINAL <T> ($receiver:T of <root>.<set-bar>, value:T of <root>.<set-bar>) returnType:kotlin.Unit
       correspondingProperty: PROPERTY name:bar visibility:public modality:FINAL [var]
@@ -185,7 +185,7 @@ FILE fqName:<root> fileName:/genericPropertyRef.kt
   PROPERTY name:barRef visibility:public modality:FINAL [val]
     FIELD PROPERTY_BACKING_FIELD name:barRef type:kotlin.reflect.KMutableProperty1<kotlin.String?, kotlin.String?> visibility:private [final,static]
       EXPRESSION_BODY
-        PROPERTY_REFERENCE 'public final bar: T of <root>.<get-bar> [var]' field=null getter='public final fun <get-bar> <T> (): T of <root>.<get-bar> declared in <root>' setter='public final fun <set-bar> <T> (value: T of <root>.<set-bar>): kotlin.Unit declared in <root>' type=kotlin.reflect.KMutableProperty1<kotlin.String?, kotlin.String?> origin=null
+        PROPERTY_REFERENCE 'public final bar: T of <root>.<get-bar> [var]' field=null getter='public final fun <get-bar> <T> (<this>: T of <root>.<get-bar>): T of <root>.<get-bar> declared in <root>' setter='public final fun <set-bar> <T> (<this>: T of <root>.<set-bar>, value: T of <root>.<set-bar>): kotlin.Unit declared in <root>' type=kotlin.reflect.KMutableProperty1<kotlin.String?, kotlin.String?> origin=null
           <1>: kotlin.String?
     FUN DEFAULT_PROPERTY_ACCESSOR name:<get-barRef> visibility:public modality:FINAL <> () returnType:kotlin.reflect.KMutableProperty1<kotlin.String?, kotlin.String?>
       correspondingProperty: PROPERTY name:barRef visibility:public modality:FINAL [val]
