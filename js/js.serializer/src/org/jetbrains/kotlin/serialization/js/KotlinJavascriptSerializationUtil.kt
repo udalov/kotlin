@@ -16,8 +16,7 @@
 
 package org.jetbrains.kotlin.serialization.js
 
-import org.jetbrains.kotlin.config.AnalysisFlags
-import org.jetbrains.kotlin.config.LanguageVersionSettings
+import org.jetbrains.kotlin.config.*
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.descriptors.impl.ModuleDescriptorImpl
 import org.jetbrains.kotlin.incremental.components.LookupTracker
@@ -360,3 +359,8 @@ internal fun DeclarationDescriptor.extractFileId(): Int? = when (this) {
     is DeserializedPropertyDescriptor -> proto.getExtension(JsProtoBuf.propertyContainingFileId)
     else -> null
 }
+
+val CompilerConfiguration.jsMetadataVersion: JsMetadataVersion
+    get() = get(CommonConfigurationKeys.METADATA_VERSION) as? JsMetadataVersion
+        ?: if (languageVersionSettings.languageVersion >= LanguageVersion.LATEST_STABLE) JsMetadataVersion.INSTANCE
+        else JsMetadataVersion(1, 2, 7)

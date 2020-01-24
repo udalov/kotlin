@@ -23,7 +23,6 @@ import org.jetbrains.kotlin.cli.common.config.addKotlinSourceRoots
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.cli.jvm.compiler.EnvironmentConfigFiles
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
-import org.jetbrains.kotlin.config.CommonConfigurationKeys
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.config.languageVersionSettings
 import org.jetbrains.kotlin.descriptors.impl.ModuleDescriptorImpl
@@ -39,7 +38,6 @@ import org.jetbrains.kotlin.storage.LockBasedStorageManager
 import org.jetbrains.kotlin.test.KotlinTestUtils
 import org.jetbrains.kotlin.test.TestCaseWithTmpdir
 import org.jetbrains.kotlin.test.util.RecursiveDescriptorComparator
-import org.jetbrains.kotlin.utils.JsMetadataVersion
 import org.jetbrains.kotlin.utils.KotlinJavascriptMetadataUtils
 import org.jetbrains.kotlin.utils.sure
 import java.io.File
@@ -83,12 +81,10 @@ class KotlinJavascriptSerializerTest : TestCaseWithTmpdir() {
                     data = analysisResult.moduleDescriptor
             )
             val serializedMetadata = KotlinJavascriptSerializationUtil.serializeMetadata(
-                    analysisResult.bindingContext, description, configuration.languageVersionSettings,
-                    configuration.get(CommonConfigurationKeys.METADATA_VERSION) as? JsMetadataVersion ?: JsMetadataVersion.INSTANCE
+                analysisResult.bindingContext, description, configuration.languageVersionSettings, configuration.jsMetadataVersion
             )
             FileUtil.writeToFile(metaFile, serializedMetadata.asString())
-        }
-        finally {
+        } finally {
             Disposer.dispose(rootDisposable)
         }
     }

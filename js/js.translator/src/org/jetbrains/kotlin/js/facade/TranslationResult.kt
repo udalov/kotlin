@@ -19,7 +19,6 @@ package org.jetbrains.kotlin.js.facade
 import com.intellij.openapi.util.text.StringUtil
 import com.intellij.openapi.vfs.VfsUtilCore
 import org.jetbrains.kotlin.backend.common.output.*
-import org.jetbrains.kotlin.config.CommonConfigurationKeys
 import org.jetbrains.kotlin.config.languageVersionSettings
 import org.jetbrains.kotlin.descriptors.ModuleDescriptor
 import org.jetbrains.kotlin.js.backend.JsToStringGenerationVisitor
@@ -40,7 +39,7 @@ import org.jetbrains.kotlin.resolve.diagnostics.Diagnostics
 import org.jetbrains.kotlin.serialization.js.JsModuleDescriptor
 import org.jetbrains.kotlin.serialization.js.JsSerializerProtocol
 import org.jetbrains.kotlin.serialization.js.KotlinJavascriptSerializationUtil
-import org.jetbrains.kotlin.utils.JsMetadataVersion
+import org.jetbrains.kotlin.serialization.js.jsMetadataVersion
 import org.jetbrains.kotlin.utils.KotlinJavascriptMetadataUtils
 import java.io.File
 import java.util.*
@@ -82,7 +81,7 @@ abstract class TranslationResult protected constructor(val diagnostics: Diagnost
                     packageMetadata,
                     moduleDescription,
                     config.configuration.languageVersionSettings,
-                    config.configuration.get(CommonConfigurationKeys.METADATA_VERSION) as? JsMetadataVersion ?: JsMetadataVersion.INSTANCE
+                    config.configuration.jsMetadataVersion
                 )
                 val metaFileContent = serializedMetadata.asString()
                 val sourceFilesForMetaFile = ArrayList(sourceFiles)

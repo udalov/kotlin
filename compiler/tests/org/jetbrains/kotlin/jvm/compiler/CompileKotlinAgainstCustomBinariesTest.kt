@@ -38,6 +38,7 @@ import org.jetbrains.kotlin.test.KotlinTestUtils
 import org.jetbrains.kotlin.test.MockLibraryUtil
 import org.jetbrains.kotlin.test.TestJdkKind
 import org.jetbrains.kotlin.test.util.RecursiveDescriptorComparator.validateAndCompareDescriptorWithFile
+import org.jetbrains.kotlin.utils.JsMetadataVersion
 import org.jetbrains.org.objectweb.asm.*
 import org.jetbrains.org.objectweb.asm.tree.AbstractInsnNode
 import org.jetbrains.org.objectweb.asm.tree.MethodInsnNode
@@ -374,8 +375,8 @@ class CompileKotlinAgainstCustomBinariesTest : AbstractKotlinCompilerIntegration
         compileKotlin("source.kt", tmpdir, listOf(library))
     }
 
-    fun testRequireKotlinInNestedClassesAgainst14Js() {
-        val library = compileJsLibrary("library", additionalOptions = listOf("-Xmetadata-version=1.4.0"))
+    fun testRequireKotlinInNestedClassesAgainst13Js() {
+        val library = compileJsLibrary("library", additionalOptions = listOf("-language-version", "1.3"))
         compileKotlin(
             "source.kt", File(tmpdir, "usage.js"), listOf(library), K2JSCompiler(),
             additionalOptions = listOf("-Xskip-metadata-version-check")
@@ -404,6 +405,17 @@ class CompileKotlinAgainstCustomBinariesTest : AbstractKotlinCompilerIntegration
         val moduleFile = File(tmpdir.absolutePath, "META-INF/main.kotlin_module").readBytes()
         val versionNumber = ModuleMapping.readVersionNumber(DataInputStream(ByteArrayInputStream(moduleFile)))!!
         assertEquals(expectedVersion, JvmMetadataVersion(*versionNumber))
+    }
+
+    fun testMetadataVersionDerivedFromLanguageJs() {
+        compileKotlin(
+            "source.kt", File(tmpdir, "output.js"), compiler = K2JSCompiler(),
+            additionalOptions = listOf("-language-version", "1.3"), expectedFileName = null
+        )
+
+        val expectedVersion = JsMetadataVersion(1, 2, 7)
+        val metaJs = File(tmpdir.absolutePath, "output.meta.js").readText()
+        assertTrue(metaJs, metaJs.startsWith("// Kotlin.kotlin_module_metadata(${expectedVersion.toInteger()}"))
     }
 
     /*test source mapping generation when source info is absent*/
