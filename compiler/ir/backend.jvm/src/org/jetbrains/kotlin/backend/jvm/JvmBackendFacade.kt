@@ -14,6 +14,7 @@ import org.jetbrains.kotlin.backend.jvm.codegen.ClassCodegen
 import org.jetbrains.kotlin.backend.jvm.lower.MultifileFacadeFileEntry
 import org.jetbrains.kotlin.backend.jvm.serialization.JvmIdSignatureDescriptor
 import org.jetbrains.kotlin.codegen.state.GenerationState
+import org.jetbrains.kotlin.config.JVMConfigurationKeys
 import org.jetbrains.kotlin.descriptors.konan.DeserializedKlibModuleOrigin
 import org.jetbrains.kotlin.descriptors.konan.KlibModuleOrigin
 import org.jetbrains.kotlin.idea.MainFunctionDetector
@@ -26,10 +27,14 @@ import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 import org.jetbrains.kotlin.ir.descriptors.IrFunctionFactory
 import org.jetbrains.kotlin.ir.linkage.IrProvider
 import org.jetbrains.kotlin.ir.types.defaultType
-import org.jetbrains.kotlin.ir.util.*
+import org.jetbrains.kotlin.ir.util.DeclarationStubGenerator
+import org.jetbrains.kotlin.ir.util.ExternalDependenciesGenerator
+import org.jetbrains.kotlin.ir.util.SymbolTable
+import org.jetbrains.kotlin.ir.util.render
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi2ir.Psi2IrTranslator
 import org.jetbrains.kotlin.psi2ir.PsiSourceManager
+import org.jetbrains.kotlin.utils.YourKit
 
 object JvmBackendFacade {
     fun doGenerateFiles(files: Collection<KtFile>, state: GenerationState, phaseConfig: PhaseConfig) {
@@ -121,7 +126,20 @@ object JvmBackendFacade {
             context.typeMapper.mapType(context.referenceClass(descriptor).defaultType)
         }
 
+        if (state.configuration.getBoolean(JVMConfigurationKeys.YOURKIT_SNAPSHOT)) YourKit.startTracing(null)
+
         JvmLower(context).lower(irModuleFragment)
+
+        if (state.configuration.getBoolean(JVMConfigurationKeys.YOURKIT_SNAPSHOT)) {
+            YourKit.stopCpuProfiling()
+            println("YourKit performance snapshot dumped to ${YourKit.capturePerformanceSnapshot()}")
+        }
+
+/*
+        if (state.configuration.getBoolean(JVMConfigurationKeys.YOURKIT_SNAPSHOT)) {
+            println("YourKit snapshot dumped to ${YourKit.captureMemorySnapshot()}")
+        }
+*/
 
         for (generateMultifileFacade in listOf(true, false)) {
             for (irFile in irModuleFragment.files) {
