@@ -187,6 +187,10 @@ open class JvmIrCodegenFactory(
         // We need to compile all files we reference in Klibs
         irModuleFragment.files.addAll(dependencies.flatMap { it.files })
 
+        if (input.configuration.get(JVMConfigurationKeys.YOURKIT_SNAPSHOT) == "memory-psi2ir") {
+            println("YourKit snapshot between psi2ir and JVM IR lowering: ${org.jetbrains.kotlin.utils.YourKit.captureMemorySnapshot()}")
+        }
+
         if (!input.configuration.getBoolean(JVMConfigurationKeys.DO_NOT_CLEAR_BINDING_CONTEXT)) {
             val originalBindingContext = input.bindingContext as? CleanableBindingContext
                 ?: error("BindingContext should be cleanable in JVM IR to avoid leaking memory: ${input.bindingContext}")
@@ -247,7 +251,32 @@ open class JvmIrCodegenFactory(
 
         context.state.factory.registerSourceFiles(irModuleFragment.files.map(IrFile::getKtFile))
 
+        val snapshot = state.configuration.get(JVMConfigurationKeys.YOURKIT_SNAPSHOT)
+
+        if (snapshot == "tracing") org.jetbrains.kotlin.utils.YourKit.startTracing(null)
+
         phases.invokeToplevel(phaseConfig, context, irModuleFragment)
+
+        /*
+        val date = java.text.SimpleDateFormat("yyMMdd-HHmm").format(java.util.Date())
+        val heapDumpFile = java.io.File(System.getProperty("user.home") + "/Snapshots/kotlinc-$date.hprof")
+        heapDumpFile.parentFile.mkdirs()
+        java.lang.management.ManagementFactory.newPlatformMXBeanProxy(
+            java.lang.management.ManagementFactory.getPlatformMBeanServer(),
+            "com.sun.management:type=HotSpotDiagnostic",
+            com.sun.management.HotSpotDiagnosticMXBean::class.java
+        ).dumpHeap(heapDumpFile.path, true)
+        println("Heap dumped to $heapDumpFile")
+        */
+
+        if (snapshot == "tracing") {
+            org.jetbrains.kotlin.utils.YourKit.stopCpuProfiling()
+            println("YourKit performance snapshot dumped to ${org.jetbrains.kotlin.utils.YourKit.capturePerformanceSnapshot()}")
+        }
+
+        if (snapshot == "memory-lower") {
+            println("YourKit snapshot between JVM IR lowering and codegen: ${org.jetbrains.kotlin.utils.YourKit.captureMemorySnapshot()}")
+        }
 
         return JvmIrCodegenInput(state, context, irModuleFragment, notifyCodegenStart)
     }
