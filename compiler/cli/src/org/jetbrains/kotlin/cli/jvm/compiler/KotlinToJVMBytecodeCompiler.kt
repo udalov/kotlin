@@ -655,6 +655,28 @@ object KotlinToJVMBytecodeCompiler {
         )
 
         ProgressIndicatorAndCompilationCanceledStatus.checkCanceled()
+
+        // Add module names here to store heap dumps, e.g. "idea-java-production"
+        val modulesForHeapDump = listOf<String>()
+
+        val moduleName = "${module?.getModuleName()}-${module?.getModuleType()}"
+        if (moduleName in modulesForHeapDump) {
+            val heapDumpFile = File(System.getProperty("user.home") + "/heapDump/$moduleName.hprof")
+            heapDumpFile.parentFile.mkdirs()
+            val warning = org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity.STRONG_WARNING
+            if (heapDumpFile.exists()) {
+                environment.messageCollector.report(warning, "Previous heap dump deleted at $heapDumpFile")
+                heapDumpFile.delete()
+            }
+            java.lang.management.ManagementFactory.newPlatformMXBeanProxy(
+                java.lang.management.ManagementFactory.getPlatformMBeanServer(),
+                "com.sun.management:type=HotSpotDiagnostic",
+                com.sun.management.HotSpotDiagnosticMXBean::class.java
+            ).dumpHeap(heapDumpFile.path, true)
+
+            environment.messageCollector.report(warning, "Heap dumped to $heapDumpFile")
+        }
+
         return generationState
     }
 
