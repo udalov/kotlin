@@ -118,6 +118,17 @@ class K2JVMCompilerArguments : CommonCompilerArguments() {
     )
     var additionalJavaModules: Array<String>? by FreezableVar(null)
 
+    // java -agentpath:/Applications/YourKit-Java-Profiler-2019.8.app/Contents/Resources/bin/mac/libyjpagent.dylib \
+    //      -cp $HOME/kotlin/dist/kotlinc/lib/kotlin-compiler.jar:\
+    //          /Applications/YourKit-Java-Profiler-2019.8.app/Contents/Resources/lib/yjp-controller-api-redist.jar \
+    //      org.jetbrains.kotlin.cli.jvm.K2JVMCompiler
+    //      ...
+    @Argument(
+        value = "-Xyourkit-snapshot",
+        description = "Create a YourKit snapshot"
+    )
+    var yourkitSnapshot: Boolean by FreezableVar(false)
+
     @Argument(value = "-Xno-call-assertions", description = "Don't generate not-null assertions for arguments of platform types")
     var noCallAssertions: Boolean by FreezableVar(false)
 

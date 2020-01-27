@@ -27,6 +27,9 @@ public class JVMConfigurationKeys {
     private JVMConfigurationKeys() {
     }
 
+    public static final CompilerConfigurationKey<Boolean> YOURKIT_SNAPSHOT =
+            CompilerConfigurationKey.create("Create a YourKit snapshot");
+
     public static final CompilerConfigurationKey<File> OUTPUT_DIRECTORY =
             CompilerConfigurationKey.create("output directory");
     public static final CompilerConfigurationKey<File> OUTPUT_JAR =
