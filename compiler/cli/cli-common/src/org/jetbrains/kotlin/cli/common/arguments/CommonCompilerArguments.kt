@@ -202,6 +202,13 @@ abstract class CommonCompilerArguments : CommonToolArguments() {
     var dumpPerf: String? by NullableStringFreezableVar(null)
 
     @Argument(
+        value = "-Xprofile",
+        valueDescription = "<profilerPath:command>",
+        description = "Run async-profiler with that command"
+    )
+    var profileCompilerCommand: String? by NullableStringFreezableVar(null)
+
+    @Argument(
         value = "-Xmetadata-version",
         description = "Change metadata version of the generated binary files"
     )

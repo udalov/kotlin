@@ -352,6 +352,14 @@ class K2JVMCompilerArguments : CommonCompilerArguments() {
     )
     var noKotlinNothingValueException: Boolean by FreezableVar(false)
 
+
+    @Argument(
+        value = "-Xrepeat",
+        valueDescription = "<number>",
+        description = "Debug"
+    )
+    var repeatCompileModules: String? by NullableStringFreezableVar(null)
+
     override fun configureAnalysisFlags(collector: MessageCollector): MutableMap<AnalysisFlag<*>, Any> {
         val result = super.configureAnalysisFlags(collector)
         result[JvmAnalysisFlags.strictMetadataVersionSemantics] = strictMetadataVersionSemantics
