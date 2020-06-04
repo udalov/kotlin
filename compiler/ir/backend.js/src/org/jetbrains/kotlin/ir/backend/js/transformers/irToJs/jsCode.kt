@@ -27,7 +27,7 @@ fun translateJsCodeIntoStatementList(code: IrExpression): List<JsStatement> {
 
     fun foldString(expression: IrExpression): String {
         val builder = StringBuilder()
-        expression.acceptVoid(object : IrElementVisitorVoid {
+        expression.acceptVoid(object : IrElementVisitorVoid() {
             override fun visitElement(element: IrElement) =
                 error("Parameter of js function must be compile time String constant, not ${element.render()}")
 

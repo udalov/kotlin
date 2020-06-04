@@ -36,7 +36,7 @@ import org.jetbrains.kotlin.utils.addIfNotNull
 fun IrElement.render() =
     accept(RenderIrElementVisitor(), null)
 
-class RenderIrElementVisitor(private val normalizeNames: Boolean = false) : IrElementVisitor<String, Nothing?> {
+class RenderIrElementVisitor(private val normalizeNames: Boolean = false) : IrElementVisitor<String, Nothing?>() {
     private val nameMap: MutableMap<IrVariableSymbol, String> = mutableMapOf()
     private var temporaryIndex: Int = 0
 
@@ -180,8 +180,7 @@ class RenderIrElementVisitor(private val normalizeNames: Boolean = false) : IrEl
 
     private val symbolReferenceRenderer = BoundSymbolReferenceRenderer()
 
-    private inner class BoundSymbolReferenceRenderer :
-        IrElementVisitor<String, Nothing?> {
+    private inner class BoundSymbolReferenceRenderer : IrElementVisitor<String, Nothing?>() {
 
         override fun visitElement(element: IrElement, data: Nothing?) =
             element.accept(this@RenderIrElementVisitor, null)

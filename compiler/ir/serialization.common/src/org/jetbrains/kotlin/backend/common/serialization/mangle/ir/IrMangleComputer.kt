@@ -21,7 +21,7 @@ import org.jetbrains.kotlin.types.Variance
 import org.jetbrains.kotlin.utils.addToStdlib.ifNotEmpty
 
 abstract class IrMangleComputer(protected val builder: StringBuilder, private val mode: MangleMode) :
-    IrElementVisitor<Unit, Boolean>, KotlinMangleComputer<IrDeclaration> {
+    IrElementVisitor<Unit, Boolean>(), KotlinMangleComputer<IrDeclaration> {
 
     private val typeParameterContainer = ArrayList<IrDeclaration>(4)
 

@@ -30,7 +30,7 @@ import java.util.*
 
 class Closure(val capturedValues: List<ValueDescriptor>)
 
-abstract class AbstractClosureAnnotator : IrElementVisitorVoid {
+abstract class AbstractClosureAnnotator : IrElementVisitorVoid() {
     protected abstract fun recordFunctionClosure(functionDescriptor: FunctionDescriptor, closure: Closure)
     protected abstract fun recordClassClosure(classDescriptor: ClassDescriptor, closure: Closure)
 

@@ -67,7 +67,7 @@ class StateMachineBuilder(
     private val stateSymbolSetter: IrSimpleFunction,
     private val thisSymbol: IrValueParameterSymbol,
     private val suspendResult: IrVariableSymbol
-) : IrElementVisitorVoid {
+) : IrElementVisitorVoid() {
 
     private val loopMap = mutableMapOf<IrLoop, LoopBounds>()
     private val unit = context.irBuiltIns.unitType

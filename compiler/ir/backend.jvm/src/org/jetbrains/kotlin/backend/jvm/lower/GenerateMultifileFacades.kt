@@ -260,7 +260,7 @@ private fun IrSimpleFunction.createMultifileDelegateIfNeeded(
 
 private class UpdateFunctionCallSites(
     private val functionDelegates: MutableMap<IrFunction, IrFunction>
-) : FileLoweringPass, IrElementTransformer<IrFunction?> {
+) : FileLoweringPass, IrElementTransformer<IrFunction?>() {
     override fun lower(irFile: IrFile) {
         irFile.transformChildren(this, null)
     }

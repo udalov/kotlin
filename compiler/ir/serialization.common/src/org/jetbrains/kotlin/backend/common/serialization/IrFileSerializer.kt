@@ -1262,7 +1262,7 @@ open class IrFileSerializer(
         // TODO: Konan specific
 
         file.acceptVoid(
-            object : IrElementVisitorVoid {
+            object : IrElementVisitorVoid() {
                 override fun visitElement(element: IrElement) {
                     element.acceptChildrenVoid(this)
                 }

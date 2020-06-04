@@ -58,7 +58,7 @@ class SharedVariablesLowering(val context: BackendContext) : BodyLoweringPass {
 
         private fun collectSharedVariables() {
             val skippedFunctionsParents = mutableMapOf<IrFunction, IrDeclarationParent>()
-            irBody.accept(object : IrElementVisitor<Unit, IrDeclarationParent?> {
+            irBody.accept(object : IrElementVisitor<Unit, IrDeclarationParent?>() {
                 val relevantVars = HashSet<IrVariable>()
                 val relevantVals = HashSet<IrVariable>()
 

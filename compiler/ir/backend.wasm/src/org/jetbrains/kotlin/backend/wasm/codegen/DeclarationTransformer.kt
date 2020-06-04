@@ -18,7 +18,7 @@ import org.jetbrains.kotlin.ir.util.isFakeOverride
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 
-class DeclarationTransformer : BaseTransformer<WasmModuleField?, WasmCodegenContext> {
+class DeclarationTransformer : BaseTransformer<WasmModuleField?, WasmCodegenContext>() {
     override fun visitSimpleFunction(declaration: IrSimpleFunction, data: WasmCodegenContext): WasmModuleField? {
         if (declaration.hasExcludedFromCodegenAnnotation())
             return null
@@ -69,7 +69,7 @@ class DeclarationTransformer : BaseTransformer<WasmModuleField?, WasmCodegenCont
 
         data.localNames = localNames.names
         val locals = mutableListOf<WasmLocal>()
-        body.acceptChildrenVoid(object : IrElementVisitorVoid {
+        body.acceptChildrenVoid(object : IrElementVisitorVoid() {
             override fun visitElement(element: IrElement) {
                 element.acceptChildrenVoid(this)
             }

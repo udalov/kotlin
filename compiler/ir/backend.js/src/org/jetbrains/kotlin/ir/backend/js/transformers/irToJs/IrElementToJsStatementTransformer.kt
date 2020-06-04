@@ -16,7 +16,7 @@ import org.jetbrains.kotlin.ir.util.constructedClassType
 import org.jetbrains.kotlin.js.backend.ast.*
 
 @Suppress("PARAMETER_NAME_CHANGED_ON_OVERRIDE")
-class IrElementToJsStatementTransformer : BaseIrElementToJsNodeTransformer<JsStatement, JsGenerationContext> {
+class IrElementToJsStatementTransformer : BaseIrElementToJsNodeTransformer<JsStatement, JsGenerationContext>() {
 
     override fun visitFunction(declaration: IrFunction, data: JsGenerationContext) = JsEmpty.also {
         assert(declaration.origin == JsIrBackendContext.callableClosureOrigin) {

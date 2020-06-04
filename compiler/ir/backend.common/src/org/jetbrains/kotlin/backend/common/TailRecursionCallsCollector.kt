@@ -41,7 +41,7 @@ fun collectTailRecursionCalls(irFunction: IrFunction): Set<IrCall> {
 
     val result = mutableSetOf<IrCall>()
 
-    val visitor = object : IrElementVisitor<Unit, ElementKind> {
+    val visitor = object : IrElementVisitor<Unit, ElementKind>() {
 
         override fun visitElement(element: IrElement, data: ElementKind) {
             val childKind = ElementKind.NOT_SURE // Not sure by default.

@@ -14,7 +14,7 @@ import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 import org.jetbrains.kotlin.resolve.DescriptorUtils
 
-class IrSyntheticDeclarationGenerator(context: GeneratorContext) : IrElementVisitorVoid {
+class IrSyntheticDeclarationGenerator(context: GeneratorContext) : IrElementVisitorVoid() {
 
     private val descriptorGenerator = SyntheticDeclarationsGenerator(context)
     private val symbolTable = context.symbolTable

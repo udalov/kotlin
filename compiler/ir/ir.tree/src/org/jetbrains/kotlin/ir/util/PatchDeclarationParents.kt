@@ -21,7 +21,7 @@ fun <T : IrElement> T.patchDeclarationParents(initialParent: IrDeclarationParent
         acceptVoid(visitor)
     }
 
-class PatchDeclarationParentsVisitor() : IrElementVisitorVoid {
+class PatchDeclarationParentsVisitor() : IrElementVisitorVoid() {
 
     constructor(containingDeclaration: IrDeclarationParent) : this() {
         declarationParentsStack.push(containingDeclaration)

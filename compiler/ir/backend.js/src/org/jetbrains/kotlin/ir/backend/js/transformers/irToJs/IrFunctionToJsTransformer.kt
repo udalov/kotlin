@@ -12,7 +12,7 @@ import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.js.backend.ast.JsFunction
 
 @Suppress("PARAMETER_NAME_CHANGED_ON_OVERRIDE")
-class IrFunctionToJsTransformer : BaseIrElementToJsNodeTransformer<JsFunction, JsGenerationContext> {
+class IrFunctionToJsTransformer : BaseIrElementToJsNodeTransformer<JsFunction, JsGenerationContext>() {
     override fun visitSimpleFunction(declaration: IrSimpleFunction, context: JsGenerationContext): JsFunction {
         val funcName = if (declaration.dispatchReceiverParameter == null) {
             context.getNameForStaticFunction(declaration)

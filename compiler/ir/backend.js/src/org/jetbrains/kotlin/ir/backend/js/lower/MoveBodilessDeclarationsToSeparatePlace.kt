@@ -122,7 +122,7 @@ class MoveBodilessDeclarationsToSeparatePlaceLowering(private val context: JsIrB
     }
 
     private fun IrDeclaration.collectAllExternalDeclarations() {
-        this.accept(object : IrElementVisitorVoid {
+        this.accept(object : IrElementVisitorVoid() {
             override fun visitElement(element: IrElement) {
                 element.acceptChildrenVoid(this)
             }

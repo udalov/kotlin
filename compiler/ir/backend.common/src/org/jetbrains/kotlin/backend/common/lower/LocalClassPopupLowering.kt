@@ -49,7 +49,7 @@ open class LocalClassPopupLowering(val context: BackendContext) : BodyLoweringPa
         for ((local, newContainer) in extractedLocalClasses) {
             newContainer.addChild(local)
 
-            local.acceptVoid(object : IrElementVisitorVoid {
+            local.acceptVoid(object : IrElementVisitorVoid() {
                 override fun visitElement(element: IrElement) {
                     element.acceptChildrenVoid(this)
                 }

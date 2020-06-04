@@ -21,7 +21,7 @@ import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.*
 
-interface IrElementTransformer<in D> : IrElementVisitor<IrElement, D> {
+abstract class IrElementTransformer<in D> : IrElementVisitor<IrElement, D>() {
     override fun visitElement(element: IrElement, data: D): IrElement =
         element.also { it.transformChildren(this, data) }
 

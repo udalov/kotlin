@@ -70,7 +70,7 @@ private fun buildRoots(module: IrModuleFragment, context: JsIrBackendContext, ma
 
 private fun removeUselessDeclarations(module: IrModuleFragment, usefulDeclarations: Set<IrDeclaration>) {
     module.files.forEach {
-        it.acceptVoid(object : IrElementVisitorVoid {
+        it.acceptVoid(object : IrElementVisitorVoid() {
             override fun visitElement(element: IrElement) {
                 element.acceptChildrenVoid(this)
             }
@@ -177,7 +177,7 @@ fun usefulDeclarations(roots: Iterable<IrDeclaration>, context: JsIrBackendConte
         // Add roots' nested declarations
         roots.forEach {
             it.acceptVoid(
-                object : IrElementVisitorVoid {
+                object : IrElementVisitorVoid() {
                     override fun visitElement(element: IrElement) {
                         element.acceptChildrenVoid(this)
                     }
@@ -259,7 +259,7 @@ fun usefulDeclarations(roots: Iterable<IrDeclaration>, context: JsIrBackendConte
             // TODO remove?
             (body as? IrBody)?.let { stageController.lazyLower(it) }
 
-            body?.acceptVoid(object : IrElementVisitorVoid {
+            body?.acceptVoid(object : IrElementVisitorVoid() {
                 override fun visitElement(element: IrElement) {
                     element.acceptChildrenVoid(this)
                 }

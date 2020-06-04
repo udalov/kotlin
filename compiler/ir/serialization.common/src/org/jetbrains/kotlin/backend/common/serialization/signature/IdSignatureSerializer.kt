@@ -38,59 +38,60 @@ open class IdSignatureSerializer(val mangler: KotlinMangler.IrMangler) : IdSigna
         scopeIndex = 0
     }
 
-    private inner class PublicIdSigBuilder : IdSignatureBuilder<IrDeclaration>(), IrElementVisitorVoid {
-
+    private inner class PublicIdSigBuilder : IdSignatureBuilder<IrDeclaration>() {
         override fun accept(d: IrDeclaration) {
-            d.acceptVoid(this)
+            d.acceptVoid(Visitor())
         }
 
-        private fun collectFqNames(declaration: IrDeclarationWithName) {
-            declaration.parent.acceptVoid(this)
-            classFqnSegments.add(declaration.name.asString())
-        }
-
-        override fun visitElement(element: IrElement) = error("Unexpected element ${element.render()}")
-
-        override fun visitPackageFragment(declaration: IrPackageFragment) {
-            packageFqn = declaration.fqName
-        }
-
-        override fun visitClass(declaration: IrClass) {
-            collectFqNames(declaration)
-            setExpected(declaration.isExpect)
-        }
-
-        override fun visitSimpleFunction(declaration: IrSimpleFunction) {
-            val property = declaration.correspondingPropertySymbol
-            if (property != null) {
-                hashIdAcc = mangler.run { declaration.signatureMangle }
-                property.owner.acceptVoid(this)
+        private inner class Visitor : IrElementVisitorVoid() {
+            private fun collectFqNames(declaration: IrDeclarationWithName) {
+                declaration.parent.acceptVoid(this)
                 classFqnSegments.add(declaration.name.asString())
-            } else {
+            }
+
+            override fun visitElement(element: IrElement) = error("Unexpected element ${element.render()}")
+
+            override fun visitPackageFragment(declaration: IrPackageFragment) {
+                packageFqn = declaration.fqName
+            }
+
+            override fun visitClass(declaration: IrClass) {
+                collectFqNames(declaration)
+                setExpected(declaration.isExpect)
+            }
+
+            override fun visitSimpleFunction(declaration: IrSimpleFunction) {
+                val property = declaration.correspondingPropertySymbol
+                if (property != null) {
+                    hashIdAcc = mangler.run { declaration.signatureMangle }
+                    property.owner.acceptVoid(this)
+                    classFqnSegments.add(declaration.name.asString())
+                } else {
+                    hashId = mangler.run { declaration.signatureMangle }
+                    collectFqNames(declaration)
+                }
+                setExpected(declaration.isExpect)
+            }
+
+            override fun visitConstructor(declaration: IrConstructor) {
                 hashId = mangler.run { declaration.signatureMangle }
                 collectFqNames(declaration)
+                setExpected(declaration.isExpect)
             }
-            setExpected(declaration.isExpect)
-        }
 
-        override fun visitConstructor(declaration: IrConstructor) {
-            hashId = mangler.run { declaration.signatureMangle }
-            collectFqNames(declaration)
-            setExpected(declaration.isExpect)
-        }
+            override fun visitProperty(declaration: IrProperty) {
+                hashId = mangler.run { declaration.signatureMangle }
+                collectFqNames(declaration)
+                setExpected(declaration.isExpect)
+            }
 
-        override fun visitProperty(declaration: IrProperty) {
-            hashId = mangler.run { declaration.signatureMangle }
-            collectFqNames(declaration)
-            setExpected(declaration.isExpect)
-        }
+            override fun visitTypeAlias(declaration: IrTypeAlias) {
+                collectFqNames(declaration)
+            }
 
-        override fun visitTypeAlias(declaration: IrTypeAlias) {
-            collectFqNames(declaration)
-        }
-
-        override fun visitEnumEntry(declaration: IrEnumEntry) {
-            collectFqNames(declaration)
+            override fun visitEnumEntry(declaration: IrEnumEntry) {
+                collectFqNames(declaration)
+            }
         }
     }
 

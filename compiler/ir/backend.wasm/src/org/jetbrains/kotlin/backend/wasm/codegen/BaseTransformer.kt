@@ -9,7 +9,7 @@ import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.backend.js.utils.TODO
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 
-interface BaseTransformer<out R, in D> : IrElementVisitor<R, D> {
+abstract class BaseTransformer<out R, in D> : IrElementVisitor<R, D>() {
     override fun visitElement(element: IrElement, data: D): R {
         TODO(element)
     }

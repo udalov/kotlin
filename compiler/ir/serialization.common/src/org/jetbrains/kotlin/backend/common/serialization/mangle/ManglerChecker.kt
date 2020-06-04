@@ -12,7 +12,7 @@ import org.jetbrains.kotlin.ir.util.render
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 
-class ManglerChecker(vararg _manglers: KotlinMangler<IrDeclaration>) : IrElementVisitorVoid {
+class ManglerChecker(vararg _manglers: KotlinMangler<IrDeclaration>) : IrElementVisitorVoid() {
 
     private val manglers = _manglers.toList()
 

@@ -44,7 +44,7 @@ class LocalClassesInInlineLambdasLowering(val context: CommonBackendContext) : B
                     return super.visitCall(expression)
 
                 val localClasses = mutableSetOf<IrClass>()
-                expression.acceptChildrenVoid(object : IrElementVisitorVoid {
+                expression.acceptChildrenVoid(object : IrElementVisitorVoid() {
                     override fun visitElement(element: IrElement) {
                         element.acceptChildrenVoid(this)
                     }
@@ -95,7 +95,7 @@ class LocalClassesInInlineFunctionsLowering(val context: CommonBackendContext) :
 
         val crossinlineParameters = function.valueParameters.filter { it.isCrossinline }.toSet()
         val classesToExtract = mutableSetOf<IrClass>()
-        function.acceptChildrenVoid(object : IrElementVisitorVoid {
+        function.acceptChildrenVoid(object : IrElementVisitorVoid() {
             override fun visitElement(element: IrElement) {
                 element.acceptChildrenVoid(this)
             }
@@ -103,7 +103,7 @@ class LocalClassesInInlineFunctionsLowering(val context: CommonBackendContext) :
             override fun visitClass(declaration: IrClass) {
                 var canExtract = true
                 if (crossinlineParameters.isNotEmpty()) {
-                    declaration.acceptVoid(object : IrElementVisitorVoid {
+                    declaration.acceptVoid(object : IrElementVisitorVoid() {
                         override fun visitElement(element: IrElement) {
                             element.acceptChildrenVoid(this)
                         }
@@ -136,7 +136,7 @@ class LocalClassesExtractionFromInlineFunctionsLowering(context: CommonBackendCo
 
         val crossinlineParameters = function.valueParameters.filter { it.isCrossinline }.toSet()
 
-        function.acceptChildrenVoid(object : IrElementVisitorVoid {
+        function.acceptChildrenVoid(object : IrElementVisitorVoid() {
             override fun visitElement(element: IrElement) {
                 element.acceptChildrenVoid(this)
             }
@@ -144,7 +144,7 @@ class LocalClassesExtractionFromInlineFunctionsLowering(context: CommonBackendCo
             override fun visitClass(declaration: IrClass) {
                 var canExtract = true
                 if (crossinlineParameters.isNotEmpty()) {
-                    declaration.acceptVoid(object : IrElementVisitorVoid {
+                    declaration.acceptVoid(object : IrElementVisitorVoid() {
                         override fun visitElement(element: IrElement) {
                             element.acceptChildrenVoid(this)
                         }

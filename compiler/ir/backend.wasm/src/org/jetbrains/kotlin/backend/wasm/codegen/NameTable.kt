@@ -25,7 +25,7 @@ fun generateWatTopLevelNames(packages: List<IrPackageFragment>): Map<IrDeclarati
     }
 
     for (p in packages) {
-        p.acceptChildrenVoid(object : IrElementVisitorVoid {
+        p.acceptChildrenVoid(object : IrElementVisitorVoid() {
             override fun visitElement(element: IrElement) {
                 element.acceptChildrenVoid(this)
             }

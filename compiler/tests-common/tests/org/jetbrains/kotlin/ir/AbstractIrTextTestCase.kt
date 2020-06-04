@@ -141,7 +141,7 @@ abstract class AbstractIrTextTestCase : AbstractIrGeneratorTestCase() {
         IrVerifier().verifyWithAssert(irFile)
     }
 
-    private class IrVerifier : IrElementVisitorVoid {
+    private class IrVerifier : IrElementVisitorVoid() {
         private val errors = ArrayList<String>()
 
         private val symbolForDeclaration = HashMap<IrElement, IrSymbol>()
@@ -160,7 +160,7 @@ abstract class AbstractIrTextTestCase : AbstractIrGeneratorTestCase() {
             }
         }
 
-        private val elementsAreUniqueChecker = object : IrElementVisitorVoid {
+        private val elementsAreUniqueChecker = object : IrElementVisitorVoid() {
             private val elements = HashSet<IrElement>()
 
             override fun visitElement(element: IrElement) {

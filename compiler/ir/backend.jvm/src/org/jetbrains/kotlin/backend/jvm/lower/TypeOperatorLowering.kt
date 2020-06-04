@@ -168,7 +168,7 @@ private class TypeOperatorLowering(private val context: JvmBackendContext) : Fil
     private fun IrElement.extents(): Pair<Int, Int> {
         var startOffset = UNDEFINED_OFFSET
         var endOffset = UNDEFINED_OFFSET
-        acceptVoid(object : IrElementVisitorVoid {
+        acceptVoid(object : IrElementVisitorVoid() {
             override fun visitElement(element: IrElement) {
                 element.acceptChildrenVoid(this)
                 if (startOffset == UNDEFINED_OFFSET || element.startOffset != UNDEFINED_OFFSET && element.startOffset < startOffset)

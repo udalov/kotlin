@@ -10,7 +10,7 @@ import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.js.backend.ast.JsBlock
 import org.jetbrains.kotlin.js.backend.ast.JsGlobalBlock
 
-class IrFileToJsTransformer : BaseIrElementToJsNodeTransformer<JsBlock, JsGenerationContext> {
+class IrFileToJsTransformer : BaseIrElementToJsNodeTransformer<JsBlock, JsGenerationContext>() {
     override fun visitFile(declaration: IrFile, data: JsGenerationContext): JsBlock {
         val fileContext = data.newDeclaration()
         val block = JsGlobalBlock()

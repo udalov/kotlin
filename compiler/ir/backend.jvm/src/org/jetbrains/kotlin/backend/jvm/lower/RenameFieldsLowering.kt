@@ -88,7 +88,7 @@ private class RenameFieldsLowering(val context: CommonBackendContext) : FileLowe
         get() = hasAnnotation(JvmAbi.JVM_FIELD_ANNOTATION_FQ_NAME)
 }
 
-private class FieldNameCollector : IrElementVisitorVoid {
+private class FieldNameCollector : IrElementVisitorVoid() {
     val nameToField = mutableMapOf<Pair<IrDeclarationParent, Name>, MutableList<IrField>>()
 
     override fun visitElement(element: IrElement) {

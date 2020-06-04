@@ -35,7 +35,7 @@ class CheckIrElementVisitor(
     val irBuiltIns: IrBuiltIns,
     val reportError: ReportError,
     val config: IrValidatorConfig
-) : IrElementVisitorVoid {
+) : IrElementVisitorVoid() {
 
     val set = mutableSetOf<IrElement>()
     val checkedTypes = mutableSetOf<IrType>()

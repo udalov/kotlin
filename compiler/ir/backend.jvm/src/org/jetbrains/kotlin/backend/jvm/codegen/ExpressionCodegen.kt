@@ -107,7 +107,7 @@ class ExpressionCodegen(
     val classCodegen: ClassCodegen,
     val inlinedInto: ExpressionCodegen?,
     val smap: SourceMapper
-) : IrElementVisitor<PromisedValue, BlockInfo>, BaseExpressionCodegen {
+) : IrElementVisitor<PromisedValue, BlockInfo>(), BaseExpressionCodegen {
 
     var finallyDepth = 0
 

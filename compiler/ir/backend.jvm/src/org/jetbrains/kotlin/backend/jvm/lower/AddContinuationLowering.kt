@@ -554,7 +554,7 @@ private class AddContinuationLowering(private val context: JvmBackendContext) : 
 
     private fun addContinuationObjectAndContinuationParameterToSuspendFunctions(irFile: IrFile) {
         class MutableFlag(var capturesCrossinline: Boolean)
-        irFile.accept(object : IrElementTransformer<MutableFlag?> {
+        irFile.accept(object : IrElementTransformer<MutableFlag?>() {
             override fun visitClass(declaration: IrClass, data: MutableFlag?): IrStatement {
                 declaration.transformDeclarationsFlat {
                     if (it is IrSimpleFunction && it.isSuspend)

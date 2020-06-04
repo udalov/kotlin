@@ -64,7 +64,7 @@ class JvmOptimizationLowering(val context: JvmBackendContext) : FileLoweringPass
         }
 
     override fun lower(irFile: IrFile) {
-        val transformer = object : IrElementTransformer<IrClass?> {
+        val transformer = object : IrElementTransformer<IrClass?>() {
 
             // Thread the current class through the transformations in order to replace
             // final default accessor calls with direct backing field access when

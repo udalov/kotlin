@@ -49,7 +49,7 @@ class MultipleCatchesLowering(private val context: JsIrBackendContext) : BodyLow
     private val nothingType = context.irBuiltIns.nothingType
 
     override fun lower(irBody: IrBody, container: IrDeclaration) {
-        irBody.transform(object : IrElementTransformer<IrDeclarationParent> {
+        irBody.transform(object : IrElementTransformer<IrDeclarationParent>() {
 
             override fun visitDeclaration(declaration: IrDeclaration, data: IrDeclarationParent): IrStatement {
                 val parent = (declaration as? IrDeclarationParent) ?: data
@@ -78,7 +78,7 @@ class MultipleCatchesLowering(private val context: JsIrBackendContext) : BodyLow
                             pendingException()
                     }
 
-                    val catchBody = catch.result.transform(object : IrElementTransformer<IrValueSymbol> {
+                    val catchBody = catch.result.transform(object : IrElementTransformer<IrValueSymbol>() {
                         override fun visitGetValue(expression: IrGetValue, data: IrValueSymbol) =
                             if (expression.symbol == data)
                                 castedPendingException()

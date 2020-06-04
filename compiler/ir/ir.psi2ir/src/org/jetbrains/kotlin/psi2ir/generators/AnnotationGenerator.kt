@@ -13,7 +13,7 @@ import org.jetbrains.kotlin.ir.declarations.IrTypeParametersContainer
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 
-class AnnotationGenerator(context: GeneratorContext) : IrElementVisitorVoid {
+class AnnotationGenerator(context: GeneratorContext) : IrElementVisitorVoid() {
     private val typeTranslator = context.typeTranslator
     private val constantValueGenerator = context.constantValueGenerator
 

@@ -72,7 +72,7 @@ class StaticLambdaLowering(val backendContext: JvmBackendContext) : FileLowering
     private val IrClass.containsReifiedTypeParameters: Boolean
         get() = containsReifiedTypeParametersCache.getOrPut(this) {
             var containsReified = false
-            acceptChildrenVoid(object : IrElementVisitorVoid {
+            acceptChildrenVoid(object : IrElementVisitorVoid() {
                 override fun visitElement(element: IrElement) {
                     if (!containsReified)
                         element.acceptChildrenVoid(this)

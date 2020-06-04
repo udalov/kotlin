@@ -57,7 +57,7 @@ data class IrValidatorConfig(
     val checkProperties: Boolean = false,
 )
 
-class IrValidator(val context: CommonBackendContext, val config: IrValidatorConfig) : IrElementVisitorVoid {
+class IrValidator(val context: CommonBackendContext, val config: IrValidatorConfig) : IrElementVisitorVoid() {
 
     val irBuiltIns = context.irBuiltIns
     var currentFile: IrFile? = null
@@ -92,7 +92,7 @@ fun IrModuleFragment.checkDeclarationParents() {
     this.accept(CheckDeclarationParentsVisitor, null)
 }
 
-object CheckDeclarationParentsVisitor : IrElementVisitor<Unit, IrDeclarationParent?> {
+object CheckDeclarationParentsVisitor : IrElementVisitor<Unit, IrDeclarationParent?>() {
 
     override fun visitElement(element: IrElement, data: IrDeclarationParent?) {
         element.acceptChildren(this, element as? IrDeclarationParent ?: data)

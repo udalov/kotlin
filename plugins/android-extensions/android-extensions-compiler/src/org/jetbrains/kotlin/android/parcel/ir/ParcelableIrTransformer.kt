@@ -40,7 +40,7 @@ import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.utils.addToStdlib.safeAs
 
 class ParcelableIrTransformer(private val context: IrPluginContext, private val androidSymbols: AndroidSymbols) :
-    ParcelableExtensionBase, IrElementVisitorVoid {
+    IrElementVisitorVoid(), ParcelableExtensionBase {
     private val serializerFactory = IrParcelSerializerFactory(androidSymbols)
 
     private val deferredOperations = mutableListOf<() -> Unit>()

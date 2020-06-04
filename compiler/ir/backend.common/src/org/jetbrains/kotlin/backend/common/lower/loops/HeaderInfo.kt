@@ -237,7 +237,7 @@ internal interface HeaderInfoFromCallHandler<D> : HeaderInfoHandler<IrCall, D> {
 internal typealias ProgressionHandler = HeaderInfoFromCallHandler<ProgressionType>
 
 internal abstract class HeaderInfoBuilder(context: CommonBackendContext, private val scopeOwnerSymbol: () -> IrSymbol) :
-    IrElementVisitor<HeaderInfo?, IrCall?> {
+    IrElementVisitor<HeaderInfo?, IrCall?>() {
 
     private val symbols = context.ir.symbols
 

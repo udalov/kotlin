@@ -50,7 +50,7 @@ object DescriptorsToIrRemapper : DescriptorsRemapper {
             WrappedValueParameterDescriptor(descriptor.annotations, descriptor.source)
 }
 
-object WrappedDescriptorPatcher : IrElementVisitorVoid {
+object WrappedDescriptorPatcher : IrElementVisitorVoid() {
     override fun visitElement(element: IrElement) {
         element.acceptChildrenVoid(this)
     }

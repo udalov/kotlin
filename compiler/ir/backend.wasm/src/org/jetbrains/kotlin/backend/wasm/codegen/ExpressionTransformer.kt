@@ -15,7 +15,7 @@ import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.types.isUnit
 import org.jetbrains.kotlin.ir.util.dump
 
-class ExpressionTransformer : BaseTransformer<WasmInstruction, WasmCodegenContext> {
+class ExpressionTransformer : BaseTransformer<WasmInstruction, WasmCodegenContext>() {
     override fun visitVararg(expression: IrVararg, data: WasmCodegenContext): WasmInstruction {
         TODO("Support arrays")
     }

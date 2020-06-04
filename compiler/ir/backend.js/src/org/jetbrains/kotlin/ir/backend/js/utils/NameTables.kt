@@ -210,7 +210,7 @@ class NameTables(
 
         if (declaration is IrClass) {
             if (declaration.isEffectivelyExternal()) {
-                declaration.acceptChildrenVoid(object : IrElementVisitorVoid {
+                declaration.acceptChildrenVoid(object : IrElementVisitorVoid() {
                     override fun visitElement(element: IrElement) {
                         element.acceptChildrenVoid(this)
                     }
@@ -360,7 +360,7 @@ class NameTables(
         }
     }
 
-    inner class LocalNameGenerator(parentDeclaration: IrDeclaration) : IrElementVisitorVoid {
+    inner class LocalNameGenerator(parentDeclaration: IrDeclaration) : IrElementVisitorVoid() {
         val table = NameTable<IrDeclaration>(globalNames)
 
         init {

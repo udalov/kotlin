@@ -17,7 +17,7 @@ import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 import org.jetbrains.kotlin.utils.addIfNotNull
 
-class StableNamesCollector : IrElementVisitorVoid {
+class StableNamesCollector : IrElementVisitorVoid() {
     val staticNames = mutableSetOf<String>()
     val memberNames = mutableSetOf<String>()
 

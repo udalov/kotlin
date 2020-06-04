@@ -68,7 +68,7 @@ interface BodyLoweringPass : FileLoweringPass {
 fun FileLoweringPass.lower(moduleFragment: IrModuleFragment) = moduleFragment.files.forEach { lower(it) }
 
 fun ClassLoweringPass.runOnFilePostfix(irFile: IrFile) {
-    irFile.acceptVoid(object : IrElementVisitorVoid {
+    irFile.acceptVoid(object : IrElementVisitorVoid() {
         override fun visitElement(element: IrElement) {
             element.acceptChildrenVoid(this)
         }
@@ -81,7 +81,7 @@ fun ClassLoweringPass.runOnFilePostfix(irFile: IrFile) {
 }
 
 fun ScriptLoweringPass.runOnFilePostfix(irFile: IrFile) {
-    irFile.acceptVoid(object : IrElementVisitorVoid {
+    irFile.acceptVoid(object : IrElementVisitorVoid() {
         override fun visitElement(element: IrElement) {
             element.acceptChildrenVoid(this)
         }
@@ -114,7 +114,7 @@ fun DeclarationContainerLoweringPass.runOnFilePostfix(irFile: IrFile) {
 
 fun BodyLoweringPass.runOnFilePostfix(irFile: IrFile, withLocalDeclarations: Boolean = false, allowDeclarationModification: Boolean = false) {
     ArrayList(irFile.declarations).forEach {
-        it.accept(object : IrElementVisitor<Unit, IrDeclaration?> {
+        it.accept(object : IrElementVisitor<Unit, IrDeclaration?>() {
             override fun visitElement(element: IrElement, data: IrDeclaration?) {
                 element.acceptChildren(this, data)
             }
@@ -153,7 +153,7 @@ fun BodyLoweringPass.runOnFilePostfix(irFile: IrFile, withLocalDeclarations: Boo
 }
 
 fun FunctionLoweringPass.runOnFilePostfix(irFile: IrFile) {
-    irFile.acceptVoid(object : IrElementVisitorVoid {
+    irFile.acceptVoid(object : IrElementVisitorVoid() {
         override fun visitElement(element: IrElement) {
             element.acceptChildrenVoid(this)
         }
@@ -190,7 +190,7 @@ fun DeclarationTransformer.toFileLoweringPass(): FileLoweringPass {
 fun DeclarationTransformer.runPostfix(withLocalDeclarations: Boolean = false): DeclarationTransformer {
     return object : DeclarationTransformer {
         override fun transformFlat(declaration: IrDeclaration): List<IrDeclaration>? {
-            declaration.acceptVoid(object : IrElementVisitorVoid {
+            declaration.acceptVoid(object : IrElementVisitorVoid() {
                 override fun visitElement(element: IrElement) {
                     element.acceptChildrenVoid(this)
                 }

@@ -21,7 +21,7 @@ import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.*
 
-abstract class IrElementTransformerVoid : IrElementTransformer<Nothing?> {
+abstract class IrElementTransformerVoid : IrElementTransformer<Nothing?>() {
     protected fun <T : IrElement> T.transformChildren() = apply { transformChildrenVoid() }
 
     open fun visitElement(element: IrElement): IrElement = element.transformChildren()

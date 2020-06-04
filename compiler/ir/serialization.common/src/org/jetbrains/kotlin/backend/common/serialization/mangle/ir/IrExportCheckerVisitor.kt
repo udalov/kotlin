@@ -19,7 +19,7 @@ import org.jetbrains.kotlin.ir.util.render
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 import org.jetbrains.kotlin.name.SpecialNames
 
-abstract class IrExportCheckerVisitor : IrElementVisitor<Boolean, Nothing?>, KotlinExportChecker<IrDeclaration> {
+abstract class IrExportCheckerVisitor : IrElementVisitor<Boolean, Nothing?>(), KotlinExportChecker<IrDeclaration> {
 
     override fun check(declaration: IrDeclaration, type: SpecialDeclarationType): Boolean {
         return declaration.accept(this, null)

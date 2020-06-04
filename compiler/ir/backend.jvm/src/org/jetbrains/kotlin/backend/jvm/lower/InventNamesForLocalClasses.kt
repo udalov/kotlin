@@ -46,7 +46,7 @@ class InventNamesForLocalClasses(private val context: JvmBackendContext) : FileL
             if (isLocal) this else Data(enclosingName, true)
     }
 
-    private inner class NameInventor : IrElementVisitor<Unit, Data> {
+    private inner class NameInventor : IrElementVisitor<Unit, Data>() {
         private val anonymousClassesCount = mutableMapOf<String, Int>()
         private val localFunctionNames = mutableMapOf<IrFunctionSymbol, String>()
 

@@ -12,7 +12,7 @@ import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.declarations.IrVariable
 import org.jetbrains.kotlin.ir.expressions.*
 
-class StatementTransformer : BaseTransformer<WasmInstruction, WasmCodegenContext> {
+class StatementTransformer : BaseTransformer<WasmInstruction, WasmCodegenContext>() {
     override fun visitVariable(declaration: IrVariable, data: WasmCodegenContext): WasmInstruction {
         val init = declaration.initializer ?: return WasmNop()
         val varName = data.getLocalName(declaration)

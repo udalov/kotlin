@@ -44,7 +44,7 @@ open class TailrecLowering(val context: BackendContext) : BodyLoweringPass {
         if (container is IrFunction) {
             // TODO Shouldn't this be done after local declarations lowering?
             // Lower local declarations
-            irBody.acceptChildrenVoid(object : IrElementVisitorVoid {
+            irBody.acceptChildrenVoid(object : IrElementVisitorVoid() {
                 override fun visitElement(element: IrElement) {
                     element.acceptChildrenVoid(this)
                 }

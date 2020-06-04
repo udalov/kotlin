@@ -18,7 +18,7 @@ fun referenceExpectsForUsedActuals(
     symbolTable: SymbolTable,
     irModule: IrModuleFragment
 ) {
-    irModule.acceptVoid(object : IrElementVisitorVoid {
+    irModule.acceptVoid(object : IrElementVisitorVoid() {
 
         private fun <T> T.forEachExpect(body: (DeclarationDescriptor) -> Unit) where T : IrDeclaration {
             this.descriptor.findExpects().forEach {

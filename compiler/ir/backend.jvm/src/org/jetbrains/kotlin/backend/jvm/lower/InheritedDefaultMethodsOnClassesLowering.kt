@@ -47,7 +47,7 @@ internal val inheritedDefaultMethodsOnClassesPhase = makeIrFilePhase(
     description = "Add bridge-implementations in classes that inherit default implementations from interfaces"
 )
 
-private class InheritedDefaultMethodsOnClassesLowering(val context: JvmBackendContext) : IrElementVisitorVoid, ClassLoweringPass {
+private class InheritedDefaultMethodsOnClassesLowering(val context: JvmBackendContext) : IrElementVisitorVoid(), ClassLoweringPass {
 
     override fun visitElement(element: IrElement) {
         element.acceptChildrenVoid(this)

@@ -30,8 +30,9 @@ private enum class AssertionScope {
     Enabled, Disabled
 }
 
-private class JvmArgumentNullabilityAssertionsLowering(context: JvmBackendContext) : FileLoweringPass, IrElementTransformer<AssertionScope> {
-
+private class JvmArgumentNullabilityAssertionsLowering(
+    context: JvmBackendContext
+) : IrElementTransformer<AssertionScope>(), FileLoweringPass {
     private val isWithUnifiedNullChecks = context.state.unifiedNullChecks
     private val isCallAssertionsDisabled = context.state.isCallAssertionsDisabled
     private val isReceiverAssertionsDisabled = context.state.isReceiverAssertionsDisabled

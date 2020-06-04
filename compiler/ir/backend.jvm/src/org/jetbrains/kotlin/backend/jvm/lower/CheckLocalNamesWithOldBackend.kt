@@ -29,7 +29,7 @@ val checkLocalNamesWithOldBackendPhase = makeIrFilePhase<JvmBackendContext>(
     description = "With -Xir-check-local-names, check that names for local classes and anonymous objects are the same in the IR backend as in the old backend"
 )
 
-class CheckLocalNamesWithOldBackend(private val context: JvmBackendContext) : FileLoweringPass, IrElementVisitorVoid {
+class CheckLocalNamesWithOldBackend(private val context: JvmBackendContext) : IrElementVisitorVoid(), FileLoweringPass {
     override fun lower(irFile: IrFile) {
         irFile.acceptVoid(this)
     }
