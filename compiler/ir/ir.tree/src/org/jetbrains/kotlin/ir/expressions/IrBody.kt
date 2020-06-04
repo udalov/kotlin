@@ -17,19 +17,16 @@
 package org.jetbrains.kotlin.ir.expressions
 
 import org.jetbrains.kotlin.ir.IrElement
-import org.jetbrains.kotlin.ir.accept
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
 
 interface IrBody : IrElement {
-    override fun <D> transform(transformer: IrElementTransformer<D>, data: D): IrBody =
-        accept(transformer, data) as IrBody
+    override fun <D> transform(transformer: IrElementTransformer<D>, data: D): IrBody
 }
 
 interface IrExpressionBody : IrBody {
     var expression: IrExpression
 
-    override fun <D> transform(transformer: IrElementTransformer<D>, data: D): IrExpressionBody =
-        accept(transformer, data) as IrExpressionBody
+    override fun <D> transform(transformer: IrElementTransformer<D>, data: D): IrExpressionBody
 }
 
 interface IrBlockBody : IrBody, IrStatementContainer
@@ -42,4 +39,3 @@ enum class IrSyntheticBodyKind {
     ENUM_VALUES,
     ENUM_VALUEOF
 }
-

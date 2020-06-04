@@ -103,14 +103,16 @@ class IrCatchImpl(
 
     override val parameter: VariableDescriptor get() = catchParameter.descriptor
 
-    override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R {
-        return visitor.visitCatch(this, data)
-    }
+    override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R =
+        visitor.visitCatch(this, data)
 
     override fun <D> acceptChildren(visitor: IrElementVisitor<Unit, D>, data: D) {
         catchParameter.accept(visitor, data)
         result.accept(visitor, data)
     }
+
+    override fun <D> transform(transformer: IrElementTransformer<D>, data: D): IrCatch =
+        transformer.visitCatch(this, data)
 
     override fun <D> transformChildren(transformer: IrElementTransformer<D>, data: D) {
         catchParameter = catchParameter.transform(transformer, data) as IrVariable

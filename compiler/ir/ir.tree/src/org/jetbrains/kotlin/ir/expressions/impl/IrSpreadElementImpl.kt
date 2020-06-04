@@ -16,6 +16,7 @@
 
 package org.jetbrains.kotlin.ir.expressions.impl
 
+import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrElementBase
 import org.jetbrains.kotlin.ir.accept
 import org.jetbrains.kotlin.ir.expressions.IrExpression
@@ -36,13 +37,15 @@ class IrSpreadElementImpl(
 
     override lateinit var expression: IrExpression
 
-    override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R {
-        return visitor.visitSpreadElement(this, data)
-    }
+    override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R =
+        visitor.visitSpreadElement(this, data)
 
     override fun <D> acceptChildren(visitor: IrElementVisitor<Unit, D>, data: D) {
         expression.accept(visitor, data)
     }
+
+    override fun <D> transform(transformer: IrElementTransformer<D>, data: D): IrElement =
+        transformer.visitSpreadElement(this, data)
 
     override fun <D> transformChildren(transformer: IrElementTransformer<D>, data: D) {
         expression = expression.transform(transformer, data)

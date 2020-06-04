@@ -51,6 +51,9 @@ class IrExpressionBodyImpl private constructor(
         expression.accept(visitor, data)
     }
 
+    override fun <D> transform(transformer: IrElementTransformer<D>, data: D): IrExpressionBody =
+        transformer.visitExpressionBody(this, data) as IrExpressionBody
+
     override fun <D> transformChildren(transformer: IrElementTransformer<D>, data: D) {
         expression = expression.transform(transformer, data)
     }

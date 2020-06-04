@@ -20,7 +20,9 @@ import org.jetbrains.kotlin.descriptors.PackageFragmentDescriptor
 import org.jetbrains.kotlin.ir.IrElementBase
 import org.jetbrains.kotlin.ir.SourceManager
 import org.jetbrains.kotlin.ir.accept
-import org.jetbrains.kotlin.ir.declarations.*
+import org.jetbrains.kotlin.ir.declarations.IrDeclaration
+import org.jetbrains.kotlin.ir.declarations.IrFile
+import org.jetbrains.kotlin.ir.declarations.MetadataSource
 import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
 import org.jetbrains.kotlin.ir.symbols.IrFileSymbol
 import org.jetbrains.kotlin.ir.symbols.impl.IrFileSymbolImpl
@@ -59,6 +61,9 @@ class IrFileImpl(
     override fun <D> acceptChildren(visitor: IrElementVisitor<Unit, D>, data: D) {
         declarations.forEach { it.accept(visitor, data) }
     }
+
+    override fun <D> transform(transformer: IrElementTransformer<D>, data: D): IrFile =
+        transformer.visitFile(this, data)
 
     override fun <D> transformChildren(transformer: IrElementTransformer<D>, data: D) {
         declarations.forEachIndexed { i, irDeclaration ->

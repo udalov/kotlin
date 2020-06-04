@@ -17,7 +17,6 @@
 package org.jetbrains.kotlin.ir.expressions
 
 import org.jetbrains.kotlin.ir.IrElement
-import org.jetbrains.kotlin.ir.accept
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
 
@@ -34,7 +33,5 @@ interface IrVararg : IrExpression {
 interface IrSpreadElement : IrVarargElement {
     var expression: IrExpression
 
-    override fun <D> transform(transformer: IrElementTransformer<D>, data: D): IrElement =
-        accept(transformer, data) as IrSpreadElement
+    override fun <D> transform(transformer: IrElementTransformer<D>, data: D): IrElement
 }
-
