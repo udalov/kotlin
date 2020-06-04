@@ -17,6 +17,7 @@
 package org.jetbrains.kotlin.ir.expressions
 
 import org.jetbrains.kotlin.ir.IrElement
+import org.jetbrains.kotlin.ir.accept
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
 
 interface IrBody : IrElement {

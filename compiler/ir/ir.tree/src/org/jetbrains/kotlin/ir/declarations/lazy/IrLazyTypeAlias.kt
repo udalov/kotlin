@@ -7,6 +7,7 @@ package org.jetbrains.kotlin.ir.declarations.lazy
 
 import org.jetbrains.kotlin.descriptors.TypeAliasDescriptor
 import org.jetbrains.kotlin.descriptors.Visibility
+import org.jetbrains.kotlin.ir.accept
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
 import org.jetbrains.kotlin.ir.declarations.IrTypeAlias
 import org.jetbrains.kotlin.ir.declarations.IrTypeParameter

@@ -10,6 +10,7 @@ import org.jetbrains.kotlin.backend.common.serialization.mangle.MangleConstant
 import org.jetbrains.kotlin.backend.common.serialization.mangle.MangleMode
 import org.jetbrains.kotlin.backend.common.serialization.mangle.collectForMangler
 import org.jetbrains.kotlin.ir.IrElement
+import org.jetbrains.kotlin.ir.accept
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
 import org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol

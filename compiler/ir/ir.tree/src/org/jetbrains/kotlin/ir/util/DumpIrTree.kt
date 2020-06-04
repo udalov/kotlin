@@ -18,6 +18,8 @@ package org.jetbrains.kotlin.ir.util
 
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.SourceManager
+import org.jetbrains.kotlin.ir.accept
+import org.jetbrains.kotlin.ir.acceptChildren
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.symbols.IrSymbol

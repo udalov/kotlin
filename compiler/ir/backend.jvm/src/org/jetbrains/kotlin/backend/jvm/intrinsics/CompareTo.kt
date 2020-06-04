@@ -27,6 +27,7 @@ import org.jetbrains.kotlin.codegen.BranchedValue
 import org.jetbrains.kotlin.codegen.NumberCompare
 import org.jetbrains.kotlin.codegen.ObjectCompare
 import org.jetbrains.kotlin.config.LanguageFeature
+import org.jetbrains.kotlin.ir.accept
 import org.jetbrains.kotlin.ir.expressions.IrFunctionAccessExpression
 import org.jetbrains.kotlin.lexer.KtSingleValueToken
 import org.jetbrains.kotlin.resolve.jvm.JvmPrimitiveType

@@ -22,6 +22,8 @@ import org.jetbrains.kotlin.backend.common.lower.inline.isInlineParameter
 import org.jetbrains.kotlin.backend.common.phaser.makeIrFilePhase
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrStatement
+import org.jetbrains.kotlin.ir.accept
+import org.jetbrains.kotlin.ir.acceptChildren
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.symbols.IrValueSymbol

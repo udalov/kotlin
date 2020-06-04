@@ -5,6 +5,7 @@
 
 package org.jetbrains.kotlin.ir.expressions.impl
 
+import org.jetbrains.kotlin.ir.accept
 import org.jetbrains.kotlin.ir.expressions.IrDynamicOperator
 import org.jetbrains.kotlin.ir.expressions.IrDynamicOperatorExpression
 import org.jetbrains.kotlin.ir.expressions.IrExpression

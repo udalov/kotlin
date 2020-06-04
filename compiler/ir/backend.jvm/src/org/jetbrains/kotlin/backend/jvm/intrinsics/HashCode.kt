@@ -20,6 +20,7 @@ import org.jetbrains.kotlin.backend.jvm.JvmLoweredDeclarationOrigin
 import org.jetbrains.kotlin.backend.jvm.codegen.*
 import org.jetbrains.kotlin.codegen.AsmUtil
 import org.jetbrains.kotlin.config.JvmTarget
+import org.jetbrains.kotlin.ir.accept
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
 import org.jetbrains.kotlin.ir.expressions.IrFunctionAccessExpression
 import org.jetbrains.kotlin.ir.util.render

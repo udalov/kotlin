@@ -6,6 +6,7 @@
 package org.jetbrains.kotlin.ir.descriptors
 
 import org.jetbrains.kotlin.descriptors.*
+import org.jetbrains.kotlin.ir.IrVisitableElement
 import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.IrBody
@@ -23,7 +24,7 @@ import org.jetbrains.kotlin.types.Variance
 import org.jetbrains.kotlin.utils.SmartList
 import kotlin.reflect.KProperty
 
-abstract class IrBuiltInOperatorBase : IrDeclaration {
+abstract class IrBuiltInOperatorBase : IrVisitableElement(), IrDeclaration {
     override val startOffset: Int get() = UNDEFINED_OFFSET
     override val endOffset: Int get() = UNDEFINED_OFFSET
 

@@ -11,6 +11,7 @@ import org.jetbrains.kotlin.backend.wasm.ast.WasmExport
 import org.jetbrains.kotlin.backend.wasm.ast.WasmModule
 import org.jetbrains.kotlin.backend.wasm.ast.wasmModuleToWat
 import org.jetbrains.kotlin.descriptors.Visibilities
+import org.jetbrains.kotlin.ir.accept
 import org.jetbrains.kotlin.ir.backend.js.transformers.irToJs.jsAssignment
 import org.jetbrains.kotlin.ir.backend.js.utils.sanitizeName
 import org.jetbrains.kotlin.ir.declarations.*

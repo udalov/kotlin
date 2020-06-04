@@ -12,6 +12,7 @@ import org.jetbrains.kotlin.backend.common.lower.matchers.Quantifier
 import org.jetbrains.kotlin.backend.common.lower.matchers.SimpleCalleeMatcher
 import org.jetbrains.kotlin.backend.common.lower.matchers.createIrCallMatcher
 import org.jetbrains.kotlin.backend.common.lower.matchers.singleArgumentExtension
+import org.jetbrains.kotlin.ir.accept
 import org.jetbrains.kotlin.ir.builders.*
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.declarations.IrVariable

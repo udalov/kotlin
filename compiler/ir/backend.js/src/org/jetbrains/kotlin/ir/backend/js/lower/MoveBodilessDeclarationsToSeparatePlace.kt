@@ -9,6 +9,7 @@ import org.jetbrains.kotlin.backend.common.DeclarationTransformer
 import org.jetbrains.kotlin.backend.common.ir.addChild
 import org.jetbrains.kotlin.descriptors.PackageFragmentDescriptor
 import org.jetbrains.kotlin.ir.IrElement
+import org.jetbrains.kotlin.ir.accept
 import org.jetbrains.kotlin.ir.backend.js.JsIrBackendContext
 import org.jetbrains.kotlin.ir.backend.js.utils.getJsModule
 import org.jetbrains.kotlin.ir.backend.js.utils.getJsQualifier

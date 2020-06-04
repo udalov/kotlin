@@ -17,6 +17,7 @@
 package org.jetbrains.kotlin.ir.expressions.impl
 
 import org.jetbrains.kotlin.ir.IrStatement
+import org.jetbrains.kotlin.ir.accept
 import org.jetbrains.kotlin.ir.declarations.impl.IrBodyBase
 import org.jetbrains.kotlin.ir.expressions.IrBlockBody
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformer

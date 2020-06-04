@@ -20,6 +20,7 @@ import org.jetbrains.kotlin.descriptors.FunctionDescriptor
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.descriptors.PropertyDescriptor
 import org.jetbrains.kotlin.descriptors.Visibility
+import org.jetbrains.kotlin.ir.accept
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.declarations.impl.carriers.PropertyCarrier
 import org.jetbrains.kotlin.ir.descriptors.WrappedPropertyDescriptor

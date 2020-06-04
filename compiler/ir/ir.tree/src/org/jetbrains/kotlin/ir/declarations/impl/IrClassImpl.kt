@@ -17,6 +17,7 @@
 package org.jetbrains.kotlin.ir.declarations.impl
 
 import org.jetbrains.kotlin.descriptors.*
+import org.jetbrains.kotlin.ir.accept
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.declarations.impl.carriers.ClassCarrier
 import org.jetbrains.kotlin.ir.symbols.IrClassSymbol

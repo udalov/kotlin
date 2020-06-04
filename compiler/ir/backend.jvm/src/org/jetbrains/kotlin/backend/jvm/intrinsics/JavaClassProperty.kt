@@ -19,6 +19,7 @@ package org.jetbrains.kotlin.backend.jvm.intrinsics
 import org.jetbrains.kotlin.backend.jvm.codegen.*
 import org.jetbrains.kotlin.codegen.AsmUtil.boxType
 import org.jetbrains.kotlin.codegen.AsmUtil.isPrimitive
+import org.jetbrains.kotlin.ir.accept
 import org.jetbrains.kotlin.ir.expressions.IrFunctionAccessExpression
 import org.jetbrains.kotlin.ir.types.classOrNull
 import org.jetbrains.kotlin.resolve.jvm.AsmTypes

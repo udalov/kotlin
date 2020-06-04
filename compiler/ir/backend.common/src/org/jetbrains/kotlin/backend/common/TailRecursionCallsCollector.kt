@@ -17,6 +17,8 @@
 package org.jetbrains.kotlin.backend.common
 
 import org.jetbrains.kotlin.ir.IrElement
+import org.jetbrains.kotlin.ir.accept
+import org.jetbrains.kotlin.ir.acceptChildren
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction

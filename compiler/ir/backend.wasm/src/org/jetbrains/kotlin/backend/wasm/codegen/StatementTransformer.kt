@@ -9,6 +9,7 @@ import org.jetbrains.kotlin.backend.wasm.ast.WasmInstruction
 import org.jetbrains.kotlin.backend.wasm.ast.WasmNop
 import org.jetbrains.kotlin.backend.wasm.ast.WasmSetLocal
 import org.jetbrains.kotlin.ir.IrStatement
+import org.jetbrains.kotlin.ir.accept
 import org.jetbrains.kotlin.ir.declarations.IrVariable
 import org.jetbrains.kotlin.ir.expressions.*
 

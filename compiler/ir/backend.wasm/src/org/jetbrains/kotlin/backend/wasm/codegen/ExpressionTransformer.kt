@@ -8,6 +8,7 @@ package org.jetbrains.kotlin.backend.wasm.codegen
 import org.jetbrains.kotlin.backend.common.ir.isElseBranch
 import org.jetbrains.kotlin.backend.wasm.ast.*
 import org.jetbrains.kotlin.backend.wasm.utils.getWasmInstructionAnnotation
+import org.jetbrains.kotlin.ir.accept
 import org.jetbrains.kotlin.ir.backend.js.utils.realOverrideTarget
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.declarations.IrVariable
