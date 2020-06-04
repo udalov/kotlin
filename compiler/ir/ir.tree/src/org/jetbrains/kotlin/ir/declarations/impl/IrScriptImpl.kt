@@ -6,8 +6,10 @@
 package org.jetbrains.kotlin.ir.declarations.impl
 
 import org.jetbrains.kotlin.descriptors.ScriptDescriptor
+import org.jetbrains.kotlin.ir.IrElementBase
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
+import org.jetbrains.kotlin.ir.accept
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
 import org.jetbrains.kotlin.ir.symbols.IrScriptSymbol
@@ -22,9 +24,7 @@ private val SCRIPT_ORIGIN = object : IrDeclarationOriginImpl("FIELD_FOR_OBJECT_I
 class IrScriptImpl(
     override val symbol: IrScriptSymbol,
     override val name: Name
-) : IrScript, IrDeclaration {
-    override val startOffset: Int get() = UNDEFINED_OFFSET
-    override val endOffset: Int get() = UNDEFINED_OFFSET
+) : IrElementBase(UNDEFINED_OFFSET, UNDEFINED_OFFSET), IrScript, IrDeclaration {
     override var origin: IrDeclarationOrigin = SCRIPT_ORIGIN
 
     private var _parent: IrDeclarationParent? = null

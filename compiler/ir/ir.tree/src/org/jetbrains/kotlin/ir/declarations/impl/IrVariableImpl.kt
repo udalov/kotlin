@@ -17,6 +17,8 @@
 package org.jetbrains.kotlin.ir.declarations.impl
 
 import org.jetbrains.kotlin.descriptors.VariableDescriptor
+import org.jetbrains.kotlin.ir.IrElementBase
+import org.jetbrains.kotlin.ir.accept
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationParent
 import org.jetbrains.kotlin.ir.declarations.IrVariable
@@ -31,8 +33,8 @@ import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 import org.jetbrains.kotlin.name.Name
 
 class IrVariableImpl(
-    override val startOffset: Int,
-    override val endOffset: Int,
+    startOffset: Int,
+    endOffset: Int,
     override var origin: IrDeclarationOrigin,
     override val symbol: IrVariableSymbol,
     override val name: Name,
@@ -40,7 +42,7 @@ class IrVariableImpl(
     override val isVar: Boolean,
     override val isConst: Boolean,
     override val isLateinit: Boolean
-) : IrVariable {
+) : IrElementBase(startOffset, endOffset), IrVariable {
 
     private var _parent: IrDeclarationParent? = null
     override var parent: IrDeclarationParent
