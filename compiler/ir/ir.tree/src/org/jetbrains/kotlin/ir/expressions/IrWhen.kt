@@ -29,7 +29,7 @@ interface IrBranch : IrElement {
     var condition: IrExpression
     var result: IrExpression
 
-    override fun <D> transform(transformer: IrElementTransformer<D>, data: D): IrBranch
+    fun <D> transform(transformer: IrElementTransformer<D>, data: D): IrBranch
 }
 
 interface IrElseBranch : IrBranch

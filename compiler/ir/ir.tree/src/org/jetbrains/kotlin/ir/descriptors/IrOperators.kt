@@ -43,6 +43,9 @@ abstract class IrBuiltInOperatorBase : IrVisitableElement(), IrDeclaration {
 
     override var annotations: List<IrConstructorCall> = emptyList()
     override val metadata: MetadataSource? get() = null
+
+    override fun <D> transform(transformer: IrElementTransformer<D>, data: D): IrStatement =
+        super.transform(transformer, data) as IrStatement
 }
 
 private class NullValueDelegate<T> {

@@ -194,4 +194,7 @@ abstract class IrBodyBase<B : IrBodyBase<B>>(
             stageController.lazyLower(this)
         }
     }
+
+    override fun <D> transform(transformer: IrElementTransformer<D>, data: D): IrBody =
+        super.transform(transformer, data) as IrBody
 }

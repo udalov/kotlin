@@ -34,5 +34,5 @@ interface IrCatch : IrElement {
     var catchParameter: IrVariable
     var result: IrExpression
 
-    override fun <D> transform(transformer: IrElementTransformer<D>, data: D): IrCatch
+    fun <D> transform(transformer: IrElementTransformer<D>, data: D): IrCatch
 }

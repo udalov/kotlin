@@ -33,5 +33,5 @@ interface IrVararg : IrExpression {
 interface IrSpreadElement : IrVarargElement {
     var expression: IrExpression
 
-    override fun <D> transform(transformer: IrElementTransformer<D>, data: D): IrElement
+    fun <D> transform(transformer: IrElementTransformer<D>, data: D): IrElement
 }

@@ -16,12 +16,16 @@
 
 package org.jetbrains.kotlin.ir
 
+import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 
 abstract class IrVisitableElement : IrElement {
     abstract fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R
 
     abstract fun <D> acceptChildren(visitor: IrElementVisitor<Unit, D>, data: D)
+
+    open fun <D> transform(transformer: IrElementTransformer<D>, data: D): IrElement =
+        accept(transformer, data)
 }
 
 abstract class IrElementBase(override val startOffset: Int, override val endOffset: Int) : IrVisitableElement()

@@ -48,7 +48,7 @@ interface IrFile : IrPackageFragment, IrMutableAnnotationContainer, IrMetadataSo
 
     override val metadata: MetadataSource.File?
 
-    override fun <D> transform(transformer: IrElementTransformer<D>, data: D): IrFile
+    fun <D> transform(transformer: IrElementTransformer<D>, data: D): IrFile
 }
 
 val IrFile.path: String get() = fileEntry.name

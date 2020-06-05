@@ -20,7 +20,7 @@ import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
 
 interface IrBody : IrElement {
-    override fun <D> transform(transformer: IrElementTransformer<D>, data: D): IrBody
+    fun <D> transform(transformer: IrElementTransformer<D>, data: D): IrBody
 }
 
 interface IrExpressionBody : IrBody {
