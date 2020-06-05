@@ -18,14 +18,16 @@ package org.jetbrains.kotlin.ir.expressions
 
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.declarations.IrAttributeContainer
+import org.jetbrains.kotlin.ir.expressions.impl.IrExpressionBase
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
 
 interface IrExpression : IrStatement, IrVarargElement, IrAttributeContainer {
     val type: IrType
-
-    fun <D> transform(transformer: IrElementTransformer<D>, data: D): IrExpression
 }
+
+fun <D> IrExpression.transform(transformer: IrElementTransformer<D>, data: D): IrExpression =
+    (this as IrExpressionBase).transform(transformer, data)
 
 interface IrExpressionWithCopy : IrExpression {
     fun copy(): IrExpressionWithCopy
