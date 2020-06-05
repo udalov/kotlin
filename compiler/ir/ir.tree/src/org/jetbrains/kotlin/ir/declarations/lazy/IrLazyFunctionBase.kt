@@ -15,6 +15,7 @@ import org.jetbrains.kotlin.ir.util.DeclarationStubGenerator
 import org.jetbrains.kotlin.ir.util.TypeTranslator
 import org.jetbrains.kotlin.ir.util.mapOptimized
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 import org.jetbrains.kotlin.name.Name
 
@@ -62,6 +63,16 @@ abstract class IrLazyFunctionBase(
         typeTranslator.buildWithScope(this) {
             descriptor.returnType!!.toIrType()
         }
+    }
+
+    override fun acceptChildrenVoid(visitor: IrElementVisitorVoid) {
+        typeParameters.forEach { it.acceptVoid(visitor) }
+
+        dispatchReceiverParameter?.acceptVoid(visitor)
+        extensionReceiverParameter?.acceptVoid(visitor)
+        valueParameters.forEach { it.acceptVoid(visitor) }
+
+        body?.acceptVoid(visitor)
     }
 
     override fun <D> acceptChildren(visitor: IrElementVisitor<Unit, D>, data: D) {

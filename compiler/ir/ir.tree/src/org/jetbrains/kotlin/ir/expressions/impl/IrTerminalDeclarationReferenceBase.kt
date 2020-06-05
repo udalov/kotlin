@@ -20,6 +20,7 @@ import org.jetbrains.kotlin.ir.expressions.IrDeclarationReference
 import org.jetbrains.kotlin.ir.symbols.IrSymbol
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 
 abstract class IrTerminalDeclarationReferenceBase<out S : IrSymbol>(
@@ -30,6 +31,10 @@ abstract class IrTerminalDeclarationReferenceBase<out S : IrSymbol>(
 ) :
     IrDeclarationReferenceBase<S>(startOffset, endOffset, type, symbol),
     IrDeclarationReference {
+
+    override fun acceptChildrenVoid(visitor: IrElementVisitorVoid) {
+        // No children
+    }
 
     override fun <D> acceptChildren(visitor: IrElementVisitor<Unit, D>, data: D) {
         // No children

@@ -19,6 +19,7 @@ import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.util.DeclarationStubGenerator
 import org.jetbrains.kotlin.ir.util.TypeTranslator
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 import org.jetbrains.kotlin.name.Name
 
@@ -71,8 +72,16 @@ class IrLazyField(
         stubGenerator.generatePropertyStub(descriptor).symbol
     }
 
+    override fun acceptVoid(visitor: IrElementVisitorVoid) {
+        return visitor.visitField(this)
+    }
+
     override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R {
         return visitor.visitField(this, data)
+    }
+
+    override fun acceptChildrenVoid(visitor: IrElementVisitorVoid) {
+        initializer?.acceptVoid(visitor)
     }
 
     override fun <D> acceptChildren(visitor: IrElementVisitor<Unit, D>, data: D) {

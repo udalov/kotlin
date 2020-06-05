@@ -17,6 +17,7 @@ import org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol
 import org.jetbrains.kotlin.ir.symbols.IrValueParameterSymbol
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.types.Variance
@@ -83,6 +84,10 @@ class IrBuiltInOperator(
 
     override val descriptor: FunctionDescriptor get() = symbol.descriptor
 
+    override fun acceptVoid(visitor: IrElementVisitorVoid) {
+        return visitor.visitSimpleFunction(this)
+    }
+
     override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R {
         return visitor.visitSimpleFunction(this, data)
     }
@@ -92,6 +97,10 @@ class IrBuiltInOperator(
 
     init {
         symbol.bind(this)
+    }
+
+    override fun acceptChildrenVoid(visitor: IrElementVisitorVoid) {
+        // Do nothing
     }
 
     override fun <D> acceptChildren(visitor: IrElementVisitor<Unit, D>, data: D) {
@@ -117,7 +126,11 @@ class IrBuiltInOperatorValueParameter(override val symbol: IrValueParameterSymbo
     override fun <D> transform(transformer: IrElementTransformer<D>, data: D) =
         transformer.visitValueParameter(this, data) as IrValueParameter
 
+    override fun acceptVoid(visitor: IrElementVisitorVoid) = visitor.visitValueParameter(this)
+
     override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R = visitor.visitValueParameter(this, data)
+    override fun acceptChildrenVoid(visitor: IrElementVisitorVoid) {}
+
     override fun <D> acceptChildren(visitor: IrElementVisitor<Unit, D>, data: D) {}
     override fun <D> transformChildren(transformer: IrElementTransformer<D>, data: D) {}
 
@@ -140,7 +153,11 @@ class IrBuiltInOperatorTypeParameter(
     override fun <D> transform(transformer: IrElementTransformer<D>, data: D): IrTypeParameter =
         transformer.visitTypeParameter(this, data) as IrTypeParameter
 
+    override fun acceptVoid(visitor: IrElementVisitorVoid) = visitor.visitTypeParameter(this)
+
     override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R = visitor.visitTypeParameter(this, data)
+    override fun acceptChildrenVoid(visitor: IrElementVisitorVoid) {}
+
     override fun <D> acceptChildren(visitor: IrElementVisitor<Unit, D>, data: D) {}
     override fun <D> transformChildren(transformer: IrElementTransformer<D>, data: D) {}
 

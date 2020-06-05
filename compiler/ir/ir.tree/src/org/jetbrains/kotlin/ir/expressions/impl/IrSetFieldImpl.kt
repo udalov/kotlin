@@ -23,6 +23,7 @@ import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
 import org.jetbrains.kotlin.ir.symbols.IrFieldSymbol
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 
 class IrSetFieldImpl(
@@ -57,8 +58,17 @@ class IrSetFieldImpl(
 
     override lateinit var value: IrExpression
 
+    override fun acceptVoid(visitor: IrElementVisitorVoid) {
+        return visitor.visitSetField(this)
+    }
+
     override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R {
         return visitor.visitSetField(this, data)
+    }
+
+    override fun acceptChildrenVoid(visitor: IrElementVisitorVoid) {
+        receiver?.acceptVoid(visitor)
+        value.acceptVoid(visitor)
     }
 
     override fun <D> acceptChildren(visitor: IrElementVisitor<Unit, D>, data: D) {

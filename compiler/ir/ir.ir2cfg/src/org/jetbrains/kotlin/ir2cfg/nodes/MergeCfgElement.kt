@@ -19,13 +19,18 @@ package org.jetbrains.kotlin.ir2cfg.nodes
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.util.dump
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 
 class MergeCfgElement(val from: IrElement, val name: String) : CfgIrElement {
     override val startOffset = from.startOffset
     override val endOffset = from.endOffset
 
+    override fun acceptVoid(visitor: IrElementVisitorVoid) = visitor.visitElement(this)
+
     override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R = visitor.visitElement(this, data)
+
+    override fun acceptChildrenVoid(visitor: IrElementVisitorVoid) = Unit
 
     override fun <D> acceptChildren(visitor: IrElementVisitor<Unit, D>, data: D) = Unit
 

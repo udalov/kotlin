@@ -15,6 +15,7 @@ import org.jetbrains.kotlin.ir.symbols.IrPropertySymbol
 import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
 import org.jetbrains.kotlin.ir.symbols.impl.IrSimpleFunctionSymbolImpl
 import org.jetbrains.kotlin.ir.types.IrType
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 import org.jetbrains.kotlin.name.Name
 
@@ -69,6 +70,9 @@ abstract class IrFunctionCommonImpl(
                 setCarrier().correspondingPropertySymbolField = v
             }
         }
+
+    override fun acceptVoid(visitor: IrElementVisitorVoid) =
+        visitor.visitSimpleFunction(this)
 
     override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R =
         visitor.visitSimpleFunction(this, data)
@@ -132,6 +136,9 @@ class IrFunctionImpl(
     init {
         symbol.bind(this)
     }
+
+    override fun acceptVoid(visitor: IrElementVisitorVoid) =
+        visitor.visitSimpleFunction(this)
 
     override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R =
         visitor.visitSimpleFunction(this, data)

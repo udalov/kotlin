@@ -13,6 +13,7 @@ import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
 import org.jetbrains.kotlin.ir.symbols.IrScriptSymbol
 import org.jetbrains.kotlin.ir.util.transform
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.utils.SmartList
@@ -48,8 +49,18 @@ class IrScriptImpl(
         symbol.bind(this)
     }
 
+    override fun acceptVoid(visitor: IrElementVisitorVoid) {
+        return visitor.visitScript(this)
+    }
+
     override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R {
         return visitor.visitScript(this, data)
+    }
+
+    override fun acceptChildrenVoid(visitor: IrElementVisitorVoid) {
+        declarations.forEach { it.acceptVoid(visitor) }
+        statements.forEach { it.acceptVoid(visitor) }
+        thisReceiver.acceptVoid(visitor)
     }
 
     override fun <D> acceptChildren(visitor: IrElementVisitor<Unit, D>, data: D) {

@@ -26,6 +26,7 @@ import org.jetbrains.kotlin.ir.declarations.IrExternalPackageFragment
 import org.jetbrains.kotlin.ir.symbols.IrExternalPackageFragmentSymbol
 import org.jetbrains.kotlin.ir.symbols.impl.IrExternalPackageFragmentSymbolImpl
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.serialization.deserialization.descriptors.DeserializedMemberDescriptor
@@ -46,8 +47,15 @@ class IrExternalPackageFragmentImpl(
 
     override val containerSource get() = (symbol.descriptor as? DeserializedMemberDescriptor)?.containerSource
 
+    override fun acceptVoid(visitor: IrElementVisitorVoid) =
+        visitor.visitExternalPackageFragment(this)
+
     override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R =
         visitor.visitExternalPackageFragment(this, data)
+
+    override fun acceptChildrenVoid(visitor: IrElementVisitorVoid) {
+        declarations.forEach { it.acceptVoid(visitor) }
+    }
 
     override fun <D> acceptChildren(visitor: IrElementVisitor<Unit, D>, data: D) {
         declarations.forEach { it.accept(visitor, data) }

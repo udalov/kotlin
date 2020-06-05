@@ -23,6 +23,7 @@ import org.jetbrains.kotlin.ir.expressions.IrStatementOrigin
 import org.jetbrains.kotlin.ir.symbols.IrVariableSymbol
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 
 class IrSetVariableImpl(
@@ -48,8 +49,16 @@ class IrSetVariableImpl(
 
     override lateinit var value: IrExpression
 
+    override fun acceptVoid(visitor: IrElementVisitorVoid) {
+        return visitor.visitSetVariable(this)
+    }
+
     override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R {
         return visitor.visitSetVariable(this, data)
+    }
+
+    override fun acceptChildrenVoid(visitor: IrElementVisitorVoid) {
+        value.acceptVoid(visitor)
     }
 
     override fun <D> acceptChildren(visitor: IrElementVisitor<Unit, D>, data: D) {

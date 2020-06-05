@@ -24,6 +24,7 @@ import org.jetbrains.kotlin.ir.symbols.IrPropertySymbol
 import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
 import org.jetbrains.kotlin.ir.symbols.impl.IrPropertySymbolImpl
 import org.jetbrains.kotlin.ir.types.IrType
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 import org.jetbrains.kotlin.name.Name
 
@@ -60,6 +61,9 @@ class IrPropertyReferenceImpl(
 
     override val referencedName: Name
         get() = symbol.owner.name
+
+    override fun acceptVoid(visitor: IrElementVisitorVoid) =
+        visitor.visitPropertyReference(this)
 
     override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R =
         visitor.visitPropertyReference(this, data)

@@ -25,6 +25,7 @@ import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrExpressionBody
 import org.jetbrains.kotlin.ir.symbols.IrEnumEntrySymbol
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 import org.jetbrains.kotlin.name.Name
 
@@ -67,8 +68,17 @@ class IrEnumEntryImpl(
             }
         }
 
+    override fun acceptVoid(visitor: IrElementVisitorVoid) {
+        return visitor.visitEnumEntry(this)
+    }
+
     override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R {
         return visitor.visitEnumEntry(this, data)
+    }
+
+    override fun acceptChildrenVoid(visitor: IrElementVisitorVoid) {
+        initializerExpression?.acceptVoid(visitor)
+        correspondingClass?.acceptVoid(visitor)
     }
 
     override fun <D> acceptChildren(visitor: IrElementVisitor<Unit, D>, data: D) {

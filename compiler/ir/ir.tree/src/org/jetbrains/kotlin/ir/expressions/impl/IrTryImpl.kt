@@ -24,6 +24,7 @@ import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrTry
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 import org.jetbrains.kotlin.utils.SmartList
 
@@ -54,8 +55,18 @@ class IrTryImpl(
 
     override var finallyExpression: IrExpression? = null
 
+    override fun acceptVoid(visitor: IrElementVisitorVoid) {
+        return visitor.visitTry(this)
+    }
+
     override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R {
         return visitor.visitTry(this, data)
+    }
+
+    override fun acceptChildrenVoid(visitor: IrElementVisitorVoid) {
+        tryResult.acceptVoid(visitor)
+        catches.forEach { it.acceptVoid(visitor) }
+        finallyExpression?.acceptVoid(visitor)
     }
 
     override fun <D> acceptChildren(visitor: IrElementVisitor<Unit, D>, data: D) {
@@ -102,8 +113,17 @@ class IrCatchImpl(
 
     override val parameter: VariableDescriptor get() = catchParameter.descriptor
 
+    override fun acceptVoid(visitor: IrElementVisitorVoid) {
+        return visitor.visitCatch(this)
+    }
+
     override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R {
         return visitor.visitCatch(this, data)
+    }
+
+    override fun acceptChildrenVoid(visitor: IrElementVisitorVoid) {
+        catchParameter.acceptVoid(visitor)
+        result.acceptVoid(visitor)
     }
 
     override fun <D> acceptChildren(visitor: IrElementVisitor<Unit, D>, data: D) {

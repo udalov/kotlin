@@ -26,6 +26,7 @@ import org.jetbrains.kotlin.ir.symbols.IrValueParameterSymbol
 import org.jetbrains.kotlin.ir.symbols.impl.IrValueParameterSymbolImpl
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.utils.addToStdlib.safeAs
@@ -83,11 +84,18 @@ class IrValueParameterImpl(
             }
         }
 
+    override fun acceptVoid(visitor: IrElementVisitorVoid) =
+        visitor.visitValueParameter(this)
+
     override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R =
         visitor.visitValueParameter(this, data)
 
     override fun <D> transform(transformer: IrElementTransformer<D>, data: D): IrValueParameter =
         transformer.visitValueParameter(this, data) as IrValueParameter
+
+    override fun acceptChildrenVoid(visitor: IrElementVisitorVoid) {
+        defaultValue?.acceptVoid(visitor)
+    }
 
     override fun <D> acceptChildren(visitor: IrElementVisitor<Unit, D>, data: D) {
         defaultValue?.accept(visitor, data)

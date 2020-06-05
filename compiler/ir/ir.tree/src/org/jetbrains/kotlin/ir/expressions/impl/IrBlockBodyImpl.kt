@@ -20,6 +20,7 @@ import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.declarations.impl.IrBodyBase
 import org.jetbrains.kotlin.ir.expressions.IrBlockBody
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 import java.util.*
 
@@ -40,8 +41,16 @@ class IrBlockBodyImpl(
     override val statements: MutableList<IrStatement>
         get() = checkEnabled { statementsField }
 
+    override fun acceptVoid(visitor: IrElementVisitorVoid) {
+        return visitor.visitBlockBody(this)
+    }
+
     override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R {
         return visitor.visitBlockBody(this, data)
+    }
+
+    override fun acceptChildrenVoid(visitor: IrElementVisitorVoid) {
+        statements.forEach { it.acceptVoid(visitor) }
     }
 
     override fun <D> acceptChildren(visitor: IrElementVisitor<Unit, D>, data: D) {

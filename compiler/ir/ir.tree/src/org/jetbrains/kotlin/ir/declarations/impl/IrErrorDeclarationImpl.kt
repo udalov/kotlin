@@ -21,6 +21,7 @@ import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
 import org.jetbrains.kotlin.ir.declarations.IrErrorDeclaration
 import org.jetbrains.kotlin.ir.declarations.impl.carriers.ErrorCarrier
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 
 class IrErrorDeclarationImpl(
@@ -29,8 +30,16 @@ class IrErrorDeclarationImpl(
     override val descriptor: DeclarationDescriptor
 ) : IrDeclarationBase<ErrorCarrier>(startOffset, endOffset, IrDeclarationOrigin.DEFINED), IrErrorDeclaration, ErrorCarrier {
 
+    override fun acceptVoid(visitor: IrElementVisitorVoid) {
+        return visitor.visitErrorDeclaration(this)
+    }
+
     override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R {
         return visitor.visitErrorDeclaration(this, data)
+    }
+
+    override fun acceptChildrenVoid(visitor: IrElementVisitorVoid) {
+        // no children
     }
 
     override fun <D> acceptChildren(visitor: IrElementVisitor<Unit, D>, data: D) {

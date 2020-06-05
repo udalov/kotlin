@@ -20,6 +20,7 @@ import org.jetbrains.kotlin.ir.expressions.IrConst
 import org.jetbrains.kotlin.ir.expressions.IrConstKind
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.types.*
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 
 class IrConstImpl<T>(
@@ -31,6 +32,9 @@ class IrConstImpl<T>(
 ) :
     IrTerminalExpressionBase(startOffset, endOffset, type),
     IrConst<T> {
+
+    override fun acceptVoid(visitor: IrElementVisitorVoid) =
+        visitor.visitConst(this)
 
     override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R =
         visitor.visitConst(this, data)

@@ -20,6 +20,7 @@ import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrStringConcatenation
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 import java.util.*
 
@@ -46,8 +47,15 @@ class IrStringConcatenationImpl(
         arguments.add(argument)
     }
 
+    override fun acceptVoid(visitor: IrElementVisitorVoid) =
+        visitor.visitStringConcatenation(this)
+
     override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R =
         visitor.visitStringConcatenation(this, data)
+
+    override fun acceptChildrenVoid(visitor: IrElementVisitorVoid) {
+        arguments.forEach { it.acceptVoid(visitor) }
+    }
 
     override fun <D> acceptChildren(visitor: IrElementVisitor<Unit, D>, data: D) {
         arguments.forEach { it.accept(visitor, data) }

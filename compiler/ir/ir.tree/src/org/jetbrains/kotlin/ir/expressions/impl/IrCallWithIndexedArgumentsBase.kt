@@ -20,6 +20,7 @@ import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrStatementOrigin
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 
 abstract class IrCallWithIndexedArgumentsBase(
@@ -57,6 +58,11 @@ abstract class IrCallWithIndexedArgumentsBase(
 
     override fun removeValueArgument(index: Int) {
         argumentsByParameterIndex[index] = null
+    }
+
+    override fun acceptChildrenVoid(visitor: IrElementVisitorVoid) {
+        super.acceptChildrenVoid(visitor)
+        argumentsByParameterIndex.forEach { it?.acceptVoid(visitor) }
     }
 
     override fun <D> acceptChildren(visitor: IrElementVisitor<Unit, D>, data: D) {

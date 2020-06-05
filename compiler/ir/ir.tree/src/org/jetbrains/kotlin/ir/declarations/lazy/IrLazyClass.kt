@@ -17,6 +17,7 @@ import org.jetbrains.kotlin.ir.util.TypeTranslator
 import org.jetbrains.kotlin.ir.util.transform
 import org.jetbrains.kotlin.ir.util.mapOptimized
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 import org.jetbrains.kotlin.metadata.ProtoBuf
 import org.jetbrains.kotlin.metadata.deserialization.NameResolver
@@ -91,8 +92,17 @@ class IrLazyClass(
     val classProto: ProtoBuf.Class? get() = (descriptor as? DeserializedClassDescriptor)?.classProto
     val nameResolver: NameResolver? get() = (descriptor as? DeserializedClassDescriptor)?.c?.nameResolver
 
+    override fun acceptVoid(visitor: IrElementVisitorVoid) =
+        visitor.visitClass(this)
+
     override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R =
         visitor.visitClass(this, data)
+
+    override fun acceptChildrenVoid(visitor: IrElementVisitorVoid) {
+        thisReceiver?.acceptVoid(visitor)
+        typeParameters.forEach { it.acceptVoid(visitor) }
+        declarations.forEach { it.acceptVoid(visitor) }
+    }
 
     override fun <D> acceptChildren(visitor: IrElementVisitor<Unit, D>, data: D) {
         thisReceiver?.accept(visitor, data)

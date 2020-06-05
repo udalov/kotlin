@@ -19,6 +19,7 @@ package org.jetbrains.kotlin.ir.expressions.impl
 import org.jetbrains.kotlin.ir.expressions.IrContinue
 import org.jetbrains.kotlin.ir.expressions.IrLoop
 import org.jetbrains.kotlin.ir.types.IrType
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 
 class IrContinueImpl(
@@ -29,6 +30,9 @@ class IrContinueImpl(
 ) :
     IrBreakContinueBase(startOffset, endOffset, type, loop),
     IrContinue {
+
+    override fun acceptVoid(visitor: IrElementVisitorVoid) =
+        visitor.visitContinue(this)
 
     override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R =
         visitor.visitContinue(this, data)

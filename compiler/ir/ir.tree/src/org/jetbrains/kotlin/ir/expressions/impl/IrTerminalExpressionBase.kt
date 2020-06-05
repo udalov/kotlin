@@ -18,6 +18,7 @@ package org.jetbrains.kotlin.ir.expressions.impl
 
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 
 abstract class IrTerminalExpressionBase(
@@ -25,6 +26,10 @@ abstract class IrTerminalExpressionBase(
     endOffset: Int,
     type: IrType
 ) : IrExpressionBase(startOffset, endOffset, type) {
+
+    override fun acceptChildrenVoid(visitor: IrElementVisitorVoid) {
+        // No children
+    }
 
     override fun <D> acceptChildren(visitor: IrElementVisitor<Unit, D>, data: D) {
         // No children

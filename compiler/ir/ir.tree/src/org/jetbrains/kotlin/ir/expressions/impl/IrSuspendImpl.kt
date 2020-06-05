@@ -11,6 +11,7 @@ import org.jetbrains.kotlin.ir.expressions.IrSuspendableExpression
 import org.jetbrains.kotlin.ir.expressions.IrSuspensionPoint
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 
 class IrSuspensionPointImpl(
@@ -22,8 +23,17 @@ class IrSuspensionPointImpl(
     override var resumeResult: IrExpression
 ) : IrExpressionBase(startOffset, endOffset, type), IrSuspensionPoint {
 
+    override fun acceptVoid(visitor: IrElementVisitorVoid) =
+        visitor.visitSuspensionPoint(this)
+
     override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R =
         visitor.visitSuspensionPoint(this, data)
+
+    override fun acceptChildrenVoid(visitor: IrElementVisitorVoid) {
+        suspensionPointIdParameter.acceptVoid(visitor)
+        result.acceptVoid(visitor)
+        resumeResult.acceptVoid(visitor)
+    }
 
     override fun <D> acceptChildren(visitor: IrElementVisitor<Unit, D>, data: D) {
         suspensionPointIdParameter.accept(visitor, data)
@@ -46,8 +56,16 @@ class IrSuspendableExpressionImpl(
     override var result: IrExpression
 ) : IrExpressionBase(startOffset, endOffset, type), IrSuspendableExpression {
 
+    override fun acceptVoid(visitor: IrElementVisitorVoid) =
+        visitor.visitSuspendableExpression(this)
+
     override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R =
         visitor.visitSuspendableExpression(this, data)
+
+    override fun acceptChildrenVoid(visitor: IrElementVisitorVoid) {
+        suspensionPointId.acceptVoid(visitor)
+        result.acceptVoid(visitor)
+    }
 
     override fun <D> acceptChildren(visitor: IrElementVisitor<Unit, D>, data: D) {
         suspensionPointId.accept(visitor, data)

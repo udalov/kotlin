@@ -20,6 +20,7 @@ import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.expressions.IrComposite
 import org.jetbrains.kotlin.ir.expressions.IrStatementOrigin
 import org.jetbrains.kotlin.ir.types.IrType
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 
 
@@ -41,6 +42,9 @@ class IrCompositeImpl(
     ) : this(startOffset, endOffset, type, origin) {
         this.statements.addAll(statements)
     }
+
+    override fun acceptVoid(visitor: IrElementVisitorVoid) =
+        visitor.visitComposite(this)
 
     override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R =
         visitor.visitComposite(this, data)

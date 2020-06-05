@@ -20,6 +20,7 @@ import org.jetbrains.kotlin.ir.expressions.IrStatementOrigin
 import org.jetbrains.kotlin.ir.expressions.IrWhileLoop
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 
 class IrWhileLoopImpl(
@@ -31,8 +32,17 @@ class IrWhileLoopImpl(
     IrLoopBase(startOffset, endOffset, type, origin),
     IrWhileLoop {
 
+    override fun acceptVoid(visitor: IrElementVisitorVoid) {
+        return visitor.visitWhileLoop(this)
+    }
+
     override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R {
         return visitor.visitWhileLoop(this, data)
+    }
+
+    override fun acceptChildrenVoid(visitor: IrElementVisitorVoid) {
+        condition.acceptVoid(visitor)
+        body?.acceptVoid(visitor)
     }
 
     override fun <D> acceptChildren(visitor: IrElementVisitor<Unit, D>, data: D) {

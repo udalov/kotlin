@@ -24,6 +24,7 @@ import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
 import org.jetbrains.kotlin.ir.symbols.IrFileSymbol
 import org.jetbrains.kotlin.ir.symbols.impl.IrFileSymbolImpl
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 import org.jetbrains.kotlin.name.FqName
 
@@ -52,8 +53,15 @@ class IrFileImpl(
 
     override var metadata: MetadataSource.File? = null
 
+    override fun acceptVoid(visitor: IrElementVisitorVoid) =
+        visitor.visitFile(this)
+
     override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R =
         visitor.visitFile(this, data)
+
+    override fun acceptChildrenVoid(visitor: IrElementVisitorVoid) {
+        declarations.forEach { it.acceptVoid(visitor) }
+    }
 
     override fun <D> acceptChildren(visitor: IrElementVisitor<Unit, D>, data: D) {
         declarations.forEach { it.accept(visitor, data) }

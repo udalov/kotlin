@@ -21,6 +21,7 @@ import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 import org.jetbrains.kotlin.ir.descriptors.IrBuiltIns
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 import org.jetbrains.kotlin.name.Name
 
@@ -37,8 +38,15 @@ class IrModuleFragmentImpl(
 
     override val files: MutableList<IrFile> = ArrayList()
 
+    override fun acceptVoid(visitor: IrElementVisitorVoid) =
+        visitor.visitModuleFragment(this)
+
     override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R =
         visitor.visitModuleFragment(this, data)
+
+    override fun acceptChildrenVoid(visitor: IrElementVisitorVoid) {
+        files.forEach { it.acceptVoid(visitor) }
+    }
 
     override fun <D> acceptChildren(visitor: IrElementVisitor<Unit, D>, data: D) {
         files.forEach { it.accept(visitor, data) }

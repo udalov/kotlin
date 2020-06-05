@@ -25,6 +25,7 @@ import org.jetbrains.kotlin.ir.symbols.impl.IrReturnableBlockSymbolImpl
 import org.jetbrains.kotlin.ir.types.*
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
 import org.jetbrains.kotlin.util.OperatorNameConventions
@@ -514,6 +515,9 @@ class FunctionInlining(
         symbol.owner.type,
         symbol
     ), IrGetValue {
+        override fun acceptVoid(visitor: IrElementVisitorVoid) =
+            visitor.visitGetValue(this)
+
         override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R =
             visitor.visitGetValue(this, data)
 

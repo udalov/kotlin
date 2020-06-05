@@ -9,6 +9,7 @@ import org.jetbrains.kotlin.ir.expressions.IrGetValue
 import org.jetbrains.kotlin.ir.expressions.IrStatementOrigin
 import org.jetbrains.kotlin.ir.symbols.IrValueSymbol
 import org.jetbrains.kotlin.ir.types.IrType
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 
 class IrGetValueImpl(
@@ -32,6 +33,9 @@ class IrGetValueImpl(
         symbol: IrValueSymbol,
         origin: IrStatementOrigin? = null
     ) : this(startOffset, endOffset, symbol.owner.type, symbol, origin)
+
+    override fun acceptVoid(visitor: IrElementVisitorVoid) =
+        visitor.visitGetValue(this)
 
     override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R =
         visitor.visitGetValue(this, data)

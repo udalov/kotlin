@@ -9,6 +9,7 @@ import org.jetbrains.kotlin.ir.expressions.IrDynamicMemberExpression
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 
 class IrDynamicMemberExpressionImpl(
@@ -21,8 +22,15 @@ class IrDynamicMemberExpressionImpl(
     IrExpressionBase(startOffset, endOffset, type),
     IrDynamicMemberExpression {
 
+    override fun acceptVoid(visitor: IrElementVisitorVoid) =
+        visitor.visitDynamicMemberExpression(this)
+
     override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R =
         visitor.visitDynamicMemberExpression(this, data)
+
+    override fun acceptChildrenVoid(visitor: IrElementVisitorVoid) {
+        receiver.acceptVoid(visitor)
+    }
 
     override fun <D> acceptChildren(visitor: IrElementVisitor<Unit, D>, data: D) {
         receiver.accept(visitor, data)

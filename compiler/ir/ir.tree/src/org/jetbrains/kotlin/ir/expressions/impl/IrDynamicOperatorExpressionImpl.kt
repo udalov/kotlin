@@ -10,6 +10,7 @@ import org.jetbrains.kotlin.ir.expressions.IrDynamicOperatorExpression
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 import org.jetbrains.kotlin.utils.SmartList
 
@@ -26,8 +27,18 @@ class IrDynamicOperatorExpressionImpl(
 
     override val arguments: MutableList<IrExpression> = SmartList()
 
+    override fun acceptVoid(visitor: IrElementVisitorVoid) =
+        visitor.visitDynamicOperatorExpression(this)
+
     override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R =
         visitor.visitDynamicOperatorExpression(this, data)
+
+    override fun acceptChildrenVoid(visitor: IrElementVisitorVoid) {
+        receiver.acceptVoid(visitor)
+        for (valueArgument in arguments) {
+            valueArgument.acceptVoid(visitor)
+        }
+    }
 
     override fun <D> acceptChildren(visitor: IrElementVisitor<Unit, D>, data: D) {
         receiver.accept(visitor, data)

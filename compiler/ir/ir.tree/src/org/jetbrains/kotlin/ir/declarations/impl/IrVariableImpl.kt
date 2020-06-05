@@ -27,6 +27,7 @@ import org.jetbrains.kotlin.ir.symbols.IrVariableSymbol
 import org.jetbrains.kotlin.ir.symbols.impl.IrVariableSymbolImpl
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 import org.jetbrains.kotlin.name.Name
 
@@ -88,8 +89,15 @@ class IrVariableImpl(
 
     override var initializer: IrExpression? = null
 
+    override fun acceptVoid(visitor: IrElementVisitorVoid) =
+        visitor.visitVariable(this)
+
     override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R =
         visitor.visitVariable(this, data)
+
+    override fun acceptChildrenVoid(visitor: IrElementVisitorVoid) {
+        initializer?.acceptVoid(visitor)
+    }
 
     override fun <D> acceptChildren(visitor: IrElementVisitor<Unit, D>, data: D) {
         initializer?.accept(visitor, data)

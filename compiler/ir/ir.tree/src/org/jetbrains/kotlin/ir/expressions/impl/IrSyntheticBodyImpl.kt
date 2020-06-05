@@ -20,6 +20,7 @@ import org.jetbrains.kotlin.ir.IrElementBase
 import org.jetbrains.kotlin.ir.expressions.IrSyntheticBody
 import org.jetbrains.kotlin.ir.expressions.IrSyntheticBodyKind
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 
 class IrSyntheticBodyImpl(
@@ -29,8 +30,16 @@ class IrSyntheticBodyImpl(
 ) :
     IrElementBase(startOffset, endOffset),
     IrSyntheticBody {
+    override fun acceptVoid(visitor: IrElementVisitorVoid) {
+        return visitor.visitSyntheticBody(this)
+    }
+
     override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R {
         return visitor.visitSyntheticBody(this, data)
+    }
+
+    override fun acceptChildrenVoid(visitor: IrElementVisitorVoid) {
+        // no children
     }
 
     override fun <D> acceptChildren(visitor: IrElementVisitor<Unit, D>, data: D) {

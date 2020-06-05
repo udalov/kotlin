@@ -20,6 +20,7 @@ import org.jetbrains.kotlin.ir.IrElementBase
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrSpreadElement
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 
 class IrSpreadElementImpl(
@@ -35,8 +36,16 @@ class IrSpreadElementImpl(
 
     override lateinit var expression: IrExpression
 
+    override fun acceptVoid(visitor: IrElementVisitorVoid) {
+        return visitor.visitSpreadElement(this)
+    }
+
     override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R {
         return visitor.visitSpreadElement(this, data)
+    }
+
+    override fun acceptChildrenVoid(visitor: IrElementVisitorVoid) {
+        expression.acceptVoid(visitor)
     }
 
     override fun <D> acceptChildren(visitor: IrElementVisitor<Unit, D>, data: D) {

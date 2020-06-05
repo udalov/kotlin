@@ -20,6 +20,7 @@ import org.jetbrains.kotlin.ir.expressions.IrErrorCallExpression
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 import org.jetbrains.kotlin.utils.SmartList
 
@@ -39,8 +40,17 @@ class IrErrorCallExpressionImpl(
         arguments.add(argument)
     }
 
+    override fun acceptVoid(visitor: IrElementVisitorVoid) {
+        return visitor.visitErrorCallExpression(this)
+    }
+
     override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R {
         return visitor.visitErrorCallExpression(this, data)
+    }
+
+    override fun acceptChildrenVoid(visitor: IrElementVisitorVoid) {
+        explicitReceiver?.acceptVoid(visitor)
+        arguments.forEach { it.acceptVoid(visitor) }
     }
 
     override fun <D> acceptChildren(visitor: IrElementVisitor<Unit, D>, data: D) {

@@ -20,6 +20,7 @@ import org.jetbrains.kotlin.descriptors.ClassDescriptor
 import org.jetbrains.kotlin.ir.expressions.IrInstanceInitializerCall
 import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
 import org.jetbrains.kotlin.ir.types.IrType
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 
 class IrInstanceInitializerCallImpl(
@@ -32,6 +33,10 @@ class IrInstanceInitializerCallImpl(
     IrInstanceInitializerCall {
 
     override val classDescriptor: ClassDescriptor get() = classSymbol.descriptor
+
+    override fun acceptVoid(visitor: IrElementVisitorVoid) {
+        return visitor.visitInstanceInitializerCall(this)
+    }
 
     override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R {
         return visitor.visitInstanceInitializerCall(this, data)

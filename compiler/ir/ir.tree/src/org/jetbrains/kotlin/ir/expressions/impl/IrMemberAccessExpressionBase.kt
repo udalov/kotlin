@@ -21,6 +21,7 @@ import org.jetbrains.kotlin.ir.expressions.IrMemberAccessExpression
 import org.jetbrains.kotlin.ir.expressions.IrStatementOrigin
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 
 abstract class IrMemberAccessExpressionBase(
@@ -51,6 +52,11 @@ abstract class IrMemberAccessExpressionBase(
             throw AssertionError("$this: No such type argument slot: $index")
         }
         typeArgumentsByIndex[index] = type
+    }
+
+    override fun acceptChildrenVoid(visitor: IrElementVisitorVoid) {
+        dispatchReceiver?.acceptVoid(visitor)
+        extensionReceiver?.acceptVoid(visitor)
     }
 
     override fun <D> acceptChildren(visitor: IrElementVisitor<Unit, D>, data: D) {

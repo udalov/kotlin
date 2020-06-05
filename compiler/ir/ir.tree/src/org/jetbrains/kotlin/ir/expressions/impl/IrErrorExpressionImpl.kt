@@ -19,6 +19,7 @@ package org.jetbrains.kotlin.ir.expressions.impl
 import org.jetbrains.kotlin.ir.expressions.IrErrorExpression
 import org.jetbrains.kotlin.ir.expressions.IrExpressionWithCopy
 import org.jetbrains.kotlin.ir.types.IrType
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 
 class IrErrorExpressionImpl(
@@ -30,6 +31,9 @@ class IrErrorExpressionImpl(
     IrTerminalExpressionBase(startOffset, endOffset, type),
     IrExpressionWithCopy,
     IrErrorExpression {
+
+    override fun acceptVoid(visitor: IrElementVisitorVoid) =
+        visitor.visitErrorExpression(this)
 
     override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R =
         visitor.visitErrorExpression(this, data)

@@ -12,6 +12,7 @@ import org.jetbrains.kotlin.ir.expressions.IrStatementOrigin
 import org.jetbrains.kotlin.ir.symbols.IrConstructorSymbol
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.util.parentAsClass
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 
 class IrConstructorCallImpl(
@@ -26,6 +27,9 @@ class IrConstructorCallImpl(
 ) :
     IrCallWithIndexedArgumentsBase(startOffset, endOffset, type, typeArgumentsCount, valueArgumentsCount, origin),
     IrConstructorCall {
+
+    override fun acceptVoid(visitor: IrElementVisitorVoid) =
+        visitor.visitConstructorCall(this)
 
     override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R =
         visitor.visitConstructorCall(this, data)
@@ -94,4 +98,3 @@ class IrConstructorCallImpl(
             fromSymbolOwner(UNDEFINED_OFFSET, UNDEFINED_OFFSET, type, constructorSymbol, constructorSymbol.owner.parentAsClass.typeParameters.size, origin)
     }
 }
-

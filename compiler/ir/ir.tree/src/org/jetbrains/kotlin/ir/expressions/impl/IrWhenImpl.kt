@@ -20,6 +20,7 @@ import org.jetbrains.kotlin.ir.IrElementBase
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 import java.util.*
 
@@ -32,8 +33,15 @@ abstract class IrWhenBase(
     IrExpressionBase(startOffset, endOffset, type),
     IrWhen {
 
+    override fun acceptVoid(visitor: IrElementVisitorVoid) =
+        visitor.visitWhen(this)
+
     override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R =
         visitor.visitWhen(this, data)
+
+    override fun acceptChildrenVoid(visitor: IrElementVisitorVoid) {
+        branches.forEach { it.acceptVoid(visitor) }
+    }
 
     override fun <D> acceptChildren(visitor: IrElementVisitor<Unit, D>, data: D) {
         branches.forEach { it.accept(visitor, data) }
@@ -78,6 +86,11 @@ open class IrBranchImpl(
 
     constructor(condition: IrExpression, result: IrExpression) :
             this(condition.startOffset, condition.endOffset, condition, result)
+
+    override fun acceptChildrenVoid(visitor: IrElementVisitorVoid) {
+        condition.acceptVoid(visitor)
+        result.acceptVoid(visitor)
+    }
 
     override fun <D> acceptChildren(visitor: IrElementVisitor<Unit, D>, data: D) {
         condition.accept(visitor, data)

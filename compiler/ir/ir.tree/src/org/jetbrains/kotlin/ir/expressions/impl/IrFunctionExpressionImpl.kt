@@ -10,6 +10,7 @@ import org.jetbrains.kotlin.ir.expressions.IrFunctionExpression
 import org.jetbrains.kotlin.ir.expressions.IrStatementOrigin
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 
 class IrFunctionExpressionImpl(
@@ -22,8 +23,16 @@ class IrFunctionExpressionImpl(
     IrExpressionBase(startOffset, endOffset, type),
     IrFunctionExpression {
 
+    override fun acceptVoid(visitor: IrElementVisitorVoid) {
+        return visitor.visitFunctionExpression(this)
+    }
+
     override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R {
         return visitor.visitFunctionExpression(this, data)
+    }
+
+    override fun acceptChildrenVoid(visitor: IrElementVisitorVoid) {
+        function.acceptVoid(visitor)
     }
 
     override fun <D> acceptChildren(visitor: IrElementVisitor<Unit, D>, data: D) {

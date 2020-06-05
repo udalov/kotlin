@@ -22,6 +22,7 @@ import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.declarations.impl.carriers.ConstructorCarrier
 import org.jetbrains.kotlin.ir.symbols.IrConstructorSymbol
 import org.jetbrains.kotlin.ir.types.IrType
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.resolve.descriptorUtil.isEffectivelyExternal
@@ -71,6 +72,9 @@ class IrConstructorImpl(
     }
 
     override val descriptor: ClassConstructorDescriptor get() = symbol.descriptor
+
+    override fun acceptVoid(visitor: IrElementVisitorVoid) =
+        visitor.visitConstructor(this)
 
     override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R =
         visitor.visitConstructor(this, data)

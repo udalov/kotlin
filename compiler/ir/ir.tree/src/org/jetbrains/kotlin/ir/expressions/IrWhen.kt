@@ -18,6 +18,7 @@ package org.jetbrains.kotlin.ir.expressions
 
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 
 interface IrWhen : IrExpression {
@@ -33,6 +34,9 @@ interface IrBranch : IrElement {
     override fun <D> transform(transformer: IrElementTransformer<D>, data: D): IrBranch =
         transformer.visitBranch(this, data)
 
+    override fun acceptVoid(visitor: IrElementVisitorVoid) =
+        visitor.visitBranch(this)
+
     override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R =
         visitor.visitBranch(this, data)
 }
@@ -41,7 +45,9 @@ interface IrElseBranch : IrBranch {
     override fun <D> transform(transformer: IrElementTransformer<D>, data: D): IrElseBranch =
         transformer.visitElseBranch(this, data)
 
+    override fun acceptVoid(visitor: IrElementVisitorVoid) =
+        visitor.visitElseBranch(this)
+
     override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R =
         visitor.visitElseBranch(this, data)
 }
-

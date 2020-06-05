@@ -19,6 +19,7 @@ package org.jetbrains.kotlin.ir.expressions.impl
 import org.jetbrains.kotlin.ir.expressions.IrClassReference
 import org.jetbrains.kotlin.ir.symbols.IrClassifierSymbol
 import org.jetbrains.kotlin.ir.types.IrType
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 
 class IrClassReferenceImpl(
@@ -28,6 +29,9 @@ class IrClassReferenceImpl(
     symbol: IrClassifierSymbol,
     override val classType: IrType
 ) : IrTerminalDeclarationReferenceBase<IrClassifierSymbol>(startOffset, endOffset, type, symbol), IrClassReference {
+
+    override fun acceptVoid(visitor: IrElementVisitorVoid) =
+        visitor.visitClassReference(this)
 
     override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R =
         visitor.visitClassReference(this, data)

@@ -22,6 +22,7 @@ import org.jetbrains.kotlin.ir.expressions.IrStatementOrigin
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.util.transform
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 import java.util.*
 
@@ -35,6 +36,10 @@ abstract class IrContainerExpressionBase(
     IrContainerExpression {
 
     override val statements: MutableList<IrStatement> = ArrayList(2)
+
+    override fun acceptChildrenVoid(visitor: IrElementVisitorVoid) {
+        statements.forEach { it.acceptVoid(visitor) }
+    }
 
     override fun <D> acceptChildren(visitor: IrElementVisitor<Unit, D>, data: D) {
         statements.forEach { it.accept(visitor, data) }

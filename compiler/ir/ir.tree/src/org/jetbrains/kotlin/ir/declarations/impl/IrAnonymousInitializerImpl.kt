@@ -23,6 +23,7 @@ import org.jetbrains.kotlin.ir.declarations.impl.carriers.AnonymousInitializerCa
 import org.jetbrains.kotlin.ir.expressions.IrBlockBody
 import org.jetbrains.kotlin.ir.symbols.IrAnonymousInitializerSymbol
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 
 class IrAnonymousInitializerImpl(
@@ -54,8 +55,16 @@ class IrAnonymousInitializerImpl(
             }
         }
 
+    override fun acceptVoid(visitor: IrElementVisitorVoid) {
+        return visitor.visitAnonymousInitializer(this)
+    }
+
     override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R {
         return visitor.visitAnonymousInitializer(this, data)
+    }
+
+    override fun acceptChildrenVoid(visitor: IrElementVisitorVoid) {
+        body.acceptVoid(visitor)
     }
 
     override fun <D> acceptChildren(visitor: IrElementVisitor<Unit, D>, data: D) {

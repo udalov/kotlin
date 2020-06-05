@@ -23,6 +23,7 @@ import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
 import org.jetbrains.kotlin.ir.symbols.IrConstructorSymbol
 import org.jetbrains.kotlin.ir.symbols.IrFunctionSymbol
 import org.jetbrains.kotlin.ir.types.IrType
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 
 class IrCallImpl(
@@ -73,6 +74,9 @@ class IrCallImpl(
         startOffset, endOffset, type, symbol, typeArgumentsCount, symbol.descriptor.valueParameters.size,
         origin, superQualifierSymbol
     )
+
+    override fun acceptVoid(visitor: IrElementVisitorVoid) =
+        visitor.visitCall(this)
 
     override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R =
         visitor.visitCall(this, data)

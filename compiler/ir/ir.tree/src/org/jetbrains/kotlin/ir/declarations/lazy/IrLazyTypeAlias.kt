@@ -17,6 +17,7 @@ import org.jetbrains.kotlin.ir.util.DeclarationStubGenerator
 import org.jetbrains.kotlin.ir.util.TypeTranslator
 import org.jetbrains.kotlin.ir.util.mapOptimized
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 import org.jetbrains.kotlin.name.Name
 
@@ -53,8 +54,15 @@ class IrLazyTypeAlias(
         }
     }
 
+    override fun acceptVoid(visitor: IrElementVisitorVoid) =
+        visitor.visitTypeAlias(this)
+
     override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R =
         visitor.visitTypeAlias(this, data)
+
+    override fun acceptChildrenVoid(visitor: IrElementVisitorVoid) {
+        typeParameters.forEach { it.acceptVoid(visitor) }
+    }
 
     override fun <D> acceptChildren(visitor: IrElementVisitor<Unit, D>, data: D) {
         typeParameters.forEach { it.accept(visitor, data) }
