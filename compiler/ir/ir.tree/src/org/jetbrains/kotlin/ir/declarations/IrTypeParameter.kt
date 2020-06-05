@@ -30,5 +30,5 @@ interface IrTypeParameter : IrSymbolDeclaration<IrTypeParameterSymbol>, IrDeclar
     val isReified: Boolean
     val superTypes: MutableList<IrType>
 
-    override fun <D> transform(transformer: IrElementTransformer<D>, data: D): IrTypeParameter
+    fun <D> transform(transformer: IrElementTransformer<D>, data: D): IrTypeParameter
 }

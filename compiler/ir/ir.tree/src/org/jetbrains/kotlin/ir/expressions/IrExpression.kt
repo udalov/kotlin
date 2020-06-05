@@ -24,7 +24,7 @@ import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
 interface IrExpression : IrStatement, IrVarargElement, IrAttributeContainer {
     val type: IrType
 
-    override fun <D> transform(transformer: IrElementTransformer<D>, data: D): IrExpression
+    fun <D> transform(transformer: IrElementTransformer<D>, data: D): IrExpression
 }
 
 interface IrExpressionWithCopy : IrExpression {

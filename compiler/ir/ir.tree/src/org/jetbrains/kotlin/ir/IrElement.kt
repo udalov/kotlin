@@ -35,9 +35,10 @@ fun <D> IrElement.transform(transformer: IrElementTransformer<D>, data: D): IrEl
 fun <D> IrElement.acceptChildren(visitor: IrElementVisitor<Unit, D>, data: D): Unit =
     (this as IrVisitableElement).acceptChildren(visitor, data)
 
-interface IrStatement : IrElement {
-    fun <D> transform(transformer: IrElementTransformer<D>, data: D): IrStatement
-}
+interface IrStatement : IrElement
+
+fun <D> IrStatement.transform(transformer: IrElementTransformer<D>, data: D): IrStatement =
+    (this as IrVisitableElement).accept(transformer, data) as IrStatement
 
 inline fun <reified T : IrElement> IrElement.assertCast(): T =
     if (this is T) this else throw AssertionError("Expected ${T::class.simpleName}: $this")

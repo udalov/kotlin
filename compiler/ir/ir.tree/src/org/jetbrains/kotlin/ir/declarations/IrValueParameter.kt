@@ -32,5 +32,5 @@ interface IrValueParameter : IrValueDeclaration, IrSymbolDeclaration<IrValuePara
 
     var defaultValue: IrExpressionBody?
 
-    override fun <D> transform(transformer: IrElementTransformer<D>, data: D): IrValueParameter
+    fun <D> transform(transformer: IrElementTransformer<D>, data: D): IrValueParameter
 }
