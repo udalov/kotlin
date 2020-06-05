@@ -6,6 +6,7 @@
 package org.jetbrains.kotlin.ir.descriptors
 
 import org.jetbrains.kotlin.descriptors.*
+import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.IrVisitableElement
 import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
 import org.jetbrains.kotlin.ir.declarations.*
@@ -55,10 +56,9 @@ class IrBuiltInOperator(
     override val symbol: IrSimpleFunctionSymbol,
     override val name: Name,
     override var returnType: IrType
-) :
+) : IrBuiltInOperatorBase(),
     IrSimpleFunction,
-    IrFunction,
-    IrBuiltInOperatorBase() {
+    IrFunction {
 
     override val visibility: Visibility get() = Visibilities.PUBLIC
 
@@ -84,10 +84,6 @@ class IrBuiltInOperator(
 
     override val descriptor: FunctionDescriptor get() = symbol.descriptor
 
-    override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R {
-        return visitor.visitSimpleFunction(this, data)
-    }
-
     override var overriddenSymbols: List<IrSimpleFunctionSymbol> = emptyList()
     override var attributeOwnerId: IrAttributeContainer = this
 
@@ -95,9 +91,15 @@ class IrBuiltInOperator(
         symbol.bind(this)
     }
 
+    override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R =
+        visitor.visitSimpleFunction(this, data)
+
     override fun <D> acceptChildren(visitor: IrElementVisitor<Unit, D>, data: D) {
         // Do nothing
     }
+
+    override fun <D> transform(transformer: IrElementTransformer<D>, data: D): IrStatement =
+        transformer.visitSimpleFunction(this, data)
 
     override fun <D> transformChildren(transformer: IrElementTransformer<D>, data: D) {
         // Do nothing

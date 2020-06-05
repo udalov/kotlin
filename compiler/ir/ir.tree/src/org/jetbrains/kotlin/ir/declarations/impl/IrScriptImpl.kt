@@ -48,15 +48,17 @@ class IrScriptImpl(
         symbol.bind(this)
     }
 
-    override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R {
-        return visitor.visitScript(this, data)
-    }
+    override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R =
+        visitor.visitScript(this, data)
 
     override fun <D> acceptChildren(visitor: IrElementVisitor<Unit, D>, data: D) {
         declarations.forEach { it.accept(visitor, data) }
         statements.forEach { it.accept(visitor, data) }
         thisReceiver.accept(visitor, data)
     }
+
+    override fun <D> transform(transformer: IrElementTransformer<D>, data: D): IrStatement =
+        transformer.visitScript(this, data)
 
     override fun <D> transformChildren(transformer: IrElementTransformer<D>, data: D) {
         declarations.transform { it.transform(transformer, data) }

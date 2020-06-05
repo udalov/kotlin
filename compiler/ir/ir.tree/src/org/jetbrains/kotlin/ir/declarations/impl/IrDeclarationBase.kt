@@ -17,12 +17,14 @@
 package org.jetbrains.kotlin.ir.declarations.impl
 
 import org.jetbrains.kotlin.ir.IrElementBase
+import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.declarations.impl.carriers.BodyCarrier
 import org.jetbrains.kotlin.ir.declarations.impl.carriers.Carrier
 import org.jetbrains.kotlin.ir.declarations.impl.carriers.DeclarationCarrier
 import org.jetbrains.kotlin.ir.expressions.IrBody
 import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
+import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
 
 abstract class IrDeclarationBase<T : DeclarationCarrier<T>>(
     startOffset: Int,
@@ -73,6 +75,9 @@ abstract class IrDeclarationBase<T : DeclarationCarrier<T>>(
             stageController.lazyLower(this)
         }
     }
+
+    override fun <D> transform(transformer: IrElementTransformer<D>, data: D): IrStatement =
+        accept(transformer, data) as IrStatement
 }
 
 abstract class IrPersistingElementBase<T : Carrier<T>>(

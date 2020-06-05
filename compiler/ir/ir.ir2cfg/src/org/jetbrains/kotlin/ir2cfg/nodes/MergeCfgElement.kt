@@ -17,12 +17,16 @@
 package org.jetbrains.kotlin.ir2cfg.nodes
 
 import org.jetbrains.kotlin.ir.IrElement
+import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.util.dump
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
 
 class MergeCfgElement(val from: IrElement, val name: String) : CfgIrElement {
     override val startOffset = from.startOffset
     override val endOffset = from.endOffset
+
+    override fun <D> transform(transformer: IrElementTransformer<D>, data: D): IrStatement =
+        transformer.visitElement(this, data) as IrStatement
 
     override fun <D> transformChildren(transformer: IrElementTransformer<D>, data: D) = Unit
 

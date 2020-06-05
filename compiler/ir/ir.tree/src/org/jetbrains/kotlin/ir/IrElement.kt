@@ -36,8 +36,7 @@ fun <D> IrElement.acceptChildren(visitor: IrElementVisitor<Unit, D>, data: D): U
     (this as IrVisitableElement).acceptChildren(visitor, data)
 
 interface IrStatement : IrElement {
-    override fun <D> transform(transformer: IrElementTransformer<D>, data: D): IrStatement =
-        super.transform(transformer, data) as IrStatement
+    override fun <D> transform(transformer: IrElementTransformer<D>, data: D): IrStatement
 }
 
 inline fun <reified T : IrElement> IrElement.assertCast(): T =

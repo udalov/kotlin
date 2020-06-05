@@ -20,11 +20,15 @@ import org.jetbrains.kotlin.ir.IrElementBase
 import org.jetbrains.kotlin.ir.declarations.IrAttributeContainer
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.types.IrType
+import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
 
 abstract class IrExpressionBase(
     startOffset: Int,
     endOffset: Int,
     override val type: IrType
 ) : IrElementBase(startOffset, endOffset), IrExpression {
+    override fun <D> transform(transformer: IrElementTransformer<D>, data: D): IrExpression =
+        accept(transformer, data) as IrExpression
+
     override var attributeOwnerId: IrAttributeContainer = this
 }
