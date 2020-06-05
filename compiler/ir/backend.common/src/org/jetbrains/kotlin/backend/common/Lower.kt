@@ -22,8 +22,6 @@ import org.jetbrains.kotlin.ir.expressions.IrBody
 import org.jetbrains.kotlin.ir.util.transformFlat
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
-import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
-import org.jetbrains.kotlin.ir.visitors.acceptVoid
 
 interface FileLoweringPass {
     fun lower(irFile: IrFile)
@@ -242,22 +240,22 @@ fun DeclarationTransformer.runPostfix(withLocalDeclarations: Boolean = false): D
                 }
 
                 override fun visitClass(declaration: IrClass) {
-                    declaration.thisReceiver?.accept(this, null)
-                    declaration.typeParameters.forEach { it.accept(this, null) }
-                    ArrayList(declaration.declarations).forEach { it.accept(this, null) }
+                    declaration.thisReceiver?.acceptVoid(this)
+                    declaration.typeParameters.forEach { it.acceptVoid(this) }
+                    ArrayList(declaration.declarations).forEach { it.acceptVoid(this) }
 
                     declaration.declarations.transformFlat(this@runPostfix::transformFlatRestricted)
                 }
 
                 override fun visitScript(declaration: IrScript) {
-                    ArrayList(declaration.declarations).forEach { it.accept(this, null) }
+                    ArrayList(declaration.declarations).forEach { it.acceptVoid(this) }
                     declaration.declarations.transformFlat(this@runPostfix::transformFlatRestricted)
 
                     if (withLocalDeclarations) {
-                        declaration.statements.forEach { it.accept(this, null) }
+                        declaration.statements.forEach { it.acceptVoid(this) }
                     }
 
-                    declaration.thisReceiver.accept(this, null)
+                    declaration.thisReceiver.acceptVoid(this)
                 }
             })
 

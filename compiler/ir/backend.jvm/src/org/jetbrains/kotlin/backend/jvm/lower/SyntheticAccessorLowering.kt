@@ -46,7 +46,7 @@ internal class SyntheticAccessorLowering(val context: JvmBackendContext) : IrEle
     private val inlineLambdaToCallSite = mutableMapOf<IrFunction, LambdaCallSite>()
 
     override fun lower(irFile: IrFile) {
-        irFile.accept(object : IrInlineReferenceLocator(context) {
+        irFile.acceptVoid(object : IrInlineReferenceLocator(context) {
             override fun visitInlineLambda(
                 argument: IrFunctionReference,
                 callee: IrFunction,
@@ -58,7 +58,7 @@ internal class SyntheticAccessorLowering(val context: JvmBackendContext) : IrEle
                 inlineLambdaToCallSite[argument.symbol.owner] =
                     LambdaCallSite(scope, parameter.isCrossinline && !callee.isCoroutineIntrinsic())
             }
-        }, null)
+        })
 
         irFile.transformChildrenVoid(this)
 

@@ -24,7 +24,6 @@ import org.jetbrains.kotlin.ir.symbols.IrSymbol
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
-import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 import org.jetbrains.kotlin.utils.Printer
 
 fun IrElement.dump(normalizeNames: Boolean = false): String =
@@ -38,7 +37,7 @@ fun IrElement.dump(normalizeNames: Boolean = false): String =
 
 fun IrFile.dumpTreesFromLineNumber(lineNumber: Int, normalizeNames: Boolean = false): String {
     val sb = StringBuilder()
-    accept(DumpTreeFromSourceLineVisitor(fileEntry, lineNumber, sb, normalizeNames), null)
+    acceptVoid(DumpTreeFromSourceLineVisitor(fileEntry, lineNumber, sb, normalizeNames))
     return sb.toString()
 }
 

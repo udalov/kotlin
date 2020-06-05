@@ -13,8 +13,10 @@ import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.declarations.IrDeclaration
 import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.declarations.IrValueParameter
-import org.jetbrains.kotlin.ir.expressions.*
-import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
+import org.jetbrains.kotlin.ir.expressions.IrBlock
+import org.jetbrains.kotlin.ir.expressions.IrCallableReference
+import org.jetbrains.kotlin.ir.expressions.IrFunctionAccessExpression
+import org.jetbrains.kotlin.ir.expressions.IrFunctionReference
 
 internal open class IrInlineReferenceLocator(private val context: JvmBackendContext) : IrElementVisitorVoidWithContext() {
     override fun visitElement(element: IrElement) = element.acceptChildrenVoid(this)
@@ -49,11 +51,11 @@ internal open class IrInlineReferenceLocator(private val context: JvmBackendCont
     companion object {
         fun scan(context: JvmBackendContext, element: IrElement): Set<IrCallableReference> =
             mutableSetOf<IrCallableReference>().apply {
-                element.accept(object : IrInlineReferenceLocator(context) {
+                element.acceptVoid(object : IrInlineReferenceLocator(context) {
                     override fun visitInlineReference(argument: IrCallableReference) {
                         add(argument)
                     }
-                }, null)
+                })
             }
     }
 }

@@ -40,7 +40,7 @@ data class LoopBounds(val headState: SuspendState, val exitState: SuspendState)
 data class TryState(val tryState: SuspendState, val catchState: SuspendState)
 
 class IrDispatchPoint(val target: SuspendState) : IrExpressionBase(UNDEFINED_OFFSET, UNDEFINED_OFFSET, target.entryBlock.type) {
-    override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D) = visitor.visitExpression(this, data)
+    override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R = visitor.visitExpression(this, data)
 
     override fun <D> acceptChildren(visitor: IrElementVisitor<Unit, D>, data: D) {}
 

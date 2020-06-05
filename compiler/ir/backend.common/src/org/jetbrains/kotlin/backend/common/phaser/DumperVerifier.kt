@@ -131,7 +131,7 @@ fun <Fragment : IrElement> validationCallback(context: CommonBackendContext, fra
         checkDescriptors = false,
         checkProperties = checkProperties,
     )
-    fragment.accept(IrValidator(context, validatorConfig), null)
+    fragment.acceptVoid(IrValidator(context, validatorConfig))
     fragment.accept(CheckDeclarationParentsVisitor, null)
 }
 

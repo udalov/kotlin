@@ -25,7 +25,7 @@ class MergeCfgElement(val from: IrElement, val name: String) : CfgIrElement {
     override val startOffset = from.startOffset
     override val endOffset = from.endOffset
 
-    override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D) = visitor.visitElement(this, data)
+    override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R = visitor.visitElement(this, data)
 
     override fun <D> acceptChildren(visitor: IrElementVisitor<Unit, D>, data: D) = Unit
 

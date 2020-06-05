@@ -52,7 +52,7 @@ class ParcelableIrTransformer(private val context: IrPluginContext, private val 
     private val symbolMap = mutableMapOf<IrFunctionSymbol, IrFunctionSymbol>()
 
     fun transform(moduleFragment: IrModuleFragment) {
-        moduleFragment.accept(this, null)
+        moduleFragment.acceptVoid(this)
         deferredOperations.forEach { it() }
 
         // Remap broken stubs, which psi2ir generates for the synthetic descriptors coming from the ParcelizeResolveExtension.
@@ -94,10 +94,10 @@ class ParcelableIrTransformer(private val context: IrPluginContext, private val 
         })
     }
 
-    override fun visitElement(element: IrElement) = element.acceptChildren(this, null)
+    override fun visitElement(element: IrElement) = element.acceptChildrenVoid(this)
 
     override fun visitClass(declaration: IrClass) {
-        declaration.acceptChildren(this, null)
+        declaration.acceptChildrenVoid(this)
         if (!declaration.isParcelize)
             return
 
