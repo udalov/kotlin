@@ -7,7 +7,6 @@ package org.jetbrains.kotlin.ir.types
 
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns
 import org.jetbrains.kotlin.builtins.PrimitiveType
-import org.jetbrains.kotlin.descriptors.ClassDescriptor
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.descriptors.Visibilities
@@ -345,13 +344,41 @@ interface IrTypeSystemContext : TypeSystemContext, TypeSystemCommonSuperTypesCon
     }
 
     override fun TypeConstructorMarker.getPrimitiveType(): PrimitiveType? {
-        // TODO: get rid of descriptor
-        return KotlinBuiltIns.getPrimitiveType((this as IrClassifierSymbol).descriptor as ClassDescriptor)
+        if (this !is IrClassSymbol || !isPublicApi) return null
+
+        val signature = signature.asPublic()
+        if (signature == null || signature.packageFqName != "kotlin") return null
+
+        return when (signature.declarationFqName) {
+            "Boolean" -> PrimitiveType.BOOLEAN
+            "Char" -> PrimitiveType.CHAR
+            "Byte" -> PrimitiveType.BYTE
+            "Short" -> PrimitiveType.SHORT
+            "Int" -> PrimitiveType.INT
+            "Float" -> PrimitiveType.FLOAT
+            "Long" -> PrimitiveType.LONG
+            "Double" -> PrimitiveType.DOUBLE
+            else -> null
+        }
     }
 
     override fun TypeConstructorMarker.getPrimitiveArrayType(): PrimitiveType? {
-        // TODO: get rid of descriptor
-        return KotlinBuiltIns.getPrimitiveArrayType((this as IrClassifierSymbol).descriptor as ClassDescriptor)
+        if (this !is IrClassSymbol || !isPublicApi) return null
+
+        val signature = signature.asPublic()
+        if (signature == null || signature.packageFqName != "kotlin") return null
+
+        return when (signature.declarationFqName) {
+            "BooleanArray" -> PrimitiveType.BOOLEAN
+            "CharArray" -> PrimitiveType.CHAR
+            "ByteArray" -> PrimitiveType.BYTE
+            "ShortArray" -> PrimitiveType.SHORT
+            "IntArray" -> PrimitiveType.INT
+            "FloatArray" -> PrimitiveType.FLOAT
+            "LongArray" -> PrimitiveType.LONG
+            "DoubleArray" -> PrimitiveType.DOUBLE
+            else -> null
+        }
     }
 
     override fun TypeConstructorMarker.isUnderKotlinPackage(): Boolean {
