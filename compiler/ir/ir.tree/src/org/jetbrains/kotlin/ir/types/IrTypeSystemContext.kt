@@ -382,6 +382,12 @@ interface IrTypeSystemContext : TypeSystemContext, TypeSystemCommonSuperTypesCon
     }
 
     override fun TypeConstructorMarker.isUnderKotlinPackage(): Boolean {
+/*
+        return this is IrClassSymbol && isPublicApi && signature.asPublic()?.packageFqName?.let {
+            it == "kotlin" || it.startsWith("kotlin.")
+        } == true
+*/
+
         var declaration: IrDeclaration = (this as? IrClassifierSymbol)?.owner as? IrClass ?: return false
         while (true) {
             val parent = declaration.parent
