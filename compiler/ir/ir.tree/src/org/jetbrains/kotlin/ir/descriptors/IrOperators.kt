@@ -8,9 +8,12 @@ package org.jetbrains.kotlin.ir.descriptors
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.ir.ObsoleteDescriptorBasedAPI
 import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
-import org.jetbrains.kotlin.ir.declarations.*
-import org.jetbrains.kotlin.ir.expressions.IrBody
-import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
+import org.jetbrains.kotlin.ir.declarations.IrAttributeContainer
+import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
+import org.jetbrains.kotlin.ir.declarations.IrTypeParameter
+import org.jetbrains.kotlin.ir.declarations.IrValueParameter
+import org.jetbrains.kotlin.ir.declarations.impl.IrDeclarationBase
+import org.jetbrains.kotlin.ir.declarations.impl.IrFunctionBase
 import org.jetbrains.kotlin.ir.expressions.IrExpressionBody
 import org.jetbrains.kotlin.ir.symbols.IrPropertySymbol
 import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
@@ -22,65 +25,27 @@ import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.types.Variance
 import org.jetbrains.kotlin.utils.SmartList
-import kotlin.reflect.KProperty
-
-abstract class IrBuiltInOperatorBase : IrDeclaration {
-    override val startOffset: Int get() = UNDEFINED_OFFSET
-    override val endOffset: Int get() = UNDEFINED_OFFSET
-
-    override var origin: IrDeclarationOrigin
-        get() = IrBuiltIns.BUILTIN_OPERATOR
-        set(_) {}
-
-    private var _parent: IrDeclarationParent? = null
-    override var parent: IrDeclarationParent
-        get() = _parent
-            ?: throw UninitializedPropertyAccessException("Parent not initialized: $this")
-        set(v) {
-            _parent = v
-        }
-
-    override var annotations: List<IrConstructorCall> = emptyList()
-    override val metadata: MetadataSource? get() = null
-}
-
-private class NullValueDelegate<T> {
-    operator fun getValue(thisRef: Any?, property: KProperty<*>): T? = null
-    operator fun setValue(thisRef: Any?, property: KProperty<*>, v: T?) {
-        error("IrBuiltInOperators are not supposed to be mutated")
-    }
-}
 
 class IrBuiltInOperator(
     override val symbol: IrSimpleFunctionSymbol,
-    override val name: Name,
-    override var returnType: IrType
+    name: Name,
+    returnType: IrType
 ) :
     IrSimpleFunction,
-    IrFunction,
-    IrBuiltInOperatorBase() {
-
-    override val visibility: Visibility get() = Visibilities.PUBLIC
-
-    override val isInline: Boolean get() = false
-    override val isExternal: Boolean get() = false
-    override val isExpect: Boolean get() = false
-
-    override var dispatchReceiverParameter: IrValueParameter? by NullValueDelegate()
-
-    override var extensionReceiverParameter: IrValueParameter? by NullValueDelegate()
-
-    override var body: IrBody? by NullValueDelegate()
-
-    override var valueParameters: List<IrValueParameter> = emptyList()
-    override var typeParameters: List<IrTypeParameter> = emptyList()
+    IrFunctionBase(
+        UNDEFINED_OFFSET, UNDEFINED_OFFSET, IrBuiltIns.BUILTIN_OPERATOR,
+        name, Visibilities.PUBLIC, false, false, false,
+        returnType
+    ) {
 
     override val modality get() = Modality.FINAL
     override val isTailrec get() = false
     override val isSuspend get() = false
     override val isFakeOverride get() = false
     override val isOperator: Boolean get() = false
-    override var correspondingPropertySymbol: IrPropertySymbol? by NullValueDelegate()
+    override var correspondingPropertySymbol: IrPropertySymbol?
+        get() = null
+        set(_) {}
 
     @ObsoleteDescriptorBasedAPI
     override val descriptor: FunctionDescriptor get() = symbol.descriptor
@@ -95,18 +60,10 @@ class IrBuiltInOperator(
     init {
         symbol.bind(this)
     }
-
-    override fun <D> acceptChildren(visitor: IrElementVisitor<Unit, D>, data: D) {
-        // Do nothing
-    }
-
-    override fun <D> transformChildren(transformer: IrElementTransformer<D>, data: D) {
-        // Do nothing
-    }
 }
 
 class IrBuiltInOperatorValueParameter(override val symbol: IrValueParameterSymbol, override val index: Int, override val type: IrType) :
-    IrValueParameter, IrBuiltInOperatorBase() {
+    IrValueParameter, IrDeclarationBase(UNDEFINED_OFFSET, UNDEFINED_OFFSET, IrBuiltIns.BUILTIN_OPERATOR) {
 
     @ObsoleteDescriptorBasedAPI
     override val descriptor: ParameterDescriptor get() = symbol.descriptor
@@ -114,8 +71,9 @@ class IrBuiltInOperatorValueParameter(override val symbol: IrValueParameterSymbo
     override val varargElementType: IrType? get() = null
     override val isCrossinline: Boolean get() = false
     override val isNoinline: Boolean get() = false
-    override var defaultValue: IrExpressionBody? by NullValueDelegate()
-
+    override var defaultValue: IrExpressionBody?
+        get() = null
+        set(_) {}
     override val name: Name = Name.identifier("arg$index")
 
     override fun <D> transform(transformer: IrElementTransformer<D>, data: D) =
@@ -135,7 +93,7 @@ class IrBuiltInOperatorTypeParameter(
     override val variance: Variance,
     override val index: Int,
     override val isReified: Boolean
-) : IrTypeParameter, IrBuiltInOperatorBase() {
+) : IrTypeParameter, IrDeclarationBase(UNDEFINED_OFFSET, UNDEFINED_OFFSET, IrBuiltIns.BUILTIN_OPERATOR) {
 
     @ObsoleteDescriptorBasedAPI
     override val descriptor: TypeParameterDescriptor get() = symbol.descriptor

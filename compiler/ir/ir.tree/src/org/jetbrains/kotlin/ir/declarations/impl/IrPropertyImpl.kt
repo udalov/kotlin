@@ -21,7 +21,6 @@ import org.jetbrains.kotlin.descriptors.PropertyDescriptor
 import org.jetbrains.kotlin.descriptors.Visibility
 import org.jetbrains.kotlin.ir.ObsoleteDescriptorBasedAPI
 import org.jetbrains.kotlin.ir.declarations.*
-import org.jetbrains.kotlin.ir.declarations.impl.carriers.PropertyCarrier
 import org.jetbrains.kotlin.ir.descriptors.WrappedPropertyDescriptor
 import org.jetbrains.kotlin.ir.symbols.IrPropertySymbol
 import org.jetbrains.kotlin.ir.symbols.impl.IrPropertySymbolImpl
@@ -44,43 +43,17 @@ abstract class IrPropertyCommonImpl(
     override val isExternal: Boolean,
     override val isExpect: Boolean,
     override val isFakeOverride: Boolean = origin == IrDeclarationOrigin.FAKE_OVERRIDE
-) : IrDeclarationBase<PropertyCarrier>(startOffset, endOffset, origin),
-    IrProperty,
-    PropertyCarrier {
+) : IrDeclarationBase(startOffset, endOffset, origin),
+    IrProperty {
 
     @ObsoleteDescriptorBasedAPI
     abstract override val descriptor: PropertyDescriptor
 
-    override var backingFieldField: IrField? = null
+    override var backingField: IrField? = null
 
-    override var backingField: IrField?
-        get() = getCarrier().backingFieldField
-        set(v) {
-            if (backingField !== v) {
-                setCarrier().backingFieldField = v
-            }
-        }
+    override var getter: IrSimpleFunction? = null
 
-    override var getterField: IrSimpleFunction? = null
-
-    override var getter: IrSimpleFunction?
-        get() = getCarrier().getterField
-        set(v) {
-            if (getter !== v) {
-                setCarrier().getterField = v
-            }
-        }
-
-    override var setterField: IrSimpleFunction? = null
-
-    override var setter: IrSimpleFunction?
-        get() = getCarrier().setterField
-        set(v) {
-            if (setter !== v) {
-                setCarrier().setterField = v
-            }
-        }
-
+    override var setter: IrSimpleFunction? = null
 
     override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R {
         return visitor.visitProperty(this, data)
@@ -92,15 +65,7 @@ abstract class IrPropertyCommonImpl(
         setter?.accept(visitor, data)
     }
 
-    override var metadataField: MetadataSource? = null
-
-    override var metadata: MetadataSource?
-        get() = getCarrier().metadataField
-        set(v) {
-            if (metadata !== v) {
-                setCarrier().metadataField = v
-            }
-        }
+    override var metadata: MetadataSource? = null
 
     override fun <D> transformChildren(transformer: IrElementTransformer<D>, data: D) {
         backingField = backingField?.transform(transformer, data) as? IrField

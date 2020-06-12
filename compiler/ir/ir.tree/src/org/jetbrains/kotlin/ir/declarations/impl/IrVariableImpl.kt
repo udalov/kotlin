@@ -19,10 +19,7 @@ package org.jetbrains.kotlin.ir.declarations.impl
 import org.jetbrains.kotlin.descriptors.VariableDescriptor
 import org.jetbrains.kotlin.ir.ObsoleteDescriptorBasedAPI
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
-import org.jetbrains.kotlin.ir.declarations.IrDeclarationParent
 import org.jetbrains.kotlin.ir.declarations.IrVariable
-import org.jetbrains.kotlin.ir.declarations.MetadataSource
-import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.symbols.IrVariableSymbol
 import org.jetbrains.kotlin.ir.symbols.impl.IrVariableSymbolImpl
@@ -32,27 +29,18 @@ import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 import org.jetbrains.kotlin.name.Name
 
 class IrVariableImpl(
-    override val startOffset: Int,
-    override val endOffset: Int,
-    override var origin: IrDeclarationOrigin,
+    startOffset: Int,
+    endOffset: Int,
+    origin: IrDeclarationOrigin,
     override val symbol: IrVariableSymbol,
     override val name: Name,
     override val type: IrType,
     override val isVar: Boolean,
     override val isConst: Boolean,
     override val isLateinit: Boolean
-) : IrVariable {
-
-    private var _parent: IrDeclarationParent? = null
-    override var parent: IrDeclarationParent
-        get() = _parent
-            ?: throw UninitializedPropertyAccessException("Parent not initialized: $this")
-        set(v) {
-            _parent = v
-        }
-
-    override var annotations: List<IrConstructorCall> = emptyList()
-    override val metadata: MetadataSource? get() = null
+) :
+    IrDeclarationBase(startOffset, endOffset, origin),
+    IrVariable {
 
     constructor(
         startOffset: Int,

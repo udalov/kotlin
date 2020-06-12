@@ -5,16 +5,10 @@
 
 package org.jetbrains.kotlin.ir.backend.js
 
-import org.jetbrains.kotlin.descriptors.Visibilities
-import org.jetbrains.kotlin.ir.IrElement
-import org.jetbrains.kotlin.ir.declarations.*
-import org.jetbrains.kotlin.ir.declarations.impl.IrBodyBase
-import org.jetbrains.kotlin.ir.declarations.impl.IrDeclarationBase
-import org.jetbrains.kotlin.ir.expressions.IrBody
-import org.jetbrains.kotlin.ir.util.isLocal
+import org.jetbrains.kotlin.ir.declarations.DefaultStageController
 
-open class MutableController(val context: JsIrBackendContext, val lowerings: List<Lowering>) : StageController {
-
+open class MutableController(val context: JsIrBackendContext, val lowerings: List<Lowering>) : DefaultStageController() {
+    /*
     override var currentStage: Int = 0
 
     override fun lazyLower(declaration: IrDeclaration) {
@@ -184,4 +178,5 @@ open class MutableController(val context: JsIrBackendContext, val lowerings: Lis
             declarationListsRestricted = wereDeclarationListsRestricted
         }
     }
+    */
 }

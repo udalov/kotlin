@@ -18,15 +18,16 @@ package org.jetbrains.kotlin.ir.declarations.impl
 
 import org.jetbrains.kotlin.descriptors.VariableDescriptorWithAccessors
 import org.jetbrains.kotlin.ir.ObsoleteDescriptorBasedAPI
-import org.jetbrains.kotlin.ir.declarations.*
-import org.jetbrains.kotlin.ir.declarations.impl.carriers.LocalDelegatedPropertyCarrier
+import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
+import org.jetbrains.kotlin.ir.declarations.IrFunction
+import org.jetbrains.kotlin.ir.declarations.IrLocalDelegatedProperty
+import org.jetbrains.kotlin.ir.declarations.IrVariable
 import org.jetbrains.kotlin.ir.symbols.IrLocalDelegatedPropertySymbol
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 import org.jetbrains.kotlin.name.Name
 
-// TODO make not persistent
 class IrLocalDelegatedPropertyImpl(
     startOffset: Int,
     endOffset: Int,
@@ -36,9 +37,8 @@ class IrLocalDelegatedPropertyImpl(
     override val type: IrType,
     override val isVar: Boolean
 ) :
-    IrDeclarationBase<LocalDelegatedPropertyCarrier>(startOffset, endOffset, origin),
-    IrLocalDelegatedProperty,
-    LocalDelegatedPropertyCarrier {
+    IrDeclarationBase(startOffset, endOffset, origin),
+    IrLocalDelegatedProperty {
 
     init {
         symbol.bind(this)
@@ -48,35 +48,11 @@ class IrLocalDelegatedPropertyImpl(
     override val descriptor: VariableDescriptorWithAccessors
         get() = symbol.descriptor
 
-    override var delegateField: IrVariable? = null
+    override lateinit var delegate: IrVariable
 
-    override var delegate: IrVariable
-        get() = getCarrier().delegateField!!
-        set(v) {
-            if (getCarrier().delegateField !== v) {
-                setCarrier().delegateField = v
-            }
-        }
+    override lateinit var getter: IrFunction
 
-    override var getterField: IrFunction? = null
-
-    override var getter: IrFunction
-        get() = getCarrier().getterField!!
-        set(v) {
-            if (getCarrier().getterField !== v) {
-                setCarrier().getterField = v
-            }
-        }
-
-    override var setterField: IrFunction? = null
-
-    override var setter: IrFunction?
-        get() = getCarrier().setterField
-        set(v) {
-            if (setter !== v) {
-                setCarrier().setterField = v
-            }
-        }
+    override var setter: IrFunction? = null
 
     override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R =
         visitor.visitLocalDelegatedProperty(this, data)

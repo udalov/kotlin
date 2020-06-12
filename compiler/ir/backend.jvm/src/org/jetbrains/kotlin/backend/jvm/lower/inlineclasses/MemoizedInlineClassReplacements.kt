@@ -205,7 +205,7 @@ class MemoizedInlineClassReplacements(private val mangleReturnTypes: Boolean) {
         annotations += function.annotations
         copyTypeParameters(function.allTypeParameters)
         metadata = function.metadata
-        function.safeAs<IrFunctionBase<*>>()?.metadata = null
+        function.safeAs<IrFunctionBase>()?.metadata = null
 
         if (function is IrSimpleFunction) {
             val propertySymbol = function.correspondingPropertySymbol
