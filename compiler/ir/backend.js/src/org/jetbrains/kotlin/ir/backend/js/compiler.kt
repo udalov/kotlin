@@ -16,10 +16,9 @@ import org.jetbrains.kotlin.ir.backend.js.lower.moveBodilessDeclarationsToSepara
 import org.jetbrains.kotlin.ir.backend.js.transformers.irToJs.IrModuleToJsTransformer
 import org.jetbrains.kotlin.ir.backend.js.utils.JsMainFunctionDetector
 import org.jetbrains.kotlin.ir.backend.js.utils.NameTables
+import org.jetbrains.kotlin.ir.declarations.DefaultStageController
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
-import org.jetbrains.kotlin.ir.declarations.StageController
 import org.jetbrains.kotlin.ir.declarations.stageController
-import org.jetbrains.kotlin.ir.util.DeclarationStubGenerator
 import org.jetbrains.kotlin.ir.util.ExternalDependenciesGenerator
 import org.jetbrains.kotlin.ir.util.noUnboundLeft
 import org.jetbrains.kotlin.library.KotlinLibrary
@@ -47,7 +46,7 @@ fun compile(
     dceDriven: Boolean = false,
     es6mode: Boolean = false
 ): CompilerResult {
-    stageController = object : StageController {}
+    stageController = DefaultStageController()
 
     val (moduleFragment: IrModuleFragment, dependencyModules, irBuiltIns, symbolTable, deserializer) =
         loadIr(project, mainModule, analyzer, configuration, allDependencies, friendDependencies)
@@ -91,7 +90,7 @@ fun compile(
         eliminateDeadDeclarations(moduleFragment, context, mainFunction)
 
         // TODO investigate whether this is needed anymore
-        stageController = object : StageController {
+        stageController = object : DefaultStageController() {
             override val currentStage: Int = controller.currentStage
         }
 

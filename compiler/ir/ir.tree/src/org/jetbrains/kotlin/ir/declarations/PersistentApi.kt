@@ -10,31 +10,54 @@ import org.jetbrains.kotlin.ir.expressions.IrBody
 
 // TODO threadlocal
 // TODO make a IrDeclarationBase field? (requires IR factory)
-var stageController: StageController = object : StageController {}
+var stageController: StageController = DefaultStageController()
 
-// TODO make a class
-interface StageController {
-    val currentStage: Int get() = 0
+abstract class StageController {
+    abstract val currentStage: Int
 
-    fun lazyLower(declaration: IrDeclaration) {}
+    abstract fun lazyLower(declaration: IrDeclaration)
 
-    fun lazyLower(body: IrBody) {}
+    abstract fun lazyLower(body: IrBody)
 
-    fun <T> withStage(stage: Int, fn: () -> T): T = fn()
+    abstract fun <T> withStage(stage: Int, fn: () -> T): T
 
-    val bodiesEnabled: Boolean get() = true
+    abstract val bodiesEnabled: Boolean
 
-    fun <T> withInitialIr(block: () -> T): T = block()
+    abstract fun <T> withInitialIr(block: () -> T): T
 
-    fun <T> restrictTo(declaration: IrDeclaration, fn: () -> T): T = fn()
+    abstract fun <T> restrictTo(declaration: IrDeclaration, fn: () -> T): T
 
-    fun <T> bodyLowering(fn: () -> T): T = fn()
+    abstract fun <T> bodyLowering(fn: () -> T): T
 
-    fun canModify(element: IrElement): Boolean = true
+    abstract fun canModify(element: IrElement): Boolean
 
-    fun <T> unrestrictDeclarationListsAccess(fn: () -> T): T = fn()
+    abstract fun <T> unrestrictDeclarationListsAccess(fn: () -> T): T
 
-    fun canAccessDeclarationsOf(irClass: IrClass): Boolean = true
+    abstract fun canAccessDeclarationsOf(irClass: IrClass): Boolean
+}
+
+open class DefaultStageController : StageController() {
+    override val currentStage: Int get() = 0
+
+    override fun lazyLower(declaration: IrDeclaration) {}
+
+    override fun lazyLower(body: IrBody) {}
+
+    override fun <T> withStage(stage: Int, fn: () -> T): T = fn()
+
+    override val bodiesEnabled: Boolean get() = true
+
+    override fun <T> withInitialIr(block: () -> T): T = block()
+
+    override fun <T> restrictTo(declaration: IrDeclaration, fn: () -> T): T = fn()
+
+    override fun <T> bodyLowering(fn: () -> T): T = fn()
+
+    override fun canModify(element: IrElement): Boolean = true
+
+    override fun <T> unrestrictDeclarationListsAccess(fn: () -> T): T = fn()
+
+    override fun canAccessDeclarationsOf(irClass: IrClass): Boolean = true
 }
 
 @Suppress("NOTHING_TO_INLINE")

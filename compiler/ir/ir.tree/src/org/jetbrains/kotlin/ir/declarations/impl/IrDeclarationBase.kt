@@ -93,39 +93,48 @@ abstract class IrPersistingElementBase<T : Carrier<T>>(
 
     abstract fun ensureLowered()
 
-    protected fun getCarrier(): T {
-        stageController.currentStage.let { stage ->
-            ensureLowered()
+    @Suppress("UNCHECKED_CAST")
+    protected fun getCarrier(): T = when (stageController) {
+        is DefaultStageController -> this
+        else -> getCarrierControlled()
+    } as T
 
-            if (stage >= lastModified) return this as T
+    private fun getCarrierControlled(): Carrier<*> {
+        val stage = stageController.currentStage
+        ensureLowered()
 
-            if (stage < createdOn) error("Access before creation")
+        if (stage >= lastModified) return this
 
-            val v = values
-                ?: error("How come?")
+        if (stage < createdOn) error("Access before creation")
 
-            var l = -1
-            var r = v.size
-            while (r - l > 1) {
-                val m = (l + r) / 2
-                if ((v[m] as T).lastModified <= stage) {
-                    l = m
-                } else {
-                    r = m
-                }
+        val v = values ?: error("How come?")
+
+        var l = -1
+        var r = v.size
+        while (r - l > 1) {
+            val m = (l + r) / 2
+            if ((v[m] as Carrier<*>).lastModified <= stage) {
+                l = m
+            } else {
+                r = m
             }
-            if (l < 0) {
-                error("access before creation")
-            }
-
-            return v[l] as T
         }
+        if (l < 0) {
+            error("access before creation")
+        }
+
+        return v[l] as Carrier<*>
     }
 
     // TODO naming? e.g. `mutableCarrier`
-    protected fun setCarrier(): T {
-        val stage = stageController.currentStage
+    @Suppress("UNCHECKED_CAST")
+    protected fun setCarrier(): T = when (stageController) {
+        is DefaultStageController -> this
+        else -> setCarrierControlled()
+    } as T
 
+    private fun setCarrierControlled(): Carrier<*> {
+        val stage = stageController.currentStage
         ensureLowered()
 
         if (!stageController.canModify(this)) {
@@ -137,21 +146,18 @@ abstract class IrPersistingElementBase<T : Carrier<T>>(
         }
 
         // TODO move up? i.e. fast path
-        if (stage == lastModified) {
-            return this as T
-        } else {
-            val newValues = values?.let { oldValues ->
-                oldValues.copyOf(oldValues.size + 1)
-            } ?: arrayOfNulls<Any?>(1)
+        if (stage == lastModified) return this
 
-            newValues[newValues.size - 1] = this.clone()
+        val newValues = values?.let { oldValues ->
+            oldValues.copyOf(oldValues.size + 1)
+        } ?: arrayOfNulls<Any?>(1)
 
-            values = newValues
-        }
+        newValues[newValues.size - 1] = this.clone()
 
-        this.lastModified = stage
+        values = newValues
+        lastModified = stage
 
-        return this as T
+        return this
     }
 }
 
@@ -170,17 +176,30 @@ abstract class IrBodyBase<B : IrBodyBase<B>>(
             }
         }
 
-    protected fun <T> checkEnabled(fn: () -> T): T {
+    protected inline fun <T> checkEnabled(fn: () -> T): T {
         if (!stageController.bodiesEnabled) error("Bodies disabled!")
         ensureLowered()
         return fn()
     }
 
     override fun ensureLowered() {
+        if (stageController is DefaultStageController) {
+            initializer?.let { initFn ->
+                initializer = null
+                @Suppress("UNCHECKED_CAST")
+                initFn.invoke(this as B)
+            }
+        } else {
+            ensureLoweredControlled()
+        }
+    }
+
+    private fun ensureLoweredControlled() {
         initializer?.let { initFn ->
             initializer = null
             stageController.withStage(createdOn) {
                 stageController.bodyLowering {
+                    @Suppress("UNCHECKED_CAST")
                     initFn.invoke(this as B)
                 }
             }

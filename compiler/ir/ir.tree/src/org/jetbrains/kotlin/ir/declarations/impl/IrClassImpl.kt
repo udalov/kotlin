@@ -102,6 +102,8 @@ class IrClassImpl(
 
     override val declarations: MutableList<IrDeclaration> = ArrayList()
         get() {
+            if (stageController is DefaultStageController) return field
+
             if (createdOn < stageController.currentStage && initialDeclarations == null) {
                 initialDeclarations = Collections.unmodifiableList(ArrayList(field))
             }
