@@ -42,18 +42,21 @@ class ProfilingCompilerPerformanceManager(
 
     private fun dumpProfile(postfix: String) {
         outputDir.mkdirs()
-        val outputFile = outputDir.resolve("snapshot-${formatter.format(runDate)}-$postfix.collapsed")
+        val outputFile = outputDir.resolve("snapshot-${formatter.format(runDate)}.collapsed")
         outputFile.writeText(profiler.execute("collapsed"))
         active = false
     }
 
+    private var repeated = false
+
     override fun notifyRepeat(total: Int, number: Int) {
         dumpProfile("repeat$number")
+        repeated = true
         restartProfiling()
     }
 
     override fun notifyCompilationFinished() {
-        dumpProfile("final")
+        // dumpProfile("final")
         stopProfiling()
     }
 
