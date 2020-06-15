@@ -25,10 +25,7 @@ import org.jetbrains.kotlin.ir.symbols.IrFieldSymbol
 import org.jetbrains.kotlin.ir.symbols.impl.IrFieldSymbolImpl
 import org.jetbrains.kotlin.ir.util.hasAnnotation
 import org.jetbrains.kotlin.ir.util.patchDeclarationParents
-import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
-import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
-import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
-import org.jetbrains.kotlin.ir.visitors.acceptVoid
+import org.jetbrains.kotlin.ir.visitors.*
 import org.jetbrains.kotlin.load.java.JvmAbi
 import org.jetbrains.kotlin.name.Name
 
@@ -41,7 +38,7 @@ internal val renameFieldsPhase = makeIrFilePhase(
 private class RenameFieldsLowering(val context: CommonBackendContext) : FileLoweringPass {
     override fun lower(irFile: IrFile) {
         val collector = FieldNameCollector()
-        irFile.acceptVoid(collector)
+        irFile.accept(collector, null)
 
         val newNames = mutableMapOf<IrField, Name>()
         for ((_, fields) in collector.nameToField) {
@@ -88,21 +85,21 @@ private class RenameFieldsLowering(val context: CommonBackendContext) : FileLowe
         get() = hasAnnotation(JvmAbi.JVM_FIELD_ANNOTATION_FQ_NAME)
 }
 
-private class FieldNameCollector : IrElementVisitorVoid {
+private class FieldNameCollector : IrLeafElementVisitor<Unit, Nothing?>() {
     val nameToField = mutableMapOf<Pair<IrDeclarationParent, Name>, MutableList<IrField>>()
 
-    override fun visitElement(element: IrElement) {
-        element.acceptChildrenVoid(this)
+    override fun visitElement(element: IrElement, data: Nothing?) {
+        element.acceptChildren(this, data)
     }
 
-    override fun visitField(declaration: IrField) {
+    override fun visitField(declaration: IrField, data: Nothing?) {
         if (!declaration.isFakeOverride) {
             nameToField.getOrPut(declaration.parent to declaration.name) { mutableListOf() }.add(declaration)
         }
     }
 }
 
-private class FieldRenamer(private val newNames: Map<IrField, Name>) : IrElementTransformerVoid() {
+private class FieldRenamer(private val newNames: Map<IrField, Name>) : IrLeafElementTransformerVoid() {
     val newSymbols = mutableMapOf<IrField, IrFieldSymbol>()
 
     override fun visitField(declaration: IrField): IrStatement {
@@ -127,7 +124,7 @@ private class FieldRenamer(private val newNames: Map<IrField, Name>) : IrElement
     }
 }
 
-private class FieldAccessTransformer(private val oldToNew: Map<IrField, IrFieldSymbol>) : IrElementTransformerVoid() {
+private class FieldAccessTransformer(private val oldToNew: Map<IrField, IrFieldSymbol>) : IrLeafElementTransformerVoid() {
     override fun visitGetField(expression: IrGetField): IrExpression {
         val newSymbol = oldToNew[expression.symbol.owner] ?: return super.visitGetField(expression)
 
