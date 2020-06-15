@@ -22,7 +22,10 @@ import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.*
 
 abstract class IrElementTransformerVoid : IrElementTransformer<Nothing?> {
-    protected fun <T : IrElement> T.transformChildren() = apply { transformChildrenVoid() }
+    protected fun <T : IrElement> T.transformChildren(): T {
+        transformChildrenVoid()
+        return this
+    }
 
     open fun visitElement(element: IrElement): IrElement = element.transformChildren()
     final override fun visitElement(element: IrElement, data: Nothing?): IrElement = visitElement(element)

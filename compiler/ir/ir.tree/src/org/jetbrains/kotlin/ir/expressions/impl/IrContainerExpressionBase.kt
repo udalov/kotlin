@@ -20,7 +20,6 @@ import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.expressions.IrContainerExpression
 import org.jetbrains.kotlin.ir.expressions.IrStatementOrigin
 import org.jetbrains.kotlin.ir.types.IrType
-import org.jetbrains.kotlin.ir.util.transform
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 import java.util.*
@@ -41,6 +40,9 @@ abstract class IrContainerExpressionBase(
     }
 
     override fun <D> transformChildren(transformer: IrElementTransformer<D>, data: D) {
-        statements.transform { it.transform(transformer, data) }
+        val statements = statements
+        for (i in 0 until statements.size) {
+            statements[i] = statements[i].transform(transformer, data)
+        }
     }
 }

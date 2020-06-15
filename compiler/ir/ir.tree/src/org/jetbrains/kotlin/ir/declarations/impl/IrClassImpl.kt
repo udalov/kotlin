@@ -178,6 +178,10 @@ class IrClassImpl(
     override fun <D> transformChildren(transformer: IrElementTransformer<D>, data: D) {
         thisReceiver = thisReceiver?.transform(transformer, data)
         typeParameters = typeParameters.mapOptimized { it.transform(transformer, data) }
-        declarations.transform { it.transform(transformer, data) }
+
+        val declarations = declarations
+        for (i in 0 until declarations.size) {
+            declarations[i] = declarations[i].transform(transformer, data) as IrDeclaration
+        }
     }
 }
