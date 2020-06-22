@@ -17,10 +17,10 @@
 package org.jetbrains.kotlin.ir.declarations.impl
 
 import org.jetbrains.kotlin.descriptors.Visibility
+import org.jetbrains.kotlin.ir.IrElementBase
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.IrBody
 import org.jetbrains.kotlin.ir.types.IrType
-import org.jetbrains.kotlin.ir.util.mapOptimized
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 import org.jetbrains.kotlin.name.Name
@@ -49,32 +49,61 @@ abstract class IrFunctionBase(
 
     override var typeParameters: List<IrTypeParameter> = emptyList()
 
-    override var dispatchReceiverParameter: IrValueParameter? = null
-    override var extensionReceiverParameter: IrValueParameter? = null
+    private var dispatchReceiverParameterField: IrValueParameterImpl? = null
+    override var dispatchReceiverParameter: IrValueParameter?
+        get() = dispatchReceiverParameterField
+        set(value) { dispatchReceiverParameterField = value as IrValueParameterImpl? }
+    private var extensionReceiverParameterField: IrValueParameterImpl? = null
+    override var extensionReceiverParameter: IrValueParameter?
+        get() = extensionReceiverParameterField
+        set(value) { extensionReceiverParameterField = value as IrValueParameterImpl? }
     override var valueParameters: List<IrValueParameter> = emptyList()
 
-    final override var body: IrBody? = null
+    private var bodyField: IrElementBase? = null
+
+    final override var body: IrBody?
+        get() = bodyField as IrBody?
+        set(value) { bodyField = value as IrElementBase? }
 
     override var metadata: MetadataSource? = null
 
     override fun <D> acceptChildren(visitor: IrElementVisitor<Unit, D>, data: D) {
-        typeParameters.forEach { it.accept(visitor, data) }
+        val tp = typeParameters.iterator()
+        while (tp.hasNext()) {
+            (tp.next() as IrElementBase?)!!.accept(visitor, data)
+        }
 
-        dispatchReceiverParameter?.accept(visitor, data)
-        extensionReceiverParameter?.accept(visitor, data)
-        valueParameters.forEach { it.accept(visitor, data) }
+        dispatchReceiverParameterField?.accept(visitor, data)
+        extensionReceiverParameterField?.accept(visitor, data)
 
-        body?.accept(visitor, data)
+        val vp = valueParameters.iterator()
+        while (vp.hasNext()) {
+            (vp.next() as IrElementBase?)!!.accept(visitor, data)
+        }
+
+        bodyField?.accept(visitor, data)
     }
 
     override fun <D> transformChildren(transformer: IrElementTransformer<D>, data: D) {
+        typeParameters = typeParameters.mapOptimized0(transformer, data)
 
-        typeParameters = typeParameters.mapOptimized { it.transform(transformer, data) }
+        dispatchReceiverParameterField = uncheckedCast(dispatchReceiverParameterField?.transform(transformer, data))
+        extensionReceiverParameterField = uncheckedCast(extensionReceiverParameterField?.transform(transformer, data))
+        valueParameters = valueParameters.mapOptimized0(transformer, data)
 
-        dispatchReceiverParameter = dispatchReceiverParameter?.transform(transformer, data)
-        extensionReceiverParameter = extensionReceiverParameter?.transform(transformer, data)
-        valueParameters = valueParameters.mapOptimized { it.transform(transformer, data) }
-
-        body = body?.transform(transformer, data)
+        bodyField = uncheckedCast(bodyField?.transform(transformer, data))
     }
+}
+
+internal fun <T, D> List<T>.mapOptimized0(transformer: IrElementTransformer<D>, data: D): List<T> {
+    var result: ArrayList<T>? = null
+    for (i in indices) {
+        val item = this[i]
+        val transformed = uncheckedCast<T>((item as IrElementBase?)!!.transform(transformer, data))
+        if (transformed !== item && result == null) {
+            result = ArrayList(this)
+        }
+        result?.set(i, transformed)
+    }
+    return result ?: this
 }

@@ -17,12 +17,12 @@
 package org.jetbrains.kotlin.ir.declarations.impl
 
 import org.jetbrains.kotlin.descriptors.*
+import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.ObsoleteDescriptorBasedAPI
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.util.mapOptimized
-import org.jetbrains.kotlin.ir.util.transform
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 import org.jetbrains.kotlin.name.Name
@@ -100,6 +100,18 @@ class IrClassImpl(
     override fun <D> transformChildren(transformer: IrElementTransformer<D>, data: D) {
         thisReceiver = thisReceiver?.transform(transformer, data)
         typeParameters = typeParameters.mapOptimized { it.transform(transformer, data) }
-        declarations.transform { it.transform(transformer, data) }
+        declarations.transformDeclarationsInPlace(transformer, data)
     }
 }
+
+internal fun <T : IrElement, D> MutableList<T>.transformDeclarationsInPlace(transformer: IrElementTransformer<D>, data: D) {
+    val iterator = this.listIterator()
+    while (iterator.hasNext()) {
+        val next = iterator.next() as IrDeclarationBase?
+        iterator.set(uncheckedCast(next!!.transform(transformer, data)))
+    }
+}
+
+@Suppress("UNCHECKED_CAST")
+internal fun <T> uncheckedCast(value: Any?): T =
+    value as T

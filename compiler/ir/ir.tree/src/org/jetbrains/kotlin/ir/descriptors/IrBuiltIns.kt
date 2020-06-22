@@ -16,6 +16,8 @@ import org.jetbrains.kotlin.incremental.components.NoLookupLocation
 import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationOriginImpl
 import org.jetbrains.kotlin.ir.declarations.impl.IrExternalPackageFragmentImpl
+import org.jetbrains.kotlin.ir.declarations.impl.IrTypeParameterImpl
+import org.jetbrains.kotlin.ir.declarations.impl.IrValueParameterImpl
 import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
 import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
 import org.jetbrains.kotlin.ir.symbols.impl.IrTypeParameterSymbolImpl
@@ -68,7 +70,9 @@ class IrBuiltIns(
             operator.valueParameters = valueParameterTypes.withIndex().map { (i, valueParameterType) ->
                 val valueParameterDescriptor = operatorDescriptor.valueParameters[i]
                 val valueParameterSymbol = IrValueParameterSymbolImpl(valueParameterDescriptor)
-                IrBuiltInOperatorValueParameter(valueParameterSymbol, i, valueParameterType).apply {
+                IrValueParameterImpl(
+                    UNDEFINED_OFFSET, UNDEFINED_OFFSET, BUILTIN_OPERATOR, valueParameterSymbol, Name.identifier("arg$i"), i, valueParameterType, null, false, false
+                ).apply {
                     parent = operator
                 }
             }
@@ -116,7 +120,7 @@ class IrBuiltIns(
         }
 
         val typeParameterSymbol = IrTypeParameterSymbolImpl(typeParameterDescriptor)
-        val typeParameter = IrBuiltInOperatorTypeParameter(typeParameterSymbol, Variance.INVARIANT, 0, true).apply {
+        val typeParameter = IrTypeParameterImpl(UNDEFINED_OFFSET, UNDEFINED_OFFSET, BUILTIN_OPERATOR, typeParameterSymbol, Name.identifier("T0"), 0, true, Variance.INVARIANT).apply {
             superTypes += anyType
         }
 
@@ -140,7 +144,9 @@ class IrBuiltIns(
             packageFragment.declarations += operator
 
             val valueParameterSymbol = IrValueParameterSymbolImpl(valueParameterDescriptor)
-            val valueParameter = IrBuiltInOperatorValueParameter(valueParameterSymbol, 0, valueIrType)
+            val valueParameter = IrValueParameterImpl(
+                UNDEFINED_OFFSET, UNDEFINED_OFFSET, BUILTIN_OPERATOR, valueParameterSymbol, Name.identifier("arg0"), 0, valueIrType, null, false, false
+            )
 
             valueParameter.parent = operator
             typeParameter.parent = operator

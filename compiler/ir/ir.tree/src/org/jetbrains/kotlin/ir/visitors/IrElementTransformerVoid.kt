@@ -19,7 +19,9 @@ package org.jetbrains.kotlin.ir.visitors
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.declarations.*
+import org.jetbrains.kotlin.ir.declarations.impl.IrDeclarationBase
 import org.jetbrains.kotlin.ir.expressions.*
+import org.jetbrains.kotlin.ir.expressions.impl.IrExpressionBase
 
 abstract class IrElementTransformerVoid : IrElementTransformer<Nothing?> {
     protected fun <T : IrElement> T.transformChildren() = apply { transformChildrenVoid() }
@@ -43,7 +45,11 @@ abstract class IrElementTransformerVoid : IrElementTransformer<Nothing?> {
     final override fun visitExternalPackageFragment(declaration: IrExternalPackageFragment, data: Nothing?): IrExternalPackageFragment =
         visitExternalPackageFragment(declaration)
 
-    open fun visitDeclaration(declaration: IrDeclaration): IrStatement = declaration.transformChildren()
+    open fun visitDeclaration(declaration: IrDeclaration): IrStatement {
+        (declaration as IrDeclarationBase?)!!.transformChildren(this@IrElementTransformerVoid, null)
+        return declaration
+    }
+
     final override fun visitDeclaration(declaration: IrDeclaration, data: Nothing?): IrStatement = visitDeclaration(declaration)
 
     open fun visitScript(declaration: IrScript) = visitDeclaration(declaration)
@@ -109,7 +115,11 @@ abstract class IrElementTransformerVoid : IrElementTransformer<Nothing?> {
     open fun visitSuspensionPoint(expression: IrSuspensionPoint) = visitExpression(expression)
     final override fun visitSuspensionPoint(expression: IrSuspensionPoint, data: Nothing?) = visitSuspensionPoint(expression)
 
-    open fun visitExpression(expression: IrExpression): IrExpression = expression.transformChildren()
+    open fun visitExpression(expression: IrExpression): IrExpression {
+        (expression as IrExpressionBase?)!!.transformChildren(this@IrElementTransformerVoid, null)
+        return expression
+    }
+
     final override fun visitExpression(expression: IrExpression, data: Nothing?): IrExpression = visitExpression(expression)
 
     open fun <T> visitConst(expression: IrConst<T>) = visitExpression(expression)
