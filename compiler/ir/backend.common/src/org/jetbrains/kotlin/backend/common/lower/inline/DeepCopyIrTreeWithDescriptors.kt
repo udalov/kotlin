@@ -5,12 +5,9 @@
 
 package org.jetbrains.kotlin.backend.common.lower.inline
 
-import org.jetbrains.kotlin.ir.util.DescriptorsToIrRemapper
-import org.jetbrains.kotlin.ir.util.WrappedDescriptorPatcher
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationParent
 import org.jetbrains.kotlin.ir.declarations.IrTypeParametersContainer
-import org.jetbrains.kotlin.ir.declarations.copyAttributes
 import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
 import org.jetbrains.kotlin.ir.expressions.IrTypeOperatorCall
 import org.jetbrains.kotlin.ir.expressions.impl.IrTypeOperatorCallImpl
@@ -145,6 +142,6 @@ internal class DeepCopyIrTreeWithSymbolsForInliner(
                 expression.operator,
                 expression.typeOperand.remapTypeAndErase(),
                 expression.argument.transform()
-            ).copyAttributes(expression)
+            )
     }
 }

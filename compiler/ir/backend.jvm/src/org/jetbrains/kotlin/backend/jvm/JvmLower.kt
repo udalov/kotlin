@@ -138,7 +138,8 @@ internal val localDeclarationsPhase = makeIrFilePhase(
 
                 private fun scopedVisibility(inInlineFunctionScope: Boolean): DescriptorVisibility =
                     if (inInlineFunctionScope) DescriptorVisibilities.PUBLIC else JavaDescriptorVisibilities.PACKAGE_VISIBILITY
-            }
+            },
+            context::copyCallableReference,
         )
     },
     name = "JvmLocalDeclarations",
@@ -218,7 +219,7 @@ private val staticInitializersPhase = makeIrFilePhase(
 )
 
 private val initializersPhase = makeIrFilePhase(
-    ::InitializersLowering,
+    ::JvmInitializersLowering,
     name = "Initializers",
     description = "Merge init blocks and field initializers into constructors",
     // Depends on local class extraction, because otherwise local classes in initializers will be copied into each constructor.

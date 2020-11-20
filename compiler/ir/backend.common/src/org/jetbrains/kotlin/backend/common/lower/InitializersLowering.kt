@@ -25,7 +25,7 @@ import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
 
 object SYNTHESIZED_INIT_BLOCK : IrStatementOriginImpl("SYNTHESIZED_INIT_BLOCK")
 
-class InitializersLowering(context: CommonBackendContext) : InitializersLoweringBase(context), BodyLoweringPass {
+open class InitializersLowering(context: CommonBackendContext) : InitializersLoweringBase(context), BodyLoweringPass {
     override fun lower(irFile: IrFile) {
         runOnFilePostfix(irFile, true)
     }
@@ -49,9 +49,12 @@ class InitializersLowering(context: CommonBackendContext) : InitializersLowering
 
         container.body?.transformChildrenVoid(object : IrElementTransformerVoid() {
             override fun visitInstanceInitializerCall(expression: IrInstanceInitializerCall): IrExpression =
-                block.deepCopyWithSymbols(container)
+                copyBlock(block, container)
         })
     }
+
+    protected open fun copyBlock(block: IrBlock, constructor: IrConstructor): IrBlock =
+        block.deepCopyWithSymbols(constructor)
 }
 
 abstract class InitializersLoweringBase(open val context: CommonBackendContext) {

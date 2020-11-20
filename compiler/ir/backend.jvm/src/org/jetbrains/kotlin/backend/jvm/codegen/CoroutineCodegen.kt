@@ -49,7 +49,7 @@ internal fun MethodNode.acceptWithStateMachine(
     val element = if (irFunction.isSuspend)
         irFunction.psiElement ?: classCodegen.irClass.psiElement
     else
-        classCodegen.context.suspendLambdaToOriginalFunctionMap[classCodegen.irClass.attributeOwnerId]!!.psiElement
+        classCodegen.context.suspendLambdaClassToOriginalFunctionMap[classCodegen.irClass.attributeOwnerId]!!.psiElement
 
     val lineNumber = if (irFunction.isSuspend) {
         val irFile = irFunction.file

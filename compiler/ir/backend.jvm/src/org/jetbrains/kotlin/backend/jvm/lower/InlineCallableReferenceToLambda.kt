@@ -23,6 +23,7 @@ import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.expressions.impl.IrFunctionReferenceImpl
 import org.jetbrains.kotlin.ir.types.IrSimpleType
+import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
 import org.jetbrains.kotlin.name.Name
@@ -60,7 +61,7 @@ internal class InlineCallableReferenceToLambdaPhase(val context: JvmBackendConte
 }
 
 private class InlineCallableReferenceToLambdaTransformer(
-    val context: JvmBackendContext,
+    val backendContext: JvmBackendContext,
     val inlinableReferences: Set<IrCallableReference<*>>
 ) : IrElementTransformerVoidWithContext() {
     override fun visitFunctionReference(expression: IrFunctionReference): IrExpression {
@@ -83,7 +84,7 @@ private class InlineCallableReferenceToLambdaTransformer(
     }
 
     private fun expandInlineFieldReferenceToLambda(expression: IrPropertyReference, field: IrField): IrExpression {
-        val irBuilder = context.createJvmIrBuilder(currentScope!!.scope.scopeOwnerSymbol, expression.startOffset, expression.endOffset)
+        val irBuilder = backendContext.createJvmIrBuilder(currentScope!!.scope.scopeOwnerSymbol, expression.startOffset, expression.endOffset)
         return irBuilder.irBlock(expression, IrStatementOrigin.LAMBDA) {
             val boundReceiver = expression.dispatchReceiver ?: expression.extensionReceiver
             val function = context.irFactory.buildFun {
@@ -100,29 +101,31 @@ private class InlineCallableReferenceToLambdaTransformer(
                     boundReceiver != null -> irGet(addExtensionReceiver(boundReceiver.type))
                     else -> irGet(addValueParameter("receiver", field.parentAsClass.defaultType))
                 }
-                body = this@InlineCallableReferenceToLambdaTransformer.context.createIrBuilder(symbol).run {
+                body = backendContext.createIrBuilder(symbol).run {
                     irExprBody(irGetField(receiver, field))
                 }
             }
 
-            +function
-            +IrFunctionReferenceImpl.fromSymbolOwner(
-                expression.startOffset,
-                expression.endOffset,
-                field.type,
-                function.symbol,
-                typeArgumentsCount = 0,
-                reflectionTarget = null,
-                origin = IrStatementOrigin.LAMBDA
-            ).apply {
-                copyAttributes(expression)
-                extensionReceiver = boundReceiver
-            }
+            addFunctionReference(function, expression, field.type, 0, boundReceiver)
+        }
+    }
+
+    private fun IrBlockBuilder.addFunctionReference(
+        function: IrFunction, expression: IrCallableReference<*>, type: IrType, typeArgumentsCount: Int, boundReceiver: IrExpression?
+    ) {
+        +function
+        +IrFunctionReferenceImpl.fromSymbolOwner(
+            expression.startOffset, expression.endOffset, type, function.symbol,
+            typeArgumentsCount, null, IrStatementOrigin.LAMBDA
+        ).apply {
+            backendContext.copyCallableReference(expression, this)
+            extensionReceiver = boundReceiver
         }
     }
 
     private fun expandInlineFunctionReferenceToLambda(expression: IrCallableReference<*>, referencedFunction: IrFunction): IrExpression {
-        val irBuilder = context.createJvmIrBuilder(currentScope!!.scope.scopeOwnerSymbol, expression.startOffset, expression.endOffset)
+        val irBuilder =
+            backendContext.createJvmIrBuilder(currentScope!!.scope.scopeOwnerSymbol, expression.startOffset, expression.endOffset)
         return irBuilder.irBlock(expression, IrStatementOrigin.LAMBDA) {
             // We find the number of parameters for constructed lambda from the type of the function reference,
             // but the actual types have to be copied from referencedFunction; function reference argument type may be too
@@ -156,11 +159,7 @@ private class InlineCallableReferenceToLambdaTransformer(
                     }
                 }
 
-                body = this@InlineCallableReferenceToLambdaTransformer.context.createJvmIrBuilder(
-                    symbol,
-                    expression.startOffset,
-                    expression.endOffset
-                ).run {
+                body = backendContext.createJvmIrBuilder(symbol, expression.startOffset, expression.endOffset).run {
                     irExprBody(irCall(referencedFunction).apply {
                         symbol.owner.allTypeParameters.forEach {
                             putTypeArgument(it.index, expression.getTypeArgument(it.index))
@@ -187,19 +186,7 @@ private class InlineCallableReferenceToLambdaTransformer(
                 }
             }
 
-            +function
-            +IrFunctionReferenceImpl.fromSymbolOwner(
-                expression.startOffset,
-                expression.endOffset,
-                function.returnType,
-                function.symbol,
-                typeArgumentsCount = function.typeParameters.size,
-                reflectionTarget = null,
-                origin = IrStatementOrigin.LAMBDA
-            ).apply {
-                copyAttributes(expression)
-                extensionReceiver = boundReceiver?.second
-            }
+            addFunctionReference(function, expression, function.returnType, function.typeParameters.size, boundReceiver?.second)
         }
     }
 }

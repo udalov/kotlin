@@ -299,7 +299,8 @@ private class JvmInlineClassLowering(private val context: JvmBackendContext) : F
             replacement.valueParameters.size, expression.reflectionTarget, expression.origin
         ).apply {
             buildReplacement(function, expression, replacement)
-        }.copyAttributes(expression)
+            context.copyCallableReference(expression, this)
+        }
     }
 
     override fun visitFunctionAccess(expression: IrFunctionAccessExpression): IrExpression {

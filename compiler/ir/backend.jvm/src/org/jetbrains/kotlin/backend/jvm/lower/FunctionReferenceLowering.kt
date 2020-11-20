@@ -197,7 +197,8 @@ internal class FunctionReferenceLowering(private val context: JvmBackendContext)
                 else null,
             )
             createImplicitParameterDeclarationWithWrappedDescriptor()
-            copyAttributes(irFunctionReference)
+            context.putLocalClassType(this, context.getCallableReferenceClassType(irFunctionReference))
+            context.originalCallableReferenceForClass[this] = irFunctionReference
             if (isLambda) {
                 metadata = irFunctionReference.symbol.owner.metadata
             }
@@ -494,6 +495,7 @@ internal class FunctionReferenceLowering(private val context: JvmBackendContext)
                         irFunctionReference.reflectionTarget, null
                     ).apply {
                         copyTypeArgumentsFrom(irFunctionReference)
+                        backendContext.copyCallableReference(irFunctionReference, this)
                     }
                 )
             }

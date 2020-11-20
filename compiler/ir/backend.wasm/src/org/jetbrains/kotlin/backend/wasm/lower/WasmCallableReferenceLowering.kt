@@ -15,7 +15,6 @@ import org.jetbrains.kotlin.backend.common.lower.createIrBuilder
 import org.jetbrains.kotlin.backend.wasm.WasmBackendContext
 import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.descriptors.Modality
-import org.jetbrains.kotlin.descriptors.Visibilities
 import org.jetbrains.kotlin.ir.builders.*
 import org.jetbrains.kotlin.ir.builders.declarations.addConstructor
 import org.jetbrains.kotlin.ir.builders.declarations.addFunction
@@ -143,7 +142,6 @@ internal class WasmCallableReferenceLowering(private val context: WasmBackendCon
             // TODO(WASM)
             // if (irFunctionReference.isSuspend) superTypes += context.ir.symbols.suspendFunctionInterface.defaultType
             createImplicitParameterDeclarationWithWrappedDescriptor()
-            copyAttributes(irFunctionReference)
             if (isLambda) {
                 this.metadata = irFunctionReference.symbol.owner.metadata
             }

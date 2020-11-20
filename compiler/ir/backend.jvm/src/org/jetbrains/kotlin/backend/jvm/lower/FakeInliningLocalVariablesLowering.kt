@@ -43,7 +43,7 @@ internal class FakeInliningLocalVariablesLowering(val context: JvmBackendContext
         val lambda = argument.symbol.owner
         if (lambda.origin == IrDeclarationOrigin.LOCAL_FUNCTION_FOR_LAMBDA) {
             val argumentToFunctionName = context.methodSignatureMapper.mapFunctionName(callee)
-            val lambdaReferenceName = context.getLocalClassType(argument)!!.internalName.substringAfterLast("/")
+            val lambdaReferenceName = context.getCallableReferenceClassType(argument).internalName.substringAfterLast("/")
             val localName = "${JvmAbi.LOCAL_VARIABLE_NAME_PREFIX_INLINE_ARGUMENT}-$argumentToFunctionName-$lambdaReferenceName"
             lambda.addFakeLocalVariable(localName)
         }

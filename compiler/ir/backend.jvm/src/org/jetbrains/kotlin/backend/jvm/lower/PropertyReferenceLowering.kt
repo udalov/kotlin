@@ -95,7 +95,7 @@ private class PropertyReferenceLowering(val context: JvmBackendContext) : IrElem
     private val IrField.fakeGetterSignature: String
         get() = "${JvmAbi.getterName(name.asString())}()${context.methodSignatureMapper.mapReturnType(this)}"
 
-    private fun IrBuilderWithScope.computeSignatureString(expression: IrMemberAccessExpression<*>): IrExpression {
+    private fun IrBuilderWithScope.computeSignatureString(expression: IrCallableReference<*>): IrExpression {
         if (expression is IrLocalDelegatedPropertyReference) {
             // Local delegated properties are stored as a plain list, and the runtime library extracts the index from this string:
             val index = currentClassData?.localPropertyIndex(expression.getter)
@@ -117,6 +117,7 @@ private class PropertyReferenceLowering(val context: JvmBackendContext) : IrElem
         val origin = if (needsDummySignature) InlineClassAbi.UNMANGLED_FUNCTION_REFERENCE else null
         val reference =
             IrFunctionReferenceImpl.fromSymbolOwner(UNDEFINED_OFFSET, UNDEFINED_OFFSET, expression.type, getter, 0, getter, origin)
+        this@PropertyReferenceLowering.context.copyCallableReference(expression, reference)
         return irCall(signatureStringIntrinsic).apply { putValueArgument(0, reference) }
     }
 
@@ -326,7 +327,9 @@ private class PropertyReferenceLowering(val context: JvmBackendContext) : IrElem
             parent = currentDeclarationParent!!
             superTypes = listOf(superClass.defaultType)
             createImplicitParameterDeclarationWithWrappedDescriptor()
-        }.copyAttributes(expression)
+            context.putLocalClassType(this, context.getCallableReferenceClassType(expression))
+            context.originalCallableReferenceForClass[this] = expression
+        }
 
         addConstructor(expression, referenceClass, superClass)
 

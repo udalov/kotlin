@@ -7,14 +7,15 @@ package org.jetbrains.kotlin.backend.common.lower
 
 import org.jetbrains.kotlin.backend.common.BodyLoweringPass
 import org.jetbrains.kotlin.backend.common.CommonBackendContext
-import org.jetbrains.kotlin.backend.common.descriptors.synthesizedName
 import org.jetbrains.kotlin.backend.common.descriptors.synthesizedString
 import org.jetbrains.kotlin.backend.common.ir.*
 import org.jetbrains.kotlin.backend.common.runOnFilePostfix
-import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.descriptors.DescriptorVisibility
-import org.jetbrains.kotlin.ir.*
+import org.jetbrains.kotlin.descriptors.Modality
+import org.jetbrains.kotlin.ir.IrElement
+import org.jetbrains.kotlin.ir.IrStatement
+import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
 import org.jetbrains.kotlin.ir.builders.declarations.buildConstructor
 import org.jetbrains.kotlin.ir.builders.declarations.buildField
 import org.jetbrains.kotlin.ir.builders.declarations.buildFun
@@ -24,7 +25,9 @@ import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.expressions.impl.*
 import org.jetbrains.kotlin.ir.symbols.IrValueParameterSymbol
 import org.jetbrains.kotlin.ir.symbols.IrValueSymbol
-import org.jetbrains.kotlin.ir.types.*
+import org.jetbrains.kotlin.ir.transformStatement
+import org.jetbrains.kotlin.ir.types.IrType
+import org.jetbrains.kotlin.ir.types.defaultType
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
@@ -77,7 +80,8 @@ object BOUND_RECEIVER_PARAMETER : IrDeclarationOriginImpl("BOUND_RECEIVER_PARAME
 class LocalDeclarationsLowering(
     val context: CommonBackendContext,
     val localNameProvider: LocalNameProvider = LocalNameProvider.DEFAULT,
-    val visibilityPolicy: VisibilityPolicy = VisibilityPolicy.DEFAULT
+    val visibilityPolicy: VisibilityPolicy = VisibilityPolicy.DEFAULT,
+    val copyFunctionReference: (source: IrFunctionReference, target: IrFunctionReference) -> Unit = { _, _ -> },
 ) :
     BodyLoweringPass {
 
@@ -406,7 +410,7 @@ class LocalDeclarationsLowering(
                     it.fillArguments2(expression, newCallee)
                     it.setLocalTypeArguments(oldCallee)
                     it.copyTypeArgumentsFrom(expression, shift = typeParameters.size - expression.typeArgumentsCount)
-                    it.copyAttributes(expression)
+                    copyFunctionReference(expression, it)
                 }
             }
 

@@ -127,14 +127,14 @@ class InventNamesForLocalClasses(private val context: JvmBackendContext) : FileL
 
         override fun visitFunctionReference(expression: IrFunctionReference, data: Data) {
             val internalName = localFunctionNames[expression.symbol] ?: inventName(null, data)
-            context.putLocalClassType(expression, Type.getObjectType(internalName))
+            context.callableReferenceClassType[expression] = Type.getObjectType(internalName)
 
             expression.acceptChildren(this, data)
         }
 
         override fun visitPropertyReference(expression: IrPropertyReference, data: Data) {
             val internalName = inventName(null, data)
-            context.putLocalClassType(expression, Type.getObjectType(internalName))
+            context.callableReferenceClassType[expression] = Type.getObjectType(internalName)
 
             expression.acceptChildren(this, data)
         }

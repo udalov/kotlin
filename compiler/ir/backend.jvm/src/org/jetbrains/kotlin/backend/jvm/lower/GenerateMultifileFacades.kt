@@ -343,7 +343,7 @@ private class UpdateConstantFacadePropertyReferences(
             irClass.origin != JvmLoweredDeclarationOrigin.FUNCTION_REFERENCE_IMPL
         ) return null
 
-        val declaration = when (val callableReference = irClass.attributeOwnerId) {
+        val declaration = when (val callableReference = context.originalCallableReferenceForClass[irClass]) {
             is IrPropertyReference -> callableReference.getter?.owner?.correspondingPropertySymbol?.owner
             is IrFunctionReference -> callableReference.symbol.owner
             else -> null

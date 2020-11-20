@@ -187,7 +187,7 @@ class ExpressionCodegen(
 
     // TODO remove
     fun gen(expression: IrExpression, type: Type, irType: IrType, data: BlockInfo): StackValue {
-        if (expression.attributeOwnerId === context.fakeContinuation) {
+        if (expression === context.fakeContinuation) {
             addFakeContinuationMarker(mv)
         } else {
             expression.accept(this, data).materializeAt(type, irType)

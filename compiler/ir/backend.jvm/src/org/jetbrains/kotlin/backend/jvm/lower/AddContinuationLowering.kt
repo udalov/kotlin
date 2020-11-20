@@ -422,7 +422,9 @@ private fun <T : IrMemberAccessExpression<IrFunctionSymbol>> T.retargetToSuspend
     // While the new callee technically returns `<original type> | COROUTINE_SUSPENDED`, the latter case is handled
     // by a method visitor so at an IR overview we don't need to consider it.
     return copyWithTargetSymbol(view.symbol as IrSimpleFunctionSymbol).also {
-        it.copyAttributes(this)
+        if (this is IrCallableReference<*> && it is IrCallableReference<*>) {
+            context.copyCallableReference(this, it)
+        }
         it.copyTypeArgumentsFrom(this)
         it.dispatchReceiver = dispatchReceiver
         it.extensionReceiver = extensionReceiver

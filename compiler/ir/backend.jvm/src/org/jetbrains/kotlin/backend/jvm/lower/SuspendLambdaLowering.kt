@@ -152,7 +152,7 @@ private class SuspendLambdaLowering(context: JvmBackendContext) : SuspendLowerin
         }.apply {
             this.parent = parent
             createImplicitParameterDeclarationWithWrappedDescriptor()
-            copyAttributes(reference)
+            context.putLocalClassType(this, context.getCallableReferenceClassType(reference))
 
             val function = reference.symbol.owner
             val isRestricted = reference.symbol.owner.extensionReceiverParameter?.type?.classOrNull?.owner?.annotations?.any {
@@ -200,7 +200,7 @@ private class SuspendLambdaLowering(context: JvmBackendContext) : SuspendLowerin
             }
 
             this.metadata = function.metadata
-            context.suspendLambdaToOriginalFunctionMap[attributeOwnerId as IrFunctionReference] = function
+            context.suspendLambdaClassToOriginalFunctionMap[this] = function
         }
 
     private fun IrClass.addInvokeSuspendForLambda(irFunction: IrFunction, suspendLambda: IrClass, fields: List<IrField>): IrSimpleFunction {

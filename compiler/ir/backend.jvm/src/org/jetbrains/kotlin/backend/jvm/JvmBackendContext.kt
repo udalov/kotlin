@@ -30,11 +30,12 @@ import org.jetbrains.kotlin.ir.builders.irNull
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.declarations.impl.IrFactoryImpl
 import org.jetbrains.kotlin.ir.descriptors.IrBuiltIns
+import org.jetbrains.kotlin.ir.expressions.IrCallableReference
 import org.jetbrains.kotlin.ir.expressions.IrExpression
-import org.jetbrains.kotlin.ir.expressions.IrFunctionReference
 import org.jetbrains.kotlin.ir.symbols.*
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.util.SymbolTable
+import org.jetbrains.kotlin.ir.util.render
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi2ir.PsiErrorBuilder
 import org.jetbrains.kotlin.psi2ir.PsiSourceManager
@@ -90,6 +91,18 @@ class JvmBackendContext(
         localClassType[container.attributeOwnerId] = value
     }
 
+    internal val callableReferenceClassType = mutableMapOf<IrCallableReference<*>, Type>()
+
+    internal fun getCallableReferenceClassType(reference: IrCallableReference<*>): Type =
+        callableReferenceClassType[reference]
+            ?: error("No class type recorded for reference: ${reference.render()}")
+
+    internal fun <T : IrCallableReference<*>> copyCallableReference(source: T, target: T) {
+        callableReferenceClassType[target] = getCallableReferenceClassType(source)
+    }
+
+    internal val originalCallableReferenceForClass = mutableMapOf<IrClass, IrCallableReference<*>>()
+
     internal val isEnclosedInConstructor = mutableSetOf<IrAttributeContainer>()
 
     internal val classCodegens = mutableMapOf<IrClass, ClassCodegen>()
@@ -123,7 +136,7 @@ class JvmBackendContext(
 
     override val internalPackageFqn = FqName("kotlin.jvm")
 
-    val suspendLambdaToOriginalFunctionMap = mutableMapOf<IrFunctionReference, IrFunction>()
+    val suspendLambdaClassToOriginalFunctionMap = mutableMapOf<IrClass, IrFunction>()
     val suspendFunctionOriginalToView = mutableMapOf<IrFunction, IrFunction>()
     val fakeContinuation: IrExpression = createFakeContinuation(this)
 
