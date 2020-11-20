@@ -50,7 +50,7 @@ class JvmCachedDeclarations(
                 setSourceRange(enumEntry)
                 name = enumEntry.name
                 type = enumEntry.parentAsClass.defaultType
-                origin = IrDeclarationOrigin.FIELD_FOR_ENUM_ENTRY
+                origin = JvmLoweredDeclarationOrigin.FIELD_FOR_ENUM_ENTRY
                 isFinal = true
                 isStatic = true
             }.apply {
@@ -92,7 +92,7 @@ class JvmCachedDeclarations(
                 context.irFactory.buildField {
                     name = Name.identifier("\$\$INSTANCE")
                     type = singleton.defaultType
-                    origin = JvmLoweredDeclarationOrigin.INTERFACE_COMPANION_PRIVATE_INSTANCE
+                    origin = JvmLoweredDeclarationOrigin.SYNTHETIC
                     isFinal = true
                     isStatic = true
                     visibility = JavaDescriptorVisibilities.PACKAGE_VISIBILITY

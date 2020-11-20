@@ -66,7 +66,7 @@ class PolymorphicSignatureLowering(val context: JvmBackendContext) : IrElementTr
         val fakeFunction = context.irFactory.buildFun {
             updateFrom(function)
             name = function.name
-            origin = JvmLoweredDeclarationOrigin.POLYMORPHIC_SIGNATURE_INSTANTIATION
+            origin = JvmLoweredDeclarationOrigin.SYNTHETIC
             returnType = castReturnType ?: function.returnType
         }.apply {
             parent = function.parent
@@ -74,7 +74,7 @@ class PolymorphicSignatureLowering(val context: JvmBackendContext) : IrElementTr
             dispatchReceiverParameter = function.dispatchReceiverParameter
             extensionReceiverParameter = function.extensionReceiverParameter
             for ((i, value) in values.withIndex()) {
-                addValueParameter("\$$i", value.type, JvmLoweredDeclarationOrigin.POLYMORPHIC_SIGNATURE_INSTANTIATION)
+                addValueParameter("\$$i", value.type, JvmLoweredDeclarationOrigin.SYNTHETIC)
             }
         }
         return IrCallImpl.fromSymbolOwner(

@@ -75,7 +75,7 @@ private class AnonymousObjectSuperConstructorLowering(val context: JvmBackendCon
         fun addArgument(value: IrExpression): IrValueParameter {
             newArguments.add(value)
             return objectConstructor.addValueParameter(
-                "\$super_call_param\$${newArguments.size}", value.type, JvmLoweredDeclarationOrigin.OBJECT_SUPER_CONSTRUCTOR_PARAMETER
+                "\$super_call_param\$${newArguments.size}", value.type, JvmLoweredDeclarationOrigin.SYNTHETIC
             )
         }
 

@@ -655,7 +655,7 @@ class ExpressionCodegen(
             // We only initialize enum entries with a subtype of `fieldType` and can avoid the CHECKCAST.
             // This is important for some tools which analyze bytecode for enum classes by looking at the
             // initializer of the $VALUES field.
-            if (callee.origin == IrDeclarationOrigin.FIELD_FOR_ENUM_ENTRY) {
+            if (callee.origin == JvmLoweredDeclarationOrigin.FIELD_FOR_ENUM_ENTRY) {
                 value.materialize()
             } else {
                 value.materializeAt(fieldType, callee.type)

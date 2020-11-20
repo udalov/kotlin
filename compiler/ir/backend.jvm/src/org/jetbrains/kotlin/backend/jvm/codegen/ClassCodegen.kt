@@ -476,7 +476,7 @@ private fun IrField.isPrivateCompanionFieldInInterface(languageVersionSettings: 
 
 private val IrDeclarationOrigin.flags: Int
     get() = (if (isSynthetic) Opcodes.ACC_SYNTHETIC else 0) or
-            (if (this == IrDeclarationOrigin.FIELD_FOR_ENUM_ENTRY) Opcodes.ACC_ENUM else 0)
+            (if (this == JvmLoweredDeclarationOrigin.FIELD_FOR_ENUM_ENTRY) Opcodes.ACC_ENUM else 0)
 
 private val Modality.flags: Int
     get() = when (this) {

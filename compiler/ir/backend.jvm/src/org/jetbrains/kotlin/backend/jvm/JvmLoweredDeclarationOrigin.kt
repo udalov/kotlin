@@ -9,6 +9,7 @@ import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationOriginImpl
 
 interface JvmLoweredDeclarationOrigin : IrDeclarationOrigin {
+    object SYNTHETIC : IrDeclarationOriginImpl("SYNTHETIC", isSynthetic = true)
     object CLASS_STATIC_INITIALIZER : IrDeclarationOriginImpl("CLASS_STATIC_INITIALIZER")
     object DEFAULT_IMPLS : IrDeclarationOriginImpl("DEFAULT_IMPLS")
     object SUPER_INTERFACE_METHOD_BRIDGE : IrDeclarationOriginImpl("SUPER_INTERFACE_METHOD_BRIDGE")
@@ -25,19 +26,15 @@ interface JvmLoweredDeclarationOrigin : IrDeclarationOrigin {
     object SYNTHETIC_METHOD_FOR_PROPERTY_OR_TYPEALIAS_ANNOTATIONS :
         IrDeclarationOriginImpl("SYNTHETIC_METHOD_FOR_PROPERTY_OR_TYPEALIAS_ANNOTATIONS", isSynthetic = true)
     object GENERATED_PROPERTY_REFERENCE : IrDeclarationOriginImpl("GENERATED_PROPERTY_REFERENCE", isSynthetic = true)
-    object GENERATED_MEMBER_IN_CALLABLE_REFERENCE : IrDeclarationOriginImpl("GENERATED_MEMBER_IN_CALLABLE_REFERENCE", isSynthetic = false)
-    object ENUM_MAPPINGS_FOR_WHEN : IrDeclarationOriginImpl("ENUM_MAPPINGS_FOR_WHEN", isSynthetic = true)
     object SYNTHETIC_INLINE_CLASS_MEMBER : IrDeclarationOriginImpl("SYNTHETIC_INLINE_CLASS_MEMBER", isSynthetic = true)
     object INLINE_CLASS_GENERATED_IMPL_METHOD : IrDeclarationOriginImpl("INLINE_CLASS_GENERATED_IMPL_METHOD")
     object STATIC_INLINE_CLASS_REPLACEMENT : IrDeclarationOriginImpl("STATIC_INLINE_CLASS_REPLACEMENT")
     object STATIC_INLINE_CLASS_CONSTRUCTOR : IrDeclarationOriginImpl("STATIC_INLINE_CLASS_CONSTRUCTOR")
     object GENERATED_ASSERTION_ENABLED_FIELD : IrDeclarationOriginImpl("GENERATED_ASSERTION_ENABLED_FIELD", isSynthetic = true)
-    object GENERATED_EXTENDED_MAIN : IrDeclarationOriginImpl("GENERATED_EXTENDED_MAIN", isSynthetic = true)
     object SUSPEND_IMPL_STATIC_FUNCTION : IrDeclarationOriginImpl("SUSPEND_IMPL_STATIC_FUNCTION", isSynthetic = true)
-    object INTERFACE_COMPANION_PRIVATE_INSTANCE : IrDeclarationOriginImpl("INTERFACE_COMPANION_PRIVATE_INSTANCE", isSynthetic = true)
-    object POLYMORPHIC_SIGNATURE_INSTANTIATION : IrDeclarationOriginImpl("POLYMORPHIC_SIGNATURE_INSTANTIATION", isSynthetic = true)
     object ENUM_CONSTRUCTOR_SYNTHETIC_PARAMETER : IrDeclarationOriginImpl("ENUM_CONSTRUCTOR_SYNTHETIC_PARAMETER", isSynthetic = true)
-    object OBJECT_SUPER_CONSTRUCTOR_PARAMETER : IrDeclarationOriginImpl("OBJECT_SUPER_CONSTURCTOR_PARAMETER", isSynthetic = true)
+    object FIELD_FOR_ENUM_ENTRY : IrDeclarationOriginImpl("FIELD_FOR_ENUM_ENTRY")
+    object FIELD_FOR_ENUM_VALUES : IrDeclarationOriginImpl("FIELD_FOR_ENUM_VALUES", isSynthetic = true)
     object CONTINUATION_CLASS : IrDeclarationOriginImpl("CONTINUATION_CLASS")
     object SUSPEND_LAMBDA : IrDeclarationOriginImpl("SUSPEND_LAMBDA")
     object FOR_INLINE_STATE_MACHINE_TEMPLATE : IrDeclarationOriginImpl("FOR_INLINE_TEMPLATE")

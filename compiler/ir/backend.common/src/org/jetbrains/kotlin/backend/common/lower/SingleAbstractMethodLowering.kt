@@ -13,9 +13,9 @@ import org.jetbrains.kotlin.backend.common.ir.addFakeOverrides
 import org.jetbrains.kotlin.backend.common.ir.copyTo
 import org.jetbrains.kotlin.backend.common.ir.createImplicitParameterDeclarationWithWrappedDescriptor
 import org.jetbrains.kotlin.descriptors.ClassKind
-import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.descriptors.DescriptorVisibility
+import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.builders.*
@@ -32,7 +32,6 @@ import org.jetbrains.kotlin.ir.types.*
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.util.OperatorNameConventions
-import org.jetbrains.kotlin.ir.util.functions
 
 abstract class SingleAbstractMethodLowering(val context: CommonBackendContext) : FileLoweringPass, IrElementTransformerVoidWithContext() {
     // SAM wrappers are cached, either in the file class (if it exists), or in a top-level enclosing class.
@@ -73,7 +72,10 @@ abstract class SingleAbstractMethodLowering(val context: CommonBackendContext) :
         setSourceRange(createFor)
     }
 
-    abstract val IrType.needEqualsHashCodeMethods: Boolean
+    protected abstract val IrType.needEqualsHashCodeMethods: Boolean
+
+    protected open fun getMemberOrigin(klass: IrClass): IrDeclarationOrigin =
+        klass.origin
 
     open val inInlineFunctionScope get() = allScopes.any { scope -> (scope.irElement as? IrFunction)?.isInline ?: false }
 
@@ -184,7 +186,7 @@ abstract class SingleAbstractMethodLowering(val context: CommonBackendContext) :
         val field = subclass.addField {
             name = Name.identifier(FUNCTION_FIELD_NAME)
             type = wrappedFunctionType
-            origin = IrDeclarationOrigin.SYNTHETIC_GENERATED_SAM_IMPLEMENTATION
+            origin = getMemberOrigin(subclass)
             visibility = DescriptorVisibilities.PRIVATE
             isFinal = true
             setSourceRange(createFor)
@@ -214,7 +216,7 @@ abstract class SingleAbstractMethodLowering(val context: CommonBackendContext) :
             returnType = superMethod.returnType
             visibility = superMethod.visibility
             modality = Modality.FINAL
-            origin = IrDeclarationOrigin.SYNTHETIC_GENERATED_SAM_IMPLEMENTATION
+            origin = getMemberOrigin(subclass)
             isSuspend = superMethod.isSuspend
             setSourceRange(createFor)
         }.apply {

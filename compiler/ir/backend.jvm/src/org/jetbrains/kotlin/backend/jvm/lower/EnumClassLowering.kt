@@ -89,7 +89,7 @@ private class EnumClassLowering(val context: JvmBackendContext) : ClassLoweringP
             name = Name.identifier(ImplementationBodyCodegen.ENUM_VALUES_FIELD_NAME)
             type = context.irBuiltIns.arrayClass.typeWith(irClass.defaultType)
             visibility = DescriptorVisibilities.PRIVATE
-            origin = IrDeclarationOrigin.FIELD_FOR_ENUM_VALUES
+            origin = JvmLoweredDeclarationOrigin.FIELD_FOR_ENUM_VALUES
             isFinal = true
             isStatic = true
         }.apply {

@@ -74,7 +74,7 @@ private class MappedEnumWhenLowering(context: CommonBackendContext) : EnumWhenLo
         val mappingsClass by lazy {
             context.irFactory.buildClass {
                 name = Name.identifier("WhenMappings")
-                origin = JvmLoweredDeclarationOrigin.ENUM_MAPPINGS_FOR_WHEN
+                origin = JvmLoweredDeclarationOrigin.SYNTHETIC
             }.apply {
                 createImplicitParameterDeclarationWithWrappedDescriptor()
             }
@@ -85,7 +85,7 @@ private class MappedEnumWhenLowering(context: CommonBackendContext) : EnumWhenLo
                 mutableMapOf<IrEnumEntry, Int>() to mappingsClass.addField {
                     name = Name.identifier("\$EnumSwitchMapping\$${mappings.size}")
                     type = intArray.defaultType
-                    origin = JvmLoweredDeclarationOrigin.ENUM_MAPPINGS_FOR_WHEN
+                    origin = JvmLoweredDeclarationOrigin.SYNTHETIC
                     isFinal = true
                     isStatic = true
                 }
@@ -93,7 +93,7 @@ private class MappedEnumWhenLowering(context: CommonBackendContext) : EnumWhenLo
     }
 
     override fun mapConstEnumEntry(entry: IrEnumEntry): Int {
-        val (mapping) = state!!.getMappingForClass(entry.parentAsClass)
+        val (mapping, _) = state!!.getMappingForClass(entry.parentAsClass)
         // Index 0 (default value for integers) is reserved for unknown ordinals.
         return mapping.getOrPut(entry) { mapping.size + 1 }
     }
