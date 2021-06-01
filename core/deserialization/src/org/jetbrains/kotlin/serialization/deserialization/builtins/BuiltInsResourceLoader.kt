@@ -6,10 +6,15 @@
 package org.jetbrains.kotlin.serialization.deserialization.builtins
 
 import java.io.InputStream
+import java.net.JarURLConnection
 
 class BuiltInsResourceLoader {
     fun loadResource(path: String): InputStream? {
-        return this::class.java.classLoader?.getResourceAsStream(path)
-                ?: ClassLoader.getSystemResourceAsStream(path)
+        val url = this::class.java.classLoader?.getResource(path)
+            ?: ClassLoader.getSystemResource(path)
+            ?: return null
+        val connection = url.openConnection()
+        if (connection is JarURLConnection) connection.useCaches = false
+        return connection.getInputStream()
     }
 }
