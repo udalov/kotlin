@@ -215,6 +215,7 @@ enum class LanguageFeature(
     ProhibitSimplificationOfNonTrivialConstBooleanExpressions(KOTLIN_1_6),
     TypeInferenceOnCallsWithSelfTypes(KOTLIN_1_6),
     OptInRelease(KOTLIN_1_6),
+    RepeatableAnnotations(KOTLIN_1_6),
 
     // Temporarily disabled, see KT-27084/KT-22379
     SoundSmartcastFromLoopConditionForLoopAssignedVariables(sinceVersion = null, kind = BUG_FIX),

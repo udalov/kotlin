@@ -17,8 +17,11 @@
 package org.jetbrains.kotlin.load.java.lazy
 
 import org.jetbrains.kotlin.builtins.StandardNames
+import org.jetbrains.kotlin.descriptors.annotations.AnnotationDescriptor
 import org.jetbrains.kotlin.descriptors.annotations.Annotations
+import org.jetbrains.kotlin.load.java.JvmAnnotationNames
 import org.jetbrains.kotlin.load.java.components.JavaAnnotationMapper
+import org.jetbrains.kotlin.load.java.lazy.descriptors.LazyJavaAnnotationDescriptor
 import org.jetbrains.kotlin.load.java.structure.JavaAnnotation
 import org.jetbrains.kotlin.load.java.structure.JavaAnnotationOwner
 import org.jetbrains.kotlin.name.FqName
@@ -32,19 +35,24 @@ class LazyJavaAnnotations(
         JavaAnnotationMapper.mapOrResolveJavaAnnotation(annotation, c, areAnnotationsFreshlySupported)
     }
 
-    override fun findAnnotation(fqName: FqName) =
+    override fun findAnnotation(fqName: FqName): AnnotationDescriptor? =
         annotationOwner.findAnnotation(fqName)?.let(annotationDescriptors)
             ?: JavaAnnotationMapper.findMappedJavaAnnotation(fqName, annotationOwner, c)
+            ?: if (fqName == JvmAnnotationNames.REPEATABLE_ANNOTATION) findJavaRepeatableAnnotation() else null
 
-    override fun iterator() =
+    override fun iterator(): Iterator<AnnotationDescriptor> =
         (annotationOwner.annotations.asSequence().map(annotationDescriptors) +
-                JavaAnnotationMapper.findMappedJavaAnnotation(
-                    StandardNames.FqNames.deprecated,
-                    annotationOwner,
-                    c
-                )).filterNotNull().iterator()
+                JavaAnnotationMapper.findMappedJavaAnnotation(StandardNames.FqNames.deprecated, annotationOwner, c) +
+                findJavaRepeatableAnnotation()
+                ).filterNotNull().iterator()
 
-    override fun isEmpty() = annotationOwner.annotations.isEmpty() && !annotationOwner.isDeprecatedInJavaDoc
+    private fun findJavaRepeatableAnnotation(): AnnotationDescriptor? =
+        annotationOwner.findAnnotation(JvmAnnotationNames.REPEATABLE_ANNOTATION)?.let {
+            LazyJavaAnnotationDescriptor(c, it)
+        }
+
+    override fun isEmpty(): Boolean =
+        annotationOwner.annotations.isEmpty() && !annotationOwner.isDeprecatedInJavaDoc
 }
 
 fun LazyJavaResolverContext.resolveAnnotations(annotationsOwner: JavaAnnotationOwner): Annotations =

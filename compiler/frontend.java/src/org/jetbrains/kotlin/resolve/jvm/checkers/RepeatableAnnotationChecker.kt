@@ -5,6 +5,8 @@
 
 package org.jetbrains.kotlin.resolve.jvm.checkers
 
+import org.jetbrains.kotlin.config.LanguageFeature
+import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.descriptors.annotations.AnnotationUseSiteTarget
 import org.jetbrains.kotlin.descriptors.annotations.KotlinRetention
 import org.jetbrains.kotlin.descriptors.annotations.KotlinTarget
@@ -18,7 +20,7 @@ import org.jetbrains.kotlin.resolve.descriptorUtil.getAnnotationRetention
 import org.jetbrains.kotlin.resolve.descriptorUtil.isRepeatableAnnotation
 import org.jetbrains.kotlin.resolve.jvm.diagnostics.ErrorsJvm
 
-object RepeatableAnnotationChecker : AdditionalAnnotationChecker {
+class RepeatableAnnotationChecker(private val languageVersionSettings: LanguageVersionSettings) : AdditionalAnnotationChecker {
     override fun checkEntries(entries: List<KtAnnotationEntry>, actualTargets: List<KotlinTarget>, trace: BindingTrace) {
         val entryTypesWithAnnotations = hashMapOf<FqName, MutableList<AnnotationUseSiteTarget?>>()
 
@@ -35,6 +37,7 @@ object RepeatableAnnotationChecker : AdditionalAnnotationChecker {
             if (duplicateAnnotation
                 && classDescriptor.isRepeatableAnnotation()
                 && classDescriptor.getAnnotationRetention() != KotlinRetention.SOURCE
+                && !languageVersionSettings.supportsFeature(LanguageFeature.RepeatableAnnotations)
             ) {
                 trace.report(ErrorsJvm.NON_SOURCE_REPEATED_ANNOTATION.on(entry))
             }

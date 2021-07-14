@@ -405,6 +405,7 @@ private val jvmFilePhases = listOf(
     staticDefaultFunctionPhase,
     bridgePhase,
     syntheticAccessorPhase,
+    repeatedAnnotationPhase,
 
     jvmArgumentNullabilityAssertions,
     toArrayPhase,
