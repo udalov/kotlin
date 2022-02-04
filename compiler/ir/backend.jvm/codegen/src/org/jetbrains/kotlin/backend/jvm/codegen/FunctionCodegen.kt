@@ -277,7 +277,7 @@ class FunctionCodegen(private val irFunction: IrFunction, private val classCodeg
     ) {
         val iterator = irFunction.valueParameters.iterator()
         val kotlinParameterTypes = jvmSignature.valueParameters
-        val syntheticParameterCount = kotlinParameterTypes.count { it.kind.isSkippedInGenericSignature }
+        val syntheticParameterCount = irFunction.valueParameters.count { it.isSkippedInGenericSignature }
 
         visitAnnotableParameterCount(mv, kotlinParameterTypes.size - syntheticParameterCount)
 
@@ -288,7 +288,7 @@ class FunctionCodegen(private val irFunction: IrFunction, private val classCodeg
             else
                 iterator.next()
 
-            if (!parameterSignature.kind.isSkippedInGenericSignature && !annotated.isSyntheticMarkerParameter()) {
+            if (i >= syntheticParameterCount && !annotated.isSyntheticMarkerParameter()) {
                 object : AnnotationCodegen(innerClassConsumer, context, skipNullabilityAnnotations) {
                     override fun visitAnnotation(descr: String, visible: Boolean): AnnotationVisitor {
                         return mv.visitParameterAnnotation(

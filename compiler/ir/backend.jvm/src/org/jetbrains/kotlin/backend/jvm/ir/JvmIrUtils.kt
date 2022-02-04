@@ -515,3 +515,7 @@ fun IrFunction.extensionReceiverName(state: GenerationState): String {
 
 fun IrFunction.isBridge(): Boolean =
     origin == IrDeclarationOrigin.BRIDGE || origin == IrDeclarationOrigin.BRIDGE_SPECIAL
+
+val IrValueParameter.isSkippedInGenericSignature: Boolean
+    get() = origin == JvmLoweredDeclarationOrigin.FIELD_FOR_OUTER_THIS ||
+            origin == JvmLoweredDeclarationOrigin.ENUM_CONSTRUCTOR_SYNTHETIC_PARAMETER
