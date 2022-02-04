@@ -24,6 +24,7 @@ import org.jetbrains.kotlin.codegen.state.extractTypeMappingModeFromAnnotation
 import org.jetbrains.kotlin.codegen.state.isMethodWithDeclarationSiteWildcardsFqName
 import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.descriptors.FunctionDescriptor
+import org.jetbrains.kotlin.ir.ObsoleteDescriptorBasedAPI
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.declarations.lazy.IrLazyClass
 import org.jetbrains.kotlin.ir.declarations.lazy.IrLazyFunctionBase
@@ -36,6 +37,7 @@ import org.jetbrains.kotlin.ir.types.*
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.load.java.*
 import org.jetbrains.kotlin.load.kotlin.*
+import org.jetbrains.kotlin.metadata.ProtoBuf
 import org.jetbrains.kotlin.metadata.deserialization.getExtensionOrNull
 import org.jetbrains.kotlin.metadata.jvm.JvmProtoBuf
 import org.jetbrains.kotlin.metadata.jvm.deserialization.JvmProtoBufUtil
@@ -43,7 +45,9 @@ import org.jetbrains.kotlin.name.NameUtils
 import org.jetbrains.kotlin.resolve.jvm.JAVA_LANG_RECORD_FQ_NAME
 import org.jetbrains.kotlin.resolve.jvm.jvmSignature.JvmMethodGenericSignature
 import org.jetbrains.kotlin.resolve.jvm.jvmSignature.JvmMethodParameterKind
+import org.jetbrains.kotlin.resolve.jvm.jvmSignature.JvmMethodParameterSignature
 import org.jetbrains.kotlin.resolve.jvm.jvmSignature.JvmMethodSignature
+import org.jetbrains.kotlin.serialization.deserialization.descriptors.DeserializedCallableMemberDescriptor
 import org.jetbrains.kotlin.utils.addToStdlib.safeAs
 import org.jetbrains.org.objectweb.asm.Handle
 import org.jetbrains.org.objectweb.asm.Opcodes
@@ -227,15 +231,26 @@ class MethodSignatureMapper(private val context: JvmBackendContext) {
         mapSignature(function, false)
 
     private fun mapSignature(function: IrFunction, skipGenericSignature: Boolean, skipSpecial: Boolean = false): JvmMethodGenericSignature {
-        if (function is IrLazyFunctionBase &&
-            (!function.isFakeOverride || function.parentAsClass.isFromJava()) &&
-            function.initialSignatureFunction != null
-        ) {
-            // Overrides of special builtin in Kotlin classes always have special signature
-            if ((function as? IrSimpleFunction)?.getDifferentNameForJvmBuiltinFunction() == null ||
-                (function.parent as? IrClass)?.origin == IrDeclarationOrigin.IR_EXTERNAL_JAVA_DECLARATION_STUB
+        if (function is IrLazyFunctionBase) {
+            @OptIn(ObsoleteDescriptorBasedAPI::class)
+            val descriptor = function.descriptor
+            if (descriptor is DeserializedCallableMemberDescriptor) {
+                check(skipGenericSignature) {
+                    "mapSignatureWithGeneric is not supported for functions from dependencies: ${function.render()}"
+                }
+                val deserialized = tryDeserializeSignature(descriptor)
+                if (deserialized != null) return deserialized
+            }
+
+            if ((!function.isFakeOverride || function.parentAsClass.isFromJava()) &&
+                function.initialSignatureFunction != null
             ) {
-                return mapSignature(function.initialSignatureFunction!!, skipGenericSignature)
+                // Overrides of special builtin in Kotlin classes always have special signature
+                if ((function as? IrSimpleFunction)?.getDifferentNameForJvmBuiltinFunction() == null ||
+                    (function.parent as? IrClass)?.origin == IrDeclarationOrigin.IR_EXTERNAL_JAVA_DECLARATION_STUB
+                ) {
+                    return mapSignature(function.initialSignatureFunction!!, skipGenericSignature)
+                }
             }
         }
 
@@ -286,6 +301,19 @@ class MethodSignatureMapper(private val context: JvmBackendContext) {
         }
 
         return signature
+    }
+
+    private fun tryDeserializeSignature(descriptor: DeserializedCallableMemberDescriptor): JvmMethodGenericSignature? {
+        val signature = when (val proto = descriptor.proto) {
+            is ProtoBuf.Function -> JvmProtoBufUtil.getJvmMethodSignature(proto, descriptor.nameResolver, descriptor.typeTable)
+            is ProtoBuf.Constructor -> JvmProtoBufUtil.getJvmConstructorSignature(proto, descriptor.nameResolver, descriptor.typeTable)
+            else -> null
+        } ?: return null
+
+        val method = Method(signature.name, signature.desc)
+        return JvmMethodGenericSignature(method, method.argumentTypes.map { type ->
+            JvmMethodParameterSignature(type, JvmMethodParameterKind.VALUE)
+        }, null)
     }
 
     private fun IrFunction.toIrBasedDescriptorWithOriginalOverrides(): FunctionDescriptor =
@@ -476,8 +504,8 @@ class MethodSignatureMapper(private val context: JvmBackendContext) {
 
     private fun IrFunction.computeJvmSignature(): String = signatures {
         val classPart = typeMapper.mapType(parentAsClass.defaultType).internalName
-        val signature = mapSignature(this@computeJvmSignature, skipGenericSignature = false, skipSpecial = true).toString()
-        return signature(classPart, signature)
+        val signature = mapSignature(this@computeJvmSignature, skipGenericSignature = true, skipSpecial = true)
+        return signature(classPart, signature.asmMethod.toString())
     }
 
     // From org.jetbrains.kotlin.load.kotlin.getJvmModuleNameForDeserializedDescriptor
