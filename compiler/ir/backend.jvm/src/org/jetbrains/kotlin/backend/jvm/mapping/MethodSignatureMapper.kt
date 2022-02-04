@@ -247,12 +247,12 @@ class MethodSignatureMapper(private val context: JvmBackendContext) {
 
         val contextReceivers = function.valueParameters.subList(0, function.contextReceiverParametersCount)
         for (contextReceiver in contextReceivers) {
-            writeParameter(sw, JvmMethodParameterKind.CONTEXT_RECEIVER, contextReceiver.type, function)
+            writeParameter(sw, JvmMethodParameterKind.VALUE, contextReceiver.type, function)
         }
 
         val receiverParameter = function.extensionReceiverParameter
         if (receiverParameter != null) {
-            writeParameter(sw, JvmMethodParameterKind.RECEIVER, receiverParameter.type, function)
+            writeParameter(sw, JvmMethodParameterKind.VALUE, receiverParameter.type, function)
         }
 
         val regularValueParameters =

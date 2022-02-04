@@ -30,7 +30,6 @@ import org.jetbrains.kotlin.name.JvmNames.JVM_SYNTHETIC_ANNOTATION_FQ_NAME
 import org.jetbrains.kotlin.name.JvmNames.STRICTFP_ANNOTATION_FQ_NAME
 import org.jetbrains.kotlin.name.JvmNames.SYNCHRONIZED_ANNOTATION_FQ_NAME
 import org.jetbrains.kotlin.resolve.annotations.JVM_THROWS_ANNOTATION_FQ_NAME
-import org.jetbrains.kotlin.resolve.jvm.jvmSignature.JvmMethodParameterKind
 import org.jetbrains.kotlin.resolve.jvm.jvmSignature.JvmMethodSignature
 import org.jetbrains.kotlin.utils.addToStdlib.safeAs
 import org.jetbrains.org.objectweb.asm.*
@@ -283,13 +282,13 @@ class FunctionCodegen(private val irFunction: IrFunction, private val classCodeg
         visitAnnotableParameterCount(mv, kotlinParameterTypes.size - syntheticParameterCount)
 
         kotlinParameterTypes.forEachIndexed { i, parameterSignature ->
-            val kind = parameterSignature.kind
-            val annotated = when (kind) {
-                JvmMethodParameterKind.RECEIVER -> irFunction.extensionReceiverParameter
-                else -> iterator.next()
-            }
+            val extensionReceiverParameter = irFunction.extensionReceiverParameter
+            val annotated = if (extensionReceiverParameter != null && i == irFunction.contextReceiverParametersCount)
+                extensionReceiverParameter
+            else
+                iterator.next()
 
-            if (annotated != null && !kind.isSkippedInGenericSignature && !annotated.isSyntheticMarkerParameter()) {
+            if (!parameterSignature.kind.isSkippedInGenericSignature && !annotated.isSyntheticMarkerParameter()) {
                 object : AnnotationCodegen(innerClassConsumer, context, skipNullabilityAnnotations) {
                     override fun visitAnnotation(descr: String, visible: Boolean): AnnotationVisitor {
                         return mv.visitParameterAnnotation(
