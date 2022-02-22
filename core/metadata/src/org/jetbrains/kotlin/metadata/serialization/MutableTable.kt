@@ -25,23 +25,27 @@ abstract class MutableTable<Element, Table, TableBuilder>
               Table : GeneratedMessageLite,
               TableBuilder : GeneratedMessageLite.Builder<Table, TableBuilder> {
 
-    private val interner = Interner<TableElementWrapper<Element>>()
+    private var interner: Interner<TableElementWrapper<Element>>? = Interner()
 
     protected abstract fun createTableBuilder(): TableBuilder
 
     protected abstract fun addElement(builder: TableBuilder, element: Element)
 
     operator fun get(type: Element): Int =
-        interner.intern(TableElementWrapper(type))
+        interner?.intern(TableElementWrapper(type))
+            ?: error("Cannot modify this ${this::class.java.simpleName} after it has been serialized.")
 
     @Suppress("UNCHECKED_CAST")
-    fun serialize(): Table? =
-        if (interner.isEmpty) null
+    fun serialize(): Table? = interner?.let {
+        if (it.isEmpty) null
         else createTableBuilder().apply {
-            for (obj in interner.allInternedObjects) {
+            for (obj in it.allInternedObjects) {
                 addElement(this, obj.builder)
             }
         }.build() as Table
+    }.also {
+        interner = null
+    }
 }
 
 class MutableTypeTable : MutableTable<ProtoBuf.Type.Builder, ProtoBuf.TypeTable, ProtoBuf.TypeTable.Builder>() {
