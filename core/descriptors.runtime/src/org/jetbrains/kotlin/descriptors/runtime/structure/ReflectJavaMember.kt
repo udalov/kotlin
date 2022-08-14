@@ -20,10 +20,7 @@ import org.jetbrains.kotlin.load.java.structure.JavaMember
 import org.jetbrains.kotlin.load.java.structure.JavaValueParameter
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.name.SpecialNames
-import java.lang.reflect.AnnotatedElement
-import java.lang.reflect.Member
-import java.lang.reflect.Method
-import java.lang.reflect.Type
+import java.lang.reflect.*
 
 abstract class ReflectJavaMember : ReflectJavaElement(), ReflectJavaAnnotationOwner, ReflectJavaModifierListOwner, JavaMember {
     abstract val member: Member
@@ -46,7 +43,7 @@ abstract class ReflectJavaMember : ReflectJavaElement(), ReflectJavaAnnotationOw
         isVararg: Boolean
     ): List<JavaValueParameter> {
         val result = ArrayList<JavaValueParameter>(parameterTypes.size)
-        val names = Java8ParameterNamesLoader.loadParameterNames(member)
+        val names = (member as? Executable)?.parameters?.map(Parameter::getName)
 
         // Skip synthetic parameters such as outer class instance
         val shift = names?.size?.minus(parameterTypes.size) ?: 0
@@ -67,38 +64,4 @@ abstract class ReflectJavaMember : ReflectJavaElement(), ReflectJavaAnnotationOw
     override fun hashCode() = member.hashCode()
 
     override fun toString() = this::class.java.name + ": " + member
-}
-
-private object Java8ParameterNamesLoader {
-    class Cache(val getParameters: Method?, val getName: Method?)
-
-    var cache: Cache? = null
-
-    fun buildCache(member: Member): Cache {
-        // This should be either j.l.reflect.Method or j.l.reflect.Constructor
-        val methodOrConstructorClass = member::class.java
-
-        val getParameters = try {
-            methodOrConstructorClass.getMethod("getParameters")
-        } catch (e: NoSuchMethodException) {
-            return Cache(null, null)
-        }
-
-        val parameterClass = methodOrConstructorClass.safeClassLoader.loadClass("java.lang.reflect.Parameter")
-
-        return Cache(getParameters, parameterClass.getMethod("getName"))
-    }
-
-    fun loadParameterNames(member: Member): List<String>? {
-        val cache = cache ?: synchronized(this) {
-            cache ?: buildCache(member).also { cache = it }
-        }
-
-        val getParameters = cache.getParameters ?: return null
-        val getName = cache.getName ?: return null
-
-        return (getParameters(member) as Array<*>).map { param ->
-            getName(param) as String
-        }
-    }
 }

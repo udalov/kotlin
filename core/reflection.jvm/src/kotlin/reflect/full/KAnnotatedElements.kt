@@ -7,7 +7,7 @@
 
 package kotlin.reflect.full
 
-import java.lang.reflect.Method
+import java.lang.annotation.Repeatable
 import kotlin.reflect.KAnnotatedElement
 import kotlin.reflect.KClass
 
@@ -16,7 +16,6 @@ import kotlin.reflect.KClass
  */
 @SinceKotlin("1.1")
 inline fun <reified T : Annotation> KAnnotatedElement.findAnnotation(): T? =
-    @Suppress("UNCHECKED_CAST")
     annotations.firstOrNull { it is T } as T?
 
 /**
@@ -57,7 +56,7 @@ fun <T : Annotation> KAnnotatedElement.findAnnotations(klass: KClass<T>): List<T
     val filtered = annotations.filterIsInstance(klass.java)
     if (filtered.isNotEmpty()) return filtered
 
-    val containerClass = Java8RepeatableContainerLoader.loadRepeatableContainer(klass.java)
+    val containerClass = klass.java.getAnnotation(Repeatable::class.java)?.value
     if (containerClass != null) {
         val container = annotations.firstOrNull { it.annotationClass.java == containerClass }
         if (container != null) {
@@ -69,33 +68,4 @@ fun <T : Annotation> KAnnotatedElement.findAnnotations(klass: KClass<T>): List<T
     }
 
     return emptyList()
-}
-
-@Suppress("UNCHECKED_CAST")
-private object Java8RepeatableContainerLoader {
-    class Cache(val repeatableClass: Class<out Annotation>?, val valueMethod: Method?)
-
-    var cache: Cache? = null
-
-    private fun buildCache(): Cache {
-        val repeatableClass = try {
-            Class.forName("java.lang.annotation.Repeatable") as Class<out Annotation>
-        } catch (e: ClassNotFoundException) {
-            return Cache(null, null)
-        }
-
-        return Cache(repeatableClass, repeatableClass.getMethod("value"))
-    }
-
-    fun loadRepeatableContainer(klass: Class<out Annotation>): Class<out Annotation>? {
-        val cache = cache ?: synchronized(this) {
-            cache ?: buildCache().also { cache = it }
-        }
-
-        val repeatableClass = cache.repeatableClass ?: return null
-        val repeatable = klass.getAnnotation(repeatableClass) ?: return null
-        val valueMethod = cache.valueMethod ?: return null
-
-        return valueMethod(repeatable) as Class<out Annotation>
-    }
 }
