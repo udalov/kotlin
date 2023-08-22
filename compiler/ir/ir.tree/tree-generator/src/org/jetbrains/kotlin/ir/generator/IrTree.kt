@@ -803,6 +803,18 @@ object IrTree : AbstractTreeBuilder() {
         }
         +field("constructorTypeArgumentsCount", int)
     }
+    val annotation: ElementConfig by element(Expression) {
+        visitorParent = functionAccessExpression
+        transformerReturnType = rootElement
+
+        parent(functionAccessExpression)
+
+        +symbol(constructorSymbolType, mutable = true)
+        +field("source", type<SourceElement>()) {
+            useFieldInIrFactory(defaultValue = code("%T.NO_SOURCE", SourceElement::class))
+        }
+        +field("constructorTypeArgumentsCount", int)
+    }
     val getSingletonValue: ElementConfig by element(Expression) {
         visitorParent = declarationReference
         visitorName = "SingletonReference"

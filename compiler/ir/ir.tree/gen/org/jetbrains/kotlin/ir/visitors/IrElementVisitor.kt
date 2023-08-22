@@ -29,6 +29,7 @@ import org.jetbrains.kotlin.ir.declarations.IrTypeAlias
 import org.jetbrains.kotlin.ir.declarations.IrTypeParameter
 import org.jetbrains.kotlin.ir.declarations.IrValueParameter
 import org.jetbrains.kotlin.ir.declarations.IrVariable
+import org.jetbrains.kotlin.ir.expressions.IrAnnotation
 import org.jetbrains.kotlin.ir.expressions.IrBlock
 import org.jetbrains.kotlin.ir.expressions.IrBlockBody
 import org.jetbrains.kotlin.ir.expressions.IrBody
@@ -172,6 +173,9 @@ interface IrElementVisitor<out R, in D> {
             visitMemberAccess(expression, data)
 
     fun visitConstructorCall(expression: IrConstructorCall, data: D): R =
+            visitFunctionAccess(expression, data)
+
+    fun visitAnnotation(expression: IrAnnotation, data: D): R =
             visitFunctionAccess(expression, data)
 
     fun visitSingletonReference(expression: IrGetSingletonValue, data: D): R =

@@ -29,6 +29,7 @@ import org.jetbrains.kotlin.ir.declarations.IrTypeAlias
 import org.jetbrains.kotlin.ir.declarations.IrTypeParameter
 import org.jetbrains.kotlin.ir.declarations.IrValueParameter
 import org.jetbrains.kotlin.ir.declarations.IrVariable
+import org.jetbrains.kotlin.ir.expressions.IrAnnotation
 import org.jetbrains.kotlin.ir.expressions.IrBlock
 import org.jetbrains.kotlin.ir.expressions.IrBlockBody
 import org.jetbrains.kotlin.ir.expressions.IrBody
@@ -239,6 +240,11 @@ interface IrElementVisitorVoid : IrElementVisitor<Unit, Nothing?> {
             visitConstructorCall(expression)
 
     fun visitConstructorCall(expression: IrConstructorCall) = visitFunctionAccess(expression)
+
+    override fun visitAnnotation(expression: IrAnnotation, data: Nothing?) =
+            visitAnnotation(expression)
+
+    fun visitAnnotation(expression: IrAnnotation) = visitFunctionAccess(expression)
 
     override fun visitSingletonReference(expression: IrGetSingletonValue, data: Nothing?) =
             visitSingletonReference(expression)

@@ -30,6 +30,7 @@ import org.jetbrains.kotlin.ir.declarations.IrTypeAlias
 import org.jetbrains.kotlin.ir.declarations.IrTypeParameter
 import org.jetbrains.kotlin.ir.declarations.IrValueParameter
 import org.jetbrains.kotlin.ir.declarations.IrVariable
+import org.jetbrains.kotlin.ir.expressions.IrAnnotation
 import org.jetbrains.kotlin.ir.expressions.IrBlock
 import org.jetbrains.kotlin.ir.expressions.IrBlockBody
 import org.jetbrains.kotlin.ir.expressions.IrBody
@@ -194,6 +195,9 @@ interface IrElementTransformer<in D> : IrElementVisitor<IrElement, D> {
             IrElement = visitMemberAccess(expression, data)
 
     override fun visitConstructorCall(expression: IrConstructorCall, data: D): IrElement =
+            visitFunctionAccess(expression, data)
+
+    override fun visitAnnotation(expression: IrAnnotation, data: D): IrElement =
             visitFunctionAccess(expression, data)
 
     override fun visitSingletonReference(expression: IrGetSingletonValue, data: D):
