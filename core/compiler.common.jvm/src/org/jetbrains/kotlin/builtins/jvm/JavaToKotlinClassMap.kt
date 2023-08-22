@@ -38,6 +38,8 @@ object JavaToKotlinClassMap {
     private val mutableToReadOnlyClassId = HashMap<ClassId, ClassId>()
     private val readOnlyToMutableClassId = HashMap<ClassId, ClassId>()
 
+    private val knownKotlinNames = HashSet<Name>()
+
     // describes mapping for a java class that has separate readOnly and mutable equivalents in Kotlin
     data class PlatformMutabilityMapping(
         val javaClass: ClassId,
@@ -149,6 +151,15 @@ object JavaToKotlinClassMap {
         else -> kotlinToJava[kotlinFqName]
     }
 
+    // Returns whether there's maybe a Kotlin class with this simple name that can be mapped to a Java class.
+    // This method should be used only as an optimization before calling `mapKotlinToJava`, to avoid computing class FQ name in hot spots.
+    fun isKnownKotlinName(name: Name): Boolean =
+        name in knownKotlinNames ||
+                name.asString().startsWith(NUMBERED_FUNCTION_PREFIX) ||
+                name.asString().startsWith(NUMBERED_SUSPEND_FUNCTION_PREFIX) ||
+                name.asString().startsWith(NUMBERED_K_FUNCTION_PREFIX) ||
+                name.asString().startsWith(NUMBERED_K_SUSPEND_FUNCTION_PREFIX)
+
     private fun isKotlinFunctionWithBigArity(kotlinFqName: FqNameUnsafe, prefix: String): Boolean {
         val arityString = kotlinFqName.asString().substringAfter(prefix, "")
         if (arityString.isNotEmpty() && !arityString.startsWith('0')) {
@@ -191,6 +202,7 @@ object JavaToKotlinClassMap {
 
     private fun addKotlinToJava(kotlinFqNameUnsafe: FqName, javaClassId: ClassId) {
         kotlinToJava[kotlinFqNameUnsafe.toUnsafe()] = javaClassId
+        knownKotlinNames.add(kotlinFqNameUnsafe.shortName())
     }
 
     fun isJavaPlatformClass(fqName: FqName): Boolean = mapJavaToKotlin(fqName) != null

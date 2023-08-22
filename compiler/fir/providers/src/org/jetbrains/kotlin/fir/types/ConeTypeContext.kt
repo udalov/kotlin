@@ -626,6 +626,11 @@ interface ConeTypeContext : TypeSystemContext, TypeSystemOptimizationContext, Ty
         return classId.asSingleFqName().toUnsafe()
     }
 
+    override fun TypeConstructorMarker.getClassName(): Name {
+        require(this is ConeClassLikeLookupTag)
+        return classId.shortClassName
+    }
+
     override fun TypeParameterMarker.getName() = (this as ConeTypeParameterLookupTag).name
 
     override fun TypeParameterMarker.isReified(): Boolean {

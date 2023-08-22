@@ -538,6 +538,9 @@ interface IrTypeSystemContext : TypeSystemContext, TypeSystemCommonSuperTypesCon
     override fun TypeConstructorMarker.getClassFqNameUnsafe(): FqNameUnsafe? =
         (this as IrClassSymbol).owner.fqNameWhenAvailable?.toUnsafe()
 
+    override fun TypeConstructorMarker.getClassName(): Name =
+        (this as IrClassSymbol).owner.name
+
     override fun TypeParameterMarker.getName(): Name =
         (this as IrTypeParameterSymbol).owner.name
 

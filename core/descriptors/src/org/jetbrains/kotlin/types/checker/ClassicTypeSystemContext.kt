@@ -818,6 +818,11 @@ interface ClassicTypeSystemContext : TypeSystemInferenceExtensionContext, TypeSy
         return (declarationDescriptor as ClassDescriptor).fqNameUnsafe
     }
 
+    override fun TypeConstructorMarker.getClassName(): Name {
+        require(this is TypeConstructor, this::errorMessage)
+        return (declarationDescriptor as ClassDescriptor).name
+    }
+
     override fun TypeParameterMarker.getName(): Name {
         require(this is TypeParameterDescriptor, this::errorMessage)
         return name

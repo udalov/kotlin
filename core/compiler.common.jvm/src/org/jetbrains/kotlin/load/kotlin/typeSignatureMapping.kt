@@ -49,7 +49,7 @@ fun <T : Any> TypeSystemCommonBackendContext.mapBuiltInType(
         return typeFactory.createFromString("[" + JvmPrimitiveType.get(arrayElementType).desc)
     }
 
-    if (constructor.isUnderKotlinPackage()) {
+    if (constructor.isUnderKotlinPackage() && JavaToKotlinClassMap.isKnownKotlinName(constructor.getClassName())) {
         val classId = constructor.getClassFqNameUnsafe()?.let(JavaToKotlinClassMap::mapKotlinToJava)
         if (classId != null) {
             if (!mode.kotlinCollectionsToJavaCollections && JavaToKotlinClassMap.mutabilityMappings.any { it.javaClass == classId })

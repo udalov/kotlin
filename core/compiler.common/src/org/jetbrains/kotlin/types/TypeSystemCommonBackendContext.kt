@@ -45,6 +45,7 @@ interface TypeSystemCommonBackendContext : TypeSystemContext {
 
     fun TypeConstructorMarker.isUnderKotlinPackage(): Boolean
     fun TypeConstructorMarker.getClassFqNameUnsafe(): FqNameUnsafe?
+    fun TypeConstructorMarker.getClassName(): Name
 
     fun TypeParameterMarker.getName(): Name
     fun TypeParameterMarker.isReified(): Boolean
