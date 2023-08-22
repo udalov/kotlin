@@ -5,12 +5,12 @@
 
 package org.jetbrains.kotlin.ir.declarations
 
-import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
+import org.jetbrains.kotlin.ir.expressions.IrAnnotation
 
 interface IrAnnotationContainer {
-    val annotations: List<IrConstructorCall>
+    val annotations: List<IrAnnotation>
 }
 
 interface IrMutableAnnotationContainer : IrAnnotationContainer {
-    override var annotations: List<IrConstructorCall>
+    override var annotations: List<IrAnnotation>
 }

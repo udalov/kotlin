@@ -13,7 +13,7 @@ import org.jetbrains.kotlin.descriptors.ValueParameterDescriptor
 import org.jetbrains.kotlin.descriptors.annotations.AnnotationDescriptor
 import org.jetbrains.kotlin.incremental.components.NoLookupLocation
 import org.jetbrains.kotlin.ir.ObsoleteDescriptorBasedAPI
-import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
+import org.jetbrains.kotlin.ir.expressions.IrAnnotation
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.impl.*
 import org.jetbrains.kotlin.name.Name
@@ -138,7 +138,7 @@ abstract class ConstantValueGenerator(
                 }
             }
 
-            is AnnotationValue -> generateAnnotationConstructorCall(constantValue.value, constantKtType)
+            is AnnotationValue -> generateAnnotationEntry(constantValue.value, constantKtType)
 
             is KClassValue -> {
                 val classifierKtType = constantValue.getArgumentType(moduleDescriptor)
@@ -165,7 +165,10 @@ abstract class ConstantValueGenerator(
     }
 
     @OptIn(ObsoleteDescriptorBasedAPI::class)
-    fun generateAnnotationConstructorCall(annotationDescriptor: AnnotationDescriptor, realType: KotlinType? = null): IrConstructorCall? {
+    fun generateAnnotationEntry(
+        annotationDescriptor: AnnotationDescriptor,
+        realType: KotlinType? = null
+    ): IrAnnotation? {
         val annotationType = realType ?: annotationDescriptor.type
         val annotationClassDescriptor = annotationType.constructor.declarationDescriptor as? ClassDescriptor ?: return null
 

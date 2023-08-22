@@ -7,7 +7,7 @@ package org.jetbrains.kotlin.ir.types.impl
 
 import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.declarations.IrTypeParameter
-import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
+import org.jetbrains.kotlin.ir.expressions.IrAnnotation
 import org.jetbrains.kotlin.ir.symbols.IrClassifierSymbol
 import org.jetbrains.kotlin.ir.types.*
 import org.jetbrains.kotlin.types.KotlinType
@@ -22,7 +22,7 @@ abstract class IrTypeBase(val kotlinType: KotlinType?) : IrType(), IrTypeProject
 
 class IrErrorTypeImpl(
     kotlinType: KotlinType?,
-    override val annotations: List<IrConstructorCall>,
+    override val annotations: List<IrAnnotation>,
     override val variance: Variance,
     isMarkedNullable: Boolean = false
 ) : IrErrorType(kotlinType, IrErrorClassImpl.symbol, isMarkedNullable) {
@@ -33,7 +33,7 @@ class IrErrorTypeImpl(
 
 class IrDynamicTypeImpl(
     kotlinType: KotlinType?,
-    override val annotations: List<IrConstructorCall>,
+    override val annotations: List<IrAnnotation>,
     override val variance: Variance,
 ) : IrDynamicType(kotlinType) {
     override fun equals(other: Any?): Boolean = other is IrDynamicTypeImpl
@@ -61,7 +61,7 @@ object IrStarProjectionImpl : IrStarProjection {
  * especially in Kotlin/JS where function return types are not present in the resulting binary files.
  */
 object IrUninitializedType : IrType() {
-    override val annotations: List<IrConstructorCall> = emptyList()
+    override val annotations: List<IrAnnotation> = emptyList()
 
     override fun equals(other: Any?): Boolean = this === other
 
@@ -102,7 +102,7 @@ class IrCapturedType(
     override val arguments: List<IrTypeArgument> get() = emptyList()
     override val abbreviation: IrTypeAbbreviation? get () = null
     override val nullability: SimpleTypeNullability get() = SimpleTypeNullability.DEFINITELY_NOT_NULL
-    override val annotations: List<IrConstructorCall> get() = emptyList()
+    override val annotations: List<IrAnnotation> get() = emptyList()
 
     override fun equals(other: Any?): Boolean {
         return other is IrCapturedType

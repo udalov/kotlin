@@ -14,7 +14,7 @@ import org.jetbrains.kotlin.ir.ObsoleteDescriptorBasedAPI
 import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.declarations.impl.IrClassImpl
-import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
+import org.jetbrains.kotlin.ir.expressions.IrAnnotation
 import org.jetbrains.kotlin.ir.symbols.IrFileSymbol
 import org.jetbrains.kotlin.ir.symbols.impl.IrClassSymbolImpl
 import org.jetbrains.kotlin.name.FqName
@@ -30,7 +30,7 @@ object IrErrorClassImpl : IrClassImpl(
                 get() = TODO("Not yet implemented")
             override val endOffset: Int
                 get() = TODO("Not yet implemented")
-            override var annotations: List<IrConstructorCall>
+            override var annotations: List<IrAnnotation>
                 get() = TODO("Not yet implemented")
                 set(_) {}
             override val declarations: MutableList<IrDeclaration>

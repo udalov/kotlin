@@ -5,7 +5,7 @@
 
 package org.jetbrains.kotlin.ir.types.impl
 
-import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
+import org.jetbrains.kotlin.ir.expressions.IrAnnotation
 import org.jetbrains.kotlin.ir.symbols.IrTypeAliasSymbol
 import org.jetbrains.kotlin.ir.types.IrTypeAbbreviation
 import org.jetbrains.kotlin.ir.types.IrTypeArgument
@@ -14,14 +14,14 @@ class IrTypeAbbreviationImpl(
     override val typeAlias: IrTypeAliasSymbol,
     override val hasQuestionMark: Boolean,
     override val arguments: List<IrTypeArgument>,
-    override val annotations: List<IrConstructorCall>
+    override val annotations: List<IrAnnotation>
 ) : IrTypeAbbreviation
 
 class IrTypeAbbreviationBuilder {
     var typeAlias: IrTypeAliasSymbol? = null
     var hasQuestionMark: Boolean = false
     var arguments: List<IrTypeArgument> = emptyList()
-    var annotations: List<IrConstructorCall> = emptyList()
+    var annotations: List<IrAnnotation> = emptyList()
 }
 
 fun IrTypeAbbreviationImpl.toBuilder() =

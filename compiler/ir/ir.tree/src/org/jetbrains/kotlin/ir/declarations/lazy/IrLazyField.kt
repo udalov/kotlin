@@ -42,7 +42,7 @@ class IrLazyField(
 
     override var annotations: List<IrConstructorCall> by lazyVar(stubGenerator.lock) {
         descriptor.backingField?.annotations
-            ?.mapNotNullTo(mutableListOf(), typeTranslator.constantValueGenerator::generateAnnotationConstructorCall)
+            ?.mapNotNullTo(mutableListOf(), typeTranslator.constantValueGenerator::generateAnnotationEntry)
             ?: mutableListOf()
     }
 

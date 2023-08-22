@@ -11,8 +11,8 @@ import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.ir.ObsoleteDescriptorBasedAPI
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.descriptors.toIrBasedDescriptor
+import org.jetbrains.kotlin.ir.expressions.IrAnnotation
 import org.jetbrains.kotlin.ir.expressions.IrBody
-import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
 import org.jetbrains.kotlin.ir.symbols.IrPropertySymbol
 import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
 import org.jetbrains.kotlin.ir.types.IrType
@@ -50,7 +50,7 @@ class IrFunctionImpl(
     }
 
     override lateinit var parent: IrDeclarationParent
-    override var annotations: List<IrConstructorCall> = emptyList()
+    override var annotations: List<IrAnnotation> = emptyList()
 
     override var returnType: IrType = returnType
         get() = if (field === IrUninitializedType) {
@@ -122,7 +122,7 @@ class IrFunctionWithLateBindingImpl(
 
     override lateinit var parent: IrDeclarationParent
 
-    override var annotations: List<IrConstructorCall> = emptyList()
+    override var annotations: List<IrAnnotation> = emptyList()
 
     override var returnType: IrType = returnType
         get() = if (field === IrUninitializedType) {

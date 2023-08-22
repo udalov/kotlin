@@ -262,7 +262,7 @@ abstract class TypeTranslator(
         val irAnnotations = ArrayList<IrConstructorCall>()
 
         annotations.mapNotNullTo(irAnnotations) {
-            constantValueGenerator.generateAnnotationConstructorCall(it)
+            constantValueGenerator.generateAnnotationEntry(it)
         }
 
         // EnhancedNullability annotation is not present in 'annotations', see 'EnhancedTypeAnnotations::iterator()'.
