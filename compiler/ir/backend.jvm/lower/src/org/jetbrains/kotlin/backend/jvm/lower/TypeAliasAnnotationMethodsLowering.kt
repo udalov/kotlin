@@ -5,9 +5,8 @@
 
 package org.jetbrains.kotlin.backend.jvm.lower
 
-import org.jetbrains.kotlin.backend.common.ClassLoweringPass
-import org.jetbrains.kotlin.backend.common.CommonBackendContext
 import org.jetbrains.kotlin.backend.common.phaser.makeIrFilePhase
+import org.jetbrains.kotlin.backend.jvm.JvmBackendContext
 import org.jetbrains.kotlin.backend.jvm.JvmLoweredDeclarationOrigin
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
@@ -18,14 +17,14 @@ import org.jetbrains.kotlin.load.java.JvmAbi
 import org.jetbrains.kotlin.name.Name
 
 
-internal val typeAliasAnnotationMethodsPhase = makeIrFilePhase(
+internal val _typeAliasAnnotationMethodsPhase = makeIrFilePhase(
     ::TypeAliasAnnotationMethodsLowering,
     name = "TypeAliasAnnotationMethodsLowering",
     description = "Generate method stubs for type alias annotations"
 )
 
-class TypeAliasAnnotationMethodsLowering(val context: CommonBackendContext) :
-    ClassLoweringPass {
+class TypeAliasAnnotationMethodsLowering(override val context: JvmBackendContext) :
+    JvmClassLoweringPass {
 
     override fun lower(irClass: IrClass) {
         irClass.visitTypeAliases()

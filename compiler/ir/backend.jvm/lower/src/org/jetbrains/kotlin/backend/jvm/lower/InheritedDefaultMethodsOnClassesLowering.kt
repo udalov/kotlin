@@ -5,7 +5,6 @@
 
 package org.jetbrains.kotlin.backend.jvm.lower
 
-import org.jetbrains.kotlin.backend.common.ClassLoweringPass
 import org.jetbrains.kotlin.backend.common.FileLoweringPass
 import org.jetbrains.kotlin.backend.common.IrElementTransformerVoidWithContext
 import org.jetbrains.kotlin.backend.common.lower.createIrBuilder
@@ -32,13 +31,13 @@ import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
 
-internal val inheritedDefaultMethodsOnClassesPhase = makeIrFilePhase(
+internal val _inheritedDefaultMethodsOnClassesPhase = makeIrFilePhase(
     ::InheritedDefaultMethodsOnClassesLowering,
     name = "InheritedDefaultMethodsOnClasses",
     description = "Add bridge-implementations in classes that inherit default implementations from interfaces"
 )
 
-private class InheritedDefaultMethodsOnClassesLowering(val context: JvmBackendContext) : ClassLoweringPass {
+private class InheritedDefaultMethodsOnClassesLowering(override val context: JvmBackendContext) : JvmClassLoweringPass {
     override fun lower(irClass: IrClass) {
         if (!irClass.isJvmInterface) {
             irClass.declarations.transformInPlace {
@@ -119,13 +118,13 @@ private class InheritedDefaultMethodsOnClassesLowering(val context: JvmBackendCo
     }
 }
 
-internal val replaceDefaultImplsOverriddenSymbolsPhase = makeIrFilePhase(
+internal val _replaceDefaultImplsOverriddenSymbolsPhase = makeIrFilePhase(
     ::ReplaceDefaultImplsOverriddenSymbols,
     name = "ReplaceDefaultImplsOverriddenSymbols",
     description = "Replace overridden symbols for methods inherited from interfaces to classes"
 )
 
-private class ReplaceDefaultImplsOverriddenSymbols(private val context: JvmBackendContext) : ClassLoweringPass {
+private class ReplaceDefaultImplsOverriddenSymbols(override val context: JvmBackendContext) : JvmClassLoweringPass {
     override fun lower(irClass: IrClass) {
         for (declaration in irClass.declarations) {
             if (declaration is IrSimpleFunction) {

@@ -57,6 +57,7 @@ class JvmBackendContext(
     val irDeserializer: JvmIrDeserializer,
     val irProviders: List<IrProvider>,
     val irPluginContext: IrPluginContext?,
+    override val irFactory: IrFactory,
 ) : CommonBackendContext {
 
     @Suppress("UNUSED_PARAMETER")
@@ -74,7 +75,7 @@ class JvmBackendContext(
         irDeserializer: JvmIrDeserializer,
     ) : this(
         state, irBuiltIns, symbolTable, phaseConfig, generatorExtensions,
-        backendExtension, irSerializer, irDeserializer, irProviders, irPluginContext = null
+        backendExtension, irSerializer, irDeserializer, irProviders, irPluginContext = null, IrFactoryImpl
     )
 
     data class LocalFunctionData(
@@ -94,8 +95,6 @@ class JvmBackendContext(
     // annotated with @JvmPackageName, the correct name is recorded here.
     val classNameOverride: MutableMap<IrClass, JvmClassName>
         get() = generatorExtensions.classNameOverride
-
-    override val irFactory: IrFactory = IrFactoryImpl
 
     override val scriptMode: Boolean = false
 
@@ -192,6 +191,8 @@ class JvmBackendContext(
     val publicAbiSymbols = mutableSetOf<IrClassSymbol>()
 
     val visitedDeclarationsForRegenerationLowering: MutableSet<IrDeclaration> = ConcurrentHashMap.newKeySet()
+
+    val irClasses: MutableList<IrClass> = mutableListOf()
 
     init {
         state.mapInlineClass = { descriptor ->

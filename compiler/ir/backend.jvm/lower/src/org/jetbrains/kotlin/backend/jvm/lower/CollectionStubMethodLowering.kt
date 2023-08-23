@@ -29,13 +29,13 @@ import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.types.AbstractTypeChecker
 import org.jetbrains.kotlin.types.TypeCheckerState
 
-internal val collectionStubMethodLowering = makeIrFilePhase(
+internal val _collectionStubMethodLowering = makeIrFilePhase(
     ::CollectionStubMethodLowering,
     name = "CollectionStubMethod",
     description = "Generate Collection stub methods"
 )
 
-internal class CollectionStubMethodLowering(val context: JvmBackendContext) : ClassLoweringPass {
+internal class CollectionStubMethodLowering(override val context: JvmBackendContext) : JvmClassLoweringPass {
     private val collectionStubComputer = context.collectionStubComputer
 
     private data class NameAndArity(

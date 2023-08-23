@@ -39,7 +39,7 @@ val jvmInlineClassPhase = makeIrFilePhase(
     // Standard library replacements are done on the not mangled names for UInt and ULong classes.
     // Collection stubs may require mangling by value class rules.
     // SAM wrappers may require mangling for fun interfaces with value class parameters
-    prerequisite = setOf(forLoopsPhase, jvmBuiltInsPhase, collectionStubMethodLowering, singleAbstractMethodPhase),
+    prerequisite = setOf(forLoopsPhase, jvmBuiltInsPhase, _collectionStubMethodLowering, singleAbstractMethodPhase),
 )
 
 /**

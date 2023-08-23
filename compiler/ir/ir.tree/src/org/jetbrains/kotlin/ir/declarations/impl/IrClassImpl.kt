@@ -38,6 +38,11 @@ open class IrClassImpl @IrImplementationDetail constructor(
 ) : IrClass() {
     init {
         symbol.bind(this)
+/*
+        if (factory.trackCreatedClasses && "IrFactory" !in Throwable().stackTrace[1].toString()) {
+            error("Please create IrClass via IrFactory: $name")
+        }
+*/
     }
 
     override lateinit var parent: IrDeclarationParent

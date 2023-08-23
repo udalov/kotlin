@@ -5,7 +5,6 @@
 
 package org.jetbrains.kotlin.backend.jvm.lower
 
-import org.jetbrains.kotlin.backend.common.ClassLoweringPass
 import org.jetbrains.kotlin.backend.common.ir.addDispatchReceiver
 import org.jetbrains.kotlin.backend.common.lower.createIrBuilder
 import org.jetbrains.kotlin.backend.common.phaser.makeIrFilePhase
@@ -33,13 +32,13 @@ import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.types.Variance
 import org.jetbrains.kotlin.utils.DFS
 
-internal val toArrayPhase = makeIrFilePhase(
+internal val _toArrayPhase = makeIrFilePhase(
     ::ToArrayLowering,
     name = "ToArray",
     description = "Handle toArray functions"
 )
 
-private class ToArrayLowering(private val context: JvmBackendContext) : ClassLoweringPass {
+private class ToArrayLowering(override val context: JvmBackendContext) : JvmClassLoweringPass {
     private val symbols = context.ir.symbols
 
     override fun lower(irClass: IrClass) {

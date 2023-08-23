@@ -24,7 +24,7 @@ import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 import org.jetbrains.kotlin.resolve.deprecation.DeprecationResolver
 
-internal val moveOrCopyCompanionObjectFieldsPhase = makeIrFilePhase(
+internal val _moveOrCopyCompanionObjectFieldsPhase = makeIrFilePhase(
     ::MoveOrCopyCompanionObjectFieldsLowering,
     name = "MoveOrCopyCompanionObjectFields",
     description = "Move and/or copy companion object fields to static fields of companion's owner"
@@ -37,7 +37,7 @@ internal val remapObjectFieldAccesses = makeIrFilePhase(
     prerequisite = setOf(propertiesPhase)
 )
 
-private class MoveOrCopyCompanionObjectFieldsLowering(val context: JvmBackendContext) : ClassLoweringPass {
+private class MoveOrCopyCompanionObjectFieldsLowering(override val context: JvmBackendContext) : JvmClassLoweringPass {
     override fun lower(irClass: IrClass) {
         if (irClass.isNonCompanionObject) {
             irClass.handle()

@@ -5,7 +5,6 @@
 
 package org.jetbrains.kotlin.backend.jvm.lower
 
-import org.jetbrains.kotlin.backend.common.ClassLoweringPass
 import org.jetbrains.kotlin.backend.common.lower.SpecialMethodWithDefaultInfo
 import org.jetbrains.kotlin.backend.common.lower.createIrBuilder
 import org.jetbrains.kotlin.backend.common.lower.irNot
@@ -109,14 +108,14 @@ import org.jetbrains.org.objectweb.asm.commons.Method
  * the same signature already exists in a superclass. We only diverge from this idea to match the behavior of
  * the JVM backend in a few corner cases.
  */
-internal val bridgePhase = makeIrFilePhase(
+internal val _bridgePhase = makeIrFilePhase(
     ::BridgeLowering,
     name = "Bridge",
     description = "Generate bridges",
-    prerequisite = setOf(jvmInlineClassPhase, inheritedDefaultMethodsOnClassesPhase)
+    prerequisite = setOf(jvmInlineClassPhase, _inheritedDefaultMethodsOnClassesPhase)
 )
 
-internal class BridgeLowering(val context: JvmBackendContext) : ClassLoweringPass {
+internal class BridgeLowering(override val context: JvmBackendContext) : JvmClassLoweringPass {
     // Represents a synthetic bridge to `overridden` with a precomputed signature
     private class Bridge(
         val overridden: IrSimpleFunction,

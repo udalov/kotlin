@@ -38,7 +38,7 @@ import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.name.SpecialNames
 
-internal val enumClassPhase = makeIrFilePhase(
+internal val _enumClassPhase = makeIrFilePhase(
     ::EnumClassLowering,
     name = "EnumClass",
     description = "Handle enum classes"
@@ -47,7 +47,7 @@ internal val enumClassPhase = makeIrFilePhase(
 private const val VALUES_HELPER_FUNCTION_NAME = "\$values"
 private const val ENTRIES_FIELD_NAME = "\$ENTRIES"
 
-private class EnumClassLowering(private val context: JvmBackendContext) : ClassLoweringPass {
+private class EnumClassLowering(override val context: JvmBackendContext) : JvmClassLoweringPass {
 
     /*
      * Example of codegen for

@@ -19,6 +19,7 @@ import org.jetbrains.kotlin.backend.jvm.codegen.JvmIrIntrinsicExtension
 import org.jetbrains.kotlin.backend.jvm.intrinsics.IrIntrinsicMethods
 import org.jetbrains.kotlin.backend.jvm.ir.getIoFile
 import org.jetbrains.kotlin.backend.jvm.ir.getKtFile
+import org.jetbrains.kotlin.backend.jvm.lower.JvmIrFactoryImpl
 import org.jetbrains.kotlin.backend.jvm.serialization.DisabledIdSignatureDescriptor
 import org.jetbrains.kotlin.backend.jvm.serialization.JvmIdSignatureDescriptor
 import org.jetbrains.kotlin.codegen.CodegenFactory
@@ -332,8 +333,9 @@ open class JvmIrCodegenFactory(
         val phaseConfig = customPhaseConfig ?: PhaseConfig(phases)
         val context = JvmBackendContext(
             state, irModuleFragment.irBuiltins, symbolTable, phaseConfig, extensions,
-            backendExtension, irSerializer, JvmIrDeserializerImpl(), irProviders, irPluginContext
+            backendExtension, irSerializer, JvmIrDeserializerImpl(), irProviders, irPluginContext, JvmIrFactoryImpl()
         )
+        (context.irFactory as JvmIrFactoryImpl).context = context
         if (evaluatorFragmentInfoForPsi2Ir != null) {
             context.localDeclarationsLoweringData = mutableMapOf()
         }

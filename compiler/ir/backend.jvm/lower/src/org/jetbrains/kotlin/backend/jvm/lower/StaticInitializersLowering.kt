@@ -17,7 +17,7 @@ import org.jetbrains.kotlin.ir.util.patchDeclarationParents
 import org.jetbrains.kotlin.load.java.JavaDescriptorVisibilities
 import org.jetbrains.kotlin.name.Name
 
-class StaticInitializersLowering(override val context: JvmBackendContext) : InitializersLoweringBase(context), ClassLoweringPass {
+class StaticInitializersLowering(override val context: JvmBackendContext) : InitializersLoweringBase(context), JvmClassLoweringPass {
     override fun lower(irClass: IrClass) {
         val staticInitializerStatements = extractInitializers(irClass) {
             // JVM implementations are required to generate initializers for all static fields with ConstantValue,

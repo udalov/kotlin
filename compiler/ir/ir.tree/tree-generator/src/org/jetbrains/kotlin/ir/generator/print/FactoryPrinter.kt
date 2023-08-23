@@ -32,6 +32,9 @@ internal fun printFactory(generationPath: File, model: Model): GeneratedFile = p
     println("interface ", irFactoryType.simpleName, " {")
     withIndent {
         println("val stageController: ", stageControllerType.render())
+        println()
+        println("@Suppress(\"UNUSED_PARAMETER\")")
+        println("var trackCreatedClasses: Boolean get() = false; set(value) { error(\"Not supported.\") }")
         val factoryMethods = model.elements
             .filter { it.isLeaf && it.generateIrFactoryMethod }
             .sortedWith(compareBy({ it.packageName }, { it.name }))

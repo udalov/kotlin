@@ -28,14 +28,14 @@ import org.jetbrains.kotlin.load.java.JvmAnnotationNames
 import org.jetbrains.kotlin.name.Name
 import java.lang.annotation.ElementType
 
-internal val additionalClassAnnotationPhase = makeIrFilePhase(
+internal val _additionalClassAnnotationPhase = makeIrFilePhase(
     ::AdditionalClassAnnotationLowering,
     name = "AdditionalClassAnnotation",
     description = "Add Documented, Retention, Target, Repeatable annotations to annotation classes",
     prerequisite = setOf(repeatedAnnotationPhase)
 )
 
-private class AdditionalClassAnnotationLowering(private val context: JvmBackendContext) : ClassLoweringPass {
+private class AdditionalClassAnnotationLowering(override val context: JvmBackendContext) : JvmClassLoweringPass {
     private val symbols = context.ir.symbols.javaAnnotations
     private val noNewJavaAnnotationTargets =
         context.config.noNewJavaAnnotationTargets || !context.isCompilingAgainstJdk8OrLater
