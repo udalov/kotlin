@@ -312,6 +312,24 @@ abstract class AbstractCompileKotlinAgainstCustomBinariesTest : AbstractKotlinCo
         doTestKotlinLibraryWithWrongMetadataVersion("library", null, "-Xskip-metadata-version-check")
     }
 
+    // This test checks that usages of incompatible (wrt metadata version) classes in compatible declarations still leads to errors.
+    // It compiles library1 with MV=current+2, then library2 against library1 with MV=current+1, then source against library1 and library2.
+    // Kotlin/JVM has forward compatibility up to one version only, so library1 (but not library2) is incompatible in source.
+    fun testWrongMetadataVersionInTransitiveDependency() {
+        val current = languageVersion.toMetadataVersion()
+        val next = current.next()
+        val nextNext = next.next()
+
+        val library1 = compileLibrary(
+            "library1", additionalOptions = listOf("-Xmetadata-version=$nextNext")
+        )
+        val library2 = compileLibrary(
+            "library2", additionalOptions = listOf("-Xmetadata-version=$next", "-Xskip-metadata-version-check"),
+            extraClassPath = listOf(library1)
+        )
+        compileKotlin("source.kt", tmpdir, listOf(library1, library2))
+    }
+
     // KT-60795 K2: missing INCOMPATIBLE_CLASS and corresponding CLI error
     fun testWrongMetadataVersionSkipPrereleaseCheckHasNoEffect() = muteForK2 {
         doTestKotlinLibraryWithWrongMetadataVersion("library", null, "-Xskip-prerelease-check")

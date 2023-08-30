@@ -1,0 +1,19 @@
+error: incompatible classes were found in dependencies. Remove them from the classpath or use '-Xskip-metadata-version-check' to suppress errors
+$TMP_DIR$/library1.jar!/META-INF/main.kotlin_module: error: module was compiled with an incompatible version of Kotlin. The binary version of its metadata is 2.1.0, expected version is $ABI_VERSION$.
+compiler/testData/compileKotlinAgainstCustomBinaries/wrongMetadataVersionInTransitiveDependency/source.kt:6:5: error: class 'a.A' was compiled with an incompatible version of Kotlin. The actual metadata version is 2.1.0, but the compiler version $ABI_VERSION$ can read versions up to $ABI_VERSION_NEXT$.
+The class is loaded from $TMP_DIR$/library1.jar!/a/A.class
+    function(null)
+    ^
+compiler/testData/compileKotlinAgainstCustomBinaries/wrongMetadataVersionInTransitiveDependency/source.kt:7:10: error: class 'a.A' was compiled with an incompatible version of Kotlin. The actual metadata version is 2.1.0, but the compiler version $ABI_VERSION$ can read versions up to $ABI_VERSION_NEXT$.
+The class is loaded from $TMP_DIR$/library1.jar!/a/A.class
+    null.extensionFunction()
+         ^
+compiler/testData/compileKotlinAgainstCustomBinaries/wrongMetadataVersionInTransitiveDependency/source.kt:8:10: error: class 'a.A' was compiled with an incompatible version of Kotlin. The actual metadata version is 2.1.0, but the compiler version $ABI_VERSION$ can read versions up to $ABI_VERSION_NEXT$.
+The class is loaded from $TMP_DIR$/library1.jar!/a/A.class
+    null.extensionProperty = ""
+         ^
+compiler/testData/compileKotlinAgainstCustomBinaries/wrongMetadataVersionInTransitiveDependency/source.kt:9:10: error: class 'a.A' was compiled with an incompatible version of Kotlin. The actual metadata version is 2.1.0, but the compiler version $ABI_VERSION$ can read versions up to $ABI_VERSION_NEXT$.
+The class is loaded from $TMP_DIR$/library1.jar!/a/A.class
+    null.extensionProperty
+         ^
+COMPILATION_ERROR
