@@ -28,7 +28,6 @@ fun copyK2JVMCompilerArguments(from: K2JVMCompilerArguments, to: K2JVMCompilerAr
     to.enableDebugMode = from.enableDebugMode
     to.enableIrInliner = from.enableIrInliner
     to.enableJvmPreview = from.enableJvmPreview
-    to.enhanceTypeParameterTypesToDefNotNull = from.enhanceTypeParameterTypesToDefNotNull
     to.enhancedCoroutinesDebugging = from.enhancedCoroutinesDebugging
     to.expectBuiltinsAsPartOfStdlib = from.expectBuiltinsAsPartOfStdlib
     to.expression = from.expression
@@ -75,9 +74,7 @@ fun copyK2JVMCompilerArguments(from: K2JVMCompilerArguments, to: K2JVMCompilerAr
     to.strictMetadataVersionSemantics = from.strictMetadataVersionSemantics
     to.stringConcat = from.stringConcat
     to.supportCompatqualCheckerFrameworkAnnotations = from.supportCompatqualCheckerFrameworkAnnotations
-    to.suppressDeprecatedJvmTargetWarning = from.suppressDeprecatedJvmTargetWarning
     to.suppressMissingBuiltinsError = from.suppressMissingBuiltinsError
-    to.typeEnhancementImprovementsInStrictMode = from.typeEnhancementImprovementsInStrictMode
     to.useFastJarFileSystem = from.useFastJarFileSystem
     to.useInlineScopesNumbers = from.useInlineScopesNumbers
     to.useJavac = from.useJavac

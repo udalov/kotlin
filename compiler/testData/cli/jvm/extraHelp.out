@@ -109,18 +109,9 @@ where advanced options include:
                              Use the scheme for inline class mangling from version 1.4 instead of the one from 1.4.30.
   -Xjvm-enable-preview       Allow using Java features that are in the preview phase.
                              This works like '--enable-preview' in Java. All class files are marked as compiled with preview features, meaning it won't be possible to use them in release environments.
-  -Xsuppress-deprecated-jvm-target-warning
-                             Suppress warnings about deprecated JVM target versions.
-                             This option has no effect and will be deleted in a future version.
-  -Xtype-enhancement-improvements-strict-mode
-                             Enable strict mode for improvements to type enhancement for loaded Java types based on nullability annotations,
-                             including the ability to read type-use annotations from class files.
-                             See KT-45671 for more details.
   -Xserialize-ir={none|inline|all}
                              Save the IR to metadata (Experimental).
   -Xvalidate-bytecode        Validate generated JVM bytecode before and after optimizations.
-  -Xenhance-type-parameter-types-to-def-not-null
-                             Enhance not-null-annotated type parameter types to definitely-non-nullable types ('@NotNull T' => 'T & Any').
   -Xlink-via-signatures      Link JVM IR symbols via signatures instead of descriptors.
                              This mode is slower, but it can be useful for troubleshooting problems with the JVM IR backend.
                              This option is deprecated and will be deleted in future versions.

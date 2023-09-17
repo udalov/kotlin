@@ -68,12 +68,6 @@ class K2JVMCompilerArgumentsConfigurator : CommonCompilerArgumentsConfigurator()
     ): MutableMap<LanguageFeature, LanguageFeature.State> = with(arguments) {
         require(this is K2JVMCompilerArguments)
         val result = super.configureLanguageFeatures(arguments, collector)
-        if (typeEnhancementImprovementsInStrictMode) {
-            result[LanguageFeature.TypeEnhancementImprovementsInStrictMode] = LanguageFeature.State.ENABLED
-        }
-        if (enhanceTypeParameterTypesToDefNotNull) {
-            result[LanguageFeature.ProhibitUsingNullableTypeParameterAgainstNotNullAnnotated] = LanguageFeature.State.ENABLED
-        }
         if (valueClasses) {
             result[LanguageFeature.ValueClasses] = LanguageFeature.State.ENABLED
         }

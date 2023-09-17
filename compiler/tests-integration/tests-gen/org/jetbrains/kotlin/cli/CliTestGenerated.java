@@ -1648,11 +1648,6 @@ public class CliTestGenerated extends AbstractCliTest {
       runTest("compiler/testData/cli/jvm/kt48833_doNotSuppressVersionErrors.args");
     }
 
-    @TestMetadata("kt49209.args")
-    public void testKt49209() {
-      runTest("compiler/testData/cli/jvm/kt49209.args");
-    }
-
     @TestMetadata("kt51846_backendThreadsValidation1.args")
     public void testKt51846_backendThreadsValidation1() {
       runTest("compiler/testData/cli/jvm/kt51846_backendThreadsValidation1.args");

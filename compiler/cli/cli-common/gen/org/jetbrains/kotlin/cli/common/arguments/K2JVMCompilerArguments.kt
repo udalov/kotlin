@@ -733,29 +733,6 @@ This works like '--enable-preview' in Java. All class files are marked as compil
         }
 
     @Argument(
-        value = "-Xsuppress-deprecated-jvm-target-warning",
-        description = """Suppress warnings about deprecated JVM target versions.
-This option has no effect and will be deleted in a future version.""",
-    )
-    var suppressDeprecatedJvmTargetWarning: Boolean = false
-        set(value) {
-            checkFrozen()
-            field = value
-        }
-
-    @Argument(
-        value = "-Xtype-enhancement-improvements-strict-mode",
-        description = """Enable strict mode for improvements to type enhancement for loaded Java types based on nullability annotations,
-including the ability to read type-use annotations from class files.
-See KT-45671 for more details.""",
-    )
-    var typeEnhancementImprovementsInStrictMode: Boolean = false
-        set(value) {
-            checkFrozen()
-            field = value
-        }
-
-    @Argument(
         value = "-Xserialize-ir",
         valueDescription = "{none|inline|all}",
         description = "Save the IR to metadata (Experimental).",
@@ -771,16 +748,6 @@ See KT-45671 for more details.""",
         description = "Validate generated JVM bytecode before and after optimizations.",
     )
     var validateBytecode: Boolean = false
-        set(value) {
-            checkFrozen()
-            field = value
-        }
-
-    @Argument(
-        value = "-Xenhance-type-parameter-types-to-def-not-null",
-        description = "Enhance not-null-annotated type parameter types to definitely-non-nullable types ('@NotNull T' => 'T & Any').",
-    )
-    var enhanceTypeParameterTypesToDefNotNull: Boolean = false
         set(value) {
             checkFrozen()
             field = value
