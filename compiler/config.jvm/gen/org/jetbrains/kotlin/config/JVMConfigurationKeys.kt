@@ -117,9 +117,6 @@ object JVMConfigurationKeys {
     val NO_RESET_JAR_TIMESTAMPS = CompilerConfigurationKey.create<Boolean>("Do not reset timestamps in jar entries")
 
     @JvmField
-    val NO_UNIFIED_NULL_CHECKS = CompilerConfigurationKey.create<Boolean>("Use pre-1.4 exception types in null checks instead of java.lang.NPE")
-
-    @JvmField
     val NO_SOURCE_DEBUG_EXTENSION = CompilerConfigurationKey.create<Boolean>("Do not generate @kotlin.jvm.internal.SourceDebugExtension annotation on a class with the copy of SMAP")
 
     @JvmField
@@ -298,10 +295,6 @@ var CompilerConfiguration.doNotClearBindingContext: Boolean
 var CompilerConfiguration.noResetJarTimestamps: Boolean
     get() = getBoolean(JVMConfigurationKeys.NO_RESET_JAR_TIMESTAMPS)
     set(value) { put(JVMConfigurationKeys.NO_RESET_JAR_TIMESTAMPS, value) }
-
-var CompilerConfiguration.noUnifiedNullChecks: Boolean
-    get() = getBoolean(JVMConfigurationKeys.NO_UNIFIED_NULL_CHECKS)
-    set(value) { put(JVMConfigurationKeys.NO_UNIFIED_NULL_CHECKS, value) }
 
 var CompilerConfiguration.noSourceDebugExtension: Boolean
     get() = getBoolean(JVMConfigurationKeys.NO_SOURCE_DEBUG_EXTENSION)

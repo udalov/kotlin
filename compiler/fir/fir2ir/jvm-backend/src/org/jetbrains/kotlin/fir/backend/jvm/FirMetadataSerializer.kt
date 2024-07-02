@@ -97,8 +97,7 @@ fun makeLocalFirMetadataSerializerForMetadataSource(
         targetId.name,
         ClassBuilderMode.FULL,
         configuration.getBoolean(JVMConfigurationKeys.DISABLE_PARAM_ASSERTIONS),
-        session.languageVersionSettings.apiVersion >= ApiVersion.KOTLIN_1_4 &&
-                !configuration.getBoolean(JVMConfigurationKeys.NO_UNIFIED_NULL_CHECKS),
+        session.languageVersionSettings.apiVersion >= ApiVersion.KOTLIN_1_4,
         configuration.jvmMetadataVersion(session.languageVersionSettings.languageVersion),
         session.languageVersionSettings.jvmDefaultMode,
         stringTable,

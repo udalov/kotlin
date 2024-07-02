@@ -135,7 +135,6 @@ object LanguageSettingsDirectives : SimpleDirectivesContainer() {
     val EMIT_JVM_TYPE_ANNOTATIONS by directive("Enable emitting jvm type annotations")
     val DISABLE_PARAM_ASSERTIONS by directive("Disable assertions on parameters")
     val DISABLE_CALL_ASSERTIONS by directive("Disable assertions on calls")
-    val NO_UNIFIED_NULL_CHECKS by directive("No unified null checks")
     val PARAMETERS_METADATA by directive("Add parameters metadata for 1.8 reflection")
     val USE_TYPE_TABLE by directive("Use type table in metadata serialization")
     val NO_NEW_JAVA_ANNOTATION_TARGETS by directive("Do not generate Java annotation targets TYPE_USE/TYPE_PARAMETER for Kotlin annotation classes with Kotlin targets TYPE/TYPE_PARAMETER")

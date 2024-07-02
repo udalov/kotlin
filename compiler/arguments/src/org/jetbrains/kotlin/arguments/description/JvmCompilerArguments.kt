@@ -611,14 +611,6 @@ The default value is 'indy' if language version is 2.0+, and 'class' otherwise."
     }
 
     compilerArgument {
-        name = "Xno-unified-null-checks"
-        description = "Use pre-1.4 exception types instead of 'java.lang.NPE' in null checks. See KT-22275 for more details.".asReleaseDependent()
-        valueType = BooleanType.defaultFalse
-
-        stubLifecycle()
-    }
-
-    compilerArgument {
         name = "Xno-source-debug-extension"
         description = "Don't generate the '@kotlin.jvm.internal.SourceDebugExtension' annotation with an SMAP copy on classes.".asReleaseDependent()
         valueType = BooleanType.defaultFalse

@@ -1,5 +1,5 @@
 // WITH_STDLIB
-// NO_UNIFIED_NULL_CHECKS
+// API_VERSION: 1.3
 // TARGET_BACKEND: JVM
 // FILE: 1.kt
 package test

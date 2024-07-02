@@ -70,8 +70,6 @@ object JvmConfigurationKeysContainer : KeysContainer("org.jetbrains.kotlin.confi
 
     val NO_RESET_JAR_TIMESTAMPS by key<Boolean>("Do not reset timestamps in jar entries")
 
-    val NO_UNIFIED_NULL_CHECKS by key<Boolean>("Use pre-1.4 exception types in null checks instead of java.lang.NPE")
-
     val NO_SOURCE_DEBUG_EXTENSION by key<Boolean>("Do not generate @kotlin.jvm.internal.SourceDebugExtension annotation on a class with the copy of SMAP")
 
     val USE_OLD_INLINE_CLASSES_MANGLING_SCHEME by key<Boolean>("Use old, 1.4 version of inline classes mangling scheme")

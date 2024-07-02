@@ -55,8 +55,7 @@ class JvmBackendConfig(configuration: CompilerConfiguration) {
     val useTypeTableInSerializer: Boolean = configuration.getBoolean(JVMConfigurationKeys.USE_TYPE_TABLE)
 
     val unifiedNullChecks: Boolean =
-        languageVersionSettings.apiVersion >= ApiVersion.KOTLIN_1_4 &&
-                !configuration.getBoolean(JVMConfigurationKeys.NO_UNIFIED_NULL_CHECKS)
+        languageVersionSettings.apiVersion >= ApiVersion.KOTLIN_1_4
 
     val noSourceCodeInNotNullAssertionExceptions: Boolean =
         (languageVersionSettings.supportsFeature(LanguageFeature.NoSourceCodeInNotNullAssertionExceptions)

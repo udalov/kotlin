@@ -62,7 +62,6 @@ fun copyK2JVMCompilerArguments(from: K2JVMCompilerArguments, to: K2JVMCompilerAr
     to.noResetJarTimestamps = from.noResetJarTimestamps
     to.noSourceDebugExtension = from.noSourceDebugExtension
     to.noStdlib = from.noStdlib
-    to.noUnifiedNullChecks = from.noUnifiedNullChecks
     to.nullabilityAnnotations = from.nullabilityAnnotations?.copyOf()
     to.outputBuiltinsMetadata = from.outputBuiltinsMetadata
     to.profileCompilerCommand = from.profileCompilerCommand

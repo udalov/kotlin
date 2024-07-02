@@ -678,16 +678,6 @@ The default value is 'indy' if language version is 2.0+, and 'class' otherwise."
         }
 
     @Argument(
-        value = "-Xno-unified-null-checks",
-        description = "Use pre-1.4 exception types instead of 'java.lang.NPE' in null checks. See KT-22275 for more details.",
-    )
-    var noUnifiedNullChecks: Boolean = false
-        set(value) {
-            checkFrozen()
-            field = value
-        }
-
-    @Argument(
         value = "-Xno-source-debug-extension",
         description = "Don't generate the '@kotlin.jvm.internal.SourceDebugExtension' annotation with an SMAP copy on classes.",
     )
