@@ -5,14 +5,46 @@
 
 package org.jetbrains.kotlin.backend.jvm
 
+import org.jetbrains.kotlin.backend.common.FileLoweringPass
 import org.jetbrains.kotlin.backend.common.ModuleLoweringPass
 import org.jetbrains.kotlin.backend.common.lower.*
 import org.jetbrains.kotlin.backend.common.lower.loops.ForLoopsLowering
 import org.jetbrains.kotlin.backend.common.phaser.*
 import org.jetbrains.kotlin.backend.jvm.lower.*
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
+import java.lang.reflect.ParameterizedType
 
-private val jvmFilePhases = createFilePhases<JvmBackendContext>(
+fun main() {
+    var total = 0
+    var common = 0
+    for (phase in jvmFilePhases0 + jvmModulePhases) {
+        val kFunctionType = phase.javaClass.genericInterfaces[0] as ParameterizedType
+        val lowering = kFunctionType.actualTypeArguments[1] as Class<*>
+        val supers = generateSequence(lowering) { klass ->
+            klass.superclass.takeUnless {
+                it == Any::class.java ||
+                        it.simpleName.contains("IrElementTransformerVoid") ||
+                        it.simpleName.contains("IrBuildingTransformer")
+            }
+        }.toList()
+
+        if (supers.any {
+                it.name.startsWith("org.jetbrains.kotlin.backend.common.lower") ||
+                        it.name.startsWith("org.jetbrains.kotlin.ir.inline")
+            }) {
+            common++
+            print("  ")
+        }
+        total++
+
+        println(supers)
+    }
+
+    println()
+    println("total $total common $common")
+}
+
+private val jvmFilePhases0 = listOf<(JvmBackendContext) -> FileLoweringPass>(
     ::TypeAliasAnnotationMethodsLowering,
     ::ProvisionalFunctionExpressionLowering,
 
@@ -124,6 +156,29 @@ private val jvmFilePhases = createFilePhases<JvmBackendContext>(
 
     ::ReflectiveAccessLowering,
 )
+private val jvmFilePhases = createFilePhases<JvmBackendContext>(*jvmFilePhases0.toTypedArray())
+
+private val jvmModulePhases = listOf<(JvmBackendContext) -> ModuleLoweringPass>(
+    ::ExternalPackageParentPatcherLowering,
+    ::FragmentSharedVariablesLowering,
+    ::JvmIrValidationBeforeLoweringPhase,
+    ::ProcessOptionalAnnotations,
+    ::JvmExpectDeclarationRemover,
+    ::ConstEvaluationLowering,
+    ::SerializeIrPhase,
+    ::ScriptsToClassesLowering,
+    ::FileClassLowering,
+    ::JvmStaticInObjectLowering,
+    ::RepeatedAnnotationLowering,
+    ::JvmInlineCallableReferenceToLambdaWithDefaultsPhase,
+
+    ::JvmIrInliner,
+    ::ApiVersionIsAtLeastEvaluationLowering,
+    ::CreateSeparateCallForInlinedLambdasLowering,
+    ::MarkNecessaryInlinedClassesAsRegeneratedLowering,
+    ::InlinedClassReferencesBoxingLowering,
+    ::RestoreInlineLambda,
+)
 
 val jvmLoweringPhases = SameTypeNamedCompilerPhase(
     name = "IrLowering",
@@ -131,25 +186,7 @@ val jvmLoweringPhases = SameTypeNamedCompilerPhase(
     nlevels = 1,
     actions = DEFAULT_IR_ACTIONS,
     lower = buildModuleLoweringsPhase(
-        ::ExternalPackageParentPatcherLowering,
-        ::FragmentSharedVariablesLowering,
-        ::JvmIrValidationBeforeLoweringPhase,
-        ::ProcessOptionalAnnotations,
-        ::JvmExpectDeclarationRemover,
-        ::ConstEvaluationLowering,
-        ::SerializeIrPhase,
-        ::ScriptsToClassesLowering,
-        ::FileClassLowering,
-        ::JvmStaticInObjectLowering,
-        ::RepeatedAnnotationLowering,
-        ::JvmInlineCallableReferenceToLambdaWithDefaultsPhase,
-
-        ::JvmIrInliner,
-        ::ApiVersionIsAtLeastEvaluationLowering,
-        ::CreateSeparateCallForInlinedLambdasLowering,
-        ::MarkNecessaryInlinedClassesAsRegeneratedLowering,
-        ::InlinedClassReferencesBoxingLowering,
-        ::RestoreInlineLambda,
+        *jvmModulePhases.toTypedArray()
     ).then(
         performByIrFile("PerformByIrFile", lower = jvmFilePhases)
     ) then buildModuleLoweringsPhase(
