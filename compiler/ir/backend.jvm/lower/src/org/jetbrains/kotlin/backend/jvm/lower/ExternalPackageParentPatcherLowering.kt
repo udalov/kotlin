@@ -9,20 +9,44 @@ import org.jetbrains.kotlin.backend.common.FileLoweringPass
 import org.jetbrains.kotlin.backend.common.phaser.PhaseDescription
 import org.jetbrains.kotlin.backend.jvm.JvmBackendContext
 import org.jetbrains.kotlin.backend.jvm.createJvmFileFacadeClass
+import org.jetbrains.kotlin.config.CurrentTestDataFilePath
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.IrMemberAccessExpression
+import org.jetbrains.kotlin.ir.util.DumpIrTreeOptions
 import org.jetbrains.kotlin.ir.util.createParameterDeclarations
+import org.jetbrains.kotlin.ir.util.dump
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 import org.jetbrains.kotlin.ir.visitors.acceptVoid
 import org.jetbrains.kotlin.load.kotlin.FacadeClassSource
+import java.io.File
 
 @PhaseDescription(
     name = "ExternalPackageParentPatcherLowering",
     description = "Replace parent from package fragment to FileKt class for top-level callables (K2 only)"
 )
 internal class ExternalPackageParentPatcherLowering(val context: JvmBackendContext) : FileLoweringPass {
+    override fun lower(irModule: IrModuleFragment) {
+        val testDataPath = CurrentTestDataFilePath.get()
+        if (testDataPath != null && "kapt3-compiler/testData/converter" in testDataPath) {
+            val irTextPath = "${testDataPath.removeSuffix(".kt")}.ir.txt"
+            val firTextPath = "${testDataPath.removeSuffix(".kt")}.fir.ir.txt"
+            val dump = irModule.dump(DumpIrTreeOptions(stableOrder = true)).replace("fileName:[^\n]*/([^\n]*)\n".toRegex(), "fileName:$1\n")
+            if (context.config.useFir) {
+                if (File(irTextPath).exists() && File(irTextPath).readText() == dump) {
+                    if (File(firTextPath).exists()) File(firTextPath).delete()
+                } else {
+                    File(firTextPath).writeText(dump)
+                }
+            } else {
+                File(irTextPath).writeText(dump)
+            }
+        }
+
+        super.lower(irModule)
+    }
+
     override fun lower(irFile: IrFile) {
         if (context.config.useFir) {
             irFile.acceptVoid(Visitor())

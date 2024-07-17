@@ -1,0 +1,6 @@
+MODULE_FRAGMENT name:<main>
+  FILE fqName:<root> fileName:importsForErrorTypes.kt
+    FUN name:test visibility:public modality:FINAL <> () returnType:kotlin.Any?
+      BLOCK_BODY
+        RETURN type=kotlin.Nothing from='public final fun test (): kotlin.Any? declared in <root>'
+          ERROR_EXPR 'skipBodies' type=kotlin.Nothing

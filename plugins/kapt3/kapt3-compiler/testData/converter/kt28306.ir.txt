@@ -1,0 +1,66 @@
+MODULE_FRAGMENT name:<main>
+  FILE fqName:foo fileName:kt28306.kt
+    annotations:
+      Suppress(names = ["UNRESOLVED_REFERENCE"] type=kotlin.Array<out kotlin.String> varargElementType=kotlin.String)
+    CLASS INTERFACE name:InterfaceWithDefaults modality:ABSTRACT visibility:public superTypes:[kotlin.Any]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:foo.InterfaceWithDefaults<T of foo.InterfaceWithDefaults>
+      TYPE_PARAMETER name:T index:0 variance: superTypes:[kotlin.Any?] reified:false
+      CLASS INTERFACE name:Nested modality:ABSTRACT visibility:public superTypes:[kotlin.Any]
+        $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:foo.InterfaceWithDefaults.Nested<S of foo.InterfaceWithDefaults.Nested>
+        TYPE_PARAMETER name:S index:0 variance: superTypes:[kotlin.Any?] reified:false
+        FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+          overridden:
+            public open fun equals (other: kotlin.Any?): kotlin.Boolean [operator] declared in kotlin.Any
+          $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+          VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+        FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+          overridden:
+            public open fun hashCode (): kotlin.Int declared in kotlin.Any
+          $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+          overridden:
+            public open fun toString (): kotlin.String declared in kotlin.Any
+          $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        FUN name:bar visibility:public modality:OPEN <> ($this:foo.InterfaceWithDefaults.Nested<S of foo.InterfaceWithDefaults.Nested>) returnType:kotlin.Unit
+          $this: VALUE_PARAMETER name:<this> type:foo.InterfaceWithDefaults.Nested<S of foo.InterfaceWithDefaults.Nested>
+          BLOCK_BODY
+            RETURN type=kotlin.Nothing from='public open fun bar (): kotlin.Unit declared in foo.InterfaceWithDefaults.Nested'
+              ERROR_EXPR 'skipBodies' type=kotlin.Nothing
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [operator] declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN name:foo visibility:public modality:OPEN <> ($this:foo.InterfaceWithDefaults<T of foo.InterfaceWithDefaults>) returnType:kotlin.Unit
+        $this: VALUE_PARAMETER name:<this> type:foo.InterfaceWithDefaults<T of foo.InterfaceWithDefaults>
+        BLOCK_BODY
+          RETURN type=kotlin.Nothing from='public open fun foo (): kotlin.Unit declared in foo.InterfaceWithDefaults'
+            ERROR_EXPR 'skipBodies' type=kotlin.Nothing
+    CLASS INTERFACE name:SubInterface modality:ABSTRACT visibility:public superTypes:[foo.InterfaceWithDefaults<T of foo.SubInterface>]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:foo.SubInterface<T of foo.SubInterface>
+      TYPE_PARAMETER name:T index:0 variance: superTypes:[kotlin.Any?] reified:false
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [fake_override,operator] declared in foo.InterfaceWithDefaults
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:foo visibility:public modality:OPEN <> ($this:foo.InterfaceWithDefaults<T of foo.SubInterface>) returnType:kotlin.Unit [fake_override]
+        overridden:
+          public open fun foo (): kotlin.Unit declared in foo.InterfaceWithDefaults
+        $this: VALUE_PARAMETER name:<this> type:foo.InterfaceWithDefaults<T of foo.SubInterface>
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int [fake_override] declared in foo.InterfaceWithDefaults
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String [fake_override] declared in foo.InterfaceWithDefaults
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any

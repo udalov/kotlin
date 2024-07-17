@@ -1,0 +1,126 @@
+MODULE_FRAGMENT name:<main>
+  FILE fqName:test fileName:kt27126.kt
+    annotations:
+      Suppress(names = ["NOTHING_TO_INLINE"] type=kotlin.Array<out kotlin.String> varargElementType=kotlin.String)
+    CLASS CLASS name:BundleProperty modality:ABSTRACT visibility:public superTypes:[test.NullableBundleProperty<AA of test.BundleProperty>]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:test.BundleProperty<AA of test.BundleProperty>
+      TYPE_PARAMETER name:AA index:0 variance: superTypes:[kotlin.Any?] reified:false
+      CONSTRUCTOR visibility:public <> (key:kotlin.String?) returnType:test.BundleProperty<AA of test.BundleProperty> [primary]
+        VALUE_PARAMETER name:key index:0 type:kotlin.String?
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [fake_override,operator] declared in test.NullableBundleProperty
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:getValue visibility:public modality:ABSTRACT <> ($this:test.NullableBundleProperty<AA of test.BundleProperty>, bundle:kotlin.Any, key:kotlin.String) returnType:AA of test.BundleProperty? [fake_override]
+        overridden:
+          public abstract fun getValue (bundle: kotlin.Any, key: kotlin.String): EE of test.NullableBundleProperty? declared in test.NullableBundleProperty
+        $this: VALUE_PARAMETER name:<this> type:test.NullableBundleProperty<AA of test.BundleProperty>
+        VALUE_PARAMETER name:bundle index:0 type:kotlin.Any
+        VALUE_PARAMETER name:key index:1 type:kotlin.String
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int [fake_override] declared in test.NullableBundleProperty
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String [fake_override] declared in test.NullableBundleProperty
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN name:getValue visibility:public modality:FINAL <> ($this:test.BundleProperty<AA of test.BundleProperty>, thisRef:kotlin.Any, property:kotlin.reflect.KProperty<*>) returnType:AA of test.BundleProperty [operator]
+        overridden:
+          public open fun getValue (thisRef: kotlin.Any, property: kotlin.reflect.KProperty<*>): EE of test.NullableBundleProperty? [operator] declared in test.NullableBundleProperty
+        $this: VALUE_PARAMETER name:<this> type:test.BundleProperty<AA of test.BundleProperty>
+        VALUE_PARAMETER name:thisRef index:0 type:kotlin.Any
+        VALUE_PARAMETER name:property index:1 type:kotlin.reflect.KProperty<*>
+        BLOCK_BODY
+          RETURN type=kotlin.Nothing from='public final fun getValue (thisRef: kotlin.Any, property: kotlin.reflect.KProperty<*>): AA of test.BundleProperty [operator] declared in test.BundleProperty'
+            ERROR_EXPR 'skipBodies' type=kotlin.Nothing
+      FUN name:setNullableValue visibility:public modality:FINAL <> ($this:test.BundleProperty<AA of test.BundleProperty>, bundle:kotlin.Any, key:kotlin.String, value:AA of test.BundleProperty?) returnType:kotlin.Unit
+        overridden:
+          public abstract fun setNullableValue (bundle: kotlin.Any, key: kotlin.String, value: EE of test.NullableBundleProperty?): kotlin.Unit declared in test.NullableBundleProperty
+        $this: VALUE_PARAMETER name:<this> type:test.BundleProperty<AA of test.BundleProperty>
+        VALUE_PARAMETER name:bundle index:0 type:kotlin.Any
+        VALUE_PARAMETER name:key index:1 type:kotlin.String
+        VALUE_PARAMETER name:value index:2 type:AA of test.BundleProperty?
+        BLOCK_BODY
+          RETURN type=kotlin.Nothing from='public final fun setNullableValue (bundle: kotlin.Any, key: kotlin.String, value: AA of test.BundleProperty?): kotlin.Unit declared in test.BundleProperty'
+            ERROR_EXPR 'skipBodies' type=kotlin.Nothing
+      FUN name:setValue visibility:public modality:ABSTRACT <> ($this:test.BundleProperty<AA of test.BundleProperty>, bundle:kotlin.Any, key:kotlin.String, value:AA of test.BundleProperty) returnType:kotlin.Unit
+        $this: VALUE_PARAMETER name:<this> type:test.BundleProperty<AA of test.BundleProperty>
+        VALUE_PARAMETER name:bundle index:0 type:kotlin.Any
+        VALUE_PARAMETER name:key index:1 type:kotlin.String
+        VALUE_PARAMETER name:value index:2 type:AA of test.BundleProperty
+      FUN name:setValue visibility:public modality:FINAL <> ($this:test.BundleProperty<AA of test.BundleProperty>, thisRef:kotlin.Any, property:kotlin.reflect.KProperty<*>, value:AA of test.BundleProperty?) returnType:kotlin.Unit [operator]
+        overridden:
+          public open fun setValue (thisRef: kotlin.Any, property: kotlin.reflect.KProperty<*>, value: EE of test.NullableBundleProperty?): kotlin.Unit [operator] declared in test.NullableBundleProperty
+        $this: VALUE_PARAMETER name:<this> type:test.BundleProperty<AA of test.BundleProperty>
+        VALUE_PARAMETER name:thisRef index:0 type:kotlin.Any
+        VALUE_PARAMETER name:property index:1 type:kotlin.reflect.KProperty<*>
+        VALUE_PARAMETER name:value index:2 type:AA of test.BundleProperty?
+        BLOCK_BODY
+          RETURN type=kotlin.Nothing from='public final fun setValue (thisRef: kotlin.Any, property: kotlin.reflect.KProperty<*>, value: AA of test.BundleProperty?): kotlin.Unit [operator] declared in test.BundleProperty'
+            ERROR_EXPR 'skipBodies' type=kotlin.Nothing
+    CLASS CLASS name:NullableBundleProperty modality:ABSTRACT visibility:public superTypes:[kotlin.properties.ReadWriteProperty<kotlin.Any, EE of test.NullableBundleProperty?>]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:test.NullableBundleProperty<EE of test.NullableBundleProperty>
+      TYPE_PARAMETER name:EE index:0 variance: superTypes:[kotlin.Any?] reified:false
+      PROPERTY name:key visibility:private modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:key type:kotlin.String? visibility:private [final]
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-key> visibility:private modality:FINAL <> ($this:test.NullableBundleProperty<EE of test.NullableBundleProperty>) returnType:kotlin.String?
+          correspondingProperty: PROPERTY name:key visibility:private modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:test.NullableBundleProperty<EE of test.NullableBundleProperty>
+      CONSTRUCTOR visibility:public <> (key:kotlin.String?) returnType:test.NullableBundleProperty<EE of test.NullableBundleProperty> [primary]
+        VALUE_PARAMETER name:key index:0 type:kotlin.String?
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [fake_override,operator] declared in kotlin.properties.ReadWriteProperty
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int [fake_override] declared in kotlin.properties.ReadWriteProperty
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String [fake_override] declared in kotlin.properties.ReadWriteProperty
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN name:getValue visibility:public modality:ABSTRACT <> ($this:test.NullableBundleProperty<EE of test.NullableBundleProperty>, bundle:kotlin.Any, key:kotlin.String) returnType:EE of test.NullableBundleProperty?
+        $this: VALUE_PARAMETER name:<this> type:test.NullableBundleProperty<EE of test.NullableBundleProperty>
+        VALUE_PARAMETER name:bundle index:0 type:kotlin.Any
+        VALUE_PARAMETER name:key index:1 type:kotlin.String
+      FUN name:getValue visibility:public modality:OPEN <> ($this:test.NullableBundleProperty<EE of test.NullableBundleProperty>, thisRef:kotlin.Any, property:kotlin.reflect.KProperty<*>) returnType:EE of test.NullableBundleProperty? [operator]
+        overridden:
+          public abstract fun getValue (thisRef: T of kotlin.properties.ReadWriteProperty, property: kotlin.reflect.KProperty<*>): V of kotlin.properties.ReadWriteProperty [operator] declared in kotlin.properties.ReadWriteProperty
+        $this: VALUE_PARAMETER name:<this> type:test.NullableBundleProperty<EE of test.NullableBundleProperty>
+        VALUE_PARAMETER name:thisRef index:0 type:kotlin.Any
+        VALUE_PARAMETER name:property index:1 type:kotlin.reflect.KProperty<*>
+        BLOCK_BODY
+          RETURN type=kotlin.Nothing from='public open fun getValue (thisRef: kotlin.Any, property: kotlin.reflect.KProperty<*>): EE of test.NullableBundleProperty? [operator] declared in test.NullableBundleProperty'
+            ERROR_EXPR 'skipBodies' type=kotlin.Nothing
+      FUN name:setNullableValue visibility:public modality:ABSTRACT <> ($this:test.NullableBundleProperty<EE of test.NullableBundleProperty>, bundle:kotlin.Any, key:kotlin.String, value:EE of test.NullableBundleProperty?) returnType:kotlin.Unit
+        $this: VALUE_PARAMETER name:<this> type:test.NullableBundleProperty<EE of test.NullableBundleProperty>
+        VALUE_PARAMETER name:bundle index:0 type:kotlin.Any
+        VALUE_PARAMETER name:key index:1 type:kotlin.String
+        VALUE_PARAMETER name:value index:2 type:EE of test.NullableBundleProperty?
+      FUN name:setValue visibility:public modality:OPEN <> ($this:test.NullableBundleProperty<EE of test.NullableBundleProperty>, thisRef:kotlin.Any, property:kotlin.reflect.KProperty<*>, value:EE of test.NullableBundleProperty?) returnType:kotlin.Unit [operator]
+        overridden:
+          public abstract fun setValue (thisRef: T of kotlin.properties.ReadWriteProperty, property: kotlin.reflect.KProperty<*>, value: V of kotlin.properties.ReadWriteProperty): kotlin.Unit [operator] declared in kotlin.properties.ReadWriteProperty
+        $this: VALUE_PARAMETER name:<this> type:test.NullableBundleProperty<EE of test.NullableBundleProperty>
+        VALUE_PARAMETER name:thisRef index:0 type:kotlin.Any
+        VALUE_PARAMETER name:property index:1 type:kotlin.reflect.KProperty<*>
+        VALUE_PARAMETER name:value index:2 type:EE of test.NullableBundleProperty?
+        BLOCK_BODY
+          RETURN type=kotlin.Nothing from='public open fun setValue (thisRef: kotlin.Any, property: kotlin.reflect.KProperty<*>, value: EE of test.NullableBundleProperty?): kotlin.Unit [operator] declared in test.NullableBundleProperty'
+            ERROR_EXPR 'skipBodies' type=kotlin.Nothing
+      FUN name:toKey visibility:private modality:FINAL <> ($this:test.NullableBundleProperty<EE of test.NullableBundleProperty>, $receiver:kotlin.reflect.KProperty<*>) returnType:kotlin.String [inline]
+        $this: VALUE_PARAMETER name:<this> type:test.NullableBundleProperty<EE of test.NullableBundleProperty>
+        $receiver: VALUE_PARAMETER name:<this> type:kotlin.reflect.KProperty<*>
+        BLOCK_BODY
+          RETURN type=kotlin.Nothing from='private final fun toKey (): kotlin.String [inline] declared in test.NullableBundleProperty'
+            ERROR_EXPR 'skipBodies' type=kotlin.Nothing
+    FUN name:charSequence visibility:public modality:FINAL <> (key:kotlin.String?) returnType:test.BundleProperty<kotlin.CharSequence> [inline]
+      VALUE_PARAMETER name:key index:0 type:kotlin.String?
+        EXPRESSION_BODY
+          ERROR_EXPR 'skipBodies' type=kotlin.Nothing
+      BLOCK_BODY
+        RETURN type=kotlin.Nothing from='public final fun charSequence (key: kotlin.String?): test.BundleProperty<kotlin.CharSequence> [inline] declared in test'
+          ERROR_EXPR 'skipBodies' type=kotlin.Nothing

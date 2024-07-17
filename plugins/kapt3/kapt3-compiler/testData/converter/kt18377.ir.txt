@@ -1,0 +1,7 @@
+MODULE_FRAGMENT name:<main>
+  FILE fqName:<root> fileName:kt18377.kt
+    FUN name:Date visibility:public modality:FINAL <> (double:kotlin.Double) returnType:java.util.Date
+      VALUE_PARAMETER name:double index:0 type:kotlin.Double
+      BLOCK_BODY
+        RETURN type=kotlin.Nothing from='public final fun Date (double: kotlin.Double): java.util.Date declared in <root>'
+          ERROR_EXPR 'skipBodies' type=kotlin.Nothing

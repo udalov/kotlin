@@ -1,0 +1,14 @@
+MODULE_FRAGMENT name:<main>
+  FILE fqName:a.b.c fileName:fileFacadeJvmName.kt
+    annotations:
+      JvmName(name = "FacadeName")
+    FUN name:foo visibility:public modality:FINAL <> () returnType:kotlin.Unit
+      BLOCK_BODY
+        RETURN type=kotlin.Nothing from='public final fun foo (): kotlin.Unit declared in a.b.c'
+          ERROR_EXPR 'skipBodies' type=kotlin.Nothing
+    PROPERTY name:bar visibility:public modality:FINAL [const,val]
+      FIELD PROPERTY_BACKING_FIELD name:bar type:kotlin.Int visibility:public [final,static]
+        EXPRESSION_BODY
+          CONST Int type=kotlin.Int value=3
+      FUN DEFAULT_PROPERTY_ACCESSOR name:<get-bar> visibility:public modality:FINAL <> () returnType:kotlin.Int
+        correspondingProperty: PROPERTY name:bar visibility:public modality:FINAL [const,val]

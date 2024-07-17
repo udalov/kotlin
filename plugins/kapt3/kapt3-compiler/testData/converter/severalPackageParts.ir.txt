@@ -1,0 +1,11 @@
+MODULE_FRAGMENT name:<main>
+  FILE fqName:test fileName:a.kt
+    FUN name:foo visibility:public modality:FINAL <> () returnType:kotlin.Unit
+      BLOCK_BODY
+        RETURN type=kotlin.Nothing from='public final fun foo (): kotlin.Unit declared in test'
+          ERROR_EXPR 'skipBodies' type=kotlin.Nothing
+  FILE fqName:test fileName:b.kt
+    FUN name:bar visibility:public modality:FINAL <> () returnType:kotlin.Unit
+      BLOCK_BODY
+        RETURN type=kotlin.Nothing from='public final fun bar (): kotlin.Unit declared in test'
+          ERROR_EXPR 'skipBodies' type=kotlin.Nothing

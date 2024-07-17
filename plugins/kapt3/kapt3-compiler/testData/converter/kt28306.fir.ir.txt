@@ -1,0 +1,27 @@
+MODULE_FRAGMENT name:<main>
+  FILE fqName:foo fileName:kt28306.kt
+    annotations:
+      Suppress(names = ["UNRESOLVED_REFERENCE"] type=kotlin.Array<out kotlin.String> varargElementType=kotlin.String)
+    CLASS INTERFACE name:InterfaceWithDefaults modality:ABSTRACT visibility:public superTypes:[IrErrorType([Error type: Unresolved type for Error1]); IrErrorType([Error type: Unresolved type for Error2])]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:foo.InterfaceWithDefaults<T of foo.InterfaceWithDefaults>
+      TYPE_PARAMETER name:T index:0 variance: superTypes:[kotlin.Any?] reified:false
+      CLASS INTERFACE name:Nested modality:ABSTRACT visibility:public superTypes:[IrErrorType([Error type: Unresolved type for Error1]); IrErrorType([Error type: Unresolved type for Error2])]
+        $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:foo.InterfaceWithDefaults.Nested<S of foo.InterfaceWithDefaults.Nested>
+        TYPE_PARAMETER name:S index:0 variance: superTypes:[kotlin.Any?] reified:false
+        FUN name:bar visibility:public modality:OPEN <> ($this:foo.InterfaceWithDefaults.Nested<S of foo.InterfaceWithDefaults.Nested>) returnType:kotlin.Unit
+          $this: VALUE_PARAMETER name:<this> type:foo.InterfaceWithDefaults.Nested<S of foo.InterfaceWithDefaults.Nested>
+          BLOCK_BODY
+            RETURN type=kotlin.Nothing from='public open fun bar (): kotlin.Unit declared in foo.InterfaceWithDefaults.Nested'
+              ERROR_EXPR 'skipBodies' type=kotlin.Nothing
+      FUN name:foo visibility:public modality:OPEN <> ($this:foo.InterfaceWithDefaults<T of foo.InterfaceWithDefaults>) returnType:kotlin.Unit
+        $this: VALUE_PARAMETER name:<this> type:foo.InterfaceWithDefaults<T of foo.InterfaceWithDefaults>
+        BLOCK_BODY
+          RETURN type=kotlin.Nothing from='public open fun foo (): kotlin.Unit declared in foo.InterfaceWithDefaults'
+            ERROR_EXPR 'skipBodies' type=kotlin.Nothing
+    CLASS INTERFACE name:SubInterface modality:ABSTRACT visibility:public superTypes:[foo.InterfaceWithDefaults<T of foo.SubInterface>]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:foo.SubInterface<T of foo.SubInterface>
+      TYPE_PARAMETER name:T index:0 variance: superTypes:[kotlin.Any?] reified:false
+      FUN FAKE_OVERRIDE name:foo visibility:public modality:OPEN <> ($this:foo.InterfaceWithDefaults<T of foo.SubInterface>) returnType:kotlin.Unit [fake_override]
+        overridden:
+          public open fun foo (): kotlin.Unit declared in foo.InterfaceWithDefaults
+        $this: VALUE_PARAMETER name:<this> type:foo.InterfaceWithDefaults<T of foo.SubInterface>

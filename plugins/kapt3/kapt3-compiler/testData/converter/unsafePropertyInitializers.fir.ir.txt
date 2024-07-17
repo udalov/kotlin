@@ -1,0 +1,297 @@
+MODULE_FRAGMENT name:<main>
+  FILE fqName:<root> fileName:unsafePropertyInitializers.kt
+    CLASS CLASS name:HavingState modality:FINAL visibility:public superTypes:[kotlin.Any]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:<root>.HavingState
+      PROPERTY name:state visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:state type:<root>.State visibility:private [final]
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-state> visibility:public modality:FINAL <> ($this:<root>.HavingState) returnType:<root>.State
+          correspondingProperty: PROPERTY name:state visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.HavingState
+      PROPERTY name:stateArray visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:stateArray type:kotlin.Array<<root>.State> visibility:private [final]
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-stateArray> visibility:public modality:FINAL <> ($this:<root>.HavingState) returnType:kotlin.Array<<root>.State>
+          correspondingProperty: PROPERTY name:stateArray visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.HavingState
+      PROPERTY name:stringArray visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:stringArray type:kotlin.Array<kotlin.String> visibility:private [final]
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-stringArray> visibility:public modality:FINAL <> ($this:<root>.HavingState) returnType:kotlin.Array<kotlin.String>
+          correspondingProperty: PROPERTY name:stringArray visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.HavingState
+      PROPERTY name:stringList visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:stringList type:kotlin.collections.List<kotlin.String> visibility:private [final]
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-stringList> visibility:public modality:FINAL <> ($this:<root>.HavingState) returnType:kotlin.collections.List<kotlin.String>
+          correspondingProperty: PROPERTY name:stringList visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.HavingState
+      PROPERTY name:intArray visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:intArray type:kotlin.Array<kotlin.Int> visibility:private [final]
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-intArray> visibility:public modality:FINAL <> ($this:<root>.HavingState) returnType:kotlin.Array<kotlin.Int>
+          correspondingProperty: PROPERTY name:intArray visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.HavingState
+      PROPERTY name:floatArray visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:floatArray type:kotlin.FloatArray visibility:private [final]
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-floatArray> visibility:public modality:FINAL <> ($this:<root>.HavingState) returnType:kotlin.FloatArray
+          correspondingProperty: PROPERTY name:floatArray visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.HavingState
+      PROPERTY name:intList visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:intList type:kotlin.collections.List<kotlin.Int> visibility:private [final]
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-intList> visibility:public modality:FINAL <> ($this:<root>.HavingState) returnType:kotlin.collections.List<kotlin.Int>
+          correspondingProperty: PROPERTY name:intList visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.HavingState
+      PROPERTY name:uint visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:uint type:kotlin.UInt visibility:private [final]
+          EXPRESSION_BODY
+            CONST Int type=kotlin.UInt value=1
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-uint> visibility:public modality:FINAL <> ($this:<root>.HavingState) returnType:kotlin.UInt
+          correspondingProperty: PROPERTY name:uint visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.HavingState
+      PROPERTY name:uintArray visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:uintArray type:kotlin.Array<kotlin.UInt> visibility:private [final]
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-uintArray> visibility:public modality:FINAL <> ($this:<root>.HavingState) returnType:kotlin.Array<kotlin.UInt>
+          correspondingProperty: PROPERTY name:uintArray visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.HavingState
+      PROPERTY name:uintList visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:uintList type:kotlin.collections.List<kotlin.UInt> visibility:private [final]
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-uintList> visibility:public modality:FINAL <> ($this:<root>.HavingState) returnType:kotlin.collections.List<kotlin.UInt>
+          correspondingProperty: PROPERTY name:uintList visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.HavingState
+      PROPERTY name:clazz visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:clazz type:kotlin.reflect.KClass<<root>.State> visibility:private [final]
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-clazz> visibility:public modality:FINAL <> ($this:<root>.HavingState) returnType:kotlin.reflect.KClass<<root>.State>
+          correspondingProperty: PROPERTY name:clazz visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.HavingState
+      PROPERTY name:javaClass visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:javaClass type:java.lang.Class<<root>.State> visibility:private [final]
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-javaClass> visibility:public modality:FINAL <> ($this:<root>.HavingState) returnType:java.lang.Class<<root>.State>
+          correspondingProperty: PROPERTY name:javaClass visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.HavingState
+      PROPERTY name:anonymous visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:anonymous type:kotlin.reflect.KClass<out kotlin.Any> visibility:private [final]
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-anonymous> visibility:public modality:FINAL <> ($this:<root>.HavingState) returnType:kotlin.reflect.KClass<out kotlin.Any>
+          correspondingProperty: PROPERTY name:anonymous visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.HavingState
+      CONSTRUCTOR visibility:public <> () returnType:<root>.HavingState [primary]
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [operator] declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+    CLASS ENUM_CLASS name:State modality:FINAL visibility:public superTypes:[kotlin.Enum<<root>.State>]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:<root>.State
+      ENUM_ENTRY name:START
+      ENUM_ENTRY name:FINISH
+      CONSTRUCTOR visibility:private <> () returnType:<root>.State [primary]
+      FUN ENUM_CLASS_SPECIAL_MEMBER name:valueOf visibility:public modality:FINAL <> (value:kotlin.String) returnType:<root>.State
+        VALUE_PARAMETER name:value index:0 type:kotlin.String
+        SYNTHETIC_BODY kind=ENUM_VALUEOF
+      FUN ENUM_CLASS_SPECIAL_MEMBER name:values visibility:public modality:FINAL <> () returnType:kotlin.Array<<root>.State>
+        SYNTHETIC_BODY kind=ENUM_VALUES
+      FUN FAKE_OVERRIDE name:clone visibility:protected modality:FINAL <> ($this:kotlin.Enum<<root>.State>) returnType:kotlin.Any [fake_override]
+        overridden:
+          protected final fun clone (): kotlin.Any declared in kotlin.Enum
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Enum<<root>.State>
+      FUN FAKE_OVERRIDE name:compareTo visibility:public modality:FINAL <> ($this:kotlin.Enum<<root>.State>, other:<root>.State) returnType:kotlin.Int [fake_override,operator]
+        overridden:
+          public final fun compareTo (other: E of kotlin.Enum): kotlin.Int [operator] declared in kotlin.Enum
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Enum<<root>.State>
+        VALUE_PARAMETER name:other index:0 type:<root>.State
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:FINAL <> ($this:kotlin.Enum<<root>.State>, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public final fun equals (other: kotlin.Any?): kotlin.Boolean [operator] declared in kotlin.Enum
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Enum<<root>.State>
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:finalize visibility:protected/*protected and package*/ modality:FINAL <> ($this:kotlin.Enum<<root>.State>) returnType:kotlin.Unit [fake_override]
+        overridden:
+          protected/*protected and package*/ final fun finalize (): kotlin.Unit declared in kotlin.Enum
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Enum<<root>.State>
+      FUN FAKE_OVERRIDE name:getDeclaringClass visibility:public modality:FINAL <> ($this:kotlin.Enum<<root>.State>) returnType:@[FlexibleNullability] java.lang.Class<@[FlexibleNullability] <root>.State?>? [fake_override]
+        overridden:
+          public final fun getDeclaringClass (): @[FlexibleNullability] java.lang.Class<@[FlexibleNullability] E of kotlin.Enum?>? declared in kotlin.Enum
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Enum<<root>.State>
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:FINAL <> ($this:kotlin.Enum<<root>.State>) returnType:kotlin.Int [fake_override]
+        overridden:
+          public final fun hashCode (): kotlin.Int declared in kotlin.Enum
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Enum<<root>.State>
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Enum<<root>.State>) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String declared in kotlin.Enum
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Enum<<root>.State>
+      PROPERTY ENUM_CLASS_SPECIAL_MEMBER name:entries visibility:public modality:FINAL [val]
+        FUN ENUM_CLASS_SPECIAL_MEMBER name:<get-entries> visibility:public modality:FINAL <> () returnType:kotlin.enums.EnumEntries<<root>.State>
+          correspondingProperty: PROPERTY ENUM_CLASS_SPECIAL_MEMBER name:entries visibility:public modality:FINAL [val]
+          SYNTHETIC_BODY kind=ENUM_ENTRIES
+      PROPERTY FAKE_OVERRIDE name:name visibility:public modality:FINAL [fake_override,val]
+        annotations:
+          IntrinsicConstEvaluation
+        overridden:
+          public final name: kotlin.String [val] declared in kotlin.Enum
+        FUN FAKE_OVERRIDE name:<get-name> visibility:public modality:FINAL <> ($this:kotlin.Enum<<root>.State>) returnType:kotlin.String [fake_override]
+          correspondingProperty: PROPERTY FAKE_OVERRIDE name:name visibility:public modality:FINAL [fake_override,val]
+          overridden:
+            public final fun <get-name> (): kotlin.String declared in kotlin.Enum
+          $this: VALUE_PARAMETER name:<this> type:kotlin.Enum<<root>.State>
+      PROPERTY FAKE_OVERRIDE name:ordinal visibility:public modality:FINAL [fake_override,val]
+        overridden:
+          public final ordinal: kotlin.Int [val] declared in kotlin.Enum
+        FUN FAKE_OVERRIDE name:<get-ordinal> visibility:public modality:FINAL <> ($this:kotlin.Enum<<root>.State>) returnType:kotlin.Int [fake_override]
+          correspondingProperty: PROPERTY FAKE_OVERRIDE name:ordinal visibility:public modality:FINAL [fake_override,val]
+          overridden:
+            public final fun <get-ordinal> (): kotlin.Int declared in kotlin.Enum
+          $this: VALUE_PARAMETER name:<this> type:kotlin.Enum<<root>.State>
+    CLASS OBJECT name:Boo modality:FINAL visibility:public superTypes:[kotlin.Any]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:<root>.Boo
+      PROPERTY name:z visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:z type:kotlin.String visibility:private [final]
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-z> visibility:public modality:FINAL <> ($this:<root>.Boo) returnType:kotlin.String
+          correspondingProperty: PROPERTY name:z visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Boo
+      CONSTRUCTOR visibility:private <> () returnType:<root>.Boo [primary]
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [operator] declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN name:foo visibility:public modality:FINAL <> ($this:<root>.Boo) returnType:kotlin.String
+        $this: VALUE_PARAMETER name:<this> type:<root>.Boo
+        BLOCK_BODY
+          RETURN type=kotlin.Nothing from='public final fun foo (): kotlin.String declared in <root>.Boo'
+            ERROR_EXPR 'skipBodies' type=kotlin.Nothing
+    CLASS OBJECT name:Foo modality:FINAL visibility:public superTypes:[kotlin.Any]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:<root>.Foo
+      PROPERTY name:bString visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:bString type:kotlin.String visibility:private [final]
+          EXPRESSION_BODY
+            CONST String type=kotlin.String value="bar"
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-bString> visibility:public modality:FINAL <> ($this:<root>.Foo) returnType:kotlin.String
+          correspondingProperty: PROPERTY name:bString visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Foo
+      PROPERTY name:bInt visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:bInt type:kotlin.Int visibility:private [final]
+          EXPRESSION_BODY
+            CONST Int type=kotlin.Int value=5
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-bInt> visibility:public modality:FINAL <> ($this:<root>.Foo) returnType:kotlin.Int
+          correspondingProperty: PROPERTY name:bInt visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Foo
+      PROPERTY name:cString visibility:public modality:FINAL [var]
+        FIELD PROPERTY_BACKING_FIELD name:cString type:kotlin.String visibility:private
+          EXPRESSION_BODY
+            CONST String type=kotlin.String value="baz"
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-cString> visibility:public modality:FINAL <> ($this:<root>.Foo) returnType:kotlin.String
+          correspondingProperty: PROPERTY name:cString visibility:public modality:FINAL [var]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Foo
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<set-cString> visibility:public modality:FINAL <> ($this:<root>.Foo, <set-?>:kotlin.String) returnType:kotlin.Unit
+          correspondingProperty: PROPERTY name:cString visibility:public modality:FINAL [var]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Foo
+          VALUE_PARAMETER name:<set-?> index:0 type:kotlin.String
+      PROPERTY name:cInt visibility:public modality:FINAL [var]
+        FIELD PROPERTY_BACKING_FIELD name:cInt type:kotlin.Int visibility:private
+          EXPRESSION_BODY
+            CONST Int type=kotlin.Int value=7
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-cInt> visibility:public modality:FINAL <> ($this:<root>.Foo) returnType:kotlin.Int
+          correspondingProperty: PROPERTY name:cInt visibility:public modality:FINAL [var]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Foo
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<set-cInt> visibility:public modality:FINAL <> ($this:<root>.Foo, <set-?>:kotlin.Int) returnType:kotlin.Unit
+          correspondingProperty: PROPERTY name:cInt visibility:public modality:FINAL [var]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Foo
+          VALUE_PARAMETER name:<set-?> index:0 type:kotlin.Int
+      PROPERTY name:d visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:d type:kotlin.String visibility:private [final]
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-d> visibility:public modality:FINAL <> ($this:<root>.Foo) returnType:kotlin.String
+          correspondingProperty: PROPERTY name:d visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Foo
+      PROPERTY name:e visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:e type:kotlin.Int visibility:private [final]
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-e> visibility:public modality:FINAL <> ($this:<root>.Foo) returnType:kotlin.Int
+          correspondingProperty: PROPERTY name:e visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Foo
+      PROPERTY name:f visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:f type:kotlin.Int visibility:private [final]
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-f> visibility:public modality:FINAL <> ($this:<root>.Foo) returnType:kotlin.Int
+          correspondingProperty: PROPERTY name:f visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Foo
+      PROPERTY name:g visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:g type:kotlin.String visibility:private [final]
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-g> visibility:public modality:FINAL <> ($this:<root>.Foo) returnType:kotlin.String
+          correspondingProperty: PROPERTY name:g visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Foo
+      PROPERTY name:h visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:h type:kotlin.Int visibility:private [final]
+          EXPRESSION_BODY
+            CONST Int type=kotlin.Int value=-4
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-h> visibility:public modality:FINAL <> ($this:<root>.Foo) returnType:kotlin.Int
+          correspondingProperty: PROPERTY name:h visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Foo
+      PROPERTY name:i visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:i type:kotlin.Int visibility:private [final]
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-i> visibility:public modality:FINAL <> ($this:<root>.Foo) returnType:kotlin.Int
+          correspondingProperty: PROPERTY name:i visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Foo
+      PROPERTY name:j visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:j type:kotlin.String visibility:private [final]
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-j> visibility:public modality:FINAL <> ($this:<root>.Foo) returnType:kotlin.String
+          correspondingProperty: PROPERTY name:j visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Foo
+      PROPERTY name:k visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:k type:kotlin.String visibility:private [final]
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-k> visibility:public modality:FINAL <> ($this:<root>.Foo) returnType:kotlin.String
+          correspondingProperty: PROPERTY name:k visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Foo
+      PROPERTY name:aliasedInt visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:aliasedInt type:kotlin.Int visibility:private [final]
+          EXPRESSION_BODY
+            CONST Int type=kotlin.Int value=1
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-aliasedInt> visibility:public modality:FINAL <> ($this:<root>.Foo) returnType:kotlin.Int
+          correspondingProperty: PROPERTY name:aliasedInt visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Foo
+      PROPERTY name:aliasedUInt visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:aliasedUInt type:kotlin.UInt visibility:private [final]
+          EXPRESSION_BODY
+            CONST Int type=kotlin.UInt value=1
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-aliasedUInt> visibility:public modality:FINAL <> ($this:<root>.Foo) returnType:kotlin.UInt
+          correspondingProperty: PROPERTY name:aliasedUInt visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Foo
+      CONSTRUCTOR visibility:private <> () returnType:<root>.Foo [primary]
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [operator] declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      PROPERTY name:aInt visibility:public modality:FINAL [const,val]
+        FIELD PROPERTY_BACKING_FIELD name:aInt type:kotlin.Int visibility:public [final]
+          EXPRESSION_BODY
+            CONST Int type=kotlin.Int value=3
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-aInt> visibility:public modality:FINAL <> ($this:<root>.Foo) returnType:kotlin.Int
+          correspondingProperty: PROPERTY name:aInt visibility:public modality:FINAL [const,val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Foo
+      PROPERTY name:aString visibility:public modality:FINAL [const,val]
+        FIELD PROPERTY_BACKING_FIELD name:aString type:kotlin.String visibility:public [final]
+          EXPRESSION_BODY
+            CONST String type=kotlin.String value="foo"
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-aString> visibility:public modality:FINAL <> ($this:<root>.Foo) returnType:kotlin.String
+          correspondingProperty: PROPERTY name:aString visibility:public modality:FINAL [const,val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Foo
+    TYPEALIAS name:TInt visibility:public expandedType:kotlin.Int
+    TYPEALIAS name:TUint visibility:public expandedType:kotlin.UInt

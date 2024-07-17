@@ -1,0 +1,70 @@
+MODULE_FRAGMENT name:<main>
+  FILE fqName:<root> fileName:suspendFunctionWithBigArity.kt
+    CLASS INTERFACE name:Flow modality:ABSTRACT visibility:public superTypes:[kotlin.Any]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:<root>.Flow<T of <root>.Flow>
+      TYPE_PARAMETER name:T index:0 variance: superTypes:[kotlin.Any?] reified:false
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [operator] declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+    FUN name:combine visibility:public modality:FINAL <T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, R> (flow:<root>.Flow<T1 of <root>.combine>, flow2:<root>.Flow<T2 of <root>.combine>, flow3:<root>.Flow<T3 of <root>.combine>, flow4:<root>.Flow<T4 of <root>.combine>, flow5:<root>.Flow<T5 of <root>.combine>, flow6:<root>.Flow<T6 of <root>.combine>, flow7:<root>.Flow<T7 of <root>.combine>, flow8:<root>.Flow<T8 of <root>.combine>, flow9:<root>.Flow<T9 of <root>.combine>, flow10:<root>.Flow<T10 of <root>.combine>, flow11:<root>.Flow<T11 of <root>.combine>, flow12:<root>.Flow<T12 of <root>.combine>, flow13:<root>.Flow<T13 of <root>.combine>, flow14:<root>.Flow<T14 of <root>.combine>, flow15:<root>.Flow<T15 of <root>.combine>, flow16:<root>.Flow<T16 of <root>.combine>, flow17:<root>.Flow<T17 of <root>.combine>, flow18:<root>.Flow<T18 of <root>.combine>, flow19:<root>.Flow<T19 of <root>.combine>, flow20:<root>.Flow<T20 of <root>.combine>, flow21:<root>.Flow<T21 of <root>.combine>, flow22:<root>.Flow<T22 of <root>.combine>, flow23:<root>.Flow<T23 of <root>.combine>, transform:kotlin.coroutines.SuspendFunction23<T1 of <root>.combine, T2 of <root>.combine, T3 of <root>.combine, T4 of <root>.combine, T5 of <root>.combine, T6 of <root>.combine, T7 of <root>.combine, T8 of <root>.combine, T9 of <root>.combine, T10 of <root>.combine, T11 of <root>.combine, T12 of <root>.combine, T13 of <root>.combine, T14 of <root>.combine, T15 of <root>.combine, T16 of <root>.combine, T17 of <root>.combine, T18 of <root>.combine, T19 of <root>.combine, T20 of <root>.combine, T21 of <root>.combine, T22 of <root>.combine, T23 of <root>.combine, R of <root>.combine>) returnType:<root>.Flow<R of <root>.combine>
+      TYPE_PARAMETER name:T1 index:0 variance: superTypes:[kotlin.Any?] reified:false
+      TYPE_PARAMETER name:T2 index:1 variance: superTypes:[kotlin.Any?] reified:false
+      TYPE_PARAMETER name:T3 index:2 variance: superTypes:[kotlin.Any?] reified:false
+      TYPE_PARAMETER name:T4 index:3 variance: superTypes:[kotlin.Any?] reified:false
+      TYPE_PARAMETER name:T5 index:4 variance: superTypes:[kotlin.Any?] reified:false
+      TYPE_PARAMETER name:T6 index:5 variance: superTypes:[kotlin.Any?] reified:false
+      TYPE_PARAMETER name:T7 index:6 variance: superTypes:[kotlin.Any?] reified:false
+      TYPE_PARAMETER name:T8 index:7 variance: superTypes:[kotlin.Any?] reified:false
+      TYPE_PARAMETER name:T9 index:8 variance: superTypes:[kotlin.Any?] reified:false
+      TYPE_PARAMETER name:T10 index:9 variance: superTypes:[kotlin.Any?] reified:false
+      TYPE_PARAMETER name:T11 index:10 variance: superTypes:[kotlin.Any?] reified:false
+      TYPE_PARAMETER name:T12 index:11 variance: superTypes:[kotlin.Any?] reified:false
+      TYPE_PARAMETER name:T13 index:12 variance: superTypes:[kotlin.Any?] reified:false
+      TYPE_PARAMETER name:T14 index:13 variance: superTypes:[kotlin.Any?] reified:false
+      TYPE_PARAMETER name:T15 index:14 variance: superTypes:[kotlin.Any?] reified:false
+      TYPE_PARAMETER name:T16 index:15 variance: superTypes:[kotlin.Any?] reified:false
+      TYPE_PARAMETER name:T17 index:16 variance: superTypes:[kotlin.Any?] reified:false
+      TYPE_PARAMETER name:T18 index:17 variance: superTypes:[kotlin.Any?] reified:false
+      TYPE_PARAMETER name:T19 index:18 variance: superTypes:[kotlin.Any?] reified:false
+      TYPE_PARAMETER name:T20 index:19 variance: superTypes:[kotlin.Any?] reified:false
+      TYPE_PARAMETER name:T21 index:20 variance: superTypes:[kotlin.Any?] reified:false
+      TYPE_PARAMETER name:T22 index:21 variance: superTypes:[kotlin.Any?] reified:false
+      TYPE_PARAMETER name:T23 index:22 variance: superTypes:[kotlin.Any?] reified:false
+      TYPE_PARAMETER name:R index:23 variance: superTypes:[kotlin.Any?] reified:false
+      VALUE_PARAMETER name:flow index:0 type:<root>.Flow<T1 of <root>.combine>
+      VALUE_PARAMETER name:flow2 index:1 type:<root>.Flow<T2 of <root>.combine>
+      VALUE_PARAMETER name:flow3 index:2 type:<root>.Flow<T3 of <root>.combine>
+      VALUE_PARAMETER name:flow4 index:3 type:<root>.Flow<T4 of <root>.combine>
+      VALUE_PARAMETER name:flow5 index:4 type:<root>.Flow<T5 of <root>.combine>
+      VALUE_PARAMETER name:flow6 index:5 type:<root>.Flow<T6 of <root>.combine>
+      VALUE_PARAMETER name:flow7 index:6 type:<root>.Flow<T7 of <root>.combine>
+      VALUE_PARAMETER name:flow8 index:7 type:<root>.Flow<T8 of <root>.combine>
+      VALUE_PARAMETER name:flow9 index:8 type:<root>.Flow<T9 of <root>.combine>
+      VALUE_PARAMETER name:flow10 index:9 type:<root>.Flow<T10 of <root>.combine>
+      VALUE_PARAMETER name:flow11 index:10 type:<root>.Flow<T11 of <root>.combine>
+      VALUE_PARAMETER name:flow12 index:11 type:<root>.Flow<T12 of <root>.combine>
+      VALUE_PARAMETER name:flow13 index:12 type:<root>.Flow<T13 of <root>.combine>
+      VALUE_PARAMETER name:flow14 index:13 type:<root>.Flow<T14 of <root>.combine>
+      VALUE_PARAMETER name:flow15 index:14 type:<root>.Flow<T15 of <root>.combine>
+      VALUE_PARAMETER name:flow16 index:15 type:<root>.Flow<T16 of <root>.combine>
+      VALUE_PARAMETER name:flow17 index:16 type:<root>.Flow<T17 of <root>.combine>
+      VALUE_PARAMETER name:flow18 index:17 type:<root>.Flow<T18 of <root>.combine>
+      VALUE_PARAMETER name:flow19 index:18 type:<root>.Flow<T19 of <root>.combine>
+      VALUE_PARAMETER name:flow20 index:19 type:<root>.Flow<T20 of <root>.combine>
+      VALUE_PARAMETER name:flow21 index:20 type:<root>.Flow<T21 of <root>.combine>
+      VALUE_PARAMETER name:flow22 index:21 type:<root>.Flow<T22 of <root>.combine>
+      VALUE_PARAMETER name:flow23 index:22 type:<root>.Flow<T23 of <root>.combine>
+      VALUE_PARAMETER name:transform index:23 type:kotlin.coroutines.SuspendFunction23<T1 of <root>.combine, T2 of <root>.combine, T3 of <root>.combine, T4 of <root>.combine, T5 of <root>.combine, T6 of <root>.combine, T7 of <root>.combine, T8 of <root>.combine, T9 of <root>.combine, T10 of <root>.combine, T11 of <root>.combine, T12 of <root>.combine, T13 of <root>.combine, T14 of <root>.combine, T15 of <root>.combine, T16 of <root>.combine, T17 of <root>.combine, T18 of <root>.combine, T19 of <root>.combine, T20 of <root>.combine, T21 of <root>.combine, T22 of <root>.combine, T23 of <root>.combine, R of <root>.combine>
+      BLOCK_BODY
+        RETURN type=kotlin.Nothing from='public final fun combine <T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16, T17, T18, T19, T20, T21, T22, T23, R> (flow: <root>.Flow<T1 of <root>.combine>, flow2: <root>.Flow<T2 of <root>.combine>, flow3: <root>.Flow<T3 of <root>.combine>, flow4: <root>.Flow<T4 of <root>.combine>, flow5: <root>.Flow<T5 of <root>.combine>, flow6: <root>.Flow<T6 of <root>.combine>, flow7: <root>.Flow<T7 of <root>.combine>, flow8: <root>.Flow<T8 of <root>.combine>, flow9: <root>.Flow<T9 of <root>.combine>, flow10: <root>.Flow<T10 of <root>.combine>, flow11: <root>.Flow<T11 of <root>.combine>, flow12: <root>.Flow<T12 of <root>.combine>, flow13: <root>.Flow<T13 of <root>.combine>, flow14: <root>.Flow<T14 of <root>.combine>, flow15: <root>.Flow<T15 of <root>.combine>, flow16: <root>.Flow<T16 of <root>.combine>, flow17: <root>.Flow<T17 of <root>.combine>, flow18: <root>.Flow<T18 of <root>.combine>, flow19: <root>.Flow<T19 of <root>.combine>, flow20: <root>.Flow<T20 of <root>.combine>, flow21: <root>.Flow<T21 of <root>.combine>, flow22: <root>.Flow<T22 of <root>.combine>, flow23: <root>.Flow<T23 of <root>.combine>, transform: kotlin.coroutines.SuspendFunction23<T1 of <root>.combine, T2 of <root>.combine, T3 of <root>.combine, T4 of <root>.combine, T5 of <root>.combine, T6 of <root>.combine, T7 of <root>.combine, T8 of <root>.combine, T9 of <root>.combine, T10 of <root>.combine, T11 of <root>.combine, T12 of <root>.combine, T13 of <root>.combine, T14 of <root>.combine, T15 of <root>.combine, T16 of <root>.combine, T17 of <root>.combine, T18 of <root>.combine, T19 of <root>.combine, T20 of <root>.combine, T21 of <root>.combine, T22 of <root>.combine, T23 of <root>.combine, R of <root>.combine>): <root>.Flow<R of <root>.combine> declared in <root>'
+          ERROR_EXPR 'skipBodies' type=kotlin.Nothing

@@ -1,0 +1,25 @@
+MODULE_FRAGMENT name:<main>
+  FILE fqName:test fileName:a.kt
+    annotations:
+      JvmMultifileClass
+      JvmName(name = "M1")
+    FUN name:foo visibility:public modality:FINAL <> () returnType:kotlin.Unit
+      BLOCK_BODY
+        RETURN type=kotlin.Nothing from='public final fun foo (): kotlin.Unit declared in test'
+          ERROR_EXPR 'skipBodies' type=kotlin.Nothing
+  FILE fqName:test fileName:b.kt
+    annotations:
+      JvmMultifileClass
+      JvmName(name = "M1")
+    FUN name:bar visibility:public modality:FINAL <> () returnType:kotlin.Unit
+      BLOCK_BODY
+        RETURN type=kotlin.Nothing from='public final fun bar (): kotlin.Unit declared in test'
+          ERROR_EXPR 'skipBodies' type=kotlin.Nothing
+  FILE fqName:test fileName:c.kt
+    annotations:
+      JvmMultifileClass
+      JvmName(name = "M2")
+    FUN name:baz visibility:public modality:FINAL <> () returnType:kotlin.Unit
+      BLOCK_BODY
+        RETURN type=kotlin.Nothing from='public final fun baz (): kotlin.Unit declared in test'
+          ERROR_EXPR 'skipBodies' type=kotlin.Nothing

@@ -1,0 +1,12 @@
+MODULE_FRAGMENT name:<main>
+  FILE fqName:<root> fileName:kt14996.kt
+    FUN name:crashMe visibility:public modality:FINAL <> (values:kotlin.collections.List<kotlin.CharSequence>) returnType:kotlin.CharSequence
+      VALUE_PARAMETER name:values index:0 type:kotlin.collections.List<kotlin.CharSequence>
+      BLOCK_BODY
+        RETURN type=kotlin.Nothing from='public final fun crashMe (values: kotlin.collections.List<kotlin.CharSequence>): kotlin.CharSequence declared in <root>'
+          ERROR_EXPR 'skipBodies' type=kotlin.Nothing
+    FUN name:crashMe visibility:public modality:FINAL <> (values:kotlin.collections.List<kotlin.String>) returnType:kotlin.String
+      VALUE_PARAMETER name:values index:0 type:kotlin.collections.List<kotlin.String>
+      BLOCK_BODY
+        RETURN type=kotlin.Nothing from='public final fun crashMe (values: kotlin.collections.List<kotlin.String>): kotlin.String declared in <root>'
+          ERROR_EXPR 'skipBodies' type=kotlin.Nothing

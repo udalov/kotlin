@@ -1,0 +1,40 @@
+MODULE_FRAGMENT name:<main>
+  FILE fqName:test fileName:test.kt
+    PROPERTY name:TEST visibility:public modality:FINAL [val]
+      FIELD PROPERTY_BACKING_FIELD name:TEST type:lib.Prop<test.Cl> visibility:private [final,static]
+      FUN DEFAULT_PROPERTY_ACCESSOR name:<get-TEST> visibility:public modality:FINAL <> () returnType:lib.Prop<test.Cl>
+        correspondingProperty: PROPERTY name:TEST visibility:public modality:FINAL [val]
+    PROPERTY name:TESTS_ARRAY visibility:public modality:FINAL [val]
+      FIELD PROPERTY_BACKING_FIELD name:TESTS_ARRAY type:kotlin.Array<out lib.Prop<test.Cl>> visibility:private [final,static]
+      FUN DEFAULT_PROPERTY_ACCESSOR name:<get-TESTS_ARRAY> visibility:public modality:FINAL <> () returnType:kotlin.Array<out lib.Prop<test.Cl>>
+        correspondingProperty: PROPERTY name:TESTS_ARRAY visibility:public modality:FINAL [val]
+    PROPERTY name:TESTS_LIST visibility:public modality:FINAL [val]
+      FIELD PROPERTY_BACKING_FIELD name:TESTS_LIST type:kotlin.collections.List<lib.Prop<test.Cl>> visibility:private [final,static]
+      FUN DEFAULT_PROPERTY_ACCESSOR name:<get-TESTS_LIST> visibility:public modality:FINAL <> () returnType:kotlin.collections.List<lib.Prop<test.Cl>>
+        correspondingProperty: PROPERTY name:TESTS_LIST visibility:public modality:FINAL [val]
+    CLASS CLASS name:Cl modality:FINAL visibility:public superTypes:[kotlin.Any]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:test.Cl
+      PROPERTY name:name visibility:public modality:FINAL [var]
+        FIELD PROPERTY_BACKING_FIELD name:name type:kotlin.String visibility:private
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-name> visibility:public modality:FINAL <> ($this:test.Cl) returnType:kotlin.String
+          correspondingProperty: PROPERTY name:name visibility:public modality:FINAL [var]
+          $this: VALUE_PARAMETER name:<this> type:test.Cl
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<set-name> visibility:public modality:FINAL <> ($this:test.Cl, <set-?>:kotlin.String) returnType:kotlin.Unit
+          correspondingProperty: PROPERTY name:name visibility:public modality:FINAL [var]
+          $this: VALUE_PARAMETER name:<this> type:test.Cl
+          VALUE_PARAMETER name:<set-?> index:0 type:kotlin.String
+      CONSTRUCTOR visibility:public <> (name:kotlin.String) returnType:test.Cl [primary]
+        VALUE_PARAMETER name:name index:0 type:kotlin.String
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [operator] declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any

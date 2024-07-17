@@ -1,0 +1,9 @@
+MODULE_FRAGMENT name:<main>
+  FILE fqName:te.st.a fileName:test.kt
+    annotations:
+      Suppress(names = ["UNRESOLVED_REFERENCE"] type=kotlin.Array<out kotlin.String> varargElementType=kotlin.String)
+    FUN name:a visibility:public modality:FINAL <> (a:IrErrorType([Error type: Unresolved type for MyInner])) returnType:kotlin.Unit
+      VALUE_PARAMETER name:a index:0 type:IrErrorType([Error type: Unresolved type for MyInner])
+      BLOCK_BODY
+        RETURN type=kotlin.Nothing from='public final fun a (a: IrErrorType([Error type: Unresolved type for MyInner])): kotlin.Unit declared in te.st.a'
+          ERROR_EXPR 'skipBodies' type=kotlin.Nothing

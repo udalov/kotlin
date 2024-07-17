@@ -1,0 +1,106 @@
+MODULE_FRAGMENT name:<main>
+  FILE fqName:<root> fileName:aliasedImports.kt
+    annotations:
+      Suppress(names = ["UNRESOLVED_REFERENCE"] type=kotlin.Array<out kotlin.String> varargElementType=kotlin.String)
+    CLASS CLASS name:Test modality:FINAL visibility:public superTypes:[kotlin.Any]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:<root>.Test
+      PROPERTY name:date visibility:public modality:FINAL [lateinit,var]
+        FIELD PROPERTY_BACKING_FIELD name:date type:<root>.Test.MyDate visibility:public
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-date> visibility:public modality:FINAL <> ($this:<root>.Test) returnType:<root>.Test.MyDate
+          correspondingProperty: PROPERTY name:date visibility:public modality:FINAL [lateinit,var]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Test
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<set-date> visibility:public modality:FINAL <> ($this:<root>.Test, <set-?>:<root>.Test.MyDate) returnType:kotlin.Unit
+          correspondingProperty: PROPERTY name:date visibility:public modality:FINAL [lateinit,var]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Test
+          VALUE_PARAMETER name:<set-?> index:0 type:<root>.Test.MyDate
+      PROPERTY name:timeUnit visibility:public modality:FINAL [lateinit,var]
+        FIELD PROPERTY_BACKING_FIELD name:timeUnit type:java.util.concurrent.TimeUnit visibility:public
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-timeUnit> visibility:public modality:FINAL <> ($this:<root>.Test) returnType:java.util.concurrent.TimeUnit
+          correspondingProperty: PROPERTY name:timeUnit visibility:public modality:FINAL [lateinit,var]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Test
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<set-timeUnit> visibility:public modality:FINAL <> ($this:<root>.Test, <set-?>:java.util.concurrent.TimeUnit) returnType:kotlin.Unit
+          correspondingProperty: PROPERTY name:timeUnit visibility:public modality:FINAL [lateinit,var]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Test
+          VALUE_PARAMETER name:<set-?> index:0 type:java.util.concurrent.TimeUnit
+      PROPERTY name:abc visibility:public modality:FINAL [lateinit,var]
+        FIELD PROPERTY_BACKING_FIELD name:abc type:IrErrorType([Error type: Unresolved type for MyABC]) visibility:public
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-abc> visibility:public modality:FINAL <> ($this:<root>.Test) returnType:IrErrorType([Error type: Unresolved type for MyABC])
+          correspondingProperty: PROPERTY name:abc visibility:public modality:FINAL [lateinit,var]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Test
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<set-abc> visibility:public modality:FINAL <> ($this:<root>.Test, <set-?>:IrErrorType([Error type: Unresolved type for MyABC])) returnType:kotlin.Unit
+          correspondingProperty: PROPERTY name:abc visibility:public modality:FINAL [lateinit,var]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Test
+          VALUE_PARAMETER name:<set-?> index:0 type:IrErrorType([Error type: Unresolved type for MyABC])
+      PROPERTY name:bcd visibility:public modality:FINAL [lateinit,var]
+        FIELD PROPERTY_BACKING_FIELD name:bcd type:IrErrorType([Error type: Unresolved type for MyBCD]) visibility:public
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-bcd> visibility:public modality:FINAL <> ($this:<root>.Test) returnType:IrErrorType([Error type: Unresolved type for MyBCD])
+          correspondingProperty: PROPERTY name:bcd visibility:public modality:FINAL [lateinit,var]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Test
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<set-bcd> visibility:public modality:FINAL <> ($this:<root>.Test, <set-?>:IrErrorType([Error type: Unresolved type for MyBCD])) returnType:kotlin.Unit
+          correspondingProperty: PROPERTY name:bcd visibility:public modality:FINAL [lateinit,var]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Test
+          VALUE_PARAMETER name:<set-?> index:0 type:IrErrorType([Error type: Unresolved type for MyBCD])
+      CLASS CLASS name:MyDate modality:FINAL visibility:public superTypes:[kotlin.Any]
+        $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:<root>.Test.MyDate
+        PROPERTY name:date2 visibility:public modality:FINAL [lateinit,var]
+          FIELD PROPERTY_BACKING_FIELD name:date2 type:<root>.Test.MyDate visibility:public
+          FUN DEFAULT_PROPERTY_ACCESSOR name:<get-date2> visibility:public modality:FINAL <> ($this:<root>.Test.MyDate) returnType:<root>.Test.MyDate
+            correspondingProperty: PROPERTY name:date2 visibility:public modality:FINAL [lateinit,var]
+            $this: VALUE_PARAMETER name:<this> type:<root>.Test.MyDate
+          FUN DEFAULT_PROPERTY_ACCESSOR name:<set-date2> visibility:public modality:FINAL <> ($this:<root>.Test.MyDate, <set-?>:<root>.Test.MyDate) returnType:kotlin.Unit
+            correspondingProperty: PROPERTY name:date2 visibility:public modality:FINAL [lateinit,var]
+            $this: VALUE_PARAMETER name:<this> type:<root>.Test.MyDate
+            VALUE_PARAMETER name:<set-?> index:0 type:<root>.Test.MyDate
+        CONSTRUCTOR visibility:public <> () returnType:<root>.Test.MyDate [primary]
+        FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+          overridden:
+            public open fun equals (other: kotlin.Any?): kotlin.Boolean [operator] declared in kotlin.Any
+          $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+          VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+        FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+          overridden:
+            public open fun hashCode (): kotlin.Int declared in kotlin.Any
+          $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+          overridden:
+            public open fun toString (): kotlin.String declared in kotlin.Any
+          $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      CONSTRUCTOR visibility:public <> () returnType:<root>.Test [primary]
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [operator] declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+    CLASS CLASS name:Test2 modality:FINAL visibility:public superTypes:[kotlin.Any]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:<root>.Test2
+      PROPERTY name:date visibility:public modality:FINAL [lateinit,var]
+        FIELD PROPERTY_BACKING_FIELD name:date type:java.util.Date visibility:public
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-date> visibility:public modality:FINAL <> ($this:<root>.Test2) returnType:java.util.Date
+          correspondingProperty: PROPERTY name:date visibility:public modality:FINAL [lateinit,var]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Test2
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<set-date> visibility:public modality:FINAL <> ($this:<root>.Test2, <set-?>:java.util.Date) returnType:kotlin.Unit
+          correspondingProperty: PROPERTY name:date visibility:public modality:FINAL [lateinit,var]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Test2
+          VALUE_PARAMETER name:<set-?> index:0 type:java.util.Date
+      CONSTRUCTOR visibility:public <> () returnType:<root>.Test2 [primary]
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [operator] declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any

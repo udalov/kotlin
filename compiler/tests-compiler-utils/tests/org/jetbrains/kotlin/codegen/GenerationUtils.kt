@@ -111,7 +111,7 @@ object GenerationUtils {
             project,
             scope,
             librariesScope,
-            "main",
+            "<main>",
             getPackagePartProvider = packagePartProvider
         )
 

@@ -1,0 +1,101 @@
+MODULE_FRAGMENT name:<main>
+  FILE fqName:<root> fileName:unresolvedDelegateExpression.kt
+    CLASS CLASS name:B modality:FINAL visibility:public superTypes:[kotlin.Any]
+      annotations:
+        Suppress(names = ["UNRESOLVED_REFERENCE"] type=kotlin.Array<out kotlin.String> varargElementType=kotlin.String)
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:<root>.B
+      PROPERTY name:a visibility:public modality:FINAL [delegated,val]
+        annotations:
+          Suppress(names = ["UNRESOLVED_REFERENCE_WRONG_RECEIVER"] type=kotlin.Array<out kotlin.String> varargElementType=kotlin.String)
+        FIELD PROPERTY_DELEGATE name:a$delegate type:IrErrorType([Error type: Unresolved type for flaf()]) visibility:private [final]
+        FUN DELEGATED_PROPERTY_ACCESSOR name:<get-a> visibility:public modality:FINAL <> ($this:<root>.B) returnType:kotlin.String
+          correspondingProperty: PROPERTY name:a visibility:public modality:FINAL [delegated,val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.B
+      CONSTRUCTOR visibility:public <> () returnType:<root>.B [primary]
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [operator] declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+    CLASS CLASS name:C modality:OPEN visibility:public superTypes:[kotlin.Any]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:<root>.C
+      CONSTRUCTOR visibility:public <> () returnType:<root>.C [primary]
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [operator] declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+    CLASS CLASS name:D modality:FINAL visibility:public superTypes:[<root>.I]
+      annotations:
+        Suppress(names = ["UNRESOLVED_REFERENCE"] type=kotlin.Array<out kotlin.String> varargElementType=kotlin.String)
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:<root>.D
+      FIELD DELEGATE name:$$delegate_0 type:IrErrorType([Error type: Unresolved type for NonExisting]) visibility:private [final]
+      CONSTRUCTOR visibility:public <> () returnType:<root>.D [primary]
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [fake_override,operator] declared in <root>.I
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int [fake_override] declared in <root>.I
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String [fake_override] declared in <root>.I
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+    CLASS CLASS name:E modality:FINAL visibility:public superTypes:[kotlin.Any]
+      annotations:
+        Suppress(names = ["UNRESOLVED_REFERENCE", "DELEGATION_NOT_TO_INTERFACE"] type=kotlin.Array<out kotlin.String> varargElementType=kotlin.String)
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:<root>.E
+      FIELD DELEGATE name:$$delegate_0 type:IrErrorType([Error type: Unresolved type for NonExisting]) visibility:private [final]
+      CONSTRUCTOR visibility:public <> () returnType:<root>.E [primary]
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [operator] declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+    CLASS INTERFACE name:I modality:ABSTRACT visibility:public superTypes:[kotlin.Any]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:<root>.I
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [operator] declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+    FUN name:flaf visibility:public modality:FINAL <> ($receiver:<root>.C) returnType:kotlin.String
+      $receiver: VALUE_PARAMETER name:<this> type:<root>.C
+      BLOCK_BODY
+        RETURN type=kotlin.Nothing from='public final fun flaf (): kotlin.String declared in <root>'
+          ERROR_EXPR 'skipBodies' type=kotlin.Nothing

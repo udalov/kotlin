@@ -1,0 +1,42 @@
+MODULE_FRAGMENT name:<main>
+  FILE fqName:<root> fileName:suspendArgName.kt
+    CLASS CLASS name:Test modality:OPEN visibility:public superTypes:[kotlin.Any]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:<root>.Test
+      CONSTRUCTOR visibility:public <> () returnType:<root>.Test [primary]
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [operator] declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN name:getTest visibility:public modality:OPEN <> ($this:<root>.Test, text:kotlin.String) returnType:kotlin.String [suspend]
+        $this: VALUE_PARAMETER name:<this> type:<root>.Test
+        VALUE_PARAMETER name:text index:0 type:kotlin.String
+        BLOCK_BODY
+          RETURN type=kotlin.Nothing from='public open fun getTest (text: kotlin.String): kotlin.String [suspend] declared in <root>.Test'
+            ERROR_EXPR 'skipBodies' type=kotlin.Nothing
+      FUN name:getTestInvalid visibility:public modality:OPEN <> ($this:<root>.Test, te xt:kotlin.String) returnType:kotlin.String [suspend]
+        $this: VALUE_PARAMETER name:<this> type:<root>.Test
+        VALUE_PARAMETER name:te xt index:0 type:kotlin.String
+        BLOCK_BODY
+          RETURN type=kotlin.Nothing from='public open fun getTestInvalid (te xt: kotlin.String): kotlin.String [suspend] declared in <root>.Test'
+            ERROR_EXPR 'skipBodies' type=kotlin.Nothing
+      FUN name:getTestNoSuspend visibility:public modality:OPEN <> ($this:<root>.Test, text:kotlin.String) returnType:kotlin.String
+        $this: VALUE_PARAMETER name:<this> type:<root>.Test
+        VALUE_PARAMETER name:text index:0 type:kotlin.String
+        BLOCK_BODY
+          RETURN type=kotlin.Nothing from='public open fun getTestNoSuspend (text: kotlin.String): kotlin.String declared in <root>.Test'
+            ERROR_EXPR 'skipBodies' type=kotlin.Nothing
+      FUN name:getTestNoSuspendInvalid visibility:public modality:OPEN <> ($this:<root>.Test, te xt:kotlin.String) returnType:kotlin.String
+        $this: VALUE_PARAMETER name:<this> type:<root>.Test
+        VALUE_PARAMETER name:te xt index:0 type:kotlin.String
+        BLOCK_BODY
+          RETURN type=kotlin.Nothing from='public open fun getTestNoSuspendInvalid (te xt: kotlin.String): kotlin.String declared in <root>.Test'
+            ERROR_EXPR 'skipBodies' type=kotlin.Nothing

@@ -1,0 +1,91 @@
+MODULE_FRAGMENT name:<main>
+  FILE fqName:test.another fileName:topLevel.kt
+    PROPERTY name:topLevelProperty visibility:public modality:FINAL [val]
+      FIELD PROPERTY_BACKING_FIELD name:topLevelProperty type:kotlin.Int visibility:private [final,static]
+        EXPRESSION_BODY
+          CONST Int type=kotlin.Int value=2
+      FUN DEFAULT_PROPERTY_ACCESSOR name:<get-topLevelProperty> visibility:public modality:FINAL <> () returnType:kotlin.Int
+        correspondingProperty: PROPERTY name:topLevelProperty visibility:public modality:FINAL [val]
+    CLASS ANNOTATION_CLASS name:Anno modality:OPEN visibility:public superTypes:[kotlin.Annotation]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:test.another.Anno
+      PROPERTY name:value visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:value type:kotlin.String visibility:private [final]
+          EXPRESSION_BODY
+            GET_VAR 'value: kotlin.String declared in test.another.Anno.<init>' type=kotlin.String origin=INITIALIZE_PROPERTY_FROM_PARAMETER
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-value> visibility:public modality:FINAL <> ($this:test.another.Anno) returnType:kotlin.String
+          correspondingProperty: PROPERTY name:value visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:test.another.Anno
+      CONSTRUCTOR visibility:public <> (value:kotlin.String) returnType:test.another.Anno [primary]
+        VALUE_PARAMETER name:value index:0 type:kotlin.String
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [fake_override,operator] declared in kotlin.Annotation
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int [fake_override] declared in kotlin.Annotation
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String [fake_override] declared in kotlin.Annotation
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+    FUN name:extensionFunction visibility:public modality:FINAL <> ($receiver:kotlin.String, a:kotlin.String, b:kotlin.String) returnType:kotlin.Unit
+      $receiver: VALUE_PARAMETER name:<this> type:kotlin.String
+        annotations:
+          Anno(value = "rec")
+      VALUE_PARAMETER name:a index:0 type:kotlin.String
+        annotations:
+          Anno(value = "1")
+      VALUE_PARAMETER name:b index:1 type:kotlin.String
+        annotations:
+          Anno(value = "2")
+      BLOCK_BODY
+        RETURN type=kotlin.Nothing from='public final fun extensionFunction (a: kotlin.String, b: kotlin.String): kotlin.Unit declared in test.another'
+          ERROR_EXPR 'skipBodies' type=kotlin.Nothing
+    FUN name:topLevelFunction visibility:public modality:FINAL <> () returnType:kotlin.String?
+      BLOCK_BODY
+        RETURN type=kotlin.Nothing from='public final fun topLevelFunction (): kotlin.String? declared in test.another'
+          ERROR_EXPR 'skipBodies' type=kotlin.Nothing
+    FUN name:topLevelGenericFunction visibility:public modality:FINAL <X, T> () returnType:T of test.another.topLevelGenericFunction?
+      TYPE_PARAMETER name:X index:0 variance: superTypes:[kotlin.CharSequence] reified:false
+      TYPE_PARAMETER name:T index:1 variance: superTypes:[kotlin.collections.List<out X of test.another.topLevelGenericFunction>] reified:false
+      BLOCK_BODY
+        RETURN type=kotlin.Nothing from='public final fun topLevelGenericFunction <X, T> (): T of test.another.topLevelGenericFunction? declared in test.another'
+          ERROR_EXPR 'skipBodies' type=kotlin.Nothing
+    PROPERTY name:extensionProperty visibility:public modality:FINAL [var]
+      annotations:
+        Anno(value = "extpr")
+      FUN name:<get-extensionProperty> visibility:public modality:FINAL <T> ($receiver:T of test.another.<get-extensionProperty>) returnType:kotlin.String
+        correspondingProperty: PROPERTY name:extensionProperty visibility:public modality:FINAL [var]
+        TYPE_PARAMETER name:T index:0 variance: superTypes:[kotlin.Any] reified:false
+        $receiver: VALUE_PARAMETER name:<this> type:T of test.another.<get-extensionProperty>
+          annotations:
+            Anno(value = "propRec")
+        BLOCK_BODY
+          RETURN type=kotlin.Nothing from='public final fun <get-extensionProperty> <T> (): kotlin.String declared in test.another'
+            ERROR_EXPR 'skipBodies' type=kotlin.Nothing
+      FUN name:<set-extensionProperty> visibility:public modality:FINAL <T> ($receiver:T of test.another.<set-extensionProperty>, setParamName:kotlin.String) returnType:kotlin.Unit
+        correspondingProperty: PROPERTY name:extensionProperty visibility:public modality:FINAL [var]
+        TYPE_PARAMETER name:T index:0 variance: superTypes:[kotlin.Any] reified:false
+        $receiver: VALUE_PARAMETER name:<this> type:T of test.another.<set-extensionProperty>
+          annotations:
+            Anno(value = "propRec")
+        VALUE_PARAMETER name:setParamName index:0 type:kotlin.String
+          annotations:
+            Anno(value = "setparam")
+        BLOCK_BODY
+          RETURN type=kotlin.Nothing from='public final fun <set-extensionProperty> <T> (setParamName: kotlin.String): kotlin.Unit declared in test.another'
+            ERROR_EXPR 'skipBodies' type=kotlin.Nothing
+    PROPERTY name:topLevelConstProperty visibility:public modality:FINAL [const,val]
+      FIELD PROPERTY_BACKING_FIELD name:topLevelConstProperty type:kotlin.Int visibility:public [final,static]
+        EXPRESSION_BODY
+          CONST Int type=kotlin.Int value=2
+      FUN DEFAULT_PROPERTY_ACCESSOR name:<get-topLevelConstProperty> visibility:public modality:FINAL <> () returnType:kotlin.Int
+        correspondingProperty: PROPERTY name:topLevelConstProperty visibility:public modality:FINAL [const,val]
+    PROPERTY name:topLevelProperty2 visibility:public modality:FINAL [val]
+      FUN name:<get-topLevelProperty2> visibility:public modality:FINAL <> () returnType:kotlin.String
+        correspondingProperty: PROPERTY name:topLevelProperty2 visibility:public modality:FINAL [val]
+        BLOCK_BODY
+          RETURN type=kotlin.Nothing from='public final fun <get-topLevelProperty2> (): kotlin.String declared in test.another'
+            ERROR_EXPR 'skipBodies' type=kotlin.Nothing

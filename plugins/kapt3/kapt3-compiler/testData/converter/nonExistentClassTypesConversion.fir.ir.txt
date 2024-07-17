@@ -1,0 +1,321 @@
+MODULE_FRAGMENT name:<main>
+  FILE fqName:<root> fileName:nonExistentClassTypesConversion.kt
+    annotations:
+      Suppress(names = ["UNRESOLVED_REFERENCE", "ANNOTATION_ARGUMENT_MUST_BE_CONST", "NON_CONST_VAL_USED_IN_CONSTANT_EXPRESSION", "UNSUPPORTED_FEATURE"] type=kotlin.Array<out kotlin.String> varargElementType=kotlin.String)
+    CLASS ANNOTATION_CLASS name:Anno modality:OPEN visibility:public superTypes:[kotlin.Annotation]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:<root>.Anno
+      PROPERTY name:a visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:a type:kotlin.reflect.KClass<*> visibility:private [final]
+          EXPRESSION_BODY
+            GET_VAR 'a: kotlin.reflect.KClass<*> declared in <root>.Anno.<init>' type=kotlin.reflect.KClass<*> origin=INITIALIZE_PROPERTY_FROM_PARAMETER
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-a> visibility:public modality:FINAL <> ($this:<root>.Anno) returnType:kotlin.reflect.KClass<*>
+          correspondingProperty: PROPERTY name:a visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Anno
+      PROPERTY name:b visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:b type:kotlin.Array<kotlin.reflect.KClass<*>> visibility:private [final]
+          EXPRESSION_BODY
+            GET_VAR 'b: kotlin.Array<kotlin.reflect.KClass<*>> declared in <root>.Anno.<init>' type=kotlin.Array<kotlin.reflect.KClass<*>> origin=INITIALIZE_PROPERTY_FROM_PARAMETER
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-b> visibility:public modality:FINAL <> ($this:<root>.Anno) returnType:kotlin.Array<kotlin.reflect.KClass<*>>
+          correspondingProperty: PROPERTY name:b visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Anno
+      PROPERTY name:c visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:c type:kotlin.Array<kotlin.reflect.KClass<*>> visibility:private [final]
+          EXPRESSION_BODY
+            GET_VAR 'c: kotlin.Array<kotlin.reflect.KClass<*>> declared in <root>.Anno.<init>' type=kotlin.Array<kotlin.reflect.KClass<*>> origin=INITIALIZE_PROPERTY_FROM_PARAMETER
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-c> visibility:public modality:FINAL <> ($this:<root>.Anno) returnType:kotlin.Array<kotlin.reflect.KClass<*>>
+          correspondingProperty: PROPERTY name:c visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Anno
+      PROPERTY name:d visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:d type:kotlin.Array<out kotlin.reflect.KClass<*>> visibility:private [final]
+          EXPRESSION_BODY
+            GET_VAR 'd: kotlin.Array<out kotlin.reflect.KClass<*>> [vararg] declared in <root>.Anno.<init>' type=kotlin.Array<out kotlin.reflect.KClass<*>> origin=INITIALIZE_PROPERTY_FROM_PARAMETER
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-d> visibility:public modality:FINAL <> ($this:<root>.Anno) returnType:kotlin.Array<out kotlin.reflect.KClass<*>>
+          correspondingProperty: PROPERTY name:d visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Anno
+      CONSTRUCTOR visibility:public <> (a:kotlin.reflect.KClass<*>, b:kotlin.Array<kotlin.reflect.KClass<*>>, c:kotlin.Array<kotlin.reflect.KClass<*>>, d:kotlin.Array<out kotlin.reflect.KClass<*>>) returnType:<root>.Anno [primary]
+        VALUE_PARAMETER name:a index:0 type:kotlin.reflect.KClass<*>
+        VALUE_PARAMETER name:b index:1 type:kotlin.Array<kotlin.reflect.KClass<*>>
+        VALUE_PARAMETER name:c index:2 type:kotlin.Array<kotlin.reflect.KClass<*>>
+        VALUE_PARAMETER name:d index:3 type:kotlin.Array<out kotlin.reflect.KClass<*>> varargElementType:kotlin.reflect.KClass<*> [vararg]
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [fake_override,operator] declared in kotlin.Annotation
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int [fake_override] declared in kotlin.Annotation
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String [fake_override] declared in kotlin.Annotation
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+    CLASS CLASS name:MyType modality:FINAL visibility:public superTypes:[kotlin.Any]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:<root>.MyType<T of <root>.MyType>
+      TYPE_PARAMETER name:T index:0 variance: superTypes:[kotlin.Any?] reified:false
+      CONSTRUCTOR visibility:public <> () returnType:<root>.MyType<T of <root>.MyType> [primary]
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [operator] declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+    CLASS CLASS name:Test modality:FINAL visibility:public superTypes:[kotlin.Any]
+      annotations:
+        Anno(a = <null>, b = [] type=kotlin.Array<kotlin.reflect.KClass<*>> varargElementType=kotlin.reflect.KClass<*>, c = [CLASS_REFERENCE 'CLASS IR_EXTERNAL_DECLARATION_STUB CLASS name:String modality:FINAL visibility:public superTypes:[kotlin.Comparable<kotlin.String>; kotlin.CharSequence; java.io.Serializable]' type=kotlin.reflect.KClass<kotlin.String>] type=kotlin.Array<kotlin.reflect.KClass<*>> varargElementType=kotlin.reflect.KClass<*>, d = [CLASS_REFERENCE 'CLASS IR_EXTERNAL_DECLARATION_STUB CLASS name:Boolean modality:FINAL visibility:public superTypes:[kotlin.Comparable<kotlin.Boolean>; java.io.Serializable]' type=kotlin.reflect.KClass<kotlin.Boolean>] type=kotlin.Array<out kotlin.reflect.KClass<*>> varargElementType=kotlin.reflect.KClass<*>)
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:<root>.Test<G of <root>.Test>
+      TYPE_PARAMETER name:G index:0 variance: superTypes:[kotlin.Any?] reified:false
+      PROPERTY name:a visibility:public modality:FINAL [lateinit,var]
+        FIELD PROPERTY_BACKING_FIELD name:a type:IrErrorType([Error type: Unresolved type for ABC]) visibility:public
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-a> visibility:public modality:FINAL <> ($this:<root>.Test<G of <root>.Test>) returnType:IrErrorType([Error type: Unresolved type for ABC])
+          correspondingProperty: PROPERTY name:a visibility:public modality:FINAL [lateinit,var]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Test<G of <root>.Test>
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<set-a> visibility:public modality:FINAL <> ($this:<root>.Test<G of <root>.Test>, <set-?>:IrErrorType([Error type: Unresolved type for ABC])) returnType:kotlin.Unit
+          correspondingProperty: PROPERTY name:a visibility:public modality:FINAL [lateinit,var]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Test<G of <root>.Test>
+          VALUE_PARAMETER name:<set-?> index:0 type:IrErrorType([Error type: Unresolved type for ABC])
+      PROPERTY name:b visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:b type:IrErrorType([Error type: Unresolved type for ABC]) visibility:private [final]
+          EXPRESSION_BODY
+            CONST Null type=kotlin.Nothing? value=null
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-b> visibility:public modality:FINAL <> ($this:<root>.Test<G of <root>.Test>) returnType:IrErrorType([Error type: Unresolved type for ABC])
+          correspondingProperty: PROPERTY name:b visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Test<G of <root>.Test>
+      PROPERTY name:c visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:c type:kotlin.collections.List<IrErrorType([Error type: Unresolved type for ABC])>? visibility:private [final]
+          EXPRESSION_BODY
+            CONST Null type=kotlin.Nothing? value=null
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-c> visibility:public modality:FINAL <> ($this:<root>.Test<G of <root>.Test>) returnType:kotlin.collections.List<IrErrorType([Error type: Unresolved type for ABC])>?
+          correspondingProperty: PROPERTY name:c visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Test<G of <root>.Test>
+      PROPERTY name:d visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:d type:kotlin.collections.List<kotlin.collections.Map<IrErrorType([Error type: Unresolved type for BCD]), IrErrorType([Error type: Unresolved type for ABC])>>? visibility:private [final]
+          EXPRESSION_BODY
+            CONST Null type=kotlin.Nothing? value=null
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-d> visibility:public modality:FINAL <> ($this:<root>.Test<G of <root>.Test>) returnType:kotlin.collections.List<kotlin.collections.Map<IrErrorType([Error type: Unresolved type for BCD]), IrErrorType([Error type: Unresolved type for ABC])>>?
+          correspondingProperty: PROPERTY name:d visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Test<G of <root>.Test>
+      PROPERTY name:e visibility:public modality:FINAL [lateinit,var]
+        FIELD PROPERTY_BACKING_FIELD name:e type:kotlin.collections.List<out kotlin.collections.Map<out IrErrorType([Error type: Unresolved type for ABC]), out IrErrorType([Error type: Unresolved type for BCD])>?> visibility:public
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-e> visibility:public modality:FINAL <> ($this:<root>.Test<G of <root>.Test>) returnType:kotlin.collections.List<out kotlin.collections.Map<out IrErrorType([Error type: Unresolved type for ABC]), out IrErrorType([Error type: Unresolved type for BCD])>?>
+          correspondingProperty: PROPERTY name:e visibility:public modality:FINAL [lateinit,var]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Test<G of <root>.Test>
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<set-e> visibility:public modality:FINAL <> ($this:<root>.Test<G of <root>.Test>, <set-?>:kotlin.collections.List<out kotlin.collections.Map<out IrErrorType([Error type: Unresolved type for ABC]), out IrErrorType([Error type: Unresolved type for BCD])>?>) returnType:kotlin.Unit
+          correspondingProperty: PROPERTY name:e visibility:public modality:FINAL [lateinit,var]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Test<G of <root>.Test>
+          VALUE_PARAMETER name:<set-?> index:0 type:kotlin.collections.List<out kotlin.collections.Map<out IrErrorType([Error type: Unresolved type for ABC]), out IrErrorType([Error type: Unresolved type for BCD])>?>
+      PROPERTY name:f visibility:public modality:FINAL [lateinit,var]
+        FIELD PROPERTY_BACKING_FIELD name:f type:IrErrorType([Error type: Unresolved type for ABC]) visibility:public
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-f> visibility:public modality:FINAL <> ($this:<root>.Test<G of <root>.Test>) returnType:IrErrorType([Error type: Unresolved type for ABC])
+          correspondingProperty: PROPERTY name:f visibility:public modality:FINAL [lateinit,var]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Test<G of <root>.Test>
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<set-f> visibility:public modality:FINAL <> ($this:<root>.Test<G of <root>.Test>, <set-?>:IrErrorType([Error type: Unresolved type for ABC])) returnType:kotlin.Unit
+          correspondingProperty: PROPERTY name:f visibility:public modality:FINAL [lateinit,var]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Test<G of <root>.Test>
+          VALUE_PARAMETER name:<set-?> index:0 type:IrErrorType([Error type: Unresolved type for ABC])
+      PROPERTY name:g visibility:public modality:FINAL [lateinit,var]
+        FIELD PROPERTY_BACKING_FIELD name:g type:kotlin.collections.List<*> visibility:public
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-g> visibility:public modality:FINAL <> ($this:<root>.Test<G of <root>.Test>) returnType:kotlin.collections.List<*>
+          correspondingProperty: PROPERTY name:g visibility:public modality:FINAL [lateinit,var]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Test<G of <root>.Test>
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<set-g> visibility:public modality:FINAL <> ($this:<root>.Test<G of <root>.Test>, <set-?>:kotlin.collections.List<*>) returnType:kotlin.Unit
+          correspondingProperty: PROPERTY name:g visibility:public modality:FINAL [lateinit,var]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Test<G of <root>.Test>
+          VALUE_PARAMETER name:<set-?> index:0 type:kotlin.collections.List<*>
+      PROPERTY name:h visibility:public modality:FINAL [lateinit,var]
+        FIELD PROPERTY_BACKING_FIELD name:h type:IrErrorType([Error type: Unresolved type for ABC]) visibility:public
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-h> visibility:public modality:FINAL <> ($this:<root>.Test<G of <root>.Test>) returnType:IrErrorType([Error type: Unresolved type for ABC])
+          correspondingProperty: PROPERTY name:h visibility:public modality:FINAL [lateinit,var]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Test<G of <root>.Test>
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<set-h> visibility:public modality:FINAL <> ($this:<root>.Test<G of <root>.Test>, <set-?>:IrErrorType([Error type: Unresolved type for ABC])) returnType:kotlin.Unit
+          correspondingProperty: PROPERTY name:h visibility:public modality:FINAL [lateinit,var]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Test<G of <root>.Test>
+          VALUE_PARAMETER name:<set-?> index:0 type:IrErrorType([Error type: Unresolved type for ABC])
+      PROPERTY name:i visibility:public modality:FINAL [lateinit,var]
+        FIELD PROPERTY_BACKING_FIELD name:i type:kotlin.Function2<IrErrorType([Error type: Unresolved type for ABC]), kotlin.collections.List<IrErrorType([Error type: Unresolved type for BCD])>, IrErrorType([Error type: Unresolved type for CDE])> visibility:public
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-i> visibility:public modality:FINAL <> ($this:<root>.Test<G of <root>.Test>) returnType:kotlin.Function2<IrErrorType([Error type: Unresolved type for ABC]), kotlin.collections.List<IrErrorType([Error type: Unresolved type for BCD])>, IrErrorType([Error type: Unresolved type for CDE])>
+          correspondingProperty: PROPERTY name:i visibility:public modality:FINAL [lateinit,var]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Test<G of <root>.Test>
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<set-i> visibility:public modality:FINAL <> ($this:<root>.Test<G of <root>.Test>, <set-?>:kotlin.Function2<IrErrorType([Error type: Unresolved type for ABC]), kotlin.collections.List<IrErrorType([Error type: Unresolved type for BCD])>, IrErrorType([Error type: Unresolved type for CDE])>) returnType:kotlin.Unit
+          correspondingProperty: PROPERTY name:i visibility:public modality:FINAL [lateinit,var]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Test<G of <root>.Test>
+          VALUE_PARAMETER name:<set-?> index:0 type:kotlin.Function2<IrErrorType([Error type: Unresolved type for ABC]), kotlin.collections.List<IrErrorType([Error type: Unresolved type for BCD])>, IrErrorType([Error type: Unresolved type for CDE])>
+      PROPERTY name:j visibility:public modality:FINAL [lateinit,var]
+        FIELD PROPERTY_BACKING_FIELD name:j type:kotlin.Function0<IrErrorType([Error type: Unresolved type for CDE])> visibility:public
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-j> visibility:public modality:FINAL <> ($this:<root>.Test<G of <root>.Test>) returnType:kotlin.Function0<IrErrorType([Error type: Unresolved type for CDE])>
+          correspondingProperty: PROPERTY name:j visibility:public modality:FINAL [lateinit,var]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Test<G of <root>.Test>
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<set-j> visibility:public modality:FINAL <> ($this:<root>.Test<G of <root>.Test>, <set-?>:kotlin.Function0<IrErrorType([Error type: Unresolved type for CDE])>) returnType:kotlin.Unit
+          correspondingProperty: PROPERTY name:j visibility:public modality:FINAL [lateinit,var]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Test<G of <root>.Test>
+          VALUE_PARAMETER name:<set-?> index:0 type:kotlin.Function0<IrErrorType([Error type: Unresolved type for CDE])>
+      PROPERTY name:k visibility:public modality:FINAL [lateinit,var]
+        FIELD PROPERTY_BACKING_FIELD name:k type:@[ExtensionFunctionType] kotlin.Function2<IrErrorType([Error type: Unresolved type for ABC]), kotlin.collections.List<IrErrorType([Error type: Unresolved type for BCD])>, IrErrorType([Error type: Unresolved type for CDE])> visibility:public
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-k> visibility:public modality:FINAL <> ($this:<root>.Test<G of <root>.Test>) returnType:@[ExtensionFunctionType] kotlin.Function2<IrErrorType([Error type: Unresolved type for ABC]), kotlin.collections.List<IrErrorType([Error type: Unresolved type for BCD])>, IrErrorType([Error type: Unresolved type for CDE])>
+          correspondingProperty: PROPERTY name:k visibility:public modality:FINAL [lateinit,var]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Test<G of <root>.Test>
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<set-k> visibility:public modality:FINAL <> ($this:<root>.Test<G of <root>.Test>, <set-?>:@[ExtensionFunctionType] kotlin.Function2<IrErrorType([Error type: Unresolved type for ABC]), kotlin.collections.List<IrErrorType([Error type: Unresolved type for BCD])>, IrErrorType([Error type: Unresolved type for CDE])>) returnType:kotlin.Unit
+          correspondingProperty: PROPERTY name:k visibility:public modality:FINAL [lateinit,var]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Test<G of <root>.Test>
+          VALUE_PARAMETER name:<set-?> index:0 type:@[ExtensionFunctionType] kotlin.Function2<IrErrorType([Error type: Unresolved type for ABC]), kotlin.collections.List<IrErrorType([Error type: Unresolved type for BCD])>, IrErrorType([Error type: Unresolved type for CDE])>
+      PROPERTY name:l visibility:public modality:FINAL [lateinit,var]
+        FIELD PROPERTY_BACKING_FIELD name:l type:IrErrorType([Error type: Unresolved type for ABC.BCD.EFG]) visibility:public
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-l> visibility:public modality:FINAL <> ($this:<root>.Test<G of <root>.Test>) returnType:IrErrorType([Error type: Unresolved type for ABC.BCD.EFG])
+          correspondingProperty: PROPERTY name:l visibility:public modality:FINAL [lateinit,var]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Test<G of <root>.Test>
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<set-l> visibility:public modality:FINAL <> ($this:<root>.Test<G of <root>.Test>, <set-?>:IrErrorType([Error type: Unresolved type for ABC.BCD.EFG])) returnType:kotlin.Unit
+          correspondingProperty: PROPERTY name:l visibility:public modality:FINAL [lateinit,var]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Test<G of <root>.Test>
+          VALUE_PARAMETER name:<set-?> index:0 type:IrErrorType([Error type: Unresolved type for ABC.BCD.EFG])
+      PROPERTY name:coocoo visibility:public modality:FINAL [lateinit,var]
+        FIELD PROPERTY_BACKING_FIELD name:coocoo type:IrErrorType([Error type: Unresolved type for ABC]) visibility:public
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-coocoo> visibility:public modality:FINAL <> ($this:<root>.Test<G of <root>.Test>) returnType:IrErrorType([Error type: Unresolved type for ABC])
+          correspondingProperty: PROPERTY name:coocoo visibility:public modality:FINAL [lateinit,var]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Test<G of <root>.Test>
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<set-coocoo> visibility:public modality:FINAL <> ($this:<root>.Test<G of <root>.Test>, <set-?>:IrErrorType([Error type: Unresolved type for ABC])) returnType:kotlin.Unit
+          correspondingProperty: PROPERTY name:coocoo visibility:public modality:FINAL [lateinit,var]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Test<G of <root>.Test>
+          VALUE_PARAMETER name:<set-?> index:0 type:IrErrorType([Error type: Unresolved type for ABC])
+      PROPERTY name:coocoo2 visibility:public modality:FINAL [lateinit,var]
+        FIELD PROPERTY_BACKING_FIELD name:coocoo2 type:IrErrorType([Error type: Unresolved type for ABC]) visibility:public
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-coocoo2> visibility:public modality:FINAL <> ($this:<root>.Test<G of <root>.Test>) returnType:IrErrorType([Error type: Unresolved type for ABC])
+          correspondingProperty: PROPERTY name:coocoo2 visibility:public modality:FINAL [lateinit,var]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Test<G of <root>.Test>
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<set-coocoo2> visibility:public modality:FINAL <> ($this:<root>.Test<G of <root>.Test>, <set-?>:IrErrorType([Error type: Unresolved type for ABC])) returnType:kotlin.Unit
+          correspondingProperty: PROPERTY name:coocoo2 visibility:public modality:FINAL [lateinit,var]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Test<G of <root>.Test>
+          VALUE_PARAMETER name:<set-?> index:0 type:IrErrorType([Error type: Unresolved type for ABC])
+      PROPERTY name:coocoo21 visibility:public modality:FINAL [lateinit,var]
+        FIELD PROPERTY_BACKING_FIELD name:coocoo21 type:IrErrorType([Error type: Unresolved type for ABC]) visibility:public
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-coocoo21> visibility:public modality:FINAL <> ($this:<root>.Test<G of <root>.Test>) returnType:IrErrorType([Error type: Unresolved type for ABC])
+          correspondingProperty: PROPERTY name:coocoo21 visibility:public modality:FINAL [lateinit,var]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Test<G of <root>.Test>
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<set-coocoo21> visibility:public modality:FINAL <> ($this:<root>.Test<G of <root>.Test>, <set-?>:IrErrorType([Error type: Unresolved type for ABC])) returnType:kotlin.Unit
+          correspondingProperty: PROPERTY name:coocoo21 visibility:public modality:FINAL [lateinit,var]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Test<G of <root>.Test>
+          VALUE_PARAMETER name:<set-?> index:0 type:IrErrorType([Error type: Unresolved type for ABC])
+      PROPERTY name:coocoo3 visibility:public modality:FINAL [lateinit,var]
+        FIELD PROPERTY_BACKING_FIELD name:coocoo3 type:IrErrorType([Error type: Unresolved type for ABC]) visibility:public
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-coocoo3> visibility:public modality:FINAL <> ($this:<root>.Test<G of <root>.Test>) returnType:IrErrorType([Error type: Unresolved type for ABC])
+          correspondingProperty: PROPERTY name:coocoo3 visibility:public modality:FINAL [lateinit,var]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Test<G of <root>.Test>
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<set-coocoo3> visibility:public modality:FINAL <> ($this:<root>.Test<G of <root>.Test>, <set-?>:IrErrorType([Error type: Unresolved type for ABC])) returnType:kotlin.Unit
+          correspondingProperty: PROPERTY name:coocoo3 visibility:public modality:FINAL [lateinit,var]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Test<G of <root>.Test>
+          VALUE_PARAMETER name:<set-?> index:0 type:IrErrorType([Error type: Unresolved type for ABC])
+      PROPERTY name:coocoo31 visibility:public modality:FINAL [lateinit,var]
+        FIELD PROPERTY_BACKING_FIELD name:coocoo31 type:IrErrorType([Error type: Unresolved type for ABC]) visibility:public
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-coocoo31> visibility:public modality:FINAL <> ($this:<root>.Test<G of <root>.Test>) returnType:IrErrorType([Error type: Unresolved type for ABC])
+          correspondingProperty: PROPERTY name:coocoo31 visibility:public modality:FINAL [lateinit,var]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Test<G of <root>.Test>
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<set-coocoo31> visibility:public modality:FINAL <> ($this:<root>.Test<G of <root>.Test>, <set-?>:IrErrorType([Error type: Unresolved type for ABC])) returnType:kotlin.Unit
+          correspondingProperty: PROPERTY name:coocoo31 visibility:public modality:FINAL [lateinit,var]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Test<G of <root>.Test>
+          VALUE_PARAMETER name:<set-?> index:0 type:IrErrorType([Error type: Unresolved type for ABC])
+      PROPERTY name:nested visibility:public modality:FINAL [lateinit,var]
+        FIELD PROPERTY_BACKING_FIELD name:nested type:IrErrorType([Error type: Unresolved type for ABC]) visibility:public
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-nested> visibility:public modality:FINAL <> ($this:<root>.Test<G of <root>.Test>) returnType:IrErrorType([Error type: Unresolved type for ABC])
+          correspondingProperty: PROPERTY name:nested visibility:public modality:FINAL [lateinit,var]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Test<G of <root>.Test>
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<set-nested> visibility:public modality:FINAL <> ($this:<root>.Test<G of <root>.Test>, <set-?>:IrErrorType([Error type: Unresolved type for ABC])) returnType:kotlin.Unit
+          correspondingProperty: PROPERTY name:nested visibility:public modality:FINAL [lateinit,var]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Test<G of <root>.Test>
+          VALUE_PARAMETER name:<set-?> index:0 type:IrErrorType([Error type: Unresolved type for ABC])
+      PROPERTY name:m visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:m type:IrErrorType([Error type: Unresolved type for ABC]) visibility:private [final]
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-m> visibility:public modality:FINAL <> ($this:<root>.Test<G of <root>.Test>) returnType:IrErrorType([Error type: Unresolved type for ABC])
+          correspondingProperty: PROPERTY name:m visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Test<G of <root>.Test>
+      PROPERTY name:n visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:n type:kotlin.String visibility:private [final]
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-n> visibility:public modality:FINAL <> ($this:<root>.Test<G of <root>.Test>) returnType:kotlin.String
+          correspondingProperty: PROPERTY name:n visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Test<G of <root>.Test>
+      PROPERTY name:o11 visibility:public modality:FINAL [lateinit,var]
+        FIELD PROPERTY_BACKING_FIELD name:o11 type:kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<IrErrorType([Error type: Unresolved type for ABC])>>>>>>>>>> visibility:public
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-o11> visibility:public modality:FINAL <> ($this:<root>.Test<G of <root>.Test>) returnType:kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<IrErrorType([Error type: Unresolved type for ABC])>>>>>>>>>>
+          correspondingProperty: PROPERTY name:o11 visibility:public modality:FINAL [lateinit,var]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Test<G of <root>.Test>
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<set-o11> visibility:public modality:FINAL <> ($this:<root>.Test<G of <root>.Test>, <set-?>:kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<IrErrorType([Error type: Unresolved type for ABC])>>>>>>>>>>) returnType:kotlin.Unit
+          correspondingProperty: PROPERTY name:o11 visibility:public modality:FINAL [lateinit,var]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Test<G of <root>.Test>
+          VALUE_PARAMETER name:<set-?> index:0 type:kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<IrErrorType([Error type: Unresolved type for ABC])>>>>>>>>>>
+      PROPERTY name:o10 visibility:public modality:FINAL [lateinit,var]
+        FIELD PROPERTY_BACKING_FIELD name:o10 type:kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<IrErrorType([Error type: Unresolved type for ABC])>>>>>>>>> visibility:public
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-o10> visibility:public modality:FINAL <> ($this:<root>.Test<G of <root>.Test>) returnType:kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<IrErrorType([Error type: Unresolved type for ABC])>>>>>>>>>
+          correspondingProperty: PROPERTY name:o10 visibility:public modality:FINAL [lateinit,var]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Test<G of <root>.Test>
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<set-o10> visibility:public modality:FINAL <> ($this:<root>.Test<G of <root>.Test>, <set-?>:kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<IrErrorType([Error type: Unresolved type for ABC])>>>>>>>>>) returnType:kotlin.Unit
+          correspondingProperty: PROPERTY name:o10 visibility:public modality:FINAL [lateinit,var]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Test<G of <root>.Test>
+          VALUE_PARAMETER name:<set-?> index:0 type:kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<kotlin.collections.List<IrErrorType([Error type: Unresolved type for ABC])>>>>>>>>>
+      PROPERTY name:p visibility:public modality:FINAL [lateinit,var]
+        FIELD PROPERTY_BACKING_FIELD name:p type:java.util.Calendar.Builder visibility:public
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-p> visibility:public modality:FINAL <> ($this:<root>.Test<G of <root>.Test>) returnType:java.util.Calendar.Builder
+          correspondingProperty: PROPERTY name:p visibility:public modality:FINAL [lateinit,var]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Test<G of <root>.Test>
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<set-p> visibility:public modality:FINAL <> ($this:<root>.Test<G of <root>.Test>, <set-?>:java.util.Calendar.Builder) returnType:kotlin.Unit
+          correspondingProperty: PROPERTY name:p visibility:public modality:FINAL [lateinit,var]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Test<G of <root>.Test>
+          VALUE_PARAMETER name:<set-?> index:0 type:java.util.Calendar.Builder
+      CONSTRUCTOR visibility:public <> () returnType:<root>.Test<G of <root>.Test> [primary]
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [operator] declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN name:f1 visibility:public modality:FINAL <> ($this:<root>.Test<G of <root>.Test>, a:IrErrorType([Error type: Unresolved type for ABC])) returnType:IrErrorType([Error type: Unresolved type for BCD])
+        $this: VALUE_PARAMETER name:<this> type:<root>.Test<G of <root>.Test>
+        VALUE_PARAMETER name:a index:0 type:IrErrorType([Error type: Unresolved type for ABC])
+        BLOCK_BODY
+          RETURN type=kotlin.Nothing from='public final fun f1 (a: IrErrorType([Error type: Unresolved type for ABC])): IrErrorType([Error type: Unresolved type for BCD]) declared in <root>.Test'
+            ERROR_EXPR 'skipBodies' type=kotlin.Nothing
+      FUN name:f2 visibility:public modality:FINAL <T> ($this:<root>.Test<G of <root>.Test>, a:IrErrorType([Error type: Unresolved type for ABC])) returnType:kotlin.Unit
+        TYPE_PARAMETER name:T index:0 variance: superTypes:[kotlin.Any?] reified:false
+        $this: VALUE_PARAMETER name:<this> type:<root>.Test<G of <root>.Test>
+        VALUE_PARAMETER name:a index:0 type:IrErrorType([Error type: Unresolved type for ABC])
+        BLOCK_BODY
+          RETURN type=kotlin.Nothing from='public final fun f2 <T> (a: IrErrorType([Error type: Unresolved type for ABC])): kotlin.Unit declared in <root>.Test'
+            ERROR_EXPR 'skipBodies' type=kotlin.Nothing
+      FUN name:f3 visibility:public modality:FINAL <T> ($this:<root>.Test<G of <root>.Test>, a:IrErrorType([Error type: Unresolved type for ABC]), b:kotlin.Int) returnType:kotlin.Long
+        TYPE_PARAMETER name:T index:0 variance: superTypes:[kotlin.Any?] reified:false
+        $this: VALUE_PARAMETER name:<this> type:<root>.Test<G of <root>.Test>
+        VALUE_PARAMETER name:a index:0 type:IrErrorType([Error type: Unresolved type for ABC])
+        VALUE_PARAMETER name:b index:1 type:kotlin.Int
+        BLOCK_BODY
+          RETURN type=kotlin.Nothing from='public final fun f3 <T> (a: IrErrorType([Error type: Unresolved type for ABC]), b: kotlin.Int): kotlin.Long declared in <root>.Test'
+            ERROR_EXPR 'skipBodies' type=kotlin.Nothing
+      FUN name:f4 visibility:public modality:FINAL <> ($this:<root>.Test<G of <root>.Test>) returnType:IrErrorType([Error type: Unresolved type for ABC])
+        $this: VALUE_PARAMETER name:<this> type:<root>.Test<G of <root>.Test>
+        BLOCK_BODY
+          RETURN type=kotlin.Nothing from='public final fun f4 (): IrErrorType([Error type: Unresolved type for ABC]) declared in <root>.Test'
+            ERROR_EXPR 'skipBodies' type=kotlin.Nothing
+      FUN name:f5 visibility:public modality:FINAL <T> ($this:<root>.Test<G of <root>.Test>, $receiver:<root>.MyType<T of <root>.Test.f5>) returnType:java.lang.Class<kotlin.Enum<*>>?
+        TYPE_PARAMETER name:T index:0 variance: superTypes:[kotlin.Any?] reified:false
+        $this: VALUE_PARAMETER name:<this> type:<root>.Test<G of <root>.Test>
+        $receiver: VALUE_PARAMETER name:<this> type:<root>.MyType<T of <root>.Test.f5>
+        BLOCK_BODY
+          RETURN type=kotlin.Nothing from='public final fun f5 <T> (): java.lang.Class<kotlin.Enum<*>>? declared in <root>.Test'
+            ERROR_EXPR 'skipBodies' type=kotlin.Nothing
+    TYPEALIAS name:Coocoo visibility:public expandedType:IrErrorType([Error type: Unresolved type for ABC])
+    TYPEALIAS name:Coocoo2 visibility:public expandedType:IrErrorType([Error type: Unresolved type for ABC])
+      TYPE_PARAMETER name:T index:0 variance: superTypes:[kotlin.Any?] reified:false
+    TYPEALIAS name:Coocoo3 visibility:public expandedType:IrErrorType([Error type: Unresolved type for ABC])
+      TYPE_PARAMETER name:X index:0 variance: superTypes:[kotlin.Any?] reified:false
+    TYPEALIAS name:Nested1 visibility:public expandedType:IrErrorType([Error type: Unresolved type for ABC])
+    TYPEALIAS name:Nested2 visibility:public expandedType:IrErrorType([Error type: Unresolved type for ABC])

@@ -1,0 +1,59 @@
+MODULE_FRAGMENT name:<main>
+  FILE fqName:org.jetbrains fileName:typeAnnotations.kt
+    CLASS ANNOTATION_CLASS name:A modality:OPEN visibility:public superTypes:[kotlin.Annotation]
+      annotations:
+        Target(allowedTargets = [GET_ENUM 'ENUM_ENTRY IR_EXTERNAL_DECLARATION_STUB name:TYPE' type=kotlin.annotation.AnnotationTarget, GET_ENUM 'ENUM_ENTRY IR_EXTERNAL_DECLARATION_STUB name:TYPE_PARAMETER' type=kotlin.annotation.AnnotationTarget] type=kotlin.Array<out kotlin.annotation.AnnotationTarget> varargElementType=kotlin.annotation.AnnotationTarget)
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:org.jetbrains.A
+      CONSTRUCTOR visibility:public <> () returnType:org.jetbrains.A [primary]
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [fake_override,operator] declared in kotlin.Annotation
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int [fake_override] declared in kotlin.Annotation
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String [fake_override] declared in kotlin.Annotation
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+    CLASS CLASS name:Outer modality:FINAL visibility:public superTypes:[kotlin.Any]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:org.jetbrains.Outer
+      CLASS CLASS name:Inner modality:FINAL visibility:public superTypes:[kotlin.Any]
+        $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:org.jetbrains.Outer.Inner
+        CONSTRUCTOR visibility:public <> () returnType:org.jetbrains.Outer.Inner [primary]
+        FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+          overridden:
+            public open fun equals (other: kotlin.Any?): kotlin.Boolean [operator] declared in kotlin.Any
+          $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+          VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+        FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+          overridden:
+            public open fun hashCode (): kotlin.Int declared in kotlin.Any
+          $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+          overridden:
+            public open fun toString (): kotlin.String declared in kotlin.Any
+          $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      CONSTRUCTOR visibility:public <> () returnType:org.jetbrains.Outer [primary]
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [operator] declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+    FUN name:foo visibility:public modality:FINAL <> (x:@[A] kotlin.collections.List<@[A] kotlin.String>, y:@[A] org.jetbrains.Outer.Inner, z:@[A] kotlin.Int) returnType:@[A] kotlin.String
+      VALUE_PARAMETER name:x index:0 type:@[A] kotlin.collections.List<@[A] kotlin.String>
+      VALUE_PARAMETER name:y index:1 type:@[A] org.jetbrains.Outer.Inner
+      VALUE_PARAMETER name:z index:2 type:@[A] kotlin.Int
+      BLOCK_BODY
+        RETURN type=kotlin.Nothing from='public final fun foo (x: @[A] kotlin.collections.List<@[A] kotlin.String>, y: @[A] org.jetbrains.Outer.Inner, z: @[A] kotlin.Int): @[A] kotlin.String declared in org.jetbrains'
+          ERROR_EXPR 'skipBodies' type=kotlin.Nothing

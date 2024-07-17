@@ -1,0 +1,511 @@
+MODULE_FRAGMENT name:<main>
+  FILE fqName:test fileName:errorSuperclassCorrectErrorTypes.kt
+    annotations:
+      Suppress(names = ["UNRESOLVED_REFERENCE", "DELEGATION_NOT_TO_INTERFACE", "SUPERTYPE_NOT_INITIALIZED"] type=kotlin.Array<out kotlin.String> varargElementType=kotlin.String)
+    CLASS CLASS name:Child modality:FINAL visibility:public superTypes:[kotlin.collections.AbstractList<kotlin.String>; test.Parent<kotlin.String, kotlin.Int>; kotlin.collections.List<kotlin.String>]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:test.Child
+      CONSTRUCTOR visibility:public <> () returnType:test.Child [primary]
+      FUN FAKE_OVERRIDE name:contains visibility:public modality:OPEN <> ($this:kotlin.collections.AbstractCollection<kotlin.String>, element:kotlin.String) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun contains (element: E of kotlin.collections.AbstractList): kotlin.Boolean [fake_override,operator] declared in kotlin.collections.AbstractList
+          public abstract fun contains (element: E of kotlin.collections.List): kotlin.Boolean [operator] declared in kotlin.collections.List
+        $this: VALUE_PARAMETER name:<this> type:kotlin.collections.AbstractCollection<kotlin.String>
+        VALUE_PARAMETER name:element index:0 type:kotlin.String
+      FUN FAKE_OVERRIDE name:containsAll visibility:public modality:OPEN <> ($this:kotlin.collections.AbstractCollection<kotlin.String>, elements:kotlin.collections.Collection<kotlin.String>) returnType:kotlin.Boolean [fake_override]
+        overridden:
+          public open fun containsAll (elements: kotlin.collections.Collection<E of kotlin.collections.AbstractList>): kotlin.Boolean [fake_override] declared in kotlin.collections.AbstractList
+          public abstract fun containsAll (elements: kotlin.collections.Collection<E of kotlin.collections.List>): kotlin.Boolean declared in kotlin.collections.List
+        $this: VALUE_PARAMETER name:<this> type:kotlin.collections.AbstractCollection<kotlin.String>
+        VALUE_PARAMETER name:elements index:0 type:kotlin.collections.Collection<kotlin.String>
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.collections.AbstractList<kotlin.String>, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [operator] declared in kotlin.collections.AbstractList
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [fake_override,operator] declared in test.Parent
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [fake_override,operator] declared in kotlin.collections.List
+        $this: VALUE_PARAMETER name:<this> type:kotlin.collections.AbstractList<kotlin.String>
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:get visibility:public modality:ABSTRACT <> ($this:kotlin.collections.AbstractList<kotlin.String>, index:kotlin.Int) returnType:kotlin.String [fake_override,operator]
+        overridden:
+          public abstract fun get (index: kotlin.Int): E of kotlin.collections.AbstractList [operator] declared in kotlin.collections.AbstractList
+          public abstract fun get (index: kotlin.Int): E of kotlin.collections.List [operator] declared in kotlin.collections.List
+        $this: VALUE_PARAMETER name:<this> type:kotlin.collections.AbstractList<kotlin.String>
+        VALUE_PARAMETER name:index index:0 type:kotlin.Int
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.collections.AbstractList<kotlin.String>) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int declared in kotlin.collections.AbstractList
+          public open fun hashCode (): kotlin.Int [fake_override] declared in test.Parent
+          public open fun hashCode (): kotlin.Int [fake_override] declared in kotlin.collections.List
+        $this: VALUE_PARAMETER name:<this> type:kotlin.collections.AbstractList<kotlin.String>
+      FUN FAKE_OVERRIDE name:indexOf visibility:public modality:OPEN <> ($this:kotlin.collections.AbstractList<kotlin.String>, element:kotlin.String) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun indexOf (element: E of kotlin.collections.AbstractList): kotlin.Int declared in kotlin.collections.AbstractList
+          public abstract fun indexOf (element: E of kotlin.collections.List): kotlin.Int declared in kotlin.collections.List
+        $this: VALUE_PARAMETER name:<this> type:kotlin.collections.AbstractList<kotlin.String>
+        VALUE_PARAMETER name:element index:0 type:kotlin.String
+      FUN FAKE_OVERRIDE name:isEmpty visibility:public modality:OPEN <> ($this:kotlin.collections.AbstractCollection<kotlin.String>) returnType:kotlin.Boolean [fake_override]
+        overridden:
+          public open fun isEmpty (): kotlin.Boolean [fake_override] declared in kotlin.collections.AbstractList
+          public abstract fun isEmpty (): kotlin.Boolean declared in kotlin.collections.List
+        $this: VALUE_PARAMETER name:<this> type:kotlin.collections.AbstractCollection<kotlin.String>
+      FUN FAKE_OVERRIDE name:iterator visibility:public modality:OPEN <> ($this:kotlin.collections.AbstractList<kotlin.String>) returnType:kotlin.collections.Iterator<kotlin.String> [fake_override,operator]
+        overridden:
+          public open fun iterator (): kotlin.collections.Iterator<E of kotlin.collections.AbstractList> [operator] declared in kotlin.collections.AbstractList
+          public abstract fun iterator (): kotlin.collections.Iterator<E of kotlin.collections.List> [operator] declared in kotlin.collections.List
+        $this: VALUE_PARAMETER name:<this> type:kotlin.collections.AbstractList<kotlin.String>
+      FUN FAKE_OVERRIDE name:lastIndexOf visibility:public modality:OPEN <> ($this:kotlin.collections.AbstractList<kotlin.String>, element:kotlin.String) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun lastIndexOf (element: E of kotlin.collections.AbstractList): kotlin.Int declared in kotlin.collections.AbstractList
+          public abstract fun lastIndexOf (element: E of kotlin.collections.List): kotlin.Int declared in kotlin.collections.List
+        $this: VALUE_PARAMETER name:<this> type:kotlin.collections.AbstractList<kotlin.String>
+        VALUE_PARAMETER name:element index:0 type:kotlin.String
+      FUN FAKE_OVERRIDE name:listIterator visibility:public modality:OPEN <> ($this:kotlin.collections.AbstractList<kotlin.String>) returnType:kotlin.collections.ListIterator<kotlin.String> [fake_override]
+        overridden:
+          public open fun listIterator (): kotlin.collections.ListIterator<E of kotlin.collections.AbstractList> declared in kotlin.collections.AbstractList
+          public abstract fun listIterator (): kotlin.collections.ListIterator<E of kotlin.collections.List> declared in kotlin.collections.List
+        $this: VALUE_PARAMETER name:<this> type:kotlin.collections.AbstractList<kotlin.String>
+      FUN FAKE_OVERRIDE name:listIterator visibility:public modality:OPEN <> ($this:kotlin.collections.AbstractList<kotlin.String>, index:kotlin.Int) returnType:kotlin.collections.ListIterator<kotlin.String> [fake_override]
+        overridden:
+          public open fun listIterator (index: kotlin.Int): kotlin.collections.ListIterator<E of kotlin.collections.AbstractList> declared in kotlin.collections.AbstractList
+          public abstract fun listIterator (index: kotlin.Int): kotlin.collections.ListIterator<E of kotlin.collections.List> declared in kotlin.collections.List
+        $this: VALUE_PARAMETER name:<this> type:kotlin.collections.AbstractList<kotlin.String>
+        VALUE_PARAMETER name:index index:0 type:kotlin.Int
+      FUN FAKE_OVERRIDE name:subList visibility:public modality:OPEN <> ($this:kotlin.collections.AbstractList<kotlin.String>, fromIndex:kotlin.Int, toIndex:kotlin.Int) returnType:kotlin.collections.List<kotlin.String> [fake_override]
+        overridden:
+          public open fun subList (fromIndex: kotlin.Int, toIndex: kotlin.Int): kotlin.collections.List<E of kotlin.collections.AbstractList> declared in kotlin.collections.AbstractList
+          public abstract fun subList (fromIndex: kotlin.Int, toIndex: kotlin.Int): kotlin.collections.List<E of kotlin.collections.List> declared in kotlin.collections.List
+        $this: VALUE_PARAMETER name:<this> type:kotlin.collections.AbstractList<kotlin.String>
+        VALUE_PARAMETER name:fromIndex index:0 type:kotlin.Int
+        VALUE_PARAMETER name:toIndex index:1 type:kotlin.Int
+      FUN FAKE_OVERRIDE name:toArray visibility:protected modality:OPEN <> ($this:kotlin.collections.AbstractCollection<kotlin.String>) returnType:kotlin.Array<kotlin.Any?> [fake_override]
+        overridden:
+          protected open fun toArray (): kotlin.Array<kotlin.Any?> [fake_override] declared in kotlin.collections.AbstractList
+        $this: VALUE_PARAMETER name:<this> type:kotlin.collections.AbstractCollection<kotlin.String>
+      FUN FAKE_OVERRIDE name:toArray visibility:protected modality:OPEN <T> ($this:kotlin.collections.AbstractCollection<kotlin.String>, array:kotlin.Array<T of test.Child.toArray>) returnType:kotlin.Array<T of test.Child.toArray> [fake_override]
+        overridden:
+          protected open fun toArray <T> (array: kotlin.Array<T of kotlin.collections.AbstractList.toArray>): kotlin.Array<T of kotlin.collections.AbstractList.toArray> [fake_override] declared in kotlin.collections.AbstractList
+        TYPE_PARAMETER name:T index:0 variance: superTypes:[kotlin.Any?] reified:false
+        $this: VALUE_PARAMETER name:<this> type:kotlin.collections.AbstractCollection<kotlin.String>
+        VALUE_PARAMETER name:array index:0 type:kotlin.Array<T of test.Child.toArray>
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.collections.AbstractCollection<kotlin.String>) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String [fake_override] declared in kotlin.collections.AbstractList
+          public open fun toString (): kotlin.String [fake_override] declared in test.Parent
+          public open fun toString (): kotlin.String [fake_override] declared in kotlin.collections.List
+        $this: VALUE_PARAMETER name:<this> type:kotlin.collections.AbstractCollection<kotlin.String>
+      PROPERTY FAKE_OVERRIDE name:size visibility:public modality:ABSTRACT [fake_override,val]
+        overridden:
+          public abstract size: kotlin.Int [val] declared in kotlin.collections.AbstractList
+          public abstract size: kotlin.Int [val] declared in kotlin.collections.List
+        FUN FAKE_OVERRIDE name:<get-size> visibility:public modality:ABSTRACT <> ($this:kotlin.collections.AbstractList<kotlin.String>) returnType:kotlin.Int [fake_override]
+          correspondingProperty: PROPERTY FAKE_OVERRIDE name:size visibility:public modality:ABSTRACT [fake_override,val]
+          overridden:
+            public abstract fun <get-size> (): kotlin.Int declared in kotlin.collections.AbstractList
+            public abstract fun <get-size> (): kotlin.Int declared in kotlin.collections.List
+          $this: VALUE_PARAMETER name:<this> type:kotlin.collections.AbstractList<kotlin.String>
+    CLASS CLASS name:Cl modality:OPEN visibility:public superTypes:[kotlin.Any]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:test.Cl
+      CONSTRUCTOR visibility:public <> () returnType:test.Cl [primary]
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [operator] declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+    CLASS CLASS name:Generics1 modality:FINAL visibility:public superTypes:[kotlin.Any]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:test.Generics1
+      CONSTRUCTOR visibility:public <> () returnType:test.Generics1 [primary]
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [operator] declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+    CLASS CLASS name:Generics2 modality:FINAL visibility:public superTypes:[kotlin.Any]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:test.Generics2
+      CONSTRUCTOR visibility:public <> () returnType:test.Generics2 [primary]
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [operator] declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+    CLASS CLASS name:Generics3 modality:FINAL visibility:public superTypes:[kotlin.Any]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:test.Generics3
+      CONSTRUCTOR visibility:public <> () returnType:test.Generics3 [primary]
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [operator] declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+    CLASS CLASS name:MappedList modality:FINAL visibility:public superTypes:[kotlin.collections.AbstractList<R of test.MappedList>; kotlin.collections.List<R of test.MappedList>]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:test.MappedList<R of test.MappedList>
+      TYPE_PARAMETER name:R index:0 variance: superTypes:[kotlin.Any?] reified:false
+      CONSTRUCTOR visibility:public <> () returnType:test.MappedList<R of test.MappedList> [primary]
+      FUN FAKE_OVERRIDE name:contains visibility:public modality:OPEN <> ($this:kotlin.collections.AbstractCollection<R of test.MappedList>, element:R of test.MappedList) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun contains (element: E of kotlin.collections.AbstractList): kotlin.Boolean [fake_override,operator] declared in kotlin.collections.AbstractList
+          public abstract fun contains (element: E of kotlin.collections.List): kotlin.Boolean [operator] declared in kotlin.collections.List
+        $this: VALUE_PARAMETER name:<this> type:kotlin.collections.AbstractCollection<R of test.MappedList>
+        VALUE_PARAMETER name:element index:0 type:R of test.MappedList
+      FUN FAKE_OVERRIDE name:containsAll visibility:public modality:OPEN <> ($this:kotlin.collections.AbstractCollection<R of test.MappedList>, elements:kotlin.collections.Collection<R of test.MappedList>) returnType:kotlin.Boolean [fake_override]
+        overridden:
+          public open fun containsAll (elements: kotlin.collections.Collection<E of kotlin.collections.AbstractList>): kotlin.Boolean [fake_override] declared in kotlin.collections.AbstractList
+          public abstract fun containsAll (elements: kotlin.collections.Collection<E of kotlin.collections.List>): kotlin.Boolean declared in kotlin.collections.List
+        $this: VALUE_PARAMETER name:<this> type:kotlin.collections.AbstractCollection<R of test.MappedList>
+        VALUE_PARAMETER name:elements index:0 type:kotlin.collections.Collection<R of test.MappedList>
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.collections.AbstractList<R of test.MappedList>, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [operator] declared in kotlin.collections.AbstractList
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [fake_override,operator] declared in kotlin.collections.List
+        $this: VALUE_PARAMETER name:<this> type:kotlin.collections.AbstractList<R of test.MappedList>
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.collections.AbstractList<R of test.MappedList>) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int declared in kotlin.collections.AbstractList
+          public open fun hashCode (): kotlin.Int [fake_override] declared in kotlin.collections.List
+        $this: VALUE_PARAMETER name:<this> type:kotlin.collections.AbstractList<R of test.MappedList>
+      FUN FAKE_OVERRIDE name:indexOf visibility:public modality:OPEN <> ($this:kotlin.collections.AbstractList<R of test.MappedList>, element:R of test.MappedList) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun indexOf (element: E of kotlin.collections.AbstractList): kotlin.Int declared in kotlin.collections.AbstractList
+          public abstract fun indexOf (element: E of kotlin.collections.List): kotlin.Int declared in kotlin.collections.List
+        $this: VALUE_PARAMETER name:<this> type:kotlin.collections.AbstractList<R of test.MappedList>
+        VALUE_PARAMETER name:element index:0 type:R of test.MappedList
+      FUN FAKE_OVERRIDE name:isEmpty visibility:public modality:OPEN <> ($this:kotlin.collections.AbstractCollection<R of test.MappedList>) returnType:kotlin.Boolean [fake_override]
+        overridden:
+          public open fun isEmpty (): kotlin.Boolean [fake_override] declared in kotlin.collections.AbstractList
+          public abstract fun isEmpty (): kotlin.Boolean declared in kotlin.collections.List
+        $this: VALUE_PARAMETER name:<this> type:kotlin.collections.AbstractCollection<R of test.MappedList>
+      FUN FAKE_OVERRIDE name:iterator visibility:public modality:OPEN <> ($this:kotlin.collections.AbstractList<R of test.MappedList>) returnType:kotlin.collections.Iterator<R of test.MappedList> [fake_override,operator]
+        overridden:
+          public open fun iterator (): kotlin.collections.Iterator<E of kotlin.collections.AbstractList> [operator] declared in kotlin.collections.AbstractList
+          public abstract fun iterator (): kotlin.collections.Iterator<E of kotlin.collections.List> [operator] declared in kotlin.collections.List
+        $this: VALUE_PARAMETER name:<this> type:kotlin.collections.AbstractList<R of test.MappedList>
+      FUN FAKE_OVERRIDE name:lastIndexOf visibility:public modality:OPEN <> ($this:kotlin.collections.AbstractList<R of test.MappedList>, element:R of test.MappedList) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun lastIndexOf (element: E of kotlin.collections.AbstractList): kotlin.Int declared in kotlin.collections.AbstractList
+          public abstract fun lastIndexOf (element: E of kotlin.collections.List): kotlin.Int declared in kotlin.collections.List
+        $this: VALUE_PARAMETER name:<this> type:kotlin.collections.AbstractList<R of test.MappedList>
+        VALUE_PARAMETER name:element index:0 type:R of test.MappedList
+      FUN FAKE_OVERRIDE name:listIterator visibility:public modality:OPEN <> ($this:kotlin.collections.AbstractList<R of test.MappedList>) returnType:kotlin.collections.ListIterator<R of test.MappedList> [fake_override]
+        overridden:
+          public open fun listIterator (): kotlin.collections.ListIterator<E of kotlin.collections.AbstractList> declared in kotlin.collections.AbstractList
+          public abstract fun listIterator (): kotlin.collections.ListIterator<E of kotlin.collections.List> declared in kotlin.collections.List
+        $this: VALUE_PARAMETER name:<this> type:kotlin.collections.AbstractList<R of test.MappedList>
+      FUN FAKE_OVERRIDE name:listIterator visibility:public modality:OPEN <> ($this:kotlin.collections.AbstractList<R of test.MappedList>, index:kotlin.Int) returnType:kotlin.collections.ListIterator<R of test.MappedList> [fake_override]
+        overridden:
+          public open fun listIterator (index: kotlin.Int): kotlin.collections.ListIterator<E of kotlin.collections.AbstractList> declared in kotlin.collections.AbstractList
+          public abstract fun listIterator (index: kotlin.Int): kotlin.collections.ListIterator<E of kotlin.collections.List> declared in kotlin.collections.List
+        $this: VALUE_PARAMETER name:<this> type:kotlin.collections.AbstractList<R of test.MappedList>
+        VALUE_PARAMETER name:index index:0 type:kotlin.Int
+      FUN FAKE_OVERRIDE name:subList visibility:public modality:OPEN <> ($this:kotlin.collections.AbstractList<R of test.MappedList>, fromIndex:kotlin.Int, toIndex:kotlin.Int) returnType:kotlin.collections.List<R of test.MappedList> [fake_override]
+        overridden:
+          public open fun subList (fromIndex: kotlin.Int, toIndex: kotlin.Int): kotlin.collections.List<E of kotlin.collections.AbstractList> declared in kotlin.collections.AbstractList
+          public abstract fun subList (fromIndex: kotlin.Int, toIndex: kotlin.Int): kotlin.collections.List<E of kotlin.collections.List> declared in kotlin.collections.List
+        $this: VALUE_PARAMETER name:<this> type:kotlin.collections.AbstractList<R of test.MappedList>
+        VALUE_PARAMETER name:fromIndex index:0 type:kotlin.Int
+        VALUE_PARAMETER name:toIndex index:1 type:kotlin.Int
+      FUN FAKE_OVERRIDE name:toArray visibility:protected modality:OPEN <> ($this:kotlin.collections.AbstractCollection<R of test.MappedList>) returnType:kotlin.Array<kotlin.Any?> [fake_override]
+        overridden:
+          protected open fun toArray (): kotlin.Array<kotlin.Any?> [fake_override] declared in kotlin.collections.AbstractList
+        $this: VALUE_PARAMETER name:<this> type:kotlin.collections.AbstractCollection<R of test.MappedList>
+      FUN FAKE_OVERRIDE name:toArray visibility:protected modality:OPEN <T> ($this:kotlin.collections.AbstractCollection<R of test.MappedList>, array:kotlin.Array<T of test.MappedList.toArray>) returnType:kotlin.Array<T of test.MappedList.toArray> [fake_override]
+        overridden:
+          protected open fun toArray <T> (array: kotlin.Array<T of kotlin.collections.AbstractList.toArray>): kotlin.Array<T of kotlin.collections.AbstractList.toArray> [fake_override] declared in kotlin.collections.AbstractList
+        TYPE_PARAMETER name:T index:0 variance: superTypes:[kotlin.Any?] reified:false
+        $this: VALUE_PARAMETER name:<this> type:kotlin.collections.AbstractCollection<R of test.MappedList>
+        VALUE_PARAMETER name:array index:0 type:kotlin.Array<T of test.MappedList.toArray>
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.collections.AbstractCollection<R of test.MappedList>) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String [fake_override] declared in kotlin.collections.AbstractList
+          public open fun toString (): kotlin.String [fake_override] declared in kotlin.collections.List
+        $this: VALUE_PARAMETER name:<this> type:kotlin.collections.AbstractCollection<R of test.MappedList>
+      FUN name:get visibility:public modality:OPEN <> ($this:test.MappedList<R of test.MappedList>, index:kotlin.Int) returnType:kotlin.Nothing [operator]
+        overridden:
+          public abstract fun get (index: kotlin.Int): E of kotlin.collections.AbstractList [operator] declared in kotlin.collections.AbstractList
+          public abstract fun get (index: kotlin.Int): E of kotlin.collections.List [operator] declared in kotlin.collections.List
+        $this: VALUE_PARAMETER name:<this> type:test.MappedList<R of test.MappedList>
+        VALUE_PARAMETER name:index index:0 type:kotlin.Int
+        BLOCK_BODY
+          RETURN type=kotlin.Nothing from='public open fun get (index: kotlin.Int): kotlin.Nothing [operator] declared in test.MappedList'
+            ERROR_EXPR 'skipBodies' type=kotlin.Nothing
+      PROPERTY name:size visibility:public modality:OPEN [val]
+        overridden:
+          public abstract size: kotlin.Int [val] declared in kotlin.collections.AbstractList
+          public abstract size: kotlin.Int [val] declared in kotlin.collections.List
+        FUN name:<get-size> visibility:public modality:OPEN <> ($this:test.MappedList<R of test.MappedList>) returnType:kotlin.Int
+          correspondingProperty: PROPERTY name:size visibility:public modality:OPEN [val]
+          overridden:
+            public abstract fun <get-size> (): kotlin.Int declared in kotlin.collections.AbstractList
+            public abstract fun <get-size> (): kotlin.Int declared in kotlin.collections.List
+          $this: VALUE_PARAMETER name:<this> type:test.MappedList<R of test.MappedList>
+          BLOCK_BODY
+            RETURN type=kotlin.Nothing from='public open fun <get-size> (): kotlin.Int declared in test.MappedList'
+              ERROR_EXPR 'skipBodies' type=kotlin.Nothing
+    CLASS CLASS name:TBarBazCl modality:FINAL visibility:public superTypes:[test.Cl]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:test.TBarBazCl
+      CONSTRUCTOR visibility:public <> () returnType:test.TBarBazCl [primary]
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [fake_override,operator] declared in test.Cl
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int [fake_override] declared in test.Cl
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String [fake_override] declared in test.Cl
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+    CLASS CLASS name:TClBarBaz modality:FINAL visibility:public superTypes:[test.Cl]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:test.TClBarBaz
+      CONSTRUCTOR visibility:public <> () returnType:test.TClBarBaz [primary]
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [fake_override,operator] declared in test.Cl
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int [fake_override] declared in test.Cl
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String [fake_override] declared in test.Cl
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+    CLASS CLASS name:TFooBar modality:FINAL visibility:public superTypes:[test.Intf]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:test.TFooBar
+      PROPERTY name:a visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:a type:IrErrorType([Error type: Unresolved type for X]) visibility:private [final]
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-a> visibility:public modality:FINAL <> ($this:test.TFooBar) returnType:IrErrorType([Error type: Unresolved type for X])
+          correspondingProperty: PROPERTY name:a visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:test.TFooBar
+      CONSTRUCTOR visibility:public <> (a:IrErrorType([Error type: Unresolved type for X])) returnType:test.TFooBar [primary]
+        VALUE_PARAMETER name:a index:0 type:IrErrorType([Error type: Unresolved type for X])
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [fake_override,operator] declared in test.Intf
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int [fake_override] declared in test.Intf
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String [fake_override] declared in test.Intf
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+    CLASS CLASS name:TFooBar2 modality:FINAL visibility:public superTypes:[kotlin.Any]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:test.TFooBar2
+      PROPERTY name:a visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:a type:IrErrorType([Error type: Unresolved type for X]) visibility:private [final]
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-a> visibility:public modality:FINAL <> ($this:test.TFooBar2) returnType:IrErrorType([Error type: Unresolved type for X])
+          correspondingProperty: PROPERTY name:a visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:test.TFooBar2
+      CONSTRUCTOR visibility:public <> (a:IrErrorType([Error type: Unresolved type for X])) returnType:test.TFooBar2 [primary]
+        VALUE_PARAMETER name:a index:0 type:IrErrorType([Error type: Unresolved type for X])
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [operator] declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+    CLASS CLASS name:TFooBarBaz modality:FINAL visibility:public superTypes:[kotlin.Any]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:test.TFooBarBaz
+      CONSTRUCTOR visibility:public <> () returnType:test.TFooBarBaz [primary]
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [operator] declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+    CLASS CLASS name:TFooBarBaz2 modality:FINAL visibility:public superTypes:[test.Intf]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:test.TFooBarBaz2
+      CONSTRUCTOR visibility:public <> () returnType:test.TFooBarBaz2 [primary]
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [fake_override,operator] declared in test.Intf
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int [fake_override] declared in test.Intf
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String [fake_override] declared in test.Intf
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+    CLASS CLASS name:TFooBarBaz3 modality:FINAL visibility:public superTypes:[kotlin.Any]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:test.TFooBarBaz3
+      CONSTRUCTOR visibility:public <> () returnType:test.TFooBarBaz3 [primary]
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [operator] declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+    CLASS CLASS name:TFooBarBaz4 modality:FINAL visibility:public superTypes:[kotlin.Any]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:test.TFooBarBaz4
+      CONSTRUCTOR visibility:public <> () returnType:test.TFooBarBaz4 [primary]
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [operator] declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+    CLASS CLASS name:TFooBarBaz5 modality:FINAL visibility:public superTypes:[kotlin.Any]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:test.TFooBarBaz5
+      CONSTRUCTOR visibility:public <> () returnType:test.TFooBarBaz5 [primary]
+      CONSTRUCTOR visibility:public <> (s:kotlin.String) returnType:test.TFooBarBaz5
+        VALUE_PARAMETER name:s index:0 type:kotlin.String
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [operator] declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+    CLASS CLASS name:TFooBarBaz6 modality:FINAL visibility:public superTypes:[kotlin.Any]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:test.TFooBarBaz6
+      CONSTRUCTOR visibility:public <> (s:kotlin.String) returnType:test.TFooBarBaz6
+        VALUE_PARAMETER name:s index:0 type:kotlin.String
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [operator] declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+    CLASS CLASS name:TxFooxBarxBaz modality:FINAL visibility:public superTypes:[test.Intf]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:test.TxFooxBarxBaz
+      CONSTRUCTOR visibility:public <> () returnType:test.TxFooxBarxBaz [primary]
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [fake_override,operator] declared in test.Intf
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int [fake_override] declared in test.Intf
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String [fake_override] declared in test.Intf
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+    CLASS CLASS name:TxFooxBarxBaz2 modality:FINAL visibility:public superTypes:[kotlin.Any]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:test.TxFooxBarxBaz2
+      CONSTRUCTOR visibility:public <> () returnType:test.TxFooxBarxBaz2 [primary]
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [operator] declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+    CLASS INTERFACE name:Intf modality:ABSTRACT visibility:public superTypes:[kotlin.Any]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:test.Intf
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [operator] declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+    CLASS INTERFACE name:Parent modality:ABSTRACT visibility:public superTypes:[kotlin.Any]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:test.Parent<A of test.Parent, B of test.Parent>
+      TYPE_PARAMETER name:A index:0 variance: superTypes:[kotlin.CharSequence?] reified:false
+      TYPE_PARAMETER name:B index:1 variance: superTypes:[kotlin.Any?] reified:false
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [operator] declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any

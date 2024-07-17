@@ -1,0 +1,484 @@
+MODULE_FRAGMENT name:<main>
+  FILE fqName:app fileName:test.kt
+    CLASS ANNOTATION_CLASS name:Anno modality:OPEN visibility:public superTypes:[kotlin.Annotation]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:app.Anno
+      PROPERTY name:a1 visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:a1 type:kotlin.Boolean visibility:private [final]
+          EXPRESSION_BODY
+            GET_VAR 'a1: kotlin.Boolean declared in app.Anno.<init>' type=kotlin.Boolean origin=INITIALIZE_PROPERTY_FROM_PARAMETER
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-a1> visibility:public modality:FINAL <> ($this:app.Anno) returnType:kotlin.Boolean
+          correspondingProperty: PROPERTY name:a1 visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:app.Anno
+      PROPERTY name:a2 visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:a2 type:kotlin.Byte visibility:private [final]
+          EXPRESSION_BODY
+            GET_VAR 'a2: kotlin.Byte declared in app.Anno.<init>' type=kotlin.Byte origin=INITIALIZE_PROPERTY_FROM_PARAMETER
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-a2> visibility:public modality:FINAL <> ($this:app.Anno) returnType:kotlin.Byte
+          correspondingProperty: PROPERTY name:a2 visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:app.Anno
+      PROPERTY name:a3 visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:a3 type:kotlin.Int visibility:private [final]
+          EXPRESSION_BODY
+            GET_VAR 'a3: kotlin.Int declared in app.Anno.<init>' type=kotlin.Int origin=INITIALIZE_PROPERTY_FROM_PARAMETER
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-a3> visibility:public modality:FINAL <> ($this:app.Anno) returnType:kotlin.Int
+          correspondingProperty: PROPERTY name:a3 visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:app.Anno
+      PROPERTY name:a4 visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:a4 type:kotlin.Short visibility:private [final]
+          EXPRESSION_BODY
+            GET_VAR 'a4: kotlin.Short declared in app.Anno.<init>' type=kotlin.Short origin=INITIALIZE_PROPERTY_FROM_PARAMETER
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-a4> visibility:public modality:FINAL <> ($this:app.Anno) returnType:kotlin.Short
+          correspondingProperty: PROPERTY name:a4 visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:app.Anno
+      PROPERTY name:a5 visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:a5 type:kotlin.Long visibility:private [final]
+          EXPRESSION_BODY
+            GET_VAR 'a5: kotlin.Long declared in app.Anno.<init>' type=kotlin.Long origin=INITIALIZE_PROPERTY_FROM_PARAMETER
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-a5> visibility:public modality:FINAL <> ($this:app.Anno) returnType:kotlin.Long
+          correspondingProperty: PROPERTY name:a5 visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:app.Anno
+      PROPERTY name:a6 visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:a6 type:kotlin.Char visibility:private [final]
+          EXPRESSION_BODY
+            GET_VAR 'a6: kotlin.Char declared in app.Anno.<init>' type=kotlin.Char origin=INITIALIZE_PROPERTY_FROM_PARAMETER
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-a6> visibility:public modality:FINAL <> ($this:app.Anno) returnType:kotlin.Char
+          correspondingProperty: PROPERTY name:a6 visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:app.Anno
+      PROPERTY name:a7 visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:a7 type:kotlin.Float visibility:private [final]
+          EXPRESSION_BODY
+            GET_VAR 'a7: kotlin.Float declared in app.Anno.<init>' type=kotlin.Float origin=INITIALIZE_PROPERTY_FROM_PARAMETER
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-a7> visibility:public modality:FINAL <> ($this:app.Anno) returnType:kotlin.Float
+          correspondingProperty: PROPERTY name:a7 visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:app.Anno
+      PROPERTY name:a8 visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:a8 type:kotlin.Double visibility:private [final]
+          EXPRESSION_BODY
+            GET_VAR 'a8: kotlin.Double declared in app.Anno.<init>' type=kotlin.Double origin=INITIALIZE_PROPERTY_FROM_PARAMETER
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-a8> visibility:public modality:FINAL <> ($this:app.Anno) returnType:kotlin.Double
+          correspondingProperty: PROPERTY name:a8 visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:app.Anno
+      PROPERTY name:a9 visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:a9 type:kotlin.String visibility:private [final]
+          EXPRESSION_BODY
+            GET_VAR 'a9: kotlin.String declared in app.Anno.<init>' type=kotlin.String origin=INITIALIZE_PROPERTY_FROM_PARAMETER
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-a9> visibility:public modality:FINAL <> ($this:app.Anno) returnType:kotlin.String
+          correspondingProperty: PROPERTY name:a9 visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:app.Anno
+      CONSTRUCTOR visibility:public <> (a1:kotlin.Boolean, a2:kotlin.Byte, a3:kotlin.Int, a4:kotlin.Short, a5:kotlin.Long, a6:kotlin.Char, a7:kotlin.Float, a8:kotlin.Double, a9:kotlin.String) returnType:app.Anno [primary]
+        VALUE_PARAMETER name:a1 index:0 type:kotlin.Boolean
+        VALUE_PARAMETER name:a2 index:1 type:kotlin.Byte
+        VALUE_PARAMETER name:a3 index:2 type:kotlin.Int
+        VALUE_PARAMETER name:a4 index:3 type:kotlin.Short
+        VALUE_PARAMETER name:a5 index:4 type:kotlin.Long
+        VALUE_PARAMETER name:a6 index:5 type:kotlin.Char
+        VALUE_PARAMETER name:a7 index:6 type:kotlin.Float
+        VALUE_PARAMETER name:a8 index:7 type:kotlin.Double
+        VALUE_PARAMETER name:a9 index:8 type:kotlin.String
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [fake_override,operator] declared in kotlin.Annotation
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int [fake_override] declared in kotlin.Annotation
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String [fake_override] declared in kotlin.Annotation
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+    CLASS ANNOTATION_CLASS name:Bind modality:OPEN visibility:public superTypes:[kotlin.Annotation]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:app.Bind
+      PROPERTY name:id visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:id type:kotlin.Int visibility:private [final]
+          EXPRESSION_BODY
+            GET_VAR 'id: kotlin.Int declared in app.Bind.<init>' type=kotlin.Int origin=INITIALIZE_PROPERTY_FROM_PARAMETER
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-id> visibility:public modality:FINAL <> ($this:app.Bind) returnType:kotlin.Int
+          correspondingProperty: PROPERTY name:id visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:app.Bind
+      CONSTRUCTOR visibility:public <> (id:kotlin.Int) returnType:app.Bind [primary]
+        VALUE_PARAMETER name:id index:0 type:kotlin.Int
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [fake_override,operator] declared in kotlin.Annotation
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int [fake_override] declared in kotlin.Annotation
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String [fake_override] declared in kotlin.Annotation
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+    CLASS ANNOTATION_CLASS name:BindField modality:OPEN visibility:public superTypes:[kotlin.Annotation]
+      annotations:
+        Target(allowedTargets = [GET_ENUM 'ENUM_ENTRY IR_EXTERNAL_DECLARATION_STUB name:FIELD' type=kotlin.annotation.AnnotationTarget] type=kotlin.Array<out kotlin.annotation.AnnotationTarget> varargElementType=kotlin.annotation.AnnotationTarget)
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:app.BindField
+      PROPERTY name:id visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:id type:kotlin.Int visibility:private [final]
+          EXPRESSION_BODY
+            GET_VAR 'id: kotlin.Int declared in app.BindField.<init>' type=kotlin.Int origin=INITIALIZE_PROPERTY_FROM_PARAMETER
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-id> visibility:public modality:FINAL <> ($this:app.BindField) returnType:kotlin.Int
+          correspondingProperty: PROPERTY name:id visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:app.BindField
+      CONSTRUCTOR visibility:public <> (id:kotlin.Int) returnType:app.BindField [primary]
+        VALUE_PARAMETER name:id index:0 type:kotlin.Int
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [fake_override,operator] declared in kotlin.Annotation
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int [fake_override] declared in kotlin.Annotation
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String [fake_override] declared in kotlin.Annotation
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+    CLASS ANNOTATION_CLASS name:MultiValue modality:OPEN visibility:public superTypes:[kotlin.Annotation]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:app.MultiValue
+      PROPERTY name:ids visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:ids type:kotlin.IntArray visibility:private [final]
+          EXPRESSION_BODY
+            GET_VAR 'ids: kotlin.IntArray declared in app.MultiValue.<init>' type=kotlin.IntArray origin=INITIALIZE_PROPERTY_FROM_PARAMETER
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-ids> visibility:public modality:FINAL <> ($this:app.MultiValue) returnType:kotlin.IntArray
+          correspondingProperty: PROPERTY name:ids visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:app.MultiValue
+      CONSTRUCTOR visibility:public <> (ids:kotlin.IntArray) returnType:app.MultiValue [primary]
+        VALUE_PARAMETER name:ids index:0 type:kotlin.IntArray
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [fake_override,operator] declared in kotlin.Annotation
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int [fake_override] declared in kotlin.Annotation
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String [fake_override] declared in kotlin.Annotation
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+    CLASS ANNOTATION_CLASS name:MultiValueByte modality:OPEN visibility:public superTypes:[kotlin.Annotation]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:app.MultiValueByte
+      PROPERTY name:ids visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:ids type:kotlin.ByteArray visibility:private [final]
+          EXPRESSION_BODY
+            GET_VAR 'ids: kotlin.ByteArray declared in app.MultiValueByte.<init>' type=kotlin.ByteArray origin=INITIALIZE_PROPERTY_FROM_PARAMETER
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-ids> visibility:public modality:FINAL <> ($this:app.MultiValueByte) returnType:kotlin.ByteArray
+          correspondingProperty: PROPERTY name:ids visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:app.MultiValueByte
+      CONSTRUCTOR visibility:public <> (ids:kotlin.ByteArray) returnType:app.MultiValueByte [primary]
+        VALUE_PARAMETER name:ids index:0 type:kotlin.ByteArray
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [fake_override,operator] declared in kotlin.Annotation
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int [fake_override] declared in kotlin.Annotation
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String [fake_override] declared in kotlin.Annotation
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+    CLASS ANNOTATION_CLASS name:MultiValueString modality:OPEN visibility:public superTypes:[kotlin.Annotation]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:app.MultiValueString
+      PROPERTY name:ids visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:ids type:kotlin.Array<kotlin.String> visibility:private [final]
+          EXPRESSION_BODY
+            GET_VAR 'ids: kotlin.Array<kotlin.String> declared in app.MultiValueString.<init>' type=kotlin.Array<kotlin.String> origin=INITIALIZE_PROPERTY_FROM_PARAMETER
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-ids> visibility:public modality:FINAL <> ($this:app.MultiValueString) returnType:kotlin.Array<kotlin.String>
+          correspondingProperty: PROPERTY name:ids visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:app.MultiValueString
+      CONSTRUCTOR visibility:public <> (ids:kotlin.Array<kotlin.String>) returnType:app.MultiValueString [primary]
+        VALUE_PARAMETER name:ids index:0 type:kotlin.Array<kotlin.String>
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [fake_override,operator] declared in kotlin.Annotation
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int [fake_override] declared in kotlin.Annotation
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String [fake_override] declared in kotlin.Annotation
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+    CLASS CLASS name:MyActivity modality:FINAL visibility:public superTypes:[kotlin.Any]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:app.MyActivity
+      PROPERTY name:param1 visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:param1 type:kotlin.Int visibility:private [final]
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-param1> visibility:public modality:FINAL <> ($this:app.MyActivity) returnType:kotlin.Int
+          correspondingProperty: PROPERTY name:param1 visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:app.MyActivity
+      PROPERTY name:param2 visibility:public modality:FINAL [var]
+        FIELD PROPERTY_BACKING_FIELD name:param2 type:kotlin.Int visibility:private
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-param2> visibility:public modality:FINAL <> ($this:app.MyActivity) returnType:kotlin.Int
+          correspondingProperty: PROPERTY name:param2 visibility:public modality:FINAL [var]
+          $this: VALUE_PARAMETER name:<this> type:app.MyActivity
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<set-param2> visibility:public modality:FINAL <> ($this:app.MyActivity, <set-?>:kotlin.Int) returnType:kotlin.Unit
+          correspondingProperty: PROPERTY name:param2 visibility:public modality:FINAL [var]
+          $this: VALUE_PARAMETER name:<this> type:app.MyActivity
+          VALUE_PARAMETER name:<set-?> index:0 type:kotlin.Int
+      PROPERTY name:a visibility:public modality:FINAL [val]
+        annotations:
+          Bind(id = 100)
+        FIELD PROPERTY_BACKING_FIELD name:a type:kotlin.Int visibility:private [final]
+          annotations:
+            BindField(id = 100)
+          EXPRESSION_BODY
+            CONST Int type=kotlin.Int value=0
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-a> visibility:public modality:FINAL <> ($this:app.MyActivity) returnType:kotlin.Int
+          correspondingProperty: PROPERTY name:a visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:app.MyActivity
+      PROPERTY name:b visibility:public modality:FINAL [val]
+        annotations:
+          Bind(id = 100)
+        FIELD PROPERTY_BACKING_FIELD name:b type:kotlin.Int visibility:private [final]
+          annotations:
+            BindField(id = 100)
+          EXPRESSION_BODY
+            CONST Int type=kotlin.Int value=0
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-b> visibility:public modality:FINAL <> ($this:app.MyActivity) returnType:kotlin.Int
+          correspondingProperty: PROPERTY name:b visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:app.MyActivity
+      PROPERTY name:c visibility:public modality:FINAL [val]
+        annotations:
+          Bind(id = 100)
+        FIELD PROPERTY_BACKING_FIELD name:c type:kotlin.Int visibility:private [final]
+          annotations:
+            BindField(id = 100)
+          EXPRESSION_BODY
+            CONST Int type=kotlin.Int value=0
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-c> visibility:public modality:FINAL <> ($this:app.MyActivity) returnType:kotlin.Int
+          correspondingProperty: PROPERTY name:c visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:app.MyActivity
+      PROPERTY name:d visibility:public modality:FINAL [val]
+        annotations:
+          Bind(id = 100)
+        FIELD PROPERTY_BACKING_FIELD name:d type:kotlin.Int visibility:private [final]
+          annotations:
+            BindField(id = 100)
+          EXPRESSION_BODY
+            CONST Int type=kotlin.Int value=0
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-d> visibility:public modality:FINAL <> ($this:app.MyActivity) returnType:kotlin.Int
+          correspondingProperty: PROPERTY name:d visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:app.MyActivity
+      PROPERTY name:e visibility:public modality:FINAL [val]
+        annotations:
+          Bind(id = 100)
+          Anno(a1 = false, a2 = 1, a3 = 2, a4 = 3, a5 = 4, a6 = '5', a7 = 6.0, a8 = 7.0, a9 = "A")
+        FIELD PROPERTY_BACKING_FIELD name:e type:kotlin.Int visibility:private [final]
+          annotations:
+            BindField(id = 100)
+          EXPRESSION_BODY
+            CONST Int type=kotlin.Int value=0
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-e> visibility:public modality:FINAL <> ($this:app.MyActivity) returnType:kotlin.Int
+          correspondingProperty: PROPERTY name:e visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:app.MyActivity
+      PROPERTY name:f visibility:public modality:FINAL [val]
+        annotations:
+          Bind(id = 200)
+        FIELD PROPERTY_BACKING_FIELD name:f type:kotlin.Int visibility:private [final]
+          annotations:
+            BindField(id = 200)
+          EXPRESSION_BODY
+            CONST Int type=kotlin.Int value=0
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-f> visibility:public modality:FINAL <> ($this:app.MyActivity) returnType:kotlin.Int
+          correspondingProperty: PROPERTY name:f visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:app.MyActivity
+      PROPERTY name:propB visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:propB type:kotlin.Int visibility:private [final]
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-propB> visibility:public modality:FINAL <> ($this:app.MyActivity) returnType:kotlin.Int
+          correspondingProperty: PROPERTY name:propB visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:app.MyActivity
+      PROPERTY name:propC visibility:public modality:FINAL [var]
+        FIELD PROPERTY_BACKING_FIELD name:propC type:kotlin.Int visibility:private
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-propC> visibility:public modality:FINAL <> ($this:app.MyActivity) returnType:kotlin.Int
+          correspondingProperty: PROPERTY name:propC visibility:public modality:FINAL [var]
+          $this: VALUE_PARAMETER name:<this> type:app.MyActivity
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<set-propC> visibility:public modality:FINAL <> ($this:app.MyActivity, <set-?>:kotlin.Int) returnType:kotlin.Unit
+          correspondingProperty: PROPERTY name:propC visibility:public modality:FINAL [var]
+          $this: VALUE_PARAMETER name:<this> type:app.MyActivity
+          VALUE_PARAMETER name:<set-?> index:0 type:kotlin.Int
+      PROPERTY name:propD visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:propD type:kotlin.Int visibility:public [final]
+          annotations:
+            JvmField
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-propD> visibility:public modality:FINAL <> ($this:app.MyActivity) returnType:kotlin.Int
+          correspondingProperty: PROPERTY name:propD visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:app.MyActivity
+      PROPERTY name:propE visibility:public modality:FINAL [var]
+        FIELD PROPERTY_BACKING_FIELD name:propE type:kotlin.Int visibility:public
+          annotations:
+            JvmField
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-propE> visibility:public modality:FINAL <> ($this:app.MyActivity) returnType:kotlin.Int
+          correspondingProperty: PROPERTY name:propE visibility:public modality:FINAL [var]
+          $this: VALUE_PARAMETER name:<this> type:app.MyActivity
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<set-propE> visibility:public modality:FINAL <> ($this:app.MyActivity, <set-?>:kotlin.Int) returnType:kotlin.Unit
+          correspondingProperty: PROPERTY name:propE visibility:public modality:FINAL [var]
+          $this: VALUE_PARAMETER name:<this> type:app.MyActivity
+          VALUE_PARAMETER name:<set-?> index:0 type:kotlin.Int
+      PROPERTY name:propF visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:propF type:kotlin.Int visibility:private [final]
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-propF> visibility:public modality:FINAL <> ($this:app.MyActivity) returnType:kotlin.Int
+          correspondingProperty: PROPERTY name:propF visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:app.MyActivity
+      CONSTRUCTOR visibility:public <> (param1:kotlin.Int, param2:kotlin.Int) returnType:app.MyActivity [primary]
+        VALUE_PARAMETER name:param1 index:0 type:kotlin.Int
+          EXPRESSION_BODY
+            ERROR_EXPR 'skipBodies' type=kotlin.Nothing
+        VALUE_PARAMETER name:param2 index:1 type:kotlin.Int
+          EXPRESSION_BODY
+            ERROR_EXPR 'skipBodies' type=kotlin.Nothing
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [operator] declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN name:foo visibility:public modality:FINAL <> ($this:app.MyActivity) returnType:kotlin.Unit
+        annotations:
+          Bind(id = 100)
+        $this: VALUE_PARAMETER name:<this> type:app.MyActivity
+        BLOCK_BODY
+          RETURN type=kotlin.Nothing from='public final fun foo (): kotlin.Unit declared in app.MyActivity'
+            ERROR_EXPR 'skipBodies' type=kotlin.Nothing
+      FUN name:foo2 visibility:public modality:FINAL <> ($this:app.MyActivity) returnType:kotlin.Unit
+        annotations:
+          Bind(id = 100)
+        $this: VALUE_PARAMETER name:<this> type:app.MyActivity
+        BLOCK_BODY
+          RETURN type=kotlin.Nothing from='public final fun foo2 (): kotlin.Unit declared in app.MyActivity'
+            ERROR_EXPR 'skipBodies' type=kotlin.Nothing
+      FUN name:foo3 visibility:public modality:FINAL <> ($this:app.MyActivity) returnType:kotlin.Unit
+        annotations:
+          Bind(id = 100)
+        $this: VALUE_PARAMETER name:<this> type:app.MyActivity
+        BLOCK_BODY
+          RETURN type=kotlin.Nothing from='public final fun foo3 (): kotlin.Unit declared in app.MyActivity'
+            ERROR_EXPR 'skipBodies' type=kotlin.Nothing
+      FUN name:foo4 visibility:public modality:FINAL <> ($this:app.MyActivity) returnType:kotlin.Unit
+        annotations:
+          Bind(id = 100)
+        $this: VALUE_PARAMETER name:<this> type:app.MyActivity
+        BLOCK_BODY
+          RETURN type=kotlin.Nothing from='public final fun foo4 (): kotlin.Unit declared in app.MyActivity'
+            ERROR_EXPR 'skipBodies' type=kotlin.Nothing
+      FUN name:foo5 visibility:public modality:FINAL <> ($this:app.MyActivity) returnType:kotlin.Unit
+        annotations:
+          Bind(id = 100)
+          Anno(a1 = false, a2 = 1, a3 = 2, a4 = 3, a5 = 4, a6 = '5', a7 = 6.0, a8 = 7.0, a9 = "A")
+        $this: VALUE_PARAMETER name:<this> type:app.MyActivity
+        BLOCK_BODY
+          RETURN type=kotlin.Nothing from='public final fun foo5 (): kotlin.Unit declared in app.MyActivity'
+            ERROR_EXPR 'skipBodies' type=kotlin.Nothing
+      FUN name:multi0 visibility:public modality:FINAL <> ($this:app.MyActivity) returnType:kotlin.Unit
+        annotations:
+          MultiValue(ids = [] type=kotlin.IntArray varargElementType=kotlin.Int)
+        $this: VALUE_PARAMETER name:<this> type:app.MyActivity
+        BLOCK_BODY
+          RETURN type=kotlin.Nothing from='public final fun multi0 (): kotlin.Unit declared in app.MyActivity'
+            ERROR_EXPR 'skipBodies' type=kotlin.Nothing
+      FUN name:multi1 visibility:public modality:FINAL <> ($this:app.MyActivity) returnType:kotlin.Unit
+        annotations:
+          MultiValue(ids = [200] type=kotlin.IntArray varargElementType=kotlin.Int)
+        $this: VALUE_PARAMETER name:<this> type:app.MyActivity
+        BLOCK_BODY
+          RETURN type=kotlin.Nothing from='public final fun multi1 (): kotlin.Unit declared in app.MyActivity'
+            ERROR_EXPR 'skipBodies' type=kotlin.Nothing
+      FUN name:multi2 visibility:public modality:FINAL <> ($this:app.MyActivity) returnType:kotlin.Unit
+        annotations:
+          MultiValue(ids = [200, 2] type=kotlin.IntArray varargElementType=kotlin.Int)
+        $this: VALUE_PARAMETER name:<this> type:app.MyActivity
+        BLOCK_BODY
+          RETURN type=kotlin.Nothing from='public final fun multi2 (): kotlin.Unit declared in app.MyActivity'
+            ERROR_EXPR 'skipBodies' type=kotlin.Nothing
+      FUN name:multi3 visibility:public modality:FINAL <> ($this:app.MyActivity) returnType:kotlin.Unit
+        annotations:
+          MultiValue(ids = [200, 2] type=kotlin.IntArray varargElementType=kotlin.Int)
+        $this: VALUE_PARAMETER name:<this> type:app.MyActivity
+        BLOCK_BODY
+          RETURN type=kotlin.Nothing from='public final fun multi3 (): kotlin.Unit declared in app.MyActivity'
+            ERROR_EXPR 'skipBodies' type=kotlin.Nothing
+      FUN name:multi4 visibility:public modality:FINAL <> ($this:app.MyActivity) returnType:kotlin.Unit
+        annotations:
+          MultiValueString(ids = ["A"] type=kotlin.Array<kotlin.String> varargElementType=kotlin.String)
+        $this: VALUE_PARAMETER name:<this> type:app.MyActivity
+        BLOCK_BODY
+          RETURN type=kotlin.Nothing from='public final fun multi4 (): kotlin.Unit declared in app.MyActivity'
+            ERROR_EXPR 'skipBodies' type=kotlin.Nothing
+      FUN name:multi5 visibility:public modality:FINAL <> ($this:app.MyActivity) returnType:kotlin.Unit
+        annotations:
+          MultiValueByte(ids = [1] type=kotlin.ByteArray varargElementType=kotlin.Byte)
+        $this: VALUE_PARAMETER name:<this> type:app.MyActivity
+        BLOCK_BODY
+          RETURN type=kotlin.Nothing from='public final fun multi5 (): kotlin.Unit declared in app.MyActivity'
+            ERROR_EXPR 'skipBodies' type=kotlin.Nothing
+      FUN name:multiJava1 visibility:public modality:FINAL <> ($this:app.MyActivity) returnType:kotlin.Unit
+        annotations:
+          OnClick(value = [200] type=kotlin.IntArray varargElementType=kotlin.Int)
+        $this: VALUE_PARAMETER name:<this> type:app.MyActivity
+        BLOCK_BODY
+          RETURN type=kotlin.Nothing from='public final fun multiJava1 (): kotlin.Unit declared in app.MyActivity'
+            ERROR_EXPR 'skipBodies' type=kotlin.Nothing
+      FUN name:multiJava2 visibility:public modality:FINAL <> ($this:app.MyActivity) returnType:kotlin.Unit
+        annotations:
+          OnClick(value = [200, 100] type=kotlin.IntArray varargElementType=kotlin.Int)
+        $this: VALUE_PARAMETER name:<this> type:app.MyActivity
+        BLOCK_BODY
+          RETURN type=kotlin.Nothing from='public final fun multiJava2 (): kotlin.Unit declared in app.MyActivity'
+            ERROR_EXPR 'skipBodies' type=kotlin.Nothing
+      FUN name:plainIntConstant visibility:public modality:FINAL <> ($this:app.MyActivity) returnType:kotlin.Unit
+        annotations:
+          Bind(id = 200)
+        $this: VALUE_PARAMETER name:<this> type:app.MyActivity
+        BLOCK_BODY
+          RETURN type=kotlin.Nothing from='public final fun plainIntConstant (): kotlin.Unit declared in app.MyActivity'
+            ERROR_EXPR 'skipBodies' type=kotlin.Nothing
+      PROPERTY name:propA visibility:public modality:FINAL [const,val]
+        FIELD PROPERTY_BACKING_FIELD name:propA type:kotlin.Int visibility:public [final]
+          EXPRESSION_BODY
+            CONST Int type=kotlin.Int value=200
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-propA> visibility:public modality:FINAL <> ($this:app.MyActivity) returnType:kotlin.Int
+          correspondingProperty: PROPERTY name:propA visibility:public modality:FINAL [const,val]
+          $this: VALUE_PARAMETER name:<this> type:app.MyActivity
+    CLASS OBJECT name:JJ modality:FINAL visibility:public superTypes:[kotlin.Any]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:app.JJ
+      PROPERTY name:b visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:b type:kotlin.String visibility:private [final]
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-b> visibility:public modality:FINAL <> ($this:app.JJ) returnType:kotlin.String
+          correspondingProperty: PROPERTY name:b visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:app.JJ
+      CONSTRUCTOR visibility:private <> () returnType:app.JJ [primary]
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [operator] declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN name:c visibility:public modality:FINAL <> ($this:app.JJ) returnType:kotlin.String
+        $this: VALUE_PARAMETER name:<this> type:app.JJ
+        BLOCK_BODY
+          RETURN type=kotlin.Nothing from='public final fun c (): kotlin.String declared in app.JJ'
+            ERROR_EXPR 'skipBodies' type=kotlin.Nothing

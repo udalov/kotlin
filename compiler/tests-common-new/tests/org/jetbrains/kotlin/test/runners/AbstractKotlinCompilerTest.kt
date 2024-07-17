@@ -6,6 +6,7 @@
 package org.jetbrains.kotlin.test.runners
 
 import com.intellij.testFramework.TestDataFile
+import org.jetbrains.kotlin.config.CurrentTestDataFilePath
 import org.jetbrains.kotlin.test.Constructor
 import org.jetbrains.kotlin.test.ExecutionListenerBasedDisposableProvider
 import org.jetbrains.kotlin.test.backend.handlers.IrValidationErrorChecker
@@ -90,7 +91,12 @@ abstract class AbstractKotlinCompilerTest {
     }
 
     open fun runTest(@TestDataFile filePath: String) {
-        testRunner(filePath, configuration).runTest(filePath)
+        try {
+            CurrentTestDataFilePath.set(filePath)
+            testRunner(filePath, configuration).runTest(filePath)
+        } finally {
+            CurrentTestDataFilePath.set(null)
+        }
     }
 
     open fun runTest(

@@ -1,0 +1,39 @@
+MODULE_FRAGMENT name:<main>
+  FILE fqName:<root> fileName:kt67903.kt
+    CLASS CLASS name:Data modality:FINAL visibility:public [value] superTypes:[kotlin.Any]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:<root>.Data
+      PROPERTY name:value visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:value type:kotlin.Int visibility:private [final]
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-value> visibility:public modality:FINAL <> ($this:<root>.Data) returnType:kotlin.Int
+          correspondingProperty: PROPERTY name:value visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Data
+      CONSTRUCTOR visibility:public <> (value:kotlin.Int) returnType:<root>.Data [primary]
+        VALUE_PARAMETER name:value index:0 type:kotlin.Int
+      FUN GENERATED_SINGLE_FIELD_VALUE_CLASS_MEMBER name:equals visibility:public modality:OPEN <> ($this:<root>.Data, other:kotlin.Any?) returnType:kotlin.Boolean [operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [operator] declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:<root>.Data
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+        BLOCK_BODY
+      FUN GENERATED_SINGLE_FIELD_VALUE_CLASS_MEMBER name:hashCode visibility:public modality:OPEN <> ($this:<root>.Data) returnType:kotlin.Int
+        overridden:
+          public open fun hashCode (): kotlin.Int declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:<root>.Data
+        BLOCK_BODY
+      FUN GENERATED_SINGLE_FIELD_VALUE_CLASS_MEMBER name:toString visibility:public modality:OPEN <> ($this:<root>.Data) returnType:kotlin.String
+        overridden:
+          public open fun toString (): kotlin.String declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:<root>.Data
+        BLOCK_BODY
+    FUN name:foo visibility:public modality:FINAL <> ($receiver:<root>.Data) returnType:kotlin.Unit
+      $receiver: VALUE_PARAMETER name:<this> type:<root>.Data
+      BLOCK_BODY
+        RETURN type=kotlin.Nothing from='public final fun foo (): kotlin.Unit declared in <root>'
+          ERROR_EXPR 'skipBodies' type=kotlin.Nothing
+    PROPERTY name:bar visibility:public modality:FINAL [val]
+      FUN name:<get-bar> visibility:public modality:FINAL <> ($receiver:<root>.Data) returnType:kotlin.Int
+        correspondingProperty: PROPERTY name:bar visibility:public modality:FINAL [val]
+        $receiver: VALUE_PARAMETER name:<this> type:<root>.Data
+        BLOCK_BODY
+          RETURN type=kotlin.Nothing from='public final fun <get-bar> (): kotlin.Int declared in <root>'
+            ERROR_EXPR 'skipBodies' type=kotlin.Nothing

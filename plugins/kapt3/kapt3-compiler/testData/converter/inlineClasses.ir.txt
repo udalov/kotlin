@@ -1,0 +1,27 @@
+MODULE_FRAGMENT name:<main>
+  FILE fqName:<root> fileName:inlineClasses.kt
+    CLASS CLASS name:Cl modality:FINAL visibility:public [value] superTypes:[kotlin.Any]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:<root>.Cl
+      PROPERTY name:a visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:a type:kotlin.String visibility:private [final]
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-a> visibility:public modality:FINAL <> ($this:<root>.Cl) returnType:kotlin.String
+          correspondingProperty: PROPERTY name:a visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Cl
+      CONSTRUCTOR visibility:public <> (a:kotlin.String) returnType:<root>.Cl [primary]
+        VALUE_PARAMETER name:a index:0 type:kotlin.String
+      FUN GENERATED_SINGLE_FIELD_VALUE_CLASS_MEMBER name:equals visibility:public modality:OPEN <> ($this:<root>.Cl, other:kotlin.Any?) returnType:kotlin.Boolean [operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [operator] declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:<root>.Cl
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+        BLOCK_BODY
+      FUN GENERATED_SINGLE_FIELD_VALUE_CLASS_MEMBER name:hashCode visibility:public modality:OPEN <> ($this:<root>.Cl) returnType:kotlin.Int
+        overridden:
+          public open fun hashCode (): kotlin.Int declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:<root>.Cl
+        BLOCK_BODY
+      FUN GENERATED_SINGLE_FIELD_VALUE_CLASS_MEMBER name:toString visibility:public modality:OPEN <> ($this:<root>.Cl) returnType:kotlin.String
+        overridden:
+          public open fun toString (): kotlin.String declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:<root>.Cl
+        BLOCK_BODY

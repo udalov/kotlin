@@ -1,0 +1,19 @@
+MODULE_FRAGMENT name:<main>
+  FILE fqName:<root> fileName:resolved.kt
+    PROPERTY name:base64 visibility:public modality:FINAL [var]
+      FIELD PROPERTY_BACKING_FIELD name:base64 type:kotlin.io.encoding.Base64? visibility:private [static]
+      FUN DEFAULT_PROPERTY_ACCESSOR name:<get-base64> visibility:public modality:FINAL <> () returnType:kotlin.io.encoding.Base64?
+        correspondingProperty: PROPERTY name:base64 visibility:public modality:FINAL [var]
+      FUN DEFAULT_PROPERTY_ACCESSOR name:<set-base64> visibility:public modality:FINAL <> (<set-?>:kotlin.io.encoding.Base64?) returnType:kotlin.Unit
+        correspondingProperty: PROPERTY name:base64 visibility:public modality:FINAL [var]
+        VALUE_PARAMETER name:<set-?> index:0 type:kotlin.io.encoding.Base64?
+  FILE fqName:<root> fileName:unresolved.kt
+    annotations:
+      Suppress(names = ["UNRESOLVED_REFERENCE"] type=kotlin.Array<out kotlin.String> varargElementType=kotlin.String)
+    PROPERTY name:base65 visibility:public modality:FINAL [var]
+      FIELD PROPERTY_BACKING_FIELD name:base65 type:IrErrorType([Error type: Unresolved type for Base65]?) visibility:private [static]
+      FUN DEFAULT_PROPERTY_ACCESSOR name:<get-base65> visibility:public modality:FINAL <> () returnType:IrErrorType([Error type: Unresolved type for Base65]?)
+        correspondingProperty: PROPERTY name:base65 visibility:public modality:FINAL [var]
+      FUN DEFAULT_PROPERTY_ACCESSOR name:<set-base65> visibility:public modality:FINAL <> (<set-?>:IrErrorType([Error type: Unresolved type for Base65]?)) returnType:kotlin.Unit
+        correspondingProperty: PROPERTY name:base65 visibility:public modality:FINAL [var]
+        VALUE_PARAMETER name:<set-?> index:0 type:IrErrorType([Error type: Unresolved type for Base65]?)

@@ -1,0 +1,50 @@
+MODULE_FRAGMENT name:<main>
+  FILE fqName:<root> fileName:a.kt
+    CLASS CLASS name:AnotherRootClass modality:FINAL visibility:public superTypes:[kotlin.Any]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:<root>.AnotherRootClass
+      CONSTRUCTOR visibility:public <> () returnType:<root>.AnotherRootClass [primary]
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [operator] declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+    CLASS CLASS name:RootClass modality:FINAL visibility:public superTypes:[kotlin.Any]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:<root>.RootClass
+      CONSTRUCTOR visibility:public <> () returnType:<root>.RootClass [primary]
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [operator] declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+  FILE fqName:test fileName:b.kt
+    annotations:
+      JvmMultifileClass
+      JvmName(name = "M1")
+    FUN name:foo visibility:public modality:FINAL <> () returnType:<root>.RootClass?
+      BLOCK_BODY
+        RETURN type=kotlin.Nothing from='public final fun foo (): <root>.RootClass? declared in test'
+          ERROR_EXPR 'skipBodies' type=kotlin.Nothing
+  FILE fqName:test fileName:c.kt
+    annotations:
+      JvmMultifileClass
+      JvmName(name = "M1")
+    FUN name:bar visibility:public modality:FINAL <> () returnType:<root>.AnotherRootClass?
+      BLOCK_BODY
+        RETURN type=kotlin.Nothing from='public final fun bar (): <root>.AnotherRootClass? declared in test'
+          ERROR_EXPR 'skipBodies' type=kotlin.Nothing

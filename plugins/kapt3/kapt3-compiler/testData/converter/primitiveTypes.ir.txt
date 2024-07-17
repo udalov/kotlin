@@ -1,0 +1,235 @@
+MODULE_FRAGMENT name:<main>
+  FILE fqName:<root> fileName:primitiveTypes.kt
+    CLASS OBJECT name:PrimitiveTypes modality:FINAL visibility:public superTypes:[kotlin.Any]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:<root>.PrimitiveTypes
+      PROPERTY name:floatMaxValue visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:floatMaxValue type:kotlin.Float visibility:private [final]
+          EXPRESSION_BODY
+            CONST Float type=kotlin.Float value=3.4028235E38
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-floatMaxValue> visibility:public modality:FINAL <> ($this:<root>.PrimitiveTypes) returnType:kotlin.Float
+          correspondingProperty: PROPERTY name:floatMaxValue visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.PrimitiveTypes
+      PROPERTY name:floatNan visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:floatNan type:kotlin.Float visibility:private [final]
+          EXPRESSION_BODY
+            CONST Float type=kotlin.Float value=NaN
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-floatNan> visibility:public modality:FINAL <> ($this:<root>.PrimitiveTypes) returnType:kotlin.Float
+          correspondingProperty: PROPERTY name:floatNan visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.PrimitiveTypes
+      PROPERTY name:floatPositiveInfinity visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:floatPositiveInfinity type:kotlin.Float visibility:private [final]
+          EXPRESSION_BODY
+            CONST Float type=kotlin.Float value=Infinity
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-floatPositiveInfinity> visibility:public modality:FINAL <> ($this:<root>.PrimitiveTypes) returnType:kotlin.Float
+          correspondingProperty: PROPERTY name:floatPositiveInfinity visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.PrimitiveTypes
+      PROPERTY name:floatNegativeInfinity visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:floatNegativeInfinity type:kotlin.Float visibility:private [final]
+          EXPRESSION_BODY
+            CONST Float type=kotlin.Float value=-Infinity
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-floatNegativeInfinity> visibility:public modality:FINAL <> ($this:<root>.PrimitiveTypes) returnType:kotlin.Float
+          correspondingProperty: PROPERTY name:floatNegativeInfinity visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.PrimitiveTypes
+      PROPERTY name:doubleMaxValue visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:doubleMaxValue type:kotlin.Double visibility:private [final]
+          EXPRESSION_BODY
+            CONST Double type=kotlin.Double value=1.7976931348623157E308
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-doubleMaxValue> visibility:public modality:FINAL <> ($this:<root>.PrimitiveTypes) returnType:kotlin.Double
+          correspondingProperty: PROPERTY name:doubleMaxValue visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.PrimitiveTypes
+      PROPERTY name:doubleNan visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:doubleNan type:kotlin.Double visibility:private [final]
+          EXPRESSION_BODY
+            CONST Double type=kotlin.Double value=NaN
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-doubleNan> visibility:public modality:FINAL <> ($this:<root>.PrimitiveTypes) returnType:kotlin.Double
+          correspondingProperty: PROPERTY name:doubleNan visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.PrimitiveTypes
+      PROPERTY name:doublePositiveInfinity visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:doublePositiveInfinity type:kotlin.Double visibility:private [final]
+          EXPRESSION_BODY
+            CONST Double type=kotlin.Double value=Infinity
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-doublePositiveInfinity> visibility:public modality:FINAL <> ($this:<root>.PrimitiveTypes) returnType:kotlin.Double
+          correspondingProperty: PROPERTY name:doublePositiveInfinity visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.PrimitiveTypes
+      PROPERTY name:doubleNegativeInfinity visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:doubleNegativeInfinity type:kotlin.Double visibility:private [final]
+          EXPRESSION_BODY
+            CONST Double type=kotlin.Double value=-Infinity
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-doubleNegativeInfinity> visibility:public modality:FINAL <> ($this:<root>.PrimitiveTypes) returnType:kotlin.Double
+          correspondingProperty: PROPERTY name:doubleNegativeInfinity visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.PrimitiveTypes
+      CONSTRUCTOR visibility:private <> () returnType:<root>.PrimitiveTypes [primary]
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [operator] declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      PROPERTY name:booleanFalse visibility:public modality:FINAL [const,val]
+        FIELD PROPERTY_BACKING_FIELD name:booleanFalse type:kotlin.Boolean visibility:public [final]
+          EXPRESSION_BODY
+            CONST Boolean type=kotlin.Boolean value=false
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-booleanFalse> visibility:public modality:FINAL <> ($this:<root>.PrimitiveTypes) returnType:kotlin.Boolean
+          correspondingProperty: PROPERTY name:booleanFalse visibility:public modality:FINAL [const,val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.PrimitiveTypes
+      PROPERTY name:booleanTrue visibility:public modality:FINAL [const,val]
+        FIELD PROPERTY_BACKING_FIELD name:booleanTrue type:kotlin.Boolean visibility:public [final]
+          EXPRESSION_BODY
+            CONST Boolean type=kotlin.Boolean value=true
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-booleanTrue> visibility:public modality:FINAL <> ($this:<root>.PrimitiveTypes) returnType:kotlin.Boolean
+          correspondingProperty: PROPERTY name:booleanTrue visibility:public modality:FINAL [const,val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.PrimitiveTypes
+      PROPERTY name:byte0 visibility:public modality:FINAL [const,val]
+        FIELD PROPERTY_BACKING_FIELD name:byte0 type:kotlin.Byte visibility:public [final]
+          EXPRESSION_BODY
+            CONST Byte type=kotlin.Byte value=0
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-byte0> visibility:public modality:FINAL <> ($this:<root>.PrimitiveTypes) returnType:kotlin.Byte
+          correspondingProperty: PROPERTY name:byte0 visibility:public modality:FINAL [const,val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.PrimitiveTypes
+      PROPERTY name:byte50 visibility:public modality:FINAL [const,val]
+        FIELD PROPERTY_BACKING_FIELD name:byte50 type:kotlin.Byte visibility:public [final]
+          EXPRESSION_BODY
+            CONST Byte type=kotlin.Byte value=50
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-byte50> visibility:public modality:FINAL <> ($this:<root>.PrimitiveTypes) returnType:kotlin.Byte
+          correspondingProperty: PROPERTY name:byte50 visibility:public modality:FINAL [const,val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.PrimitiveTypes
+      PROPERTY name:char0 visibility:public modality:FINAL [const,val]
+        FIELD PROPERTY_BACKING_FIELD name:char0 type:kotlin.Char visibility:public [final]
+          EXPRESSION_BODY
+            CONST Char type=kotlin.Char value='\u0000'
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-char0> visibility:public modality:FINAL <> ($this:<root>.PrimitiveTypes) returnType:kotlin.Char
+          correspondingProperty: PROPERTY name:char0 visibility:public modality:FINAL [const,val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.PrimitiveTypes
+      PROPERTY name:char10 visibility:public modality:FINAL [const,val]
+        FIELD PROPERTY_BACKING_FIELD name:char10 type:kotlin.Char visibility:public [final]
+          EXPRESSION_BODY
+            CONST Char type=kotlin.Char value='\n'
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-char10> visibility:public modality:FINAL <> ($this:<root>.PrimitiveTypes) returnType:kotlin.Char
+          correspondingProperty: PROPERTY name:char10 visibility:public modality:FINAL [const,val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.PrimitiveTypes
+      PROPERTY name:char13 visibility:public modality:FINAL [const,val]
+        FIELD PROPERTY_BACKING_FIELD name:char13 type:kotlin.Char visibility:public [final]
+          EXPRESSION_BODY
+            CONST Char type=kotlin.Char value='\r'
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-char13> visibility:public modality:FINAL <> ($this:<root>.PrimitiveTypes) returnType:kotlin.Char
+          correspondingProperty: PROPERTY name:char13 visibility:public modality:FINAL [const,val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.PrimitiveTypes
+      PROPERTY name:charC visibility:public modality:FINAL [const,val]
+        FIELD PROPERTY_BACKING_FIELD name:charC type:kotlin.Char visibility:public [final]
+          EXPRESSION_BODY
+            CONST Char type=kotlin.Char value='C'
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-charC> visibility:public modality:FINAL <> ($this:<root>.PrimitiveTypes) returnType:kotlin.Char
+          correspondingProperty: PROPERTY name:charC visibility:public modality:FINAL [const,val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.PrimitiveTypes
+      PROPERTY name:double54 visibility:public modality:FINAL [const,val]
+        FIELD PROPERTY_BACKING_FIELD name:double54 type:kotlin.Double visibility:public [final]
+          EXPRESSION_BODY
+            CONST Double type=kotlin.Double value=5.4
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-double54> visibility:public modality:FINAL <> ($this:<root>.PrimitiveTypes) returnType:kotlin.Double
+          correspondingProperty: PROPERTY name:double54 visibility:public modality:FINAL [const,val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.PrimitiveTypes
+      PROPERTY name:float54 visibility:public modality:FINAL [const,val]
+        FIELD PROPERTY_BACKING_FIELD name:float54 type:kotlin.Float visibility:public [final]
+          EXPRESSION_BODY
+            CONST Float type=kotlin.Float value=5.4
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-float54> visibility:public modality:FINAL <> ($this:<root>.PrimitiveTypes) returnType:kotlin.Float
+          correspondingProperty: PROPERTY name:float54 visibility:public modality:FINAL [const,val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.PrimitiveTypes
+      PROPERTY name:int0 visibility:public modality:FINAL [const,val]
+        FIELD PROPERTY_BACKING_FIELD name:int0 type:kotlin.Int visibility:public [final]
+          EXPRESSION_BODY
+            CONST Int type=kotlin.Int value=0
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-int0> visibility:public modality:FINAL <> ($this:<root>.PrimitiveTypes) returnType:kotlin.Int
+          correspondingProperty: PROPERTY name:int0 visibility:public modality:FINAL [const,val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.PrimitiveTypes
+      PROPERTY name:intHex visibility:public modality:FINAL [const,val]
+        FIELD PROPERTY_BACKING_FIELD name:intHex type:kotlin.Int visibility:public [final]
+          EXPRESSION_BODY
+            CONST Int type=kotlin.Int value=-1
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-intHex> visibility:public modality:FINAL <> ($this:<root>.PrimitiveTypes) returnType:kotlin.Int
+          correspondingProperty: PROPERTY name:intHex visibility:public modality:FINAL [const,val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.PrimitiveTypes
+      PROPERTY name:intMaxValue visibility:public modality:FINAL [const,val]
+        FIELD PROPERTY_BACKING_FIELD name:intMaxValue type:kotlin.Int visibility:public [final]
+          EXPRESSION_BODY
+            CONST Int type=kotlin.Int value=2147483647
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-intMaxValue> visibility:public modality:FINAL <> ($this:<root>.PrimitiveTypes) returnType:kotlin.Int
+          correspondingProperty: PROPERTY name:intMaxValue visibility:public modality:FINAL [const,val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.PrimitiveTypes
+      PROPERTY name:intMinValue visibility:public modality:FINAL [const,val]
+        FIELD PROPERTY_BACKING_FIELD name:intMinValue type:kotlin.Int visibility:public [final]
+          EXPRESSION_BODY
+            CONST Int type=kotlin.Int value=-2147483648
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-intMinValue> visibility:public modality:FINAL <> ($this:<root>.PrimitiveTypes) returnType:kotlin.Int
+          correspondingProperty: PROPERTY name:intMinValue visibility:public modality:FINAL [const,val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.PrimitiveTypes
+      PROPERTY name:intMinus1000 visibility:public modality:FINAL [const,val]
+        FIELD PROPERTY_BACKING_FIELD name:intMinus1000 type:kotlin.Int visibility:public [final]
+          EXPRESSION_BODY
+            CONST Int type=kotlin.Int value=-1000
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-intMinus1000> visibility:public modality:FINAL <> ($this:<root>.PrimitiveTypes) returnType:kotlin.Int
+          correspondingProperty: PROPERTY name:intMinus1000 visibility:public modality:FINAL [const,val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.PrimitiveTypes
+      PROPERTY name:long0 visibility:public modality:FINAL [const,val]
+        FIELD PROPERTY_BACKING_FIELD name:long0 type:kotlin.Long visibility:public [final]
+          EXPRESSION_BODY
+            CONST Long type=kotlin.Long value=0
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-long0> visibility:public modality:FINAL <> ($this:<root>.PrimitiveTypes) returnType:kotlin.Long
+          correspondingProperty: PROPERTY name:long0 visibility:public modality:FINAL [const,val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.PrimitiveTypes
+      PROPERTY name:longHex visibility:public modality:FINAL [const,val]
+        FIELD PROPERTY_BACKING_FIELD name:longHex type:kotlin.Long visibility:public [final]
+          EXPRESSION_BODY
+            CONST Long type=kotlin.Long value=4294967295
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-longHex> visibility:public modality:FINAL <> ($this:<root>.PrimitiveTypes) returnType:kotlin.Long
+          correspondingProperty: PROPERTY name:longHex visibility:public modality:FINAL [const,val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.PrimitiveTypes
+      PROPERTY name:longMaxValue visibility:public modality:FINAL [const,val]
+        FIELD PROPERTY_BACKING_FIELD name:longMaxValue type:kotlin.Long visibility:public [final]
+          EXPRESSION_BODY
+            CONST Long type=kotlin.Long value=9223372036854775807
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-longMaxValue> visibility:public modality:FINAL <> ($this:<root>.PrimitiveTypes) returnType:kotlin.Long
+          correspondingProperty: PROPERTY name:longMaxValue visibility:public modality:FINAL [const,val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.PrimitiveTypes
+      PROPERTY name:longMinValue visibility:public modality:FINAL [const,val]
+        FIELD PROPERTY_BACKING_FIELD name:longMinValue type:kotlin.Long visibility:public [final]
+          EXPRESSION_BODY
+            CONST Long type=kotlin.Long value=-9223372036854775808
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-longMinValue> visibility:public modality:FINAL <> ($this:<root>.PrimitiveTypes) returnType:kotlin.Long
+          correspondingProperty: PROPERTY name:longMinValue visibility:public modality:FINAL [const,val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.PrimitiveTypes
+      PROPERTY name:short5 visibility:public modality:FINAL [const,val]
+        FIELD PROPERTY_BACKING_FIELD name:short5 type:kotlin.Short visibility:public [final]
+          EXPRESSION_BODY
+            CONST Short type=kotlin.Short value=5
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-short5> visibility:public modality:FINAL <> ($this:<root>.PrimitiveTypes) returnType:kotlin.Short
+          correspondingProperty: PROPERTY name:short5 visibility:public modality:FINAL [const,val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.PrimitiveTypes
+      PROPERTY name:stringHelloWorld visibility:public modality:FINAL [const,val]
+        FIELD PROPERTY_BACKING_FIELD name:stringHelloWorld type:kotlin.String visibility:public [final]
+          EXPRESSION_BODY
+            CONST String type=kotlin.String value="Hello, world!"
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-stringHelloWorld> visibility:public modality:FINAL <> ($this:<root>.PrimitiveTypes) returnType:kotlin.String
+          correspondingProperty: PROPERTY name:stringHelloWorld visibility:public modality:FINAL [const,val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.PrimitiveTypes
+      PROPERTY name:stringQuotes visibility:public modality:FINAL [const,val]
+        FIELD PROPERTY_BACKING_FIELD name:stringQuotes type:kotlin.String visibility:public [final]
+          EXPRESSION_BODY
+            CONST String type=kotlin.String value="quotes \" ''quotes"
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-stringQuotes> visibility:public modality:FINAL <> ($this:<root>.PrimitiveTypes) returnType:kotlin.String
+          correspondingProperty: PROPERTY name:stringQuotes visibility:public modality:FINAL [const,val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.PrimitiveTypes
+      PROPERTY name:stringRN visibility:public modality:FINAL [const,val]
+        FIELD PROPERTY_BACKING_FIELD name:stringRN type:kotlin.String visibility:public [final]
+          EXPRESSION_BODY
+            CONST String type=kotlin.String value="\r\n"
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-stringRN> visibility:public modality:FINAL <> ($this:<root>.PrimitiveTypes) returnType:kotlin.String
+          correspondingProperty: PROPERTY name:stringRN visibility:public modality:FINAL [const,val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.PrimitiveTypes

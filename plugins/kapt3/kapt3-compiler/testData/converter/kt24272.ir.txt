@@ -1,0 +1,78 @@
+MODULE_FRAGMENT name:<main>
+  FILE fqName:<root> fileName:kt24272.kt
+    CLASS CLASS name:Foo modality:FINAL visibility:public superTypes:[kotlin.Any]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:<root>.Foo
+      PROPERTY name:string visibility:private modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:string type:kotlin.String visibility:private [final]
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-string> visibility:private modality:FINAL <> ($this:<root>.Foo) returnType:kotlin.String
+          correspondingProperty: PROPERTY name:string visibility:private modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Foo
+      PROPERTY name:bar visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:bar type:<root>.Foo.Bar visibility:private [final]
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-bar> visibility:public modality:FINAL <> ($this:<root>.Foo) returnType:<root>.Foo.Bar
+          correspondingProperty: PROPERTY name:bar visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Foo
+      CLASS CLASS name:Bar modality:FINAL visibility:public superTypes:[kotlin.Any]
+        $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:<root>.Foo.Bar
+        PROPERTY name:string visibility:public modality:FINAL [val]
+          FIELD PROPERTY_BACKING_FIELD name:string type:kotlin.String visibility:private [final]
+          FUN DEFAULT_PROPERTY_ACCESSOR name:<get-string> visibility:public modality:FINAL <> ($this:<root>.Foo.Bar) returnType:kotlin.String
+            correspondingProperty: PROPERTY name:string visibility:public modality:FINAL [val]
+            $this: VALUE_PARAMETER name:<this> type:<root>.Foo.Bar
+        PROPERTY name:bars visibility:public modality:FINAL [val]
+          FIELD PROPERTY_BACKING_FIELD name:bars type:java.util.ArrayList<<root>.Foo.Bar.Bar>{ kotlin.collections.TypeAliasesKt.ArrayList<<root>.Foo.Bar.Bar> } visibility:private [final]
+          FUN DEFAULT_PROPERTY_ACCESSOR name:<get-bars> visibility:public modality:FINAL <> ($this:<root>.Foo.Bar) returnType:java.util.ArrayList<<root>.Foo.Bar.Bar>{ kotlin.collections.TypeAliasesKt.ArrayList<<root>.Foo.Bar.Bar> }
+            correspondingProperty: PROPERTY name:bars visibility:public modality:FINAL [val]
+            $this: VALUE_PARAMETER name:<this> type:<root>.Foo.Bar
+        CLASS CLASS name:Bar modality:FINAL visibility:public superTypes:[kotlin.Any]
+          $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:<root>.Foo.Bar.Bar
+          PROPERTY name:nested visibility:public modality:FINAL [val]
+            FIELD PROPERTY_BACKING_FIELD name:nested type:kotlin.String visibility:private [final]
+            FUN DEFAULT_PROPERTY_ACCESSOR name:<get-nested> visibility:public modality:FINAL <> ($this:<root>.Foo.Bar.Bar) returnType:kotlin.String
+              correspondingProperty: PROPERTY name:nested visibility:public modality:FINAL [val]
+              $this: VALUE_PARAMETER name:<this> type:<root>.Foo.Bar.Bar
+          CONSTRUCTOR visibility:public <> (nested:kotlin.String) returnType:<root>.Foo.Bar.Bar [primary]
+            VALUE_PARAMETER name:nested index:0 type:kotlin.String
+          FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+            overridden:
+              public open fun equals (other: kotlin.Any?): kotlin.Boolean [operator] declared in kotlin.Any
+            $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+            VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+          FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+            overridden:
+              public open fun hashCode (): kotlin.Int declared in kotlin.Any
+            $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+          FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+            overridden:
+              public open fun toString (): kotlin.String declared in kotlin.Any
+            $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        CONSTRUCTOR visibility:public <> (string:kotlin.String) returnType:<root>.Foo.Bar [primary]
+          VALUE_PARAMETER name:string index:0 type:kotlin.String
+        FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+          overridden:
+            public open fun equals (other: kotlin.Any?): kotlin.Boolean [operator] declared in kotlin.Any
+          $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+          VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+        FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+          overridden:
+            public open fun hashCode (): kotlin.Int declared in kotlin.Any
+          $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+          overridden:
+            public open fun toString (): kotlin.String declared in kotlin.Any
+          $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      CONSTRUCTOR visibility:public <> (string:kotlin.String) returnType:<root>.Foo [primary]
+        VALUE_PARAMETER name:string index:0 type:kotlin.String
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [operator] declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any

@@ -1,0 +1,12 @@
+MODULE_FRAGMENT name:<main>
+  FILE fqName:test fileName:test.kt
+    FUN name:test visibility:public modality:FINAL <> (a:<root>.$Test.$Inner) returnType:kotlin.Unit
+      VALUE_PARAMETER name:a index:0 type:<root>.$Test.$Inner
+      BLOCK_BODY
+        RETURN type=kotlin.Nothing from='public final fun test (a: <root>.$Test.$Inner): kotlin.Unit declared in test'
+          ERROR_EXPR 'skipBodies' type=kotlin.Nothing
+    FUN name:test visibility:public modality:FINAL <> (a:<root>.Test$.Inner$) returnType:kotlin.Unit
+      VALUE_PARAMETER name:a index:0 type:<root>.Test$.Inner$
+      BLOCK_BODY
+        RETURN type=kotlin.Nothing from='public final fun test (a: <root>.Test$.Inner$): kotlin.Unit declared in test'
+          ERROR_EXPR 'skipBodies' type=kotlin.Nothing

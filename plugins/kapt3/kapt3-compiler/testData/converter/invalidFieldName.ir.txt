@@ -1,0 +1,90 @@
+MODULE_FRAGMENT name:<main>
+  FILE fqName:<root> fileName:invalidFieldName.kt
+    CLASS ANNOTATION_CLASS name:Anno modality:OPEN visibility:public superTypes:[kotlin.Annotation]
+      annotations:
+        Anno(color = GET_ENUM 'ENUM_ENTRY name:WHI-TE' type=<root>.Color)
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:<root>.Anno
+      PROPERTY name:color visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:color type:<root>.Color visibility:private [final]
+          EXPRESSION_BODY
+            GET_VAR 'color: <root>.Color declared in <root>.Anno.<init>' type=<root>.Color origin=INITIALIZE_PROPERTY_FROM_PARAMETER
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-color> visibility:public modality:FINAL <> ($this:<root>.Anno) returnType:<root>.Color
+          correspondingProperty: PROPERTY name:color visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:<root>.Anno
+      CONSTRUCTOR visibility:public <> (color:<root>.Color) returnType:<root>.Anno [primary]
+        VALUE_PARAMETER name:color index:0 type:<root>.Color
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:OPEN <> ($this:kotlin.Any, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [fake_override,operator] declared in kotlin.Annotation
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.Int [fake_override]
+        overridden:
+          public open fun hashCode (): kotlin.Int [fake_override] declared in kotlin.Annotation
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Any) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String [fake_override] declared in kotlin.Annotation
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Any
+    CLASS ENUM_CLASS name:Color modality:FINAL visibility:public superTypes:[kotlin.Enum<<root>.Color>]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:<root>.Color
+      ENUM_ENTRY name:BLACK
+      ENUM_ENTRY name:WHI-TE
+      CONSTRUCTOR visibility:private <> () returnType:<root>.Color [primary]
+      FUN ENUM_CLASS_SPECIAL_MEMBER name:valueOf visibility:public modality:FINAL <> (value:kotlin.String) returnType:<root>.Color
+        VALUE_PARAMETER name:value index:0 type:kotlin.String
+        SYNTHETIC_BODY kind=ENUM_VALUEOF
+      FUN ENUM_CLASS_SPECIAL_MEMBER name:values visibility:public modality:FINAL <> () returnType:kotlin.Array<<root>.Color>
+        SYNTHETIC_BODY kind=ENUM_VALUES
+      FUN FAKE_OVERRIDE name:clone visibility:protected modality:FINAL <> ($this:kotlin.Enum<<root>.Color>) returnType:kotlin.Any [fake_override]
+        overridden:
+          protected final fun clone (): kotlin.Any declared in kotlin.Enum
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Enum<<root>.Color>
+      FUN FAKE_OVERRIDE name:compareTo visibility:public modality:FINAL <> ($this:kotlin.Enum<<root>.Color>, other:<root>.Color) returnType:kotlin.Int [fake_override,operator]
+        overridden:
+          public final fun compareTo (other: E of kotlin.Enum): kotlin.Int [operator] declared in kotlin.Enum
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Enum<<root>.Color>
+        VALUE_PARAMETER name:other index:0 type:<root>.Color
+      FUN FAKE_OVERRIDE name:equals visibility:public modality:FINAL <> ($this:kotlin.Enum<<root>.Color>, other:kotlin.Any?) returnType:kotlin.Boolean [fake_override,operator]
+        overridden:
+          public final fun equals (other: kotlin.Any?): kotlin.Boolean [operator] declared in kotlin.Enum
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Enum<<root>.Color>
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+      FUN FAKE_OVERRIDE name:finalize visibility:protected/*protected and package*/ modality:FINAL <> ($this:kotlin.Enum<<root>.Color>) returnType:kotlin.Unit [fake_override]
+        overridden:
+          protected/*protected and package*/ final fun finalize (): kotlin.Unit declared in kotlin.Enum
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Enum<<root>.Color>
+      FUN FAKE_OVERRIDE name:getDeclaringClass visibility:public modality:FINAL <> ($this:kotlin.Enum<<root>.Color>) returnType:@[FlexibleNullability] java.lang.Class<@[FlexibleNullability] <root>.Color?>? [fake_override]
+        overridden:
+          public final fun getDeclaringClass (): @[FlexibleNullability] java.lang.Class<@[FlexibleNullability] E of kotlin.Enum?>? declared in kotlin.Enum
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Enum<<root>.Color>
+      FUN FAKE_OVERRIDE name:hashCode visibility:public modality:FINAL <> ($this:kotlin.Enum<<root>.Color>) returnType:kotlin.Int [fake_override]
+        overridden:
+          public final fun hashCode (): kotlin.Int declared in kotlin.Enum
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Enum<<root>.Color>
+      FUN FAKE_OVERRIDE name:toString visibility:public modality:OPEN <> ($this:kotlin.Enum<<root>.Color>) returnType:kotlin.String [fake_override]
+        overridden:
+          public open fun toString (): kotlin.String declared in kotlin.Enum
+        $this: VALUE_PARAMETER name:<this> type:kotlin.Enum<<root>.Color>
+      PROPERTY ENUM_CLASS_SPECIAL_MEMBER name:entries visibility:public modality:FINAL [val]
+        FUN ENUM_CLASS_SPECIAL_MEMBER name:<get-entries> visibility:public modality:FINAL <> () returnType:kotlin.enums.EnumEntries<<root>.Color>
+          correspondingProperty: PROPERTY ENUM_CLASS_SPECIAL_MEMBER name:entries visibility:public modality:FINAL [val]
+          SYNTHETIC_BODY kind=ENUM_ENTRIES
+      PROPERTY FAKE_OVERRIDE name:name visibility:public modality:FINAL [fake_override,val]
+        annotations:
+          IntrinsicConstEvaluation
+        overridden:
+          public final name: kotlin.String [val] declared in kotlin.Enum
+        FUN FAKE_OVERRIDE name:<get-name> visibility:public modality:FINAL <> ($this:kotlin.Enum<<root>.Color>) returnType:kotlin.String [fake_override]
+          correspondingProperty: PROPERTY FAKE_OVERRIDE name:name visibility:public modality:FINAL [fake_override,val]
+          overridden:
+            public final fun <get-name> (): kotlin.String declared in kotlin.Enum
+          $this: VALUE_PARAMETER name:<this> type:kotlin.Enum<<root>.Color>
+      PROPERTY FAKE_OVERRIDE name:ordinal visibility:public modality:FINAL [fake_override,val]
+        overridden:
+          public final ordinal: kotlin.Int [val] declared in kotlin.Enum
+        FUN FAKE_OVERRIDE name:<get-ordinal> visibility:public modality:FINAL <> ($this:kotlin.Enum<<root>.Color>) returnType:kotlin.Int [fake_override]
+          correspondingProperty: PROPERTY FAKE_OVERRIDE name:ordinal visibility:public modality:FINAL [fake_override,val]
+          overridden:
+            public final fun <get-ordinal> (): kotlin.Int declared in kotlin.Enum
+          $this: VALUE_PARAMETER name:<this> type:kotlin.Enum<<root>.Color>

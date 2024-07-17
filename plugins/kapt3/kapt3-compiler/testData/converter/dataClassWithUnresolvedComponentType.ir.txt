@@ -1,0 +1,36 @@
+MODULE_FRAGMENT name:<main>
+  FILE fqName:test fileName:dataClassWithUnresolvedComponentType.kt
+    annotations:
+      Suppress(names = ["UNRESOLVED_REFERENCE"] type=kotlin.Array<out kotlin.String> varargElementType=kotlin.String)
+    CLASS CLASS name:C modality:FINAL visibility:public [data] superTypes:[kotlin.Any]
+      $this: VALUE_PARAMETER INSTANCE_RECEIVER name:<this> type:test.C
+      PROPERTY name:x visibility:public modality:FINAL [val]
+        FIELD PROPERTY_BACKING_FIELD name:x type:IrErrorType([Error type: Unresolved type for U2]) visibility:private [final]
+        FUN DEFAULT_PROPERTY_ACCESSOR name:<get-x> visibility:public modality:FINAL <> ($this:test.C) returnType:IrErrorType([Error type: Unresolved type for U2])
+          correspondingProperty: PROPERTY name:x visibility:public modality:FINAL [val]
+          $this: VALUE_PARAMETER name:<this> type:test.C
+      CONSTRUCTOR visibility:public <> (x:IrErrorType([Error type: Unresolved type for U2])) returnType:test.C [primary]
+        VALUE_PARAMETER name:x index:0 type:IrErrorType([Error type: Unresolved type for U2])
+      FUN GENERATED_DATA_CLASS_MEMBER name:component1 visibility:public modality:FINAL <> ($this:test.C) returnType:IrErrorType([Error type: Unresolved type for U2]) [operator]
+        $this: VALUE_PARAMETER name:<this> type:test.C
+        BLOCK_BODY
+      FUN GENERATED_DATA_CLASS_MEMBER name:copy visibility:public modality:FINAL <> ($this:test.C, x:IrErrorType([Error type: Unresolved type for U2])) returnType:test.C
+        $this: VALUE_PARAMETER name:<this> type:test.C
+        VALUE_PARAMETER name:x index:0 type:IrErrorType([Error type: Unresolved type for U2])
+        BLOCK_BODY
+      FUN GENERATED_DATA_CLASS_MEMBER name:equals visibility:public modality:OPEN <> ($this:test.C, other:kotlin.Any?) returnType:kotlin.Boolean [operator]
+        overridden:
+          public open fun equals (other: kotlin.Any?): kotlin.Boolean [operator] declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:test.C
+        VALUE_PARAMETER name:other index:0 type:kotlin.Any?
+        BLOCK_BODY
+      FUN GENERATED_DATA_CLASS_MEMBER name:hashCode visibility:public modality:OPEN <> ($this:test.C) returnType:kotlin.Int
+        overridden:
+          public open fun hashCode (): kotlin.Int declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:test.C
+        BLOCK_BODY
+      FUN GENERATED_DATA_CLASS_MEMBER name:toString visibility:public modality:OPEN <> ($this:test.C) returnType:kotlin.String
+        overridden:
+          public open fun toString (): kotlin.String declared in kotlin.Any
+        $this: VALUE_PARAMETER name:<this> type:test.C
+        BLOCK_BODY
