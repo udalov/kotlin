@@ -17,16 +17,19 @@
 package org.jetbrains.kotlin.backend.jvm.intrinsics
 
 import org.jetbrains.kotlin.backend.jvm.codegen.ClassCodegen
+import org.jetbrains.kotlin.backend.jvm.mapping.mapClass
 import org.jetbrains.kotlin.codegen.StackValue
 import org.jetbrains.kotlin.ir.expressions.IrFunctionAccessExpression
+import org.jetbrains.kotlin.ir.util.parentAsClass
 import org.jetbrains.kotlin.resolve.jvm.jvmSignature.JvmMethodSignature
 
 object NumberCast : CallBasedIntrinsicMethod() {
     override fun toCallable(
         expression: IrFunctionAccessExpression, signature: JvmMethodSignature, classCodegen: ClassCodegen,
     ): IntrinsicFunction {
-        return IntrinsicFunction.create(expression, signature, classCodegen) {
-            StackValue.coerce(argsTypes[0], signature.returnType, it)
+        return IntrinsicFunction.create(expression, classCodegen) {
+            val argType = classCodegen.typeMapper.mapClass(expression.symbol.owner.parentAsClass)
+            StackValue.coerce(argType, signature.returnType, it)
         }
     }
 }

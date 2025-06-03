@@ -24,7 +24,7 @@ object StringGetChar : CallBasedIntrinsicMethod() {
     override fun toCallable(
         expression: IrFunctionAccessExpression, signature: JvmMethodSignature, classCodegen: ClassCodegen,
     ): IntrinsicFunction {
-        return IntrinsicFunction.create(expression, signature, classCodegen) {
+        return IntrinsicFunction.create(expression, classCodegen) {
             it.invokevirtual("java/lang/String", "charAt", "(I)C", false)
         }
     }

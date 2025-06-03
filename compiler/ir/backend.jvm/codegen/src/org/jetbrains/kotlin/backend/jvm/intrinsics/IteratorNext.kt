@@ -30,11 +30,9 @@ object IteratorNext : CallBasedIntrinsicMethod() {
     override fun toCallable(
         expression: IrFunctionAccessExpression, signature: JvmMethodSignature, classCodegen: ClassCodegen,
     ): IntrinsicFunction {
-        // If the array element type is unboxed primitive, do not unbox. Otherwise AsmUtil.unbox throws exception
-        val type = if (AsmUtil.isBoxedPrimitiveType(signature.returnType)) AsmUtil.unboxType(signature.returnType) else signature.returnType
-        val newSignature = signature.newReturnType(type)
+        val type = changeReturnType(signature.returnType)
         val primitiveClassName = getKotlinPrimitiveClassName(type)
-        return IntrinsicFunction.create(expression, newSignature, classCodegen, listOf(getPrimitiveIteratorType(primitiveClassName))) {
+        return IntrinsicFunction.create(listOf(getPrimitiveIteratorType(primitiveClassName))) {
             it.invokevirtual(
                 getPrimitiveIteratorType(primitiveClassName).internalName,
                 "next${primitiveClassName.asString()}",
@@ -42,6 +40,11 @@ object IteratorNext : CallBasedIntrinsicMethod() {
                 false
             )
         }
+    }
+
+    override fun changeReturnType(type: Type): Type {
+        // If the array element type is unboxed primitive, do not unbox. Otherwise AsmUtil.unbox throws exception
+        return if (AsmUtil.isBoxedPrimitiveType(type)) AsmUtil.unboxType(type) else type
     }
 
     // Type.CHAR_TYPE -> "Char"

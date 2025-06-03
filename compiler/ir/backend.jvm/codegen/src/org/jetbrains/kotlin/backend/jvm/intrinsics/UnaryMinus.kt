@@ -25,7 +25,7 @@ object UnaryMinus : CallBasedIntrinsicMethod() {
     override fun toCallable(
         expression: IrFunctionAccessExpression, signature: JvmMethodSignature, classCodegen: ClassCodegen,
     ): IntrinsicFunction {
-        return IntrinsicFunction.create(expression, signature, classCodegen) {
+        return IntrinsicFunction.create(expression, classCodegen) {
             it.neg(numberFunctionOperandType(signature.returnType))
         }
     }

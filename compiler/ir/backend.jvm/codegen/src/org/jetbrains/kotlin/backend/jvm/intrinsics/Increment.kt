@@ -26,7 +26,7 @@ class Increment(private val myDelta: Int) : CallBasedIntrinsicMethod() {
     override fun toCallable(
         expression: IrFunctionAccessExpression, signature: JvmMethodSignature, classCodegen: ClassCodegen,
     ): IntrinsicFunction {
-        return IntrinsicFunction.create(expression, signature, classCodegen) { v ->
+        return IntrinsicFunction.create(expression, classCodegen) { v ->
             val operationType = AsmUtil.numberFunctionOperandType(signature.returnType)
             AsmUtil.numConst(myDelta, operationType, v)
             v.add(operationType)

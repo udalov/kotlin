@@ -14,7 +14,7 @@ class AtomicCompareAndExchange(private val valueType: Int) : CallBasedIntrinsicM
     override fun toCallable(
         expression: IrFunctionAccessExpression, signature: JvmMethodSignature, classCodegen: ClassCodegen,
     ): IntrinsicFunction {
-        return IntrinsicFunction.create(expression, signature, classCodegen) {
+        return IntrinsicFunction.create(expression, classCodegen) {
             val descriptor = when (valueType) {
                 INT -> "(Ljava/util/concurrent/atomic/AtomicInteger;II)I"
                 LONG -> "(Ljava/util/concurrent/atomic/AtomicLong;JJ)J"
@@ -31,7 +31,7 @@ class AtomicArrayCompareAndExchange(private val valueType: Int) : CallBasedIntri
     override fun toCallable(
         expression: IrFunctionAccessExpression, signature: JvmMethodSignature, classCodegen: ClassCodegen,
     ): IntrinsicFunction {
-        return IntrinsicFunction.create(expression, signature, classCodegen) {
+        return IntrinsicFunction.create(expression, classCodegen) {
             val descriptor = when (valueType) {
                 INT -> "(Ljava/util/concurrent/atomic/AtomicIntegerArray;III)I"
                 LONG -> "(Ljava/util/concurrent/atomic/AtomicLongArray;IJJ)J"

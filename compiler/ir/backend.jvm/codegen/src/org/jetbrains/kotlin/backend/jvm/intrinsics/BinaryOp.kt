@@ -44,7 +44,7 @@ class BinaryOp(private val opcode: Int) : CallBasedIntrinsicMethod() {
             listOf(Type.CHAR_TYPE, signature.parameters[0])
         }
 
-        return IntrinsicFunction.create(expression, signature, classCodegen, argTypes) {
+        return IntrinsicFunction.create(argTypes) {
             it.visitInsn(returnType.getOpcode(opcode))
             StackValue.coerce(intermediateResultType, returnType, it)
         }

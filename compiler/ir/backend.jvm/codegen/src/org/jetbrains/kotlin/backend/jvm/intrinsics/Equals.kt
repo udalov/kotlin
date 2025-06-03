@@ -174,10 +174,7 @@ class Ieee754Equals(val operandType: Type) : CallBasedIntrinsicMethod() {
         signature: JvmMethodSignature,
         classCodegen: ClassCodegen
     ): IntrinsicFunction {
-        class Ieee754AreEqual(
-            val left: Type,
-            val right: Type
-        ) : IntrinsicFunction(expression, signature, classCodegen, listOf(left, right)) {
+        class Ieee754AreEqual(val left: Type, val right: Type) : IntrinsicFunction(listOf(left, right)) {
             override fun genInvokeInstruction(v: InstructionAdapter) {
                 v.invokestatic(
                     IntrinsicMethods.INTRINSICS_CLASS_NAME, "areEqual",
@@ -187,7 +184,7 @@ class Ieee754Equals(val operandType: Type) : CallBasedIntrinsicMethod() {
             }
         }
 
-        class Ieee754Primitives : IntrinsicFunction(expression, signature, classCodegen, listOf(operandType, operandType)) {
+        class Ieee754Primitives : IntrinsicFunction(listOf(operandType, operandType)) {
             override fun genInvokeInstruction(v: InstructionAdapter) {
                 val opcode = NumberComparisonUtils.getNumberCompareOpcode(KtTokens.EQEQ)
                 val branchJumpLabel = Label()
