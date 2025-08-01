@@ -971,6 +971,52 @@ public class FirLightTreeDiagnosticsTestWithJvmIrBackendGenerated extends Abstra
   }
 
   @Nested
+  @TestMetadata("compiler/testData/diagnostics/testsWithJvmBackend/exposedPrivate")
+  @TestDataPath("$PROJECT_ROOT")
+  public class ExposedPrivate {
+    @Test
+    public void testAllFilesPresentInExposedPrivate() {
+      KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/diagnostics/testsWithJvmBackend/exposedPrivate"), Pattern.compile("^(.+)\\.kt$"), Pattern.compile("^(.+)\\.(reversed|partialBody|fir|ll|latestLV)\\.kts?$"), true);
+    }
+
+    @Test
+    @TestMetadata("effectivelyPrivate.kt")
+    public void testEffectivelyPrivate() {
+      runTest("compiler/testData/diagnostics/testsWithJvmBackend/exposedPrivate/effectivelyPrivate.kt");
+    }
+
+    @Test
+    @TestMetadata("privateClassFromLocalObjectInsideInternalInline.kt")
+    public void testPrivateClassFromLocalObjectInsideInternalInline() {
+      runTest("compiler/testData/diagnostics/testsWithJvmBackend/exposedPrivate/privateClassFromLocalObjectInsideInternalInline.kt");
+    }
+
+    @Test
+    @TestMetadata("privateClassThroughGenericType.kt")
+    public void testPrivateClassThroughGenericType() {
+      runTest("compiler/testData/diagnostics/testsWithJvmBackend/exposedPrivate/privateClassThroughGenericType.kt");
+    }
+
+    @Test
+    @TestMetadata("privateCompanionThroughInternalInlineFun.kt")
+    public void testPrivateCompanionThroughInternalInlineFun() {
+      runTest("compiler/testData/diagnostics/testsWithJvmBackend/exposedPrivate/privateCompanionThroughInternalInlineFun.kt");
+    }
+
+    @Test
+    @TestMetadata("privateInnerClassThroughInternalInlineFun.kt")
+    public void testPrivateInnerClassThroughInternalInlineFun() {
+      runTest("compiler/testData/diagnostics/testsWithJvmBackend/exposedPrivate/privateInnerClassThroughInternalInlineFun.kt");
+    }
+
+    @Test
+    @TestMetadata("privateNestedClassThroughInternalInlineFun.kt")
+    public void testPrivateNestedClassThroughInternalInlineFun() {
+      runTest("compiler/testData/diagnostics/testsWithJvmBackend/exposedPrivate/privateNestedClassThroughInternalInlineFun.kt");
+    }
+  }
+
+  @Nested
   @TestMetadata("compiler/testData/diagnostics/testsWithJvmBackend/multifileClasses")
   @TestDataPath("$PROJECT_ROOT")
   public class MultifileClasses {
