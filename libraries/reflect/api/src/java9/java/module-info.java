@@ -1,6 +1,8 @@
 module kotlin.reflect {
     requires transitive kotlin.stdlib;
 
+    requires java.logging;
+
     exports kotlin.reflect.full;
     exports kotlin.reflect.jvm;
 
