@@ -568,6 +568,12 @@ val dependencyOnSnapshotReflectWhitelist = setOf(
 )
 
 allprojects {
+    repositories {
+        mavenLocal()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+
     if (!project.path.startsWith(":kotlin-ide.")) {
         pluginManager.apply("common-configuration")
     }

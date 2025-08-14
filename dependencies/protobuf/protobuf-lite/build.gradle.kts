@@ -1,10 +1,10 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-import java.io.File
 
 plugins {
+    kotlin("jvm") version "2.2.0"
     `java-base`
     `maven-publish`
-    id("com.github.johnrengelman.shadow") version "4.0.3" apply false
+    id("com.gradleup.shadow") version "8.3.0" apply false
 }
 
 repositories {
@@ -28,13 +28,18 @@ val prepare = tasks.register<ShadowJar>("prepare") {
     destinationDirectory.set(File(outputJarsPath))
     archiveVersion.set(protobufVersion)
     archiveClassifier.set("")
-    from(relocatedProtobuf)
+    // from(sourceSets.main.get().output)
+    from(relocatedProtobuf) {
+        include("**/*")
+    }
 
     relocate("com.google.protobuf", "org.jetbrains.kotlin.protobuf" ) {
         exclude("META-INF/maven/com.google.protobuf/protobuf-javalite/pom.properties")
     }
+    relocate("sun.misc", "org.jetbrains.kotlin.protobuf.sun.misc")
 }
 
+@Suppress("DEPRECATION")
 val relocateSources = task<Copy>("relocateSources") {
     from(
         provider {
@@ -47,6 +52,7 @@ val relocateSources = task<Copy>("relocateSources") {
     filter { it.replace("com.google.protobuf", "org.jetbrains.kotlin.protobuf") }
 }
 
+@Suppress("DEPRECATION")
 val prepareSources = task<Jar>("prepareSources") {
     destinationDirectory.set(File(outputJarsPath))
     archiveVersion.set(protobufVersion)
@@ -64,6 +70,7 @@ publishing {
 
     repositories {
         maven {
+            @Suppress("DEPRECATION")
             url = uri("${rootProject.buildDir}/internal/repo")
         }
 

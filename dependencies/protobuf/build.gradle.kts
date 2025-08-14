@@ -7,7 +7,7 @@ How to Publish
  */
 
 val protobufVersion by extra("4.29.3")
-val publishedVersion by extra("4.29.3-1")
+val publishedVersion by extra("42.42")
 
 allprojects {
     group = "org.jetbrains.kotlin"
