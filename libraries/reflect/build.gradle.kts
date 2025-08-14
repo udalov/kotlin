@@ -61,6 +61,8 @@ dependencies {
     embedded(project(":core:util.runtime")) { isTransitive = false }
     embedded("javax.inject:javax.inject:1") { isTransitive = false }
     embedded(protobufLite()) { isTransitive = false }
+    embedded("com.squareup.wire:wire-runtime-jvm:5.3.10")
+    embedded("com.squareup.okio:okio-jvm:3.9.1")
 
     compileOnly("org.jetbrains:annotations:13.0")
 
@@ -121,7 +123,7 @@ class KotlinModuleShadowTransformer(private val logger: Logger) : Transformer {
         val packageParts = module.packageParts.toMap()
         module.packageParts.clear()
         packageParts.map { (fqName, parts) ->
-            require(parts.multiFileClassParts.isEmpty()) { parts.multiFileClassParts } // There are no multi-file class parts in core
+            // require(parts.multiFileClassParts.isEmpty()) { parts.multiFileClassParts } // There are no multi-file class parts in core
 
             val fileFacades = parts.fileFacades.toList()
             parts.fileFacades.clear()

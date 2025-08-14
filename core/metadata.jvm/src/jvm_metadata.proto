@@ -16,11 +16,12 @@
 
 package org.jetbrains.kotlin.metadata.jvm;
 
-import "core/metadata/src/ext_options.proto";
-import "core/metadata/src/metadata.proto";
+import "ext_options.proto";
+import "metadata.proto";
 
-option java_outer_classname = "JvmProtoBuf";
 option optimize_for = LITE_RUNTIME;
+
+message WireJvmProtoBuf {
 
 message StringTableTypes {
   message Record {
@@ -92,11 +93,11 @@ message JvmPropertySignature {
   optional JvmMethodSignature delegate_method = 5;
 }
 
-extend Constructor {
+extend WireProtoBuf.Constructor {
   optional JvmMethodSignature constructor_signature = 100;
 }
 
-extend Function {
+extend WireProtoBuf.Function {
   optional JvmMethodSignature method_signature = 100;
 
   // For lambdas from bodies of inline functions copied to the use site, the JVM internal name of the original
@@ -104,7 +105,7 @@ extend Function {
   optional int32 lambda_class_origin_name = 101 [(string_id_in_table) = true];
 }
 
-extend Property {
+extend WireProtoBuf.Property {
   optional JvmPropertySignature property_signature = 100;
 
   /**
@@ -113,20 +114,20 @@ extend Property {
   optional int32 flags = 101 [default = 0];
 }
 
-extend Type {
-  repeated Annotation type_annotation = 100;
+extend WireProtoBuf.Type {
+  repeated WireProtoBuf.Annotation type_annotation = 100;
   optional bool is_raw = 101;
 }
 
-extend TypeParameter {
-  repeated Annotation type_parameter_annotation = 100;
+extend WireProtoBuf.TypeParameter {
+  repeated WireProtoBuf.Annotation type_parameter_annotation = 100;
 }
 
-extend Class {
+extend WireProtoBuf.Class {
   // If absent, assumed to be "main" (JvmProtoBufUtil.DEFAULT_MODULE_NAME)
   optional int32 class_module_name = 101 [(string_id_in_table) = true];
 
-  repeated Property class_local_variable = 102;
+  repeated WireProtoBuf.Property class_local_variable = 102;
 
   // For anonymous objects from bodies of inline functions copied to the use site, the JVM internal name of the original
   // anonymous object this class is copied from
@@ -138,8 +139,10 @@ extend Class {
   optional int32 jvm_class_flags = 104 [default = 0];
 }
 
-extend Package {
+extend WireProtoBuf.Package {
   optional int32 package_module_name = 101 [(string_id_in_table) = true];
 
-  repeated Property package_local_variable = 102;
+  repeated WireProtoBuf.Property package_local_variable = 102;
+}
+
 }

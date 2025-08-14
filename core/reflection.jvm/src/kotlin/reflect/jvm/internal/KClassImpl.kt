@@ -32,6 +32,7 @@ import org.jetbrains.kotlin.incremental.components.NoLookupLocation
 import org.jetbrains.kotlin.load.java.JvmAbi
 import org.jetbrains.kotlin.load.kotlin.header.KotlinClassHeader
 import org.jetbrains.kotlin.metadata.ProtoBuf
+import org.jetbrains.kotlin.metadata.WireProtoBuf
 import org.jetbrains.kotlin.metadata.deserialization.Flags
 import org.jetbrains.kotlin.metadata.deserialization.TypeTable
 import org.jetbrains.kotlin.metadata.deserialization.getExtensionOrNull
@@ -40,6 +41,7 @@ import org.jetbrains.kotlin.metadata.jvm.JvmProtoBuf
 import org.jetbrains.kotlin.metadata.jvm.deserialization.JvmMemberSignature
 import org.jetbrains.kotlin.metadata.jvm.deserialization.JvmNameResolver
 import org.jetbrains.kotlin.metadata.jvm.deserialization.JvmProtoBufUtil
+import org.jetbrains.kotlin.metadata.jvm.deserialization.WireJvmNameResolver
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.resolve.DescriptorUtils
@@ -83,6 +85,12 @@ internal class KClassImpl<T : Any>(
         val rawProtoBuf: Pair<JvmNameResolver, ProtoBuf.Class>? by ReflectProperties.lazySoft {
             jClass.getAnnotation(Metadata::class.java)?.let { metadata ->
                 JvmProtoBufUtil.readClassDataFrom(metadata.data1, metadata.data2)
+            }
+        }
+
+        val rawProtoBufWire: Pair<WireJvmNameResolver, WireProtoBuf.Class>? by ReflectProperties.lazySoft {
+            jClass.getAnnotation(Metadata::class.java)?.let { metadata ->
+                JvmProtoBufUtil.wireReadClassDataFrom(metadata.data1, metadata.data2)
             }
         }
 
@@ -279,6 +287,8 @@ internal class KClassImpl<T : Any>(
                 data.value.kmClass?.let { loadMembersFromKmClass(it) }.orEmpty()
             ReflectImplementation.RAW_PROTOBUF ->
                 data.value.rawProtoBuf?.let { loadMembersFromRawProtoBuf(it) }.orEmpty()
+            ReflectImplementation.RAW_PROTOBUF_WIRE ->
+                TODO()
         }
 
     private fun loadMembersFromKmClass(kmClass: KmClass): Collection<KCallable<*>> {
@@ -459,6 +469,7 @@ internal class KClassImpl<T : Any>(
             ReflectImplementation.METADATA -> data.value.kmClassFromMetadata?.isData == true
             ReflectImplementation.DESCRIPTORS_WITH_METADATA -> kmClass?.isData == true
             ReflectImplementation.RAW_PROTOBUF -> data.value.rawProtoBuf?.second?.flags?.let(Flags.IS_DATA::get) == true
+            ReflectImplementation.RAW_PROTOBUF_WIRE -> data.value.rawProtoBufWire?.second?.flags?.let(Flags.IS_DATA::get) == true
         }
 
     override val isInner: Boolean

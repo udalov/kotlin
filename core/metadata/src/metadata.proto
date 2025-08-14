@@ -16,14 +16,15 @@
 
 package org.jetbrains.kotlin.metadata;
 
-import "core/metadata/src/ext_options.proto";
+import "ext_options.proto";
 
 // Changes to this proto are tracked by versions of proto files that include `import metadata.proto`.
 // Namely BuiltInsBinaryVersion, MetadataVersion, JsMetadataVersion, KlibMetadataVersion, and probably something else.
 // See their KDocs.
 
-option java_outer_classname = "ProtoBuf";
 option optimize_for = LITE_RUNTIME;
+
+message WireProtoBuf {
 
 message StringTable {
   repeated string string = 1;
@@ -652,4 +653,6 @@ message Expression {
 message CompilerPluginData {
   required int32 plugin_id = 1 [(string_id_in_table) = true];
   required bytes data = 2;
+}
+
 }

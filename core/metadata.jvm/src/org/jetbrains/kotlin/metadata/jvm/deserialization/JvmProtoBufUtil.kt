@@ -5,9 +5,14 @@
 
 package org.jetbrains.kotlin.metadata.jvm.deserialization
 
+import com.squareup.wire.ProtoReader
+import okio.buffer
+import okio.source
 import org.jetbrains.kotlin.metadata.ProtoBuf
+import org.jetbrains.kotlin.metadata.WireProtoBuf
 import org.jetbrains.kotlin.metadata.deserialization.*
 import org.jetbrains.kotlin.metadata.jvm.JvmProtoBuf
+import org.jetbrains.kotlin.metadata.jvm.WireJvmProtoBuf
 import org.jetbrains.kotlin.metadata.jvm.serialization.JvmStringTable
 import org.jetbrains.kotlin.protobuf.ExtensionRegistryLite
 import org.jetbrains.kotlin.protobuf.MessageLite
@@ -21,6 +26,22 @@ object JvmProtoBufUtil {
     const val PLATFORM_TYPE_ID = "kotlin.jvm.PlatformType"
 
     const val DEFAULT_MODULE_NAME = "main"
+
+    @JvmStatic
+    fun wireReadClassDataFrom(data: Array<String>, strings: Array<String>): Pair<WireJvmNameResolver, WireProtoBuf.Class> =
+        wireReadClassDataFrom(BitEncoding.decodeBytes(data), strings)
+
+    @JvmStatic
+    fun wireReadClassDataFrom(bytes: ByteArray, strings: Array<String>): Pair<WireJvmNameResolver, WireProtoBuf.Class> {
+        // https://github.com/square/wire/discussions/2745
+        val input = ByteArrayInputStream(bytes).source().buffer()
+        val stringTableLength = ProtoReader(input).readVarint32()
+        val stringTableBuffer = FixedLengthSource(input, stringTableLength.toLong(), truncate = true).buffer()
+        val stringTable = WireJvmProtoBuf.StringTableTypes.ADAPTER.decode(stringTableBuffer)
+        val nameResolver = WireJvmNameResolver(stringTable, strings)
+        val klass = WireProtoBuf.Class.ADAPTER.decode(input)
+        return Pair(nameResolver, klass)
+    }
 
     @JvmStatic
     fun readClassDataFrom(data: Array<String>, strings: Array<String>): Pair<JvmNameResolver, ProtoBuf.Class> =
