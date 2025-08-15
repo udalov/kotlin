@@ -17,6 +17,8 @@ dependencies {
 
     compileOnly(intellijCore())
     compileOnly(project(":compiler:cli-common"))
+    testCompileOnly(kotlinTest("junit"))
+    testImplementation(libs.junit4)
 }
 
 optInToUnsafeDuringIrConstructionAPI()
@@ -24,5 +26,5 @@ optInToObsoleteDescriptorBasedAPI()
 
 sourceSets {
     "main" { projectDefault() }
-    "test" {}
+    "test" { projectDefault() }
 }

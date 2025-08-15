@@ -11,18 +11,18 @@ option optimize_for = LITE_RUNTIME;
 
 message FileEntry {
   required string name = 1;
-  repeated int32 line_start_offset = 2 [packed=true];
+  repeated int32 line_start_offset = 2;
   optional int32 first_relevant_line_index = 3 [default = 0];
 }
 
 message IrFile {
-  repeated int32 declaration_id = 1 [packed=true];
+  repeated int32 declaration_id = 1;
   optional FileEntry file_entry = 2; // Required: either `file_entry` or `file_entry_id` is present.
   optional int32 file_entry_id = 7;  // Required: either `file_entry` or `file_entry_id` is present.
-  repeated int32 fq_name = 3 [packed=true];
+  repeated int32 fq_name = 3;
   repeated IrConstructorCall annotation = 4;
-  repeated int64 explicitly_exported_to_compiler = 5 [packed=true];
-  repeated int32 preprocessed_inline_functions = 8 [packed=true];
+  repeated int64 explicitly_exported_to_compiler = 5;
+  repeated int32 preprocessed_inline_functions = 8;
 
   // WARNING: Don't occupy index 6 which was previously used for storing expect/actual table.
   // repeated Actual actual = 6;
@@ -31,8 +31,8 @@ message IrFile {
 /* ------ IdSignature -------------------------------------------- */
 
 message CommonIdSignature {
-  repeated int32 package_fq_name = 1 [packed=true];
-  repeated int32 declaration_fq_name = 2 [packed = true];
+  repeated int32 package_fq_name = 1;
+  repeated int32 declaration_fq_name = 2;
   optional int64 member_uniq_id = 3;
   optional int64 flags = 4 [default = 0];
   optional int32 debug_info = 5;
@@ -60,7 +60,7 @@ message CompositeSignature {
 }
 
 message LocalSignature {
-  repeated int32 local_fq_name = 1 [packed=true];
+  repeated int32 local_fq_name = 1;
   optional int64 local_hash = 2;
 
   // WARNING: Don't occupy index 3 which was previously used for storing local signature description.
@@ -90,7 +90,7 @@ message IrSimpleTypeLegacy {
   repeated IrConstructorCall annotation = 1;
   required int64 classifier = 2;
   required bool has_question_mark = 3;
-  repeated int64 argument = 4 [packed=true]; // 0 - STAR, otherwise [63..2 - IrType index | 1..0 - Variance]
+  repeated int64 argument = 4; // 0 - STAR, otherwise [63..2 - IrType index | 1..0 - Variance]
 
   // Previously used fields:
   //optional IrTypeAbbreviation abbreviation = 5;
@@ -106,7 +106,7 @@ message IrSimpleType {
   repeated IrConstructorCall annotation = 1;
   required int64 classifier = 2;
   optional IrSimpleTypeNullability nullability = 3 [default=NOT_SPECIFIED];
-  repeated int64 argument = 4 [packed=true]; // 0 - STAR, otherwise [63..2 - IrType index | 1..0 - Variance]
+  repeated int64 argument = 4; // 0 - STAR, otherwise [63..2 - IrType index | 1..0 - Variance]
 
   // Previously used fields:
   //optional IrTypeAbbreviation abbreviation = 5;
@@ -118,7 +118,7 @@ message IrDynamicType {
 
 message IrDefinitelyNotNullType {
   // In fact that is an `IntersectionType` so let represent it as it. In future it could be easy to support general case
-  repeated int32 types = 1 [packed=true];
+  repeated int32 types = 1;
 }
 
 message IrErrorType {
@@ -171,7 +171,7 @@ message MemberAccessCommon {
   optional IrExpression extension_receiver = 2;
   repeated NullableIrExpression regular_argument = 3;
 
-  repeated int32 type_argument = 4 [packed=true];
+  repeated int32 type_argument = 4;
 
   // Previously used fields:
   //repeated NullableIrExpression context_argument = 5;
@@ -539,7 +539,7 @@ message IrFunctionBase {
 
 message IrFunction {
   required IrFunctionBase base = 1;
-  repeated int64 overridden = 2 [packed=true]; // TODO: supposed to be deleted
+  repeated int64 overridden = 2; // TODO: supposed to be deleted
   //optional UniqId corresponding_property = 7;
 }
 
@@ -585,7 +585,7 @@ message IrValueParameter {
 message IrTypeParameter {
   required IrDeclarationBase base = 1;
   required int32 name = 2;
-  repeated int32 super_type = 3 [packed=true];
+  repeated int32 super_type = 3;
 }
 
 message IrClass {
@@ -594,10 +594,10 @@ message IrClass {
   optional IrValueParameter this_receiver = 3;
   repeated IrTypeParameter type_parameter = 4;
   repeated IrDeclaration declaration = 5;
-  repeated int32 super_type = 6 [packed=true];
+  repeated int32 super_type = 6;
   optional IrInlineClassRepresentation inline_class_representation = 7;
   optional IrMultiFieldValueClassRepresentation multi_field_value_class_representation = 9;
-  repeated int64 sealed_subclass = 8 [packed=true];
+  repeated int64 sealed_subclass = 8;
 }
 
 message IrTypeAlias {
@@ -686,6 +686,6 @@ message IrInlineClassRepresentation {
 }
 
 message IrMultiFieldValueClassRepresentation {
-  repeated int32 underlying_property_name = 1 [packed=true];
-  repeated int32 underlying_property_type = 2 [packed=true];
+  repeated int32 underlying_property_name = 1;
+  repeated int32 underlying_property_type = 2;
 }
