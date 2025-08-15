@@ -9,6 +9,7 @@ project.configureJvmToolchain(JdkMajorVersion.JDK_1_8)
 dependencies {
     api(protobufLite())
     api(kotlinStdlib())
+    api("us.hebi.quickbuf:quickbuf-runtime:1.4")
 }
 
 sourceSets {

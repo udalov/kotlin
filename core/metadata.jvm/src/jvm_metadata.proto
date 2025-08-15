@@ -19,7 +19,7 @@ package org.jetbrains.kotlin.metadata.jvm;
 import "core/metadata/src/ext_options.proto";
 import "core/metadata/src/metadata.proto";
 
-option java_outer_classname = "JvmProtoBuf";
+option java_outer_classname = "QuickJvmProtoBuf";
 option optimize_for = LITE_RUNTIME;
 
 message StringTableTypes {

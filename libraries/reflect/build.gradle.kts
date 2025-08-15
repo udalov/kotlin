@@ -61,6 +61,7 @@ dependencies {
     embedded(project(":core:util.runtime")) { isTransitive = false }
     embedded("javax.inject:javax.inject:1") { isTransitive = false }
     embedded(protobufLite()) { isTransitive = false }
+    embedded("us.hebi.quickbuf:quickbuf-runtime:1.4")
 
     compileOnly("org.jetbrains:annotations:13.0")
 

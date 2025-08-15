@@ -10,6 +10,7 @@ public enum ReflectImplementation {
     METADATA,
     DESCRIPTORS_WITH_METADATA,
     RAW_PROTOBUF,
+    RAW_PROTOBUF_QUICKBUFFERS,
     ;
 
     public static volatile ReflectImplementation CURRENT = DESCRIPTORS;

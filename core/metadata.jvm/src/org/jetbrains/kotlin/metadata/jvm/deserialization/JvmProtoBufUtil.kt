@@ -6,11 +6,14 @@
 package org.jetbrains.kotlin.metadata.jvm.deserialization
 
 import org.jetbrains.kotlin.metadata.ProtoBuf
+import org.jetbrains.kotlin.metadata.QuickProtoBuf
 import org.jetbrains.kotlin.metadata.deserialization.*
 import org.jetbrains.kotlin.metadata.jvm.JvmProtoBuf
+import org.jetbrains.kotlin.metadata.jvm.QuickJvmProtoBuf
 import org.jetbrains.kotlin.metadata.jvm.serialization.JvmStringTable
 import org.jetbrains.kotlin.protobuf.ExtensionRegistryLite
 import org.jetbrains.kotlin.protobuf.MessageLite
+import us.hebi.quickbuf.ProtoSource
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
@@ -21,6 +24,19 @@ object JvmProtoBufUtil {
     const val PLATFORM_TYPE_ID = "kotlin.jvm.PlatformType"
 
     const val DEFAULT_MODULE_NAME = "main"
+
+    @JvmStatic
+    fun quickReadClassDataFrom(data: Array<String>, strings: Array<String>): Pair<QuickJvmNameResolver, QuickProtoBuf.Class> {
+        val bytes = BitEncoding.decodeBytes(data)
+        val length = ProtoSource.newInstance(bytes).readRawVarint32()
+        var offset = 0
+        while (bytes[offset] < 0) offset++
+        offset++
+        val nameResolver =
+            QuickJvmNameResolver(QuickJvmProtoBuf.StringTableTypes.parseFrom(ProtoSource.newInstance(bytes, offset, length)), strings)
+        val klass = QuickProtoBuf.Class.parseFrom(ProtoSource.newInstance(bytes, offset + length, bytes.size - offset - length))
+        return Pair(nameResolver, klass)
+    }
 
     @JvmStatic
     fun readClassDataFrom(data: Array<String>, strings: Array<String>): Pair<JvmNameResolver, ProtoBuf.Class> =

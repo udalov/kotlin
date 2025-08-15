@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+
+shopt -s globstar
+set -e
+
+# Download from https://hebirobotics.github.io/QuickBuffers/download.html
+
+K=$HOME/kotlin
+
+cd protoc-gen-quickbuf-1.4/lib/app
+OUT=../../../out
+rm -rf $OUT && mkdir $OUT
+
+PATH=.:$PATH ./protoc-quickbuf \
+    -I$K \
+    -I$K/core/metadata/src \
+    --quickbuf_out=allocation=lazy:$OUT \
+    $K/core/metadata/src/metadata.proto \
+    $K/core/metadata.jvm/src/jvm_metadata.proto \
+
+cp $OUT/org/jetbrains/kotlin/metadata/QuickProtoBuf.java $K/core/metadata/src/org/jetbrains/kotlin/metadata/
+cp $OUT/org/jetbrains/kotlin/metadata/jvm/QuickJvmProtoBuf.java $K/core/metadata.jvm/src/org/jetbrains/kotlin/metadata/jvm/
+

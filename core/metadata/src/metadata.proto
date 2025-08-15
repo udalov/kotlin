@@ -22,7 +22,7 @@ import "core/metadata/src/ext_options.proto";
 // Namely BuiltInsBinaryVersion, MetadataVersion, JsMetadataVersion, KlibMetadataVersion, and probably something else.
 // See their KDocs.
 
-option java_outer_classname = "ProtoBuf";
+option java_outer_classname = "QuickProtoBuf";
 option optimize_for = LITE_RUNTIME;
 
 message StringTable {
