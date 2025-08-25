@@ -43,7 +43,7 @@ internal class KTypeParameterImpl(
         name: String,
         variance: KVariance,
         isReified: Boolean,
-    ) : this(null, { container }, name, variance, isReified)
+    ) : this(descriptor = null, { container }, name, variance, isReified)
 
     constructor(container: KTypeParameterOwnerImpl?, descriptor: TypeParameterDescriptor) : this(
         descriptor,
