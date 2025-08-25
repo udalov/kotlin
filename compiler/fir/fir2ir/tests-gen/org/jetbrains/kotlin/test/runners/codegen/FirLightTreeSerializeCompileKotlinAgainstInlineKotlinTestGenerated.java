@@ -56463,6 +56463,12 @@ public class FirLightTreeSerializeCompileKotlinAgainstInlineKotlinTestGenerated 
         }
 
         @Test
+        @TestMetadata("javaArrayType.kt")
+        public void testJavaArrayType() {
+          runTest("compiler/testData/codegen/box/reflection/supertypes/javaArrayType.kt");
+        }
+
+        @Test
         @TestMetadata("nullablilitySubstitution.kt")
         public void testNullablilitySubstitution() {
           runTest("compiler/testData/codegen/box/reflection/supertypes/nullablilitySubstitution.kt");

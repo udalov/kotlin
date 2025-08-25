@@ -24,8 +24,13 @@ public interface BImpl extends B {}
 package test;
 
 import java.io.Serializable;
+import java.util.List;
 
-public interface C<C1 extends Comparable<String> & CharSequence & Serializable, C2 extends Number & Serializable> {}
+public interface C<
+        C1 extends Comparable<String> & CharSequence & Serializable,
+        C2 extends Number & Serializable,
+        C3 extends List<String[]>
+> {}
 
 // FILE: test/CImpl.java
 package test;
@@ -54,7 +59,7 @@ fun box(): String {
     )
 
     assertEquals(
-        "[test.CImpl, test.C<(raw) kotlin.Comparable<*>!, (raw) kotlin.Number!>, kotlin.Any]",
+        "[test.CImpl, test.C<(raw) kotlin.Comparable<*>!, (raw) kotlin.Number!, (raw) kotlin.collections.(Mutable)List<*>!>, kotlin.Any]",
         TestC::class.allSupertypes.toString(),
     )
 

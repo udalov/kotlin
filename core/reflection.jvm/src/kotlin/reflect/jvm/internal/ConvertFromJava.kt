@@ -12,21 +12,31 @@ import kotlin.reflect.*
 import kotlin.reflect.jvm.internal.types.FlexibleKType
 import kotlin.reflect.jvm.internal.types.SimpleKType
 import kotlin.reflect.jvm.internal.types.getMutableCollectionKClass
+import kotlin.reflect.jvm.jvmErasure
 
 internal fun Type.toKType(
     nullability: TypeNullability = TypeNullability.FLEXIBLE,
-    replaceArgumentsWithStarProjections: Boolean = false,
+    replaceNonArrayArgumentsWithStarProjections: Boolean = false,
 ): KType {
     val base: SimpleKType = when (this) {
         is Class<*> -> {
             if (typeParameters.isNotEmpty()) return createRawJavaType(this)
+            if (isArray) {
+                return createJavaSimpleType(this, kotlin, listOf(componentType.toKTypeProjection()), isMarkedNullable = false)
+                    .toFlexibleArrayElementVarianceType(this)
+            }
             createJavaSimpleType(this, kotlin, emptyList(), isMarkedNullable = false)
         }
-        is GenericArrayType -> TODO()
+        is GenericArrayType -> {
+            val componentType = genericComponentType.toKTypeProjection()
+            val componentClass = componentType.type!!.jvmErasure.java.createArrayType().kotlin
+            return createJavaSimpleType(this, componentClass, listOf(componentType), isMarkedNullable = false)
+                .toFlexibleArrayElementVarianceType(this)
+        }
         is ParameterizedType -> createJavaSimpleType(
             this,
             (rawType as Class<*>).kotlin,
-            if (replaceArgumentsWithStarProjections)
+            if (replaceNonArrayArgumentsWithStarProjections)
                 collectAllArguments().map { KTypeProjection.STAR }
             else
                 collectAllArguments().map { it.toKTypeProjection() },
@@ -55,8 +65,8 @@ internal fun Type.toKType(
         TypeNullability.NOT_NULL -> withMutableFlexibility
         TypeNullability.NULLABLE -> withMutableFlexibility.makeNullableAsSpecified(nullable = true)
         else -> FlexibleKType.create(
-            lowerBound = withMutableFlexibility,
-            upperBound = withMutableFlexibility.makeNullableAsSpecified(nullable = true),
+            lowerBound = withMutableFlexibility.lowerBoundIfFlexible() ?: withMutableFlexibility,
+            upperBound = (withMutableFlexibility.upperBoundIfFlexible() ?: withMutableFlexibility).makeNullableAsSpecified(nullable = true),
             isRawType = false,
         ) { this }
     }
@@ -92,7 +102,7 @@ private fun createRawJavaType(klass: Class<*>): KType =
             klass.typeParameters.map {
                 // For a lower bound of a raw type, we must take the corresponding bound of each type parameter, but erase their type
                 // arguments to star projections. E.g. `T : Comparable<String>` becomes `Comparable<*>`.
-                KTypeProjection.invariant(it.bounds.first().toKType(replaceArgumentsWithStarProjections = true))
+                KTypeProjection.invariant(it.bounds.first().toKType(replaceNonArrayArgumentsWithStarProjections = true))
             },
             isMarkedNullable = false,
         ),
@@ -122,9 +132,20 @@ private fun Type.toKTypeProjection(): KTypeProjection {
 
 private fun TypeVariable<*>.toKTypeParameter(): KTypeParameter {
     val container = genericDeclaration
+    // TODO (KT-80384): support type parameters of Java callables in new implementation
     if (container !is Class<*>)
-        TODO("Non-class container of a type parameter is not supported: $container ($this)")
+        throw KotlinReflectionInternalError("Non-class container of a type parameter is not supported: $container ($this)")
 
     return container.kotlin.typeParameters.singleOrNull { it.name == name }
         ?: throw KotlinReflectionInternalError("Type parameter $name is not found in $container")
 }
+
+private fun SimpleKType.toFlexibleArrayElementVarianceType(javaType: Type): FlexibleKType =
+    FlexibleKType.create(
+        lowerBound = this,
+        upperBound = createJavaSimpleType(
+            javaType, classifier, arguments.map { it.type?.let(KTypeProjection::covariant) ?: it }, isMarkedNullable = true,
+        ),
+        isRawType = false,
+        computeJavaType = { javaType },
+    ) as FlexibleKType
