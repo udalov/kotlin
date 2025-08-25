@@ -8,6 +8,7 @@ package kotlin.reflect.jvm.internal.types
 import org.jetbrains.kotlin.builtins.functions.AllowedToUsedOnlyInK1
 import org.jetbrains.kotlin.types.TypeCheckerState
 import org.jetbrains.kotlin.types.model.*
+import org.jetbrains.kotlin.utils.addToStdlib.shouldNotBeCalled
 import kotlin.metadata.ClassKind
 import kotlin.reflect.*
 import kotlin.reflect.jvm.internal.KClassImpl
@@ -27,19 +28,19 @@ object KTypeSystemContext : TypeSystemContext {
     }
 
     override fun TypeConstructorMarker.isError(): Boolean {
-        TODO("Not yet implemented")
+        shouldNotBeCalled()
     }
 
     override fun KotlinTypeMarker.isUninferredParameter(): Boolean {
-        TODO("Not yet implemented")
+        shouldNotBeCalled()
     }
 
     override fun FlexibleTypeMarker.asDynamicType(): DynamicTypeMarker? {
-        TODO("Not yet implemented")
+        shouldNotBeCalled()
     }
 
     override fun KotlinTypeMarker.isRawType(): Boolean {
-        TODO("Not yet implemented")
+        shouldNotBeCalled()
     }
 
     override fun FlexibleTypeMarker.upperBound(): RigidTypeMarker {
@@ -59,15 +60,15 @@ object KTypeSystemContext : TypeSystemContext {
     }
 
     override fun DefinitelyNotNullTypeMarker.original(): SimpleTypeMarker {
-        TODO("Not yet implemented")
+        shouldNotBeCalled()
     }
 
     override fun KotlinTypeMarker.makeDefinitelyNotNullOrNotNull(preserveAttributes: Boolean): KotlinTypeMarker {
-        TODO("Not yet implemented")
+        shouldNotBeCalled()
     }
 
     override fun RigidTypeMarker.makeDefinitelyNotNullOrNotNull(): RigidTypeMarker {
-        TODO("Not yet implemented")
+        shouldNotBeCalled()
     }
 
     override fun KotlinTypeMarker.isMarkedNullable(): Boolean {
@@ -97,7 +98,7 @@ object KTypeSystemContext : TypeSystemContext {
     }
 
     override fun KotlinTypeMarker.withNullability(nullable: Boolean): KotlinTypeMarker {
-        TODO("Not yet implemented")
+        shouldNotBeCalled()
     }
 
     override fun CapturedTypeMarker.isOldCapturedType(): Boolean {
@@ -130,7 +131,7 @@ object KTypeSystemContext : TypeSystemContext {
     }
 
     override fun KotlinTypeMarker.getArguments(): List<TypeArgumentMarker> {
-        TODO("Not yet implemented")
+        shouldNotBeCalled()
     }
 
     override fun RigidTypeMarker.isStubType(): Boolean {
@@ -138,7 +139,7 @@ object KTypeSystemContext : TypeSystemContext {
     }
 
     override fun RigidTypeMarker.isStubTypeForVariableInSubtyping(): Boolean {
-        TODO("Not yet implemented")
+        shouldNotBeCalled()
     }
 
     override fun RigidTypeMarker.isStubTypeForBuilderInference(): Boolean {
@@ -146,11 +147,11 @@ object KTypeSystemContext : TypeSystemContext {
     }
 
     override fun TypeConstructorMarker.unwrapStubTypeVariableConstructor(): TypeConstructorMarker {
-        TODO("Not yet implemented")
+        shouldNotBeCalled()
     }
 
     override fun KotlinTypeMarker.asTypeArgument(): TypeArgumentMarker {
-        TODO("Not yet implemented")
+        shouldNotBeCalled()
     }
 
     override fun CapturedTypeMarker.lowerType(): KotlinTypeMarker? {
@@ -176,7 +177,7 @@ object KTypeSystemContext : TypeSystemContext {
     }
 
     override fun TypeArgumentMarker.replaceType(newType: KotlinTypeMarker): TypeArgumentMarker {
-        TODO("Not yet implemented")
+        shouldNotBeCalled()
     }
 
     override fun TypeConstructorMarker.parametersCount(): Int {
@@ -188,7 +189,7 @@ object KTypeSystemContext : TypeSystemContext {
     }
 
     override fun TypeConstructorMarker.getParameters(): List<TypeParameterMarker> {
-        TODO("Not yet implemented")
+        shouldNotBeCalled()
     }
 
     override fun TypeConstructorMarker.supertypes(): Collection<KotlinTypeMarker> {
@@ -209,7 +210,7 @@ object KTypeSystemContext : TypeSystemContext {
     }
 
     override fun TypeConstructorMarker.isInterface(): Boolean {
-        TODO("Not yet implemented")
+        shouldNotBeCalled()
     }
 
     override fun TypeConstructorMarker.isIntegerLiteralTypeConstructor(): Boolean {
@@ -217,54 +218,54 @@ object KTypeSystemContext : TypeSystemContext {
     }
 
     override fun TypeConstructorMarker.isIntegerLiteralConstantTypeConstructor(): Boolean {
-        TODO("Not yet implemented")
+        shouldNotBeCalled()
     }
 
     override fun TypeConstructorMarker.isIntegerConstantOperatorTypeConstructor(): Boolean {
-        TODO("Not yet implemented")
+        shouldNotBeCalled()
     }
 
     override fun TypeConstructorMarker.isLocalType(): Boolean {
-        TODO("Not yet implemented")
+        shouldNotBeCalled()
     }
 
     override fun TypeConstructorMarker.isAnonymous(): Boolean {
-        TODO("Not yet implemented")
+        shouldNotBeCalled()
     }
 
     override fun TypeConstructorMarker.getTypeParameterClassifier(): TypeParameterMarker? {
-        TODO("Not yet implemented")
+        shouldNotBeCalled()
     }
 
     override fun TypeConstructorMarker.isTypeParameterTypeConstructor(): Boolean {
-        TODO("Not yet implemented")
+        shouldNotBeCalled()
     }
 
     override val TypeVariableTypeConstructorMarker.typeParameter: TypeParameterMarker?
-        get() = TODO("Not yet implemented")
+        get() = shouldNotBeCalled()
 
     override fun TypeParameterMarker.getVariance(): TypeVariance {
         return (this as KTypeParameter).variance.convertVariance()
     }
 
     override fun TypeParameterMarker.upperBoundCount(): Int {
-        TODO("Not yet implemented")
+        shouldNotBeCalled()
     }
 
     override fun TypeParameterMarker.getUpperBound(index: Int): KotlinTypeMarker {
-        TODO("Not yet implemented")
+        shouldNotBeCalled()
     }
 
     override fun TypeParameterMarker.getUpperBounds(): List<KotlinTypeMarker> {
-        TODO("Not yet implemented")
+        shouldNotBeCalled()
     }
 
     override fun TypeParameterMarker.getTypeConstructor(): TypeConstructorMarker {
-        TODO("Not yet implemented")
+        shouldNotBeCalled()
     }
 
     override fun TypeParameterMarker.hasRecursiveBounds(selfConstructor: TypeConstructorMarker?): Boolean {
-        TODO("Not yet implemented")
+        shouldNotBeCalled()
     }
 
     override fun areEqualTypeConstructors(c1: TypeConstructorMarker, c2: TypeConstructorMarker): Boolean {
@@ -276,11 +277,11 @@ object KTypeSystemContext : TypeSystemContext {
     }
 
     override fun KotlinTypeMarker.isNullableType(): Boolean {
-        TODO("Not yet implemented")
+        shouldNotBeCalled()
     }
 
     override fun RigidTypeMarker.possibleIntegerTypes(): Collection<KotlinTypeMarker> {
-        TODO("Not yet implemented")
+        shouldNotBeCalled()
     }
 
     override fun TypeConstructorMarker.isCommonFinalClassConstructor(): Boolean {
@@ -293,7 +294,7 @@ object KTypeSystemContext : TypeSystemContext {
     }
 
     override fun captureFromExpression(type: KotlinTypeMarker): KotlinTypeMarker? {
-        TODO("Not yet implemented")
+        shouldNotBeCalled()
     }
 
     override fun RigidTypeMarker.asArgumentList(): TypeArgumentListMarker {
@@ -309,27 +310,27 @@ object KTypeSystemContext : TypeSystemContext {
     }
 
     override fun TypeConstructorMarker.isArrayConstructor(): Boolean {
-        TODO("Not yet implemented")
+        shouldNotBeCalled()
     }
 
     override fun RigidTypeMarker.isSingleClassifierType(): Boolean {
-        TODO("Not yet implemented")
+        shouldNotBeCalled()
     }
 
     override fun intersectTypes(types: Collection<KotlinTypeMarker>): KotlinTypeMarker {
-        TODO("Not yet implemented")
+        shouldNotBeCalled()
     }
 
     override fun intersectTypes(types: Collection<SimpleTypeMarker>): SimpleTypeMarker {
-        TODO("Not yet implemented")
+        shouldNotBeCalled()
     }
 
     override fun SimpleTypeMarker.isPrimitiveType(): Boolean {
-        TODO("Not yet implemented")
+        shouldNotBeCalled()
     }
 
     override fun KotlinTypeMarker.getAttributes(): List<AnnotationMarker> {
-        TODO("Not yet implemented")
+        shouldNotBeCalled()
     }
 
     override fun substitutionSupertypePolicy(type: RigidTypeMarker): TypeCheckerState.SupertypesPolicy {
@@ -342,19 +343,19 @@ object KTypeSystemContext : TypeSystemContext {
     }
 
     override fun KotlinTypeMarker.isTypeVariableType(): Boolean {
-        TODO("Not yet implemented")
+        shouldNotBeCalled()
     }
 
     override fun typeSubstitutorByTypeConstructor(map: Map<TypeConstructorMarker, KotlinTypeMarker>): TypeSubstitutorMarker {
-        TODO("Not yet implemented")
+        shouldNotBeCalled()
     }
 
     override fun createEmptySubstitutor(): TypeSubstitutorMarker {
-        TODO("Not yet implemented")
+        shouldNotBeCalled()
     }
 
     override fun TypeSubstitutorMarker.safeSubstitute(type: KotlinTypeMarker): KotlinTypeMarker {
-        TODO("Not yet implemented")
+        shouldNotBeCalled()
     }
 
     override fun KotlinTypeMarker.isDynamic(): Boolean =
