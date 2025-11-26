@@ -32,6 +32,17 @@ public class Intrinsics {
         }
     }
 
+    @SinceKotlin(version = "2.5")
+    public static void checkNotNullInCast(Object object, Class<?> klass) {
+        if (object == null) {
+            throwNpeForNullInCast(klass);
+        }
+    }
+
+    private static void throwNpeForNullInCast(Class<?> klass) {
+        throwJavaNpe("null cannot be cast to non-null type " + new ClassReference(klass).getQualifiedName());
+    }
+
     public static void throwNpe() {
         throw sanitizeStackTrace(new KotlinNullPointerException());
     }

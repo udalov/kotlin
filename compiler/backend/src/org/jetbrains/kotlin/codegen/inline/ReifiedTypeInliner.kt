@@ -239,7 +239,7 @@ class ReifiedTypeInliner(
         if (stubCheckcast !is TypeInsnNode) return false
 
         val newMethodNode = MethodNode(Opcodes.API_VERSION)
-        generateAsCast(InstructionAdapter(newMethodNode), type, asmType, safe, intrinsicsSupport.config.unifiedNullChecks)
+        intrinsicsSupport.generateAsCast(InstructionAdapter(newMethodNode), type, asmType, safe)
 
         instructions.insert(insn, newMethodNode.instructions)
         // Keep stubCheckcast to avoid VerifyErrors on 1.8+ bytecode,

@@ -6,8 +6,10 @@
 package org.jetbrains.kotlin.codegen
 
 import org.jetbrains.kotlin.codegen.inline.ReificationArgument
+import org.jetbrains.kotlin.codegen.inline.ReifiedTypeInliner
 import org.jetbrains.kotlin.codegen.inline.ReifiedTypeParametersUsages
 import org.jetbrains.kotlin.codegen.intrinsics.TypeIntrinsics
+import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.util.isNullable
 import org.jetbrains.kotlin.ir.util.render
@@ -43,10 +45,10 @@ fun generateIsCheck(v: InstructionAdapter, type: IrType, asmType: Type) {
     }
 }
 
-fun generateAsCast(v: InstructionAdapter, type: IrType, asmType: Type, isSafe: Boolean, unifiedNullChecks: Boolean) {
+fun ReifiedTypeInliner.IntrinsicsSupport.generateAsCast(v: InstructionAdapter, type: IrType, asmType: Type, isSafe: Boolean) {
     if (!isSafe) {
         if (!type.isNullable()) {
-            generateNullCheckForNonSafeAs(v, type, unifiedNullChecks)
+            generateNullCheckForNonSafeAs(v, type)
         }
     } else {
         with(v) {
@@ -63,18 +65,24 @@ fun generateAsCast(v: InstructionAdapter, type: IrType, asmType: Type, isSafe: B
     TypeIntrinsics.checkcast(v, type, asmType, isSafe)
 }
 
-private fun generateNullCheckForNonSafeAs(v: InstructionAdapter, type: IrType, unifiedNullChecks: Boolean) {
+private fun ReifiedTypeInliner.IntrinsicsSupport.generateNullCheckForNonSafeAs(v: InstructionAdapter, type: IrType) {
     with(v) {
         dup()
-        val message = "null cannot be cast to non-null type " + type.render()
-        if (unifiedNullChecks) {
-            aconst(message)
-            v.invokestatic("kotlin/jvm/internal/Intrinsics", "checkNotNull", "(Ljava/lang/Object;Ljava/lang/String;)V", false)
+
+        if (config.languageVersionSettings.supportsFeature(LanguageFeature.JvmOptimizedNullCastMessages)) {
+            putClassInstance(v, type)
+            v.invokestatic("kotlin/jvm/internal/Intrinsics", "checkNotNullInCast", "(Ljava/lang/Object;Ljava/lang/Class;)V", false)
         } else {
-            val nonnull = Label()
-            ifnonnull(nonnull)
-            AsmUtil.genThrow(v, "kotlin/TypeCastException", message)
-            mark(nonnull)
+            val message = "null cannot be cast to non-null type " + type.render()
+            if (config.unifiedNullChecks) {
+                aconst(message)
+                v.invokestatic("kotlin/jvm/internal/Intrinsics", "checkNotNull", "(Ljava/lang/Object;Ljava/lang/String;)V", false)
+            } else {
+                val nonnull = Label()
+                ifnonnull(nonnull)
+                AsmUtil.genThrow(v, "kotlin/TypeCastException", message)
+                mark(nonnull)
+            }
         }
     }
 }

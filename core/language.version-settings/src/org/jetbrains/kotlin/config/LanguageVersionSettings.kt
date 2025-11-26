@@ -521,6 +521,7 @@ enum class LanguageFeature(
     ReportDeprecationsOfClassifiersInImplicitInvokes(sinceVersion = KOTLIN_2_5, enabledInProgressiveMode = true, "KT-82456"),
     ForbidArrayOfNothingInLhsOfClassLiteral(sinceVersion = KOTLIN_2_5, enabledInProgressiveMode = true, "KT-84589"),
     ForbidReturnInExpressionBodyWithoutExplicitTypeEdgeCases(sinceVersion = KOTLIN_2_5, "KTLC-288"),
+    JvmOptimizedNullCastMessages(KOTLIN_2_5, sinceApiVersion = ApiVersion.KOTLIN_2_5, issue = "KT-22259"),
     ForbidExternalEnumEntriesAndPrimaryConstructorProperties(sinceVersion = KOTLIN_2_5, enabledInProgressiveMode = true, "KTLC-389"),
     ReportTypeVarianceConflictsInDnnAndFlexible(sinceVersion = KOTLIN_2_5, enabledInProgressiveMode = true, "KTLC-392"),
     ProperSupportOfInnerClassesInCallableReferenceLHS(sinceVersion = KOTLIN_2_5, "KTLC-388"),

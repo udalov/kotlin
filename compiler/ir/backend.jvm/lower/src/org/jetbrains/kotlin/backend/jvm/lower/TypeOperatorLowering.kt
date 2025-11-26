@@ -14,6 +14,7 @@ import org.jetbrains.kotlin.backend.jvm.JvmBackendContext
 import org.jetbrains.kotlin.backend.jvm.ir.fileParent
 import org.jetbrains.kotlin.backend.jvm.ir.getKtFile
 import org.jetbrains.kotlin.backend.jvm.ir.isInlineClassType
+import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
 import org.jetbrains.kotlin.ir.builders.*
@@ -82,9 +83,22 @@ internal class TypeOperatorLowering(private val backendContext: JvmBackendContex
                 argument
             type.isNullable() || argument.isDefinitelyNotNull() ->
                 builder.irAs(argument, type)
-            else -> {
-                with(builder) {
-                    irLetS(argument, irType = context.irBuiltIns.anyNType) { tmp ->
+            else -> with(builder) {
+                val symbols = backendContext.symbols
+                irLetS(argument, irType = context.irBuiltIns.anyNType) { tmp ->
+                    if (backendContext.config.languageVersionSettings.supportsFeature(LanguageFeature.JvmOptimizedNullCastMessages)) {
+                        irBlock(resultType = type) {
+                            +irCall(symbols.checkNotNullInCast).apply {
+                                arguments[0] = irGet(tmp.owner)
+                                arguments[1] = irGet(
+                                    symbols.javaLangClass.starProjectedType, receiver = null, symbols.kClassJavaPropertyGetter.symbol,
+                                ).apply {
+                                    arguments[0] = kClassReference(type)
+                                }
+                            }
+                            +irAs(irGet(tmp.owner), type.makeNullable())
+                        }
+                    } else {
                         val message = irString("null cannot be cast to non-null type ${type.render()}")
                         if (backendContext.config.unifiedNullChecks) {
                             // Avoid branching to improve code coverage (KT-27427).
@@ -92,7 +106,7 @@ internal class TypeOperatorLowering(private val backendContext: JvmBackendContex
                             // it can be uninitialized value, which is 'null' for reference types in JMM.
                             // Most of such null checks will never actually throw, but we can't do anything about it.
                             irBlock(resultType = type) {
-                                +irCall(backendContext.symbols.checkNotNullWithMessage).apply {
+                                +irCall(symbols.checkNotNullWithMessage).apply {
                                     arguments[0] = irGet(tmp.owner)
                                     arguments[1] = message
                                 }
