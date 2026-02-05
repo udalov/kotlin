@@ -66,11 +66,16 @@ fun generateAsCast(v: InstructionAdapter, type: IrType, asmType: Type, isSafe: B
 private fun generateNullCheckForNonSafeAs(v: InstructionAdapter, type: IrType, unifiedNullChecks: Boolean) {
     with(v) {
         dup()
-        val nonnull = Label()
-        ifnonnull(nonnull)
-        val exceptionClass = if (unifiedNullChecks) "java/lang/NullPointerException" else "kotlin/TypeCastException"
-        AsmUtil.genThrow(v, exceptionClass, "null cannot be cast to non-null type ${type.render()}")
-        mark(nonnull)
+        val message = "null cannot be cast to non-null type " + type.render()
+        if (unifiedNullChecks) {
+            aconst(message)
+            v.invokestatic("kotlin/jvm/internal/Intrinsics", "checkNotNull", "(Ljava/lang/Object;Ljava/lang/String;)V", false)
+        } else {
+            val nonnull = Label()
+            ifnonnull(nonnull)
+            AsmUtil.genThrow(v, "kotlin/TypeCastException", message)
+            mark(nonnull)
+        }
     }
 }
 
