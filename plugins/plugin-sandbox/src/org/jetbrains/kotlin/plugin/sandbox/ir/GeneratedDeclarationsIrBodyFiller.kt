@@ -26,6 +26,7 @@ class GeneratedDeclarationsIrBodyFiller : IrGenerationExtension {
             MetadataExtensionEmitter(pluginContext),
             MetadataExtensionExtractor(pluginContext),
             IrTransformerForICTesting(pluginContext),
+            InitializerNestedClassTransformer(pluginContext),
         )
 
         for (transformer in transformers) {
