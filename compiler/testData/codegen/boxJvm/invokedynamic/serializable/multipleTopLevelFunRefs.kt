@@ -5,16 +5,16 @@
 
 
 // CHECK_BYTECODE_TEXT
-// 16 java/lang/invoke/LambdaMetafactory
+// 12 java/lang/invoke/LambdaMetafactory
 // 1 (LOOKUP|TABLE)SWITCH
-// 8 java/lang/String\.equals
+// 4 java/lang/String\.equals
 
 // FILE: multipleTopLevelFunRefs.kt
 
-// No deduplication happens now, because each reference would generate it's own private
-// wrapper function. In principle, it's possible to deduplicate such functions,
-// at least in simple cases, where no adaptations happen. Than there would be only 4 private
-// funcions instead of 8, and only 4 cases in desirialization switch, leading to only 12 indy calls.
+// References to these top-level functions are simple forwarders, so the `invokedynamic` calls target the referenced
+// functions directly instead of generating a private wrapper function per reference (see IndyLambdaMetafactoryLowering).
+// As a result, references to the same function share an implementation method: there are only 4 distinct cases in the
+// deserialization switch (one per `plusKN`), leading to 12 indy calls instead of 16.
 
 import java.io.*
 

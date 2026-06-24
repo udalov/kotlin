@@ -4,7 +4,9 @@
 // FULL_JDK
 
 // CHECK_BYTECODE_TEXT
-// 4 java/lang/invoke/LambdaMetafactory
+// Both `p1::plus` and `p2::plus` resolve to the public interface method `Plus.plus`, so the `invokedynamic` calls
+// target it directly (no per-reference wrapper) and share a single deserialization case: 3 indy calls instead of 4.
+// 3 java/lang/invoke/LambdaMetafactory
 
 // FILE: serializableBoundInterfaceMemberFunRef.kt
 import java.io.*

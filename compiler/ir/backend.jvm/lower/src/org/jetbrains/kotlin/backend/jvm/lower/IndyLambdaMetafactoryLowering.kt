@@ -71,7 +71,6 @@ class IndyLambdaMetafactoryLowering(val backendContext: JvmBackendContext) : Fil
     override fun visitRichFunctionReference(expression: IrRichFunctionReference): IrExpression {
         val indyCallData = expression.indyCallData ?: return super.visitRichFunctionReference(expression)
         expression.transformChildrenVoid()
-        getClassContext().functionsToAdd.add(expression.invokeFunction)
         return rewriteIndyLambdaMetafactoryCall(expression, indyCallData)
     }
 
@@ -84,15 +83,15 @@ class IndyLambdaMetafactoryLowering(val backendContext: JvmBackendContext) : Fil
         val dynamicCallSymbol: IrSimpleFunctionSymbol
     )
 
-    private class ClassContext {
+    private class ClassContext(val irClass: IrClass) {
         val serializableMethodRefInfos = mutableListOf<SerializableMethodRefInfo>()
         val functionsToAdd = mutableListOf<IrFunction>()
     }
 
     private val classContextStack = ArrayDeque<ClassContext>()
 
-    private fun enterClass(): ClassContext {
-        return ClassContext().also {
+    private fun enterClass(declaration: IrClass): ClassContext {
+        return ClassContext(declaration).also {
             classContextStack.push(it)
         }
     }
@@ -109,7 +108,7 @@ class IndyLambdaMetafactoryLowering(val backendContext: JvmBackendContext) : Fil
     }
 
     override fun visitClass(declaration: IrClass): IrStatement {
-        val context = enterClass()
+        val context = enterClass(declaration)
         val result = super.visitClass(declaration)
         if (context.serializableMethodRefInfos.isNotEmpty()) {
             generateDeserializeLambdaMethod(declaration, context.serializableMethodRefInfos)
@@ -308,6 +307,69 @@ class IndyLambdaMetafactoryLowering(val backendContext: JvmBackendContext) : Fil
         )
     }
 
+    /**
+     * If this reference's [IrRichFunctionReference.invokeFunction] is a pure forwarder, i.e. its body is a single
+     * `return target(p0, p1, ..., pN)` that passes all of the function's parameters to `target` in order without any
+     * modification, returns the symbol of `target`. Such a forwarder can be replaced by `target` itself as the
+     * implementation method of the `invokedynamic` call, which avoids generating the forwarder altogether.
+     *
+     * The optimization is intentionally conservative:
+     * - Only function references are considered, not lambdas.
+     * - The target must not be an inline function: inline functions have no callable implementation method.
+     * - The target must be reachable from the `invokedynamic` call site without a synthetic accessor: either it is in
+     *   the same class (then it has the same accessibility as the forwarder we would otherwise generate there), or it is
+     *   a public member of a public class (accessible from any lookup class, in any package/module). Otherwise the
+     *   target might be inaccessible from the LambdaMetafactory call site, or require a synthetic accessor in a foreign
+     *   file, so we keep the forwarder. Note that top-level functions of other modules (whose parent is a package
+     *   fragment rather than a class) are excluded, since referencing them as an implementation method is not supported.
+     * - The target's JVM signature must be identical to the forwarder's. The forwarder is an adaptable function
+     *   (`LOCAL_FUNCTION_FOR_LAMBDA`), so [LambdaMetafactoryArgumentsBuilder] may have boxed its `Unit`/primitive
+     *   return or parameters (e.g. `Unit`/`V` -> `Unit?`/`Lkotlin/Unit;`) in place, without rewriting the body. In that
+     *   case the bare-looking forward is not actually signature-compatible with the target, so we keep the forwarder.
+     */
+    private fun IrRichFunctionReference.getForwardedTargetOrNull(): IrFunctionSymbol? {
+        if (reflectionTargetSymbol == null) return null
+        if (hasUnitConversion || hasSuspendConversion || hasVarargConversion) return null
+        val function = invokeFunction
+        if (function.typeParameters.isNotEmpty()) return null
+        val body = function.body as? IrBlockBody ?: return null
+        val returnStatement = body.statements.singleOrNull() as? IrReturn ?: return null
+        if (returnStatement.returnTargetSymbol != function.symbol) return null
+        val call = returnStatement.value as? IrCall ?: return null
+        val arguments = call.arguments
+        if (arguments.size != function.parameters.size) return null
+        for (index in arguments.indices) {
+            val getValue = arguments[index] as? IrGetValue ?: return null
+            if (getValue.symbol != function.parameters[index].symbol) return null
+        }
+        val target = call.symbol.owner
+        if (target.isInline) return null
+        if (target.parent != getClassContext().irClass && !target.isPublicMemberOfPublicClass()) return null
+        // The forwarder's parameters correspond 1:1 (in order) to the target's parameters (verified above), so compare
+        // their mapped JVM types. This rejects forwarders whose signature was adapted away from the target's.
+        val signatureMapper = backendContext.defaultMethodSignatureMapper
+        val typeMapper = backendContext.defaultTypeMapper
+        if (signatureMapper.mapAsmMethod(function).returnType != signatureMapper.mapAsmMethod(target).returnType) return null
+        for (index in function.parameters.indices) {
+            if (typeMapper.mapType(function.parameters[index].type) != typeMapper.mapType(target.parameters[index].type)) return null
+        }
+        return call.symbol
+    }
+
+    /**
+     * Whether this is a public member of a (transitively) public class, i.e. accessible from any lookup class in any
+     * package without a synthetic accessor. Returns `false` for top-level functions whose parent is a package fragment
+     * (including those of other modules), which can't be used as an `invokedynamic` implementation method here.
+     */
+    private fun IrFunction.isPublicMemberOfPublicClass(): Boolean {
+        if (visibility != DescriptorVisibilities.PUBLIC) return false
+        var declaringClass = parent as? IrClass ?: return false
+        while (true) {
+            if (declaringClass.visibility != DescriptorVisibilities.PUBLIC) return false
+            declaringClass = declaringClass.parent as? IrClass ?: return true
+        }
+    }
+
     private fun rewriteIndyLambdaMetafactoryCall(
         call: IrRichFunctionReference,
         indyCallData: IndyCallData,
@@ -320,7 +382,17 @@ class IndyLambdaMetafactoryLowering(val backendContext: JvmBackendContext) : Fil
 
         val samType = call.type as? IrSimpleType ?: fail("'samType' is expected to be a simple type")
 
-        val implFunSymbol = call.invokeFunction.symbol
+        // If `invokeFunction` is a pure forwarder (a single `return target(p0, ..., pN)` that passes all of its
+        // parameters to `target` unchanged), point LambdaMetafactory directly at `target` and drop the synthetic
+        // forwarder. Otherwise, emit the forwarder and use it as the implementation method.
+        val implFunSymbol: IrFunctionSymbol
+        val forwardedTarget = call.getForwardedTargetOrNull()
+        if (forwardedTarget != null) {
+            implFunSymbol = forwardedTarget
+        } else {
+            implFunSymbol = call.invokeFunction.symbol
+            getClassContext().functionsToAdd.add(call.invokeFunction)
+        }
 
         val generatedParameters = LambdaMetafactoryArgumentsBuilder(backendContext, emptySet())
             .getLambdaMetafactoryArguments(
