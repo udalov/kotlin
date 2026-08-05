@@ -89,7 +89,7 @@ public class ReflectionFactoryImpl extends ReflectionFactory {
             }
             else if (container instanceof KPackageImpl) {
                 KmFunction kmFunction = container.findFunctionMetadata(name, signature);
-                return new KotlinKNamedFunction(container, signature, boundReceiver, kmFunction, KCallableOverriddenStorage.EMPTY);
+                return new KotlinKNamedFunction(container, signature, boundReceiver, kmFunction, KCallableOverriddenStorage.EMPTY, null);
             }
             else if (container instanceof KClassImpl<?> && !((KClassImpl<?>) container).isComplicatedBuiltinSubclass() &&
                      (!SystemPropertiesKt.getUseK1ImplementationForMembers() || isJavaClass(container))) {

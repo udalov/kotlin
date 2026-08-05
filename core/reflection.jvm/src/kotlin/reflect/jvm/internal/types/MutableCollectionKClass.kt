@@ -46,7 +46,7 @@ internal class MutableCollectionKClassImpl<T : Any>(
             ?: throw KotlinReflectionInternalError("Builtin class metadata not found for $mutableClassId.")
     }
 
-    private val typeParameterTable: TypeParameterTable by lazy(PUBLICATION) {
+    val typeParameterTable: TypeParameterTable by lazy(PUBLICATION) {
         TypeParameterTable.create(mutableKmClass.typeParameters, parent = null, readonlyClass, readonlyClass.java.safeClassLoader)
     }
 
@@ -57,6 +57,10 @@ internal class MutableCollectionKClassImpl<T : Any>(
         mutableKmClass.supertypes.map {
             it.toKType(readonlyClass.java.safeClassLoader, typeParameterTable)
         }
+    }
+
+    val declaredFunctions: Collection<ReflectKFunction> by lazy(PUBLICATION) {
+        mutableKmClass.functions.map { createUnboundFunction(it, readonlyClass, this) }
     }
 
     override fun equals(other: Any?): Boolean = other is MutableCollectionKClass<*> && readonlyClass == other.readonlyClass
@@ -89,3 +93,6 @@ internal class DescriptorMutableCollectionKClass<T : Any>(
     override fun hashCode(): Int = readonlyClass.hashCode() * 31
     override fun toString(): String = "MutableCollectionKClass($readonlyClass)"
 }
+
+internal val KType.mutableCollectionKClass: MutableCollectionKClassImpl<*>?
+    get() = (this as? AbstractKType)?.mutableCollectionClass as? MutableCollectionKClassImpl<*>

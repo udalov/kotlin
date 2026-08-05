@@ -29,6 +29,7 @@ import kotlin.reflect.jvm.internal.calls.createAnnotationInstance
 import kotlin.reflect.jvm.internal.types.AbstractKType
 import kotlin.reflect.jvm.internal.types.FlexibleKType
 import kotlin.reflect.jvm.internal.types.MutableCollectionKClass
+import kotlin.reflect.jvm.internal.types.MutableCollectionKClassImpl
 import kotlin.reflect.jvm.internal.types.SimpleKType
 import kotlin.reflect.jvm.jvmErasure
 
@@ -354,13 +355,20 @@ internal fun createUnboundProperty(property: KmProperty, container: KDeclaration
     )
 }
 
-internal fun createUnboundFunction(function: KmFunction, container: KDeclarationContainerImpl): KotlinKFunction {
+internal fun createUnboundFunction(
+    function: KmFunction,
+    container: KDeclarationContainerImpl,
+    mutableClass: MutableCollectionKClassImpl<*>? = null,
+): KotlinKFunction {
     // In JVM metadata, functions always have `signature`. In builtins metadata, they don't (*), so we compute it manually. In JVM metadata,
     // this might also help in cases when metadata was corrupted or generated incorrectly for some reason and lacks the signature.
     // (*) Actually, when builtins metadata is read by kotlin-metadata-jvm, JVM signatures are computed and stored by
     // `JvmMetadataExtensions.readFunctionExtensions` in case they can be easily computed (see `JvmProtoBufUtil.getJvmMethodSignature`).
-    val signature = function.mapSignature((container as? KClassImpl<*>)?.kmClass)
-    return KotlinKNamedFunction(container, signature.toString(), CallableReference.NO_RECEIVER, function, KCallableOverriddenStorage.EMPTY)
+    val signature = function.mapSignature(mutableClass?.mutableKmClass ?: (container as? KClassImpl<*>)?.kmClass)
+    return KotlinKNamedFunction(
+        container, signature.toString(), CallableReference.NO_RECEIVER, function, KCallableOverriddenStorage.EMPTY,
+        mutableClass?.typeParameterTable,
+    )
 }
 
 internal fun createUnboundConstructor(constructor: KmConstructor, container: KDeclarationContainerImpl): KotlinKFunction {

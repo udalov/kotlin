@@ -18,6 +18,7 @@ import kotlin.reflect.jvm.internal.types.AbstractKType
 import kotlin.reflect.jvm.internal.types.KTypeSubstitutor
 import kotlin.reflect.jvm.internal.types.ReflectTypeSystemContext
 import kotlin.reflect.jvm.internal.types.areEqualKTypes
+import kotlin.reflect.jvm.internal.types.mutableCollectionKClass
 import kotlin.reflect.jvm.javaField
 
 private object CovariantOverrideComparator : Comparator<ReflectKCallable<*>> {
@@ -178,7 +179,14 @@ private fun getSupertypeMembersByName(supertype: KType, supertypeKClass: KClassI
         val invokeKmFunction = createSuspendFunctionInvoke(supertype.arguments.size - 1, functionKmClass)
         return listOf(createUnboundFunction(invokeKmFunction, supertypeKClass))
     }
-    return supertypeKClass.getFakeOverrideMembersByName(name).values
+    val members = supertypeKClass.getFakeOverrideMembersByName(name).values
+    // A mutable collection supertype (e.g. `MutableIterator<T>`) has the same classifier as the read-only one, but contributes functions
+    // declared in the mutable class (`remove`), which override the read-only class's functions with the same JVM signature.
+    // TODO: ^ understand and improve the comment
+    val mutableFunctions = supertype.mutableCollectionKClass?.declaredFunctions?.filter { it.name == name }.orEmpty()
+    if (mutableFunctions.isEmpty()) return members
+    val mutableSignatures = mutableFunctions.mapTo(HashSet(), ReflectKFunction::signature)
+    return members.filter { (it as? ReflectKFunction)?.signature !in mutableSignatures } + mutableFunctions
 }
 
 private val modalityIntersectionOverrideComparator: Comparator<ReflectKCallable<*>> = compareBy(

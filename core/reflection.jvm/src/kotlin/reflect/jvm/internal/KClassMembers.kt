@@ -18,6 +18,7 @@ import org.jetbrains.kotlin.load.kotlin.SignatureBuildingComponents
 import org.jetbrains.kotlin.load.kotlin.internalName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.resolve.scopes.MemberScope
+import org.jetbrains.kotlin.utils.DFS
 import java.lang.reflect.Method
 import java.lang.reflect.Modifier
 import kotlin.jvm.internal.CallableReference.NO_RECEIVER
@@ -31,7 +32,9 @@ import kotlin.reflect.full.memberProperties
 import kotlin.reflect.full.valueParameters
 import kotlin.reflect.jvm.internal.MemberBelonginess.DECLARED
 import kotlin.reflect.jvm.internal.MemberBelonginess.INHERITED
+import kotlin.reflect.jvm.internal.types.MutableCollectionKClassImpl
 import kotlin.reflect.jvm.internal.types.areEqualKTypes
+import kotlin.reflect.jvm.internal.types.mutableCollectionKClass
 import java.lang.Deprecated as JavaLangDeprecated
 
 private const val ENUM_ENTRIES_PROPERTY_NAME = "entries"
@@ -57,6 +60,7 @@ private fun KClassImpl<*>.collectDeclaredMemberNamesTransitively(result: Mutable
     if (!visited.add(this)) return
     result.addAll(data.value.declaredMemberNames)
     for (supertype in supertypes) {
+        supertype.mutableCollectionKClass?.declaredFunctions?.mapTo(result, ReflectKFunction::name)
         (supertype.classifier as? KClassImpl<*>)?.collectDeclaredMemberNamesTransitively(result, visited)
     }
 }
@@ -325,6 +329,11 @@ internal fun KClassImpl<*>.getAdditionalFunctions(): List<ReflectKFunction> {
         it.mapSignature(kmClass).toString()
     }
 
+    // JVM signatures of functions declared in the mutable counterpart of this read-only class (e.g. `MutableIterator.remove`,
+    // `MutableListIterator.add`/`set`). Such mutating methods must not be loaded on the read-only class; the mutable variant gets them
+    // from its own metadata. This is the reflection equivalent of the overridden descriptors DFS in `JvmBuiltInsCustomizer.isMutabilityViolation`.
+    val mutableOnlySignatures = collectMutableCounterpartFunctionSignatures()
+
     return javaAnalogue.declaredMethods.mapNotNull { method ->
         if (Modifier.isStatic(method.modifiers) || method.isSynthetic) return@mapNotNull null
         if (!Modifier.isPublic(method.modifiers) && !Modifier.isProtected(method.modifiers)) return@mapNotNull null
@@ -339,6 +348,8 @@ internal fun KClassImpl<*>.getAdditionalFunctions(): List<ReflectKFunction> {
         // Otherwise the Java-based function, which has flexible types (`equals(Any!)` instead of `equals(Any?)`), would replace the
         // Kotlin one. This mirrors the `kotlinVersions` check in `JvmBuiltInsCustomizer.getAdditionalFunctions`.
         if (method.jvmSignature in declaredJvmSignatures) return@mapNotNull null
+
+        if (method.isMutabilityViolation || method.jvmSignature in mutableOnlySignatures) return@mapNotNull null
 
         when (method.getJdkMethodStatus(javaAnalogue)) {
             JdkMemberStatus.DROP -> return@mapNotNull null
@@ -375,6 +386,29 @@ private fun Method.getJdkMethodStatus(startClass: Class<*>): JdkMemberStatus {
         queue.addAll(clazz.interfaces)
     }
     return JdkMemberStatus.NOT_CONSIDERED
+}
+
+// Mirrors the signature-list half of `JvmBuiltInsCustomizer.isMutabilityViolation`: a mutating method (`List.sort`, `Collection.removeIf`,
+// ...) belongs only on the mutable variant of a collection. `KClassImpl` always represents the read-only variant (the mutable one is
+// `MutableCollectionKClass`), so such methods are never loaded here. Methods declared in the mutable Kotlin classes themselves
+// (`MutableIterator.remove` etc.) are handled separately via `collectMutableCounterpartFunctionSignatures`.
+private val Method.isMutabilityViolation: Boolean
+    get() = SignatureBuildingComponents.signature(declaringClass.classId.internalName, jvmSignature) in
+            JvmBuiltInsSignatures.MUTABLE_METHOD_SIGNATURES
+
+// JVM signatures of all functions declared in this read-only class's mutable counterpart and its mutable supertypes.
+private fun KClassImpl<*>.collectMutableCounterpartFunctionSignatures(): Set<String> {
+    val mutableClass = getMutableCollectionKClass(this) as? MutableCollectionKClassImpl<*> ?: return emptySet()
+    return DFS.dfs(
+        listOf<KClass<*>>(mutableClass),
+        { node -> node.supertypes.mapNotNull { it.mutableCollectionKClass ?: it.classifier as? KClass<*> } },
+        object : DFS.CollectingNodeHandler<KClass<*>, String, HashSet<String>>(HashSet()) {
+            override fun beforeChildren(node: KClass<*>): Boolean {
+                (node as? MutableCollectionKClassImpl<*>)?.declaredFunctions?.mapTo(result, ReflectKFunction::signature)
+                return true
+            }
+        },
+    )
 }
 
 private fun KClassImpl<*>.addPropertyOverrideByMethod(
