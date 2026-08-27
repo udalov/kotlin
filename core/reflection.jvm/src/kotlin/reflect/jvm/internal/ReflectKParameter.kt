@@ -94,24 +94,32 @@ internal class DefaultSetterValueParameter(private val property: ReflectKPropert
 internal class JavaParameter(val callable: Member, val index: Int)
 
 internal val ReflectKParameter.javaParameter: JavaParameter?
-    get() = when (val member = callable.caller.member) {
-        is Method -> {
-            JavaParameter(member, index + (if (callable.instanceParameter == null) 0 else -1))
-        }
-        is Constructor<*> -> {
-            val shift = when {
-                // Inner class constructors before JDK 9 did not have the outer class parameter in `parameterAnnotations`, see
-                // https://bugs.java.com/bugdatabase/view_bug?bug_id=8074977.
-                member.declaringClass.kotlin.isInner && isJdk8() -> -1
-                // Enum constructors before JDK 17 did not have additional name/ordinal parameters in case there was at least one annotation
-                // on any constructor parameter. (Probably some fixed bug in the JDK as well.)
-                member.declaringClass.isEnum -> member.parameterAnnotations.size - member.parameterTypes.size + 2
-                else -> 0
-            }
-            JavaParameter(member, index + shift)
-        }
-        else -> throw KotlinReflectionInternalError("Unsupported parameter owner: $member")
+    get() = when (val callable = callable.caller.member) {
+        is Method -> JavaParameter(callable, computeJavaParameterAnnotationIndexWithWorkarounds(callable))
+        is Constructor<*> -> JavaParameter(callable, computeJavaParameterAnnotationIndexWithWorkarounds(callable))
+        else -> throw KotlinReflectionInternalError("Unsupported parameter owner: $callable")
     }
+
+/**
+ * Returns the index in [Method.getParameterAnnotations]/[Constructor.getParameterAnnotations] of [member], corresponding to the parameter
+ * with the given [ReflectKParameter.index].
+ */
+internal fun ReflectKParameter.computeJavaParameterAnnotationIndexWithWorkarounds(member: Member): Int = when (member) {
+    is Method -> index + (if (callable.instanceParameter == null) 0 else -1)
+    is Constructor<*> -> {
+        val shift = when {
+            // Inner class constructors before JDK 9 did not have the outer class parameter in `parameterAnnotations`, see
+            // https://bugs.java.com/bugdatabase/view_bug?bug_id=8074977.
+            member.declaringClass.kotlin.isInner && isJdk8() -> -1
+            // Enum constructors before JDK 17 did not have additional name/ordinal parameters in case there was at least one annotation
+            // on any constructor parameter. (Probably some fixed bug in the JDK as well.)
+            member.declaringClass.isEnum -> member.parameterAnnotations.size - member.parameterTypes.size + 2
+            else -> 0
+        }
+        index + shift
+    }
+    else -> throw KotlinReflectionInternalError("Unsupported parameter owner: $member")
+}
 
 private fun isJdk8(): Boolean =
     System.getProperty("java.version")?.startsWith("1.") == true
