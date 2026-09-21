@@ -126,6 +126,20 @@ private fun createIntersectionOverride(a: ReflectKCallable<*>, b: ReflectKCallab
     )
 }
 
+/**
+ * Returns true if this is a builtin function whose JVM name differs from the Kotlin name (e.g. `kotlin.Number.toInt`), or its override
+ * which has the JVM name in the bytecode (a fake override, or a Java method `intValue` in a subclass of `Number`).
+ */
+private val ReflectKCallable<*>.isBuiltinWithDifferentJvmName: Boolean
+    get() = when (this) {
+        is JavaKNamedFunction -> name != jMethod.name
+        is KotlinKNamedFunction -> {
+            val jvmName = signature.substringBeforeLast('(')
+            jvmName != name && getBuiltinSpecialFunctionJvmName(name, signature.substring(jvmName.length), originalContainer) == jvmName
+        }
+        else -> false
+    }
+
 // See `OverridingUtil.determineModalityForFakeOverride`.
 private fun computeIntersectionOverrideModality(a: ReflectKFunction, b: ReflectKFunction): Modality {
     val aModality = a.modality
@@ -235,7 +249,7 @@ internal fun <T : EqualityMode> ReflectKCallable<*>.toEquatableCallableSignature
     return EquatableCallableSignature(
         kind,
         name,
-        jvmNameIfFunction,
+        javaNameIfFunction = jvmNameIfFunction?.let { if (isBuiltinWithDifferentJvmName) name else it },
         typeParameters,
         kotlinParameterTypes,
         javaParameterTypes,
@@ -302,6 +316,8 @@ internal sealed class EqualityMode {
      * JVM signature is a plain triple: (jvmName: String, parameters: List<Class<*>>, returnType: Class<*>)
      * Contrary to JVM signature, Java signature doesn't include `returnType`,
      * and Java signatures respect non-raw generic parameter types and method type parameters (including their bounds, see JLS 8.4.4).
+     * Also, for builtin functions whose JVM name differs from the Kotlin name (and their overrides), Java signature has the Kotlin name,
+     * see `isBuiltinWithDifferentJvmName`.
      *
      * @param isKotlinClass whether the members belong to a Kotlin class. In Java, a generic method can be overridden by a method whose
      *   signature is the erasure of the generic one (JLS 8.4.2).
@@ -313,7 +329,9 @@ internal sealed class EqualityMode {
 internal class EquatableCallableSignature<T : EqualityMode>(
     val kind: SignatureKind,
     val name: String,
-    val jvmNameIfFunction: String?,
+    // The name to compare functions by in [EqualityMode.JavaSignature]: the JVM name, or the Kotlin name for builtins with a different
+    // JVM name and their overrides.
+    val javaNameIfFunction: String?,
     val typeParameters: List<KTypeParameter>,
     val kotlinParameterTypes: List<KType>,
     val javaErasedParameterTypes: List<Class<*>>,
@@ -352,7 +370,7 @@ internal class EquatableCallableSignature<T : EqualityMode>(
         EquatableCallableSignature(
             kind,
             name,
-            jvmNameIfFunction,
+            javaNameIfFunction,
             typeParameters,
             kotlinParameterTypes,
             javaErasedParameterTypes,
@@ -363,7 +381,7 @@ internal class EquatableCallableSignature<T : EqualityMode>(
         )
 
     override fun hashCode(): Int =
-        arrayOf<Any>(kind, kotlinParameterTypes.size, isStatic, if (isJavaFunctionSignature) jvmNameIfFunction ?: "" else name)
+        arrayOf<Any>(kind, kotlinParameterTypes.size, isStatic, if (isJavaFunctionSignature) javaNameIfFunction ?: "" else name)
             .contentHashCode()
 
     override fun equals(other: Any?): Boolean {
@@ -380,7 +398,7 @@ internal class EquatableCallableSignature<T : EqualityMode>(
     }
 
     private fun equalsByJavaSignature(other: EquatableCallableSignature<*>): Boolean {
-        if (jvmNameIfFunction != other.jvmNameIfFunction) return false
+        if (javaNameIfFunction != other.javaNameIfFunction) return false
         val substitutor = typeParameters.substitutedWith(other.typeParameters)
             ?: return isOverrideEquivalentByErasure(other)
         // Per JLS 8.4.4, methods have the same type parameters only if their bounds are equal after renaming.
