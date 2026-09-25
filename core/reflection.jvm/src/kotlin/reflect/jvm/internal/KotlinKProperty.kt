@@ -14,8 +14,8 @@ import java.lang.reflect.*
 import kotlin.LazyThreadSafetyMode.PUBLICATION
 import kotlin.metadata.*
 import kotlin.metadata.jvm.*
-import kotlin.reflect.ExperimentalCompanionExtensions
 import kotlin.reflect.*
+import kotlin.reflect.ExperimentalCompanionExtensions
 import kotlin.reflect.jvm.internal.calls.*
 
 internal abstract class KotlinKProperty<out V>(
@@ -56,7 +56,7 @@ internal abstract class KotlinKProperty<out V>(
     }
 
     val typeParameterTable: Lazy<TypeParameterTable> = lazy(PUBLICATION) {
-        val parent = (originalContainer as? KClassImpl<*>)?.typeParameterTable
+        val parent = (originalContainer as? MemberContainer<*>)?.typeParameterTable
         TypeParameterTable.create(kmProperty.typeParameters, parent, this, container.jClass.safeClassLoader)
     }
 
@@ -124,7 +124,7 @@ internal abstract class KotlinKProperty<out V>(
             }
 
             val container = originalContainer
-            val annotationContainer = if ((container as? KClassImpl<*>)?.classKind == ClassKind.INTERFACE) {
+            val annotationContainer = if ((container as? MemberContainer<*>)?.classKind == ClassKind.INTERFACE) {
                 container.jClass.classes.firstOrNull { it.simpleName == JvmAbi.DEFAULT_IMPLS_CLASS_NAME }
                     ?.kotlin as KDeclarationContainerImpl? ?: container
             } else container
@@ -137,7 +137,7 @@ internal abstract class KotlinKProperty<out V>(
 
     @OptIn(ExperimentalCompanionBlocks::class)
     override val isCompanionBlockMember: Boolean
-        get() = container is KClassImpl<*> && kmProperty.isCompanionBlockMember
+        get() = container is MemberContainer<*> && kmProperty.isCompanionBlockMember
 
     abstract class Accessor<out PropertyType, out ReturnType> :
         KotlinKCallable<ReturnType>(KCallableOverriddenStorage.EMPTY), KProperty.Accessor<PropertyType>, KFunction<ReturnType> {
