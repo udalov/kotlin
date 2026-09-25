@@ -96,7 +96,7 @@ public class ReflectionFactoryImpl extends ReflectionFactory {
                 KmFunction kmFunction = container.findFunctionMetadata(name, signature);
                 return new KotlinKNamedFunction(container, signature, boundReceiver, boundContextArguments, kmFunction, KCallableOverriddenStorage.EMPTY);
             }
-            else if (container instanceof KClassImpl<?> && !((KClassImpl<?>) container).isComplicatedBuiltinSubclass()) {
+            else if (container instanceof KClassImpl<?>) {
                 ReflectKFunction result = (ReflectKFunction) findMember(
                         (KClassImpl<?>) container, name,
                         it -> it instanceof ReflectKFunction && ((ReflectKFunction) it).getSignature().equals(signature)
@@ -183,7 +183,7 @@ public class ReflectionFactoryImpl extends ReflectionFactory {
                     KmProperty kmProperty = container.findPropertyMetadata(name, signature);
                     return new KotlinKProperty1(container, signature, boundReceiver, boundContextArguments, kmProperty, KCallableOverriddenStorage.EMPTY);
                 }
-                else if (container instanceof KClassImpl && !((KClassImpl<?>) container).isComplicatedBuiltinSubclass()) {
+                else if (container instanceof KClassImpl) {
                     return findProperty((KClassImpl<?>) container, name, signature, boundReceiver, boundContextArguments);
                 }
                 return new DescriptorKProperty1(container, name, signature, boundReceiver, boundContextArguments);
@@ -205,7 +205,7 @@ public class ReflectionFactoryImpl extends ReflectionFactory {
                     KmProperty kmProperty = container.findPropertyMetadata(name, signature);
                     return new KotlinKMutableProperty1(container, signature, boundReceiver, boundContextArguments, kmProperty, KCallableOverriddenStorage.EMPTY);
                 }
-                else if (container instanceof KClassImpl && !((KClassImpl<?>) container).isComplicatedBuiltinSubclass()) {
+                else if (container instanceof KClassImpl) {
                     return findProperty((KClassImpl<?>) container, name, signature, boundReceiver, boundContextArguments);
                 }
                 return new DescriptorKMutableProperty1(container, name, signature, boundReceiver, boundContextArguments);
