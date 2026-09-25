@@ -39,29 +39,28 @@ internal abstract class JavaKFunction(
     protected open val predefinedEnhancementInfo: PredefinedFunctionEnhancementInfo?
         get() = null
 
-    protected open fun computeOverriddenFunctionsForEnhancement(): Collection<ReflectKFunction> = emptyList()
+    protected open fun computeOverriddenFunctionsForEnhancement(supertypes: List<KType>?): Collection<ReflectKFunction> = emptyList()
 
     protected val enhancedSignature: EnhancedSignature? by lazy(PUBLICATION) {
+        // Fake overrides are never enhanced.
+        if (overriddenStorage.isFakeOverride) return@lazy null
+
         val predefinedEnhancementInfo = predefinedEnhancementInfo
         val isKotlinContainer = (container as MemberContainer<*>).isKotlin
-        val overridden = when {
-            // Fake overrides are never enhanced.
-            overriddenStorage.isFakeOverride -> return@lazy null
-            isKotlinContainer -> {
-                // Callables in Kotlin classes are not enhanced from supertypes/nullability annotations.
-                // Only the predefined enhancement of additional built-in members applies to them (see `getAdditionalFunctions`).
-                if (predefinedEnhancementInfo == null) return@lazy null
-                emptyList()
-            }
-            else -> computeOverriddenFunctionsForEnhancement()
-        }
+
+        val overridden = computeOverriddenFunctionsForEnhancement(if (isKotlinContainer) container.javaAnalogueSupertypes else null)
+
+        if (isKotlinContainer && predefinedEnhancementInfo == null && overridden.isEmpty()) return@lazy null
+
+        val overriddenReturnTypes = overridden.map { ((it as? JavaKNamedFunction)?.originalReturnType ?: it.returnType) as AbstractKType }
+        val overriddenParameters = overridden.map { (it as? JavaKNamedFunction)?.originalParameters ?: it.parameters }
 
         val enhancedReturnType = originalReturnType?.let { originalReturnType ->
             val returnTypeAnnotations =
                 if (isKotlinContainer) emptyList() else (member as Method).declaredAnnotations.toList()
             with(ReflectSignatureParts(METHOD_RETURN_TYPE, returnTypeAnnotations)) {
                 val qualifiers = originalReturnType.computeIndexedQualifiers(
-                    overridden.map { it.returnType as AbstractKType }, predefinedEnhancementInfo?.returnTypeInfo,
+                    overriddenReturnTypes, predefinedEnhancementInfo?.returnTypeInfo,
                 )
                 originalReturnType.enhance(qualifiers)
             }
@@ -91,7 +90,7 @@ internal abstract class JavaKFunction(
             with(ReflectSignatureParts(VALUE_PARAMETER, annotations, containerIsVarargParameter = p.isVararg)) {
                 val type = p.type as AbstractKType
                 val qualifiers = type.computeIndexedQualifiers(
-                    overridden.map { it.parameters[p.index].type as AbstractKType }, predefinedParameterInfo,
+                    overriddenParameters.map { it[p.index].type as AbstractKType }, predefinedParameterInfo,
                 )
                 val enhancedType = type.enhance(qualifiers)
                 if (type === enhancedType) p
