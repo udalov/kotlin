@@ -43,7 +43,7 @@ internal abstract class JavaKFunction(
 
     protected val enhancedSignature: EnhancedSignature? by lazy(PUBLICATION) {
         val predefinedEnhancementInfo = predefinedEnhancementInfo
-        val isKotlinContainer = (container as KClassImpl<*>).kmClass != null
+        val isKotlinContainer = (container as MemberContainer<*>).isKotlin
         val overridden = when {
             // Fake overrides are never enhanced.
             overriddenStorage.isFakeOverride -> return@lazy null
@@ -165,7 +165,7 @@ internal fun JavaKFunction.computeParameters(): List<KParameter> = buildList {
     if (isInnerClassConstructor) {
         add(InstanceParameter(function, member.declaringClass.declaringClass.kotlin))
     } else if (member is Method && !Modifier.isStatic(member.modifiers)) {
-        add(InstanceParameter(function, container as KClassImpl<*>))
+        add(InstanceParameter(function, container as MemberContainer<*>))
     }
 
     val names = Java8ParameterNamesLoader.loadParameterNames(member)
