@@ -47,16 +47,13 @@ internal class JavaKNamedFunction(
 
     override val originalReturnType: AbstractKType by lazy(PUBLICATION) {
         val unsubstitutedReturnType =
-            if (overriddenStorage.isFakeOverride) {
-                overriddenStorage.overridden.first().returnType
-            } else {
-                jMethod.genericReturnType.toKType(
+            overriddenCallableToInheritSignature?.returnType
+                ?: jMethod.genericReturnType.toKType(
                     javaTypeParameters.zip(typeParameters).toMap(),
                     // Return type of enum values/valueOf methods is not flexible in the compiler even for Java enums, so we use the annotation
                     // parameter mapping mode, which removes all flexibility.
                     isForAnnotationParameter = member.isEnumValuesValueOfMethod(),
                 )
-            }
         substituteType(unsubstitutedReturnType) as AbstractKType
     }
 
@@ -86,6 +83,14 @@ internal class JavaKNamedFunction(
             computeOverriddenFunctions(container as MemberContainer<*>, signature, substituted = true, supertypes)
         } else {
             computeOverriddenFunctions(container as MemberContainer<*>, signature, substituted = true)
+        }
+        if (overriddenStorage.isFakeOverride) {
+            // An intersection override (see `overriddenCallableToInheritSignature`) is enhanced only by the functions it actually
+            // overrides. Other functions from supertypes with the same Kotlin signature modulo flexibility, which are not merged with it
+            // because of different Java signatures (e.g. `isEqualTo(double)` for the intersection override `isEqualTo(Double!)`), must not
+            // affect its types, just like in the compiler.
+            val directlyOverridden = overriddenStorage.overridden
+            return overridden.filter { it.overriddenStorage.overridden.singleOrNull() in directlyOverridden }
         }
         return overridden
     }
