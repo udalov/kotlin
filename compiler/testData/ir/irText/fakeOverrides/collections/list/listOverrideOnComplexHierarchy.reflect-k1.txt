@@ -266,7 +266,7 @@ KClass: abstract class E : Java1, Java2
     public open operator fun E.contains(kotlin.Any?): kotlin.Boolean
     public open fun E.containsAll(kotlin.collections.Collection<(raw) kotlin.Any?>): kotlin.Boolean
     public open operator fun E.equals(kotlin.Any?): kotlin.Boolean
-    public open fun E.forEach(java.util.function.Consumer<(raw) kotlin.Any!>): kotlin.Unit
+    public open fun E.forEach(java.util.function.Consumer<(raw) kotlin.Any!>!): kotlin.Unit
     public abstract operator fun E.get(kotlin.Int): kotlin.Any?
     public open fun E.hashCode(): kotlin.Int
     public open fun E.indexOf(kotlin.Any?): kotlin.Int
@@ -285,7 +285,7 @@ KClass: abstract class E : Java1, Java2
     public open fun E.replaceAll(java.util.function.UnaryOperator<(raw) kotlin.Any!>): kotlin.Unit
     public open fun E.retainAll(kotlin.collections.Collection<(raw) kotlin.Any?>): kotlin.Boolean
     public abstract operator fun E.set(kotlin.Int, kotlin.Any?): kotlin.Any?
-    public open fun E.sort(java.util.Comparator<(raw) kotlin.Any!>): kotlin.Unit
+    public open fun E.sort(java.util.Comparator<(raw) kotlin.Any!>!): kotlin.Unit
     public open fun E.spliterator(): java.util.Spliterator<(raw) kotlin.Any!>
     public open fun E.stream(): java.util.stream.Stream<(raw) kotlin.Any!>
     public open fun E.subList(kotlin.Int, kotlin.Int): kotlin.collections.MutableList<(raw) kotlin.Any?>
@@ -307,7 +307,7 @@ KClass: abstract class F : E
     public open operator fun F.contains(kotlin.Any?): kotlin.Boolean
     public open fun F.containsAll(kotlin.collections.Collection<(raw) kotlin.Any?>): kotlin.Boolean
     public open operator fun F.equals(kotlin.Any?): kotlin.Boolean
-    public open fun F.forEach(java.util.function.Consumer<(raw) kotlin.Any!>): kotlin.Unit
+    public open fun F.forEach(java.util.function.Consumer<(raw) kotlin.Any!>!): kotlin.Unit
     public abstract operator fun F.get(kotlin.Int): kotlin.Any?
     public open fun F.hashCode(): kotlin.Int
     public open fun F.indexOf(kotlin.Any?): kotlin.Int
@@ -326,7 +326,7 @@ KClass: abstract class F : E
     public open fun F.replaceAll(java.util.function.UnaryOperator<(raw) kotlin.Any!>): kotlin.Unit
     public open fun F.retainAll(kotlin.collections.Collection<(raw) kotlin.Any?>): kotlin.Boolean
     public abstract operator fun F.set(kotlin.Int, kotlin.Any?): kotlin.Any?
-    public open fun F.sort(java.util.Comparator<(raw) kotlin.Any!>): kotlin.Unit
+    public open fun F.sort(java.util.Comparator<(raw) kotlin.Any!>!): kotlin.Unit
     public open fun F.spliterator(): java.util.Spliterator<(raw) kotlin.Any!>
     public open fun F.stream(): java.util.stream.Stream<(raw) kotlin.Any!>
     public open fun F.subList(kotlin.Int, kotlin.Int): kotlin.collections.MutableList<(raw) kotlin.Any?>
@@ -483,7 +483,7 @@ KClass: abstract class Java1 : AbstractMutableList
     public open operator fun Java1.contains(kotlin.Any?): kotlin.Boolean
     public open fun Java1.containsAll(kotlin.collections.Collection<(raw) kotlin.Any?>): kotlin.Boolean
     public open operator fun Java1.equals(kotlin.Any?): kotlin.Boolean
-    public open fun Java1.forEach(java.util.function.Consumer<(raw) kotlin.Any!>): kotlin.Unit
+    public open fun Java1.forEach(java.util.function.Consumer<(raw) kotlin.Any!>!): kotlin.Unit
     public abstract operator fun Java1.get(kotlin.Int): kotlin.Any?
     public open fun Java1.hashCode(): kotlin.Int
     public open fun Java1.indexOf(kotlin.Any?): kotlin.Int
@@ -501,7 +501,7 @@ KClass: abstract class Java1 : AbstractMutableList
     public open fun Java1.replaceAll(java.util.function.UnaryOperator<(raw) kotlin.Any!>): kotlin.Unit
     public open fun Java1.retainAll(kotlin.collections.Collection<(raw) kotlin.Any?>): kotlin.Boolean
     public abstract operator fun Java1.set(kotlin.Int, kotlin.Any?): kotlin.Any?
-    public open fun Java1.sort(java.util.Comparator<(raw) kotlin.Any!>): kotlin.Unit
+    public open fun Java1.sort(java.util.Comparator<(raw) kotlin.Any!>!): kotlin.Unit
     public open fun Java1.spliterator(): java.util.Spliterator<(raw) kotlin.Any!>
     public open fun Java1.stream(): java.util.stream.Stream<(raw) kotlin.Any!>
     public open fun Java1.subList(kotlin.Int, kotlin.Int): kotlin.collections.MutableList<(raw) kotlin.Any?>
