@@ -17,7 +17,8 @@ internal data class KCallableOverriddenStorage(
     private val originalCallableTypeParameters: List<KTypeParameter>,
     // For fake overrides, the list of callables from supertypes that it overrides. If the callable is not a fake override, the list is
     // empty, and the overridden callables should be found by calling `computeOverriddenFunctions`.
-    // For an intersection override, the first element is the most specific overridden callable, whose signature the fake override has.
+    // For an intersection override, the first element is the most specific overridden callable, whose signature the fake override has
+    // (unless it's a Java method in a Java class, see `overriddenCallableToInheritSignature`).
     val overridden: List<ReflectKCallable<*>>,
 
     val forceIsExternal: Boolean,

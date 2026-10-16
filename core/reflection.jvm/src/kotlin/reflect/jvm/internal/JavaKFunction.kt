@@ -42,8 +42,10 @@ internal abstract class JavaKFunction(
     protected open fun computeOverriddenFunctionsForEnhancement(supertypes: List<KType>?): Collection<ReflectKFunction> = emptyList()
 
     protected val enhancedSignature: EnhancedSignature? by lazy(PUBLICATION) {
-        // Fake overrides are never enhanced.
-        if (overriddenStorage.isFakeOverride) return@lazy null
+        // Fake overrides which inherit the (already enhanced and substituted) signature of the overridden callable are never enhanced
+        // further, just like in the compiler. Intersection overrides in Java classes are enhanced by the signatures of all overridden
+        // callables, see `overriddenCallableToInheritSignature`.
+        if (overriddenCallableToInheritSignature != null) return@lazy null
 
         val predefinedEnhancementInfo = predefinedEnhancementInfo
         val isKotlinContainer = (container as MemberContainer<*>).isKotlin
@@ -158,10 +160,9 @@ internal fun JavaKFunction.computeParameters(): List<KParameter> = buildList {
 
     val isEnumValuesValueOfMethod = member.isEnumValuesValueOfMethod()
     val unsubstitutedParameterKTypes =
-        if (overriddenStorage.isFakeOverride)
-            overriddenStorage.overridden.first().parameters.filter { it.kind == KParameter.Kind.VALUE }.map { it.type }
-        else
-            valueParameterTypesOverride ?: genericParameterTypes.map { type ->
+        overriddenCallableToInheritSignature?.parameters?.filter { it.kind == KParameter.Kind.VALUE }?.map { it.type }
+            ?: valueParameterTypesOverride
+            ?: genericParameterTypes.map { type ->
                 val nullability = if (isEnumValuesValueOfMethod) TypeNullability.NOT_NULL else TypeNullability.FLEXIBLE
                 type.toKType(knownTypeParameters, nullability)
             }
@@ -200,6 +201,24 @@ internal fun JavaKFunction.computeParameters(): List<KParameter> = buildList {
         add(JavaKParameter(function, name, type, size, KParameter.Kind.VALUE, isVararg = isVararg))
     }
 }
+
+/**
+ * For a fake override, the callable from a supertype whose signature (parameter and return types) this function inherits, or null if the
+ * signature should be computed from the Java method.
+ *
+ * For an intersection override, it's the most specific overridden callable, which is first in `overridden`, unless it's in a Java class,
+ * in which case its signature is computed from the Java method and then enhanced using the signatures of all overridden callables, just
+ * like in the compiler (see `SignatureEnhancement.enhanceSignature` in K1 and `JavaClassMembersEnhancementScope` in K2). For example,
+ * `iterator()` in `java.util.LinkedList<E>` overrides `MutableIterator<E!>`-returning functions from `AbstractSequentialList<E!>` and
+ * `Deque<E!>`, and `MutableIterator<E>`-returning `MutableList<E>.iterator()` from the purely implemented supertype, so its return type
+ * is enhanced to `MutableIterator<E>`.
+ */
+internal val JavaKFunction.overriddenCallableToInheritSignature: ReflectKCallable<*>?
+    get() {
+        if (!overriddenStorage.isFakeOverride) return null
+        val overridden = overriddenStorage.overridden
+        return if (overridden.size == 1 || (container as MemberContainer<*>).isKotlin) overridden.first() else null
+    }
 
 private val Class<*>.isInner: Boolean
     get() = declaringClass != null && !Modifier.isStatic(modifiers)
