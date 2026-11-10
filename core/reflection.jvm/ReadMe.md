@@ -11,6 +11,9 @@ There is also an older, K1-based implementation, built from parts of the K1 comp
 subclasses (KT-85727) and can be selected for compatibility or troubleshooting with the following system properties:
 
 * `kotlin.reflect.jvm.useK1Implementation` — use the K1-based implementation for all callables.
+* `kotlin.reflect.jvm.useK1ImplementationForCollections` — use the K1-based implementation for subclasses of built-in classes which are
+  mapped to Java in a complicated way: `Iterable`, `Iterator`, `Map`, `CharSequence`, `Number`. Currently, the K1-based implementation is
+  always used for such classes regardless of the value of this property (KT-85727).
 * `kotlin.reflect.jvm.loadMetadataDirectly` — make the new implementation load Kotlin metadata directly instead of obtaining parsed metadata
   from K1 descriptors. This behavior will be enabled by default once the K1 implementation is removed.
 
@@ -38,5 +41,5 @@ difficulties in debugging in the IDE. To avoid all post-processing, add this Gra
 Run all kotlin-reflect tests with:
 
 ```text
-./gradlew :compiler:jvm.tests:cleanTest :compiler:jvm.tests:test --tests 'org.jetbrains.kotlin.test.runners.codegen.FirLightTreeBlackBoxCodegenTestGenerated$Box$Reflection' --tests 'org.jetbrains.kotlin.test.runners.codegen.FirLightTreeBlackBoxCodegenTestGenerated$BoxJvm$Reflection' --tests 'org.jetbrains.kotlin.test.runners.codegen.ReflectionLegacyImplementationTestGenerated' --tests 'org.jetbrains.kotlin.test.runners.ir.FirLightTreeJvmIrTextTestGenerated' --tests 'org.jetbrains.kotlin.test.runners.codegen.ReflectionLoadMetadataDirectlyTestGenerated' :compiler:tests-integration:cleanTest :compiler:tests-integration:test --tests 'org.jetbrains.kotlin.reflection.ReflectionIntegrationTest'
+./gradlew :compiler:jvm.tests:cleanTest :compiler:jvm.tests:test --tests 'org.jetbrains.kotlin.test.runners.codegen.FirLightTreeBlackBoxCodegenTestGenerated$Box$Reflection' --tests 'org.jetbrains.kotlin.test.runners.codegen.FirLightTreeBlackBoxCodegenTestGenerated$BoxJvm$Reflection' --tests 'org.jetbrains.kotlin.test.runners.codegen.ReflectionLegacyImplementationTestGenerated' --tests 'org.jetbrains.kotlin.test.runners.codegen.ReflectionK1CollectionsImplementationTestGenerated' --tests 'org.jetbrains.kotlin.test.runners.ir.FirLightTreeJvmIrTextTestGenerated' --tests 'org.jetbrains.kotlin.test.runners.codegen.ReflectionLoadMetadataDirectlyTestGenerated' :compiler:tests-integration:cleanTest :compiler:tests-integration:test --tests 'org.jetbrains.kotlin.reflection.ReflectionIntegrationTest'
 ```

@@ -21,6 +21,21 @@ internal var useK1Implementation = runCatching {
 }.getOrNull()?.toBoolean() == true
 
 /**
+ * True if the system property `kotlin.reflect.jvm.useK1ImplementationForCollections` is set to true.
+ *
+ * This system property can be used to change kotlin-reflect implementation for classes with complicated built-in supertypes to the legacy
+ * one, based on parts of the K1 compiler, in case of any problems with the new implementation, based on kotlin-metadata-jvm.
+ *
+ * Changing the value of the system property after it has been read (i.e., after any non-trivial operation in kotlin-reflect)
+ * is not supported and might lead to unexpected or incorrect behavior.
+ *
+ * See KT-85727 for more information.
+ */
+internal var useK1ImplementationForCollections = runCatching {
+    System.getProperty("kotlin.reflect.jvm.useK1ImplementationForCollections")
+}.getOrNull()?.toBoolean() == true
+
+/**
  * True if the system property `kotlin.reflect.jvm.loadMetadataDirectly` is set to true.
  *
  * This system property can be used to instruct the kotlin-reflect implementation to avoid using K1 compiler representation unless
