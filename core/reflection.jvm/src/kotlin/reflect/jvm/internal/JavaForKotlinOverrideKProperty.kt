@@ -66,8 +66,12 @@ internal abstract class JavaForKotlinOverrideKProperty<out V>(
     override val returnType: KType by lazy(PUBLICATION) {
         with(ReflectSignatureParts(METHOD_RETURN_TYPE, emptyList())) {
             val originalReturnType = getterMethod.returnType as AbstractKType
+            // `overriddenProperty` is a fake override in the Java class where this property is declared. The type of the property is
+            // enhanced according to types of all properties from supertypes of that class, which are overridden by this property.
+            val overriddenProperties =
+                (overriddenProperty.container as MemberContainer<*>).getPropertiesFromSupertypes(name).filter { it !is JavaFieldKProperty<*> }
             val qualifiers = originalReturnType.computeIndexedQualifiers(
-                listOf(overriddenProperty.returnType as AbstractKType), null,
+                overriddenProperties.map { it.returnType as AbstractKType }, null,
             )
             substituteType(originalReturnType.enhance(qualifiers))
         }
