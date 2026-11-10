@@ -3,7 +3,6 @@
 
 import kotlin.reflect.KFunction
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 interface JavaMapEntry : java.util.Map.Entry<String, Int>
 
@@ -17,9 +16,8 @@ fun box(): String {
     val supertype = JavaMapEntry::class.supertypes.single { it.classifier == Map.Entry::class }
     assertEquals(Map.Entry::class, supertype.classifier)
 
-    val getKey = JavaMapEntry::class.members.filterIsInstance<KFunction<*>>().singleOrNull { it.name == "getKey" }
-    assertTrue(getKey != null, JavaMapEntry::class.members.joinToString("\n"))
-    assertEquals("OK", getKey.call(MapEntryImpl()))
+    val setValue = JavaMapEntry::class.members.filterIsInstance<KFunction<*>>().single { it.name == "setValue" }
+    assertEquals(7, setValue.call(MapEntryImpl(), 7))
 
     return "OK"
 }
