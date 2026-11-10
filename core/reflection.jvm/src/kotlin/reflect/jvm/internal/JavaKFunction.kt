@@ -16,8 +16,13 @@ import kotlin.jvm.internal.FunctionBase
 import kotlin.reflect.KParameter
 import kotlin.reflect.KType
 import kotlin.reflect.KTypeParameter
+import kotlin.reflect.KTypeProjection
+import kotlin.reflect.full.createType
 import kotlin.reflect.jvm.internal.calls.arity
 import kotlin.reflect.jvm.internal.types.AbstractKType
+import kotlin.reflect.jvm.internal.types.KTypeSubstitutor
+import kotlin.reflect.jvm.internal.types.MutableCollectionKClassImpl
+import kotlin.reflect.jvm.internal.types.createPlatformKType
 
 internal abstract class JavaKFunction(
     container: KDeclarationContainerImpl,
@@ -52,20 +57,39 @@ internal abstract class JavaKFunction(
                 overriddenStorage.intersectedFakeOverrides.ifEmpty { return@lazy null }
             }
             isKotlinContainer -> {
-                // Callables in Kotlin classes are not enhanced from supertypes/nullability annotations.
-                // Only the predefined enhancement of additional built-in members applies to them (see `getAdditionalFunctions`).
-                if (predefinedEnhancementInfo == null) return@lazy null
-                emptyList()
+                // Callables in Kotlin classes are not enhanced from nullability annotations. Only the predefined enhancement of
+                // additional built-in members applies to them (see `getAdditionalFunctions`): either their own, or the one of
+                // the additional built-in members they override. For example, the return type of `Collection.spliterator` is
+                // enhanced according to the predefined enhancement info of `Iterable.spliterator`.
+                val overridden = computeOverriddenFunctionsForEnhancement()
+                if (predefinedEnhancementInfo == null && overridden.isEmpty()) return@lazy null
+                overridden
             }
             else -> computeOverriddenFunctionsForEnhancement()
         }
+
+        // In the compiler, an additional built-in member is enhanced as a member of the JDK class (see `JvmBuiltInsCustomizer`), whose
+        // supertypes have flexible type arguments. So `java.util.Collection.spliterator`, which returns `Spliterator<E!>!`, overrides
+        // `spliterator(): Spliterator<E!>` from the supertype `(Mutable)Iterable<E!>`, and only the nullability of the outermost type
+        // is enhanced.
+        val overriddenTypeSubstitutor =
+            if (isKotlinContainer && overridden.isNotEmpty())
+                KTypeSubstitutor(container.typeParameters.associateWith { typeParameter ->
+                    KTypeProjection.invariant(
+                        createPlatformKType(typeParameter.createType(), typeParameter.createType(nullable = true), isRawType = false)
+                    )
+                })
+            else null
+
+        fun KType.asOverriddenType(): AbstractKType =
+            (overriddenTypeSubstitutor?.substituteTopLevelType(this) ?: this) as AbstractKType
 
         val enhancedReturnType = originalReturnType?.let { originalReturnType ->
             val returnTypeAnnotations =
                 if (isKotlinContainer) emptyList() else (member as Method).declaredAnnotations.toList()
             with(ReflectSignatureParts(METHOD_RETURN_TYPE, returnTypeAnnotations)) {
                 val qualifiers = originalReturnType.computeIndexedQualifiers(
-                    overridden.map { it.returnType as AbstractKType }, predefinedEnhancementInfo?.returnTypeInfo,
+                    overridden.map { it.returnType.asOverriddenType() }, predefinedEnhancementInfo?.returnTypeInfo,
                 )
                 originalReturnType.enhance(qualifiers)
             }
@@ -95,7 +119,7 @@ internal abstract class JavaKFunction(
             with(ReflectSignatureParts(VALUE_PARAMETER, annotations, containerIsVarargParameter = p.isVararg)) {
                 val type = p.type as AbstractKType
                 val qualifiers = type.computeIndexedQualifiers(
-                    overridden.map { it.parameters[p.index].type as AbstractKType }, predefinedParameterInfo,
+                    overridden.map { it.parameters[p.index].type.asOverriddenType() }, predefinedParameterInfo,
                 )
                 val enhancedType = type.enhance(qualifiers)
                 if (type === enhancedType) p
@@ -148,11 +172,21 @@ internal abstract class JavaKFunction(
         ReflectionObjectRenderer.renderFunction(this)
 }
 
+internal val JavaKFunction.knownTypeParameters: Map<TypeVariable<*>, KTypeParameter>
+    get() {
+        val ownTypeParameters = javaTypeParameters.zip(typeParameters).toMap()
+        // Type variables of the JDK class in the signature of an additional function of a mutable collection class (e.g. `E` in
+        // `java.util.Collection.removeIf`) correspond to type parameters of that mutable collection class (`MutableCollection<E>`),
+        // as opposed to the ones of the read-only collection class, which the JDK class is mapped to.
+        val container = container as? MutableCollectionKClassImpl<*> ?: return ownTypeParameters
+        return ownTypeParameters + container.jClass.typeParameters.zip(container.typeParameters)
+    }
+
 internal fun JavaKFunction.computeParameters(): List<KParameter> = buildList {
     val function = this@computeParameters
 
     val isInnerClassConstructor = member is Constructor<*> && member.declaringClass.isInner
-    val knownTypeParameters = javaTypeParameters.zip(typeParameters).toMap()
+    val knownTypeParameters = knownTypeParameters
 
     val isEnumValuesValueOfMethod = member.isEnumValuesValueOfMethod()
     val unsubstitutedParameterKTypes =

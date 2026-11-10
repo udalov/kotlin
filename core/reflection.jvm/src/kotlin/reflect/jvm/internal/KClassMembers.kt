@@ -449,6 +449,8 @@ internal fun MemberContainer<*>.getAdditionalFunctions(): List<ReflectKFunction>
     for (property in kmClass.properties) {
         getterLikeNames += property.name
         getterLikeNames += JvmAbi.getterName(property.name)
+        // E.g. `keySet` for `Map.keys`.
+        getBuiltinSpecialPropertyGetterName(property.name, this)?.let(getterLikeNames::add)
         setterLikeNames += JvmAbi.setterName(property.name)
     }
 

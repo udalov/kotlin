@@ -42,7 +42,7 @@ internal class JavaKNamedFunction(
                 overriddenStorage.overridden.first().returnType
             } else {
                 jMethod.genericReturnType.toKType(
-                    javaTypeParameters.zip(typeParameters).toMap(),
+                    knownTypeParameters,
                     // Return type of enum values/valueOf methods is not flexible in the compiler even for Java enums, so we use the annotation
                     // parameter mapping mode, which removes all flexibility.
                     isForAnnotationParameter = member.isEnumValuesValueOfMethod(),
