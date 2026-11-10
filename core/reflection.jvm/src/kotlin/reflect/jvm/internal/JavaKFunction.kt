@@ -41,6 +41,11 @@ internal abstract class JavaKFunction(
     open val originalReturnType: AbstractKType?
         get() = null
 
+    // If not null, these types are used for value parameters instead of the ones computed by `genericParameterTypes`, or by substitution
+    // of value parameter types of the overridden function in case of a fake override.
+    open val overriddenBuiltinValueParameterTypes: List<KType>?
+        get() = null
+
     protected open val predefinedEnhancementInfo: PredefinedFunctionEnhancementInfo?
         get() = null
 
@@ -189,16 +194,18 @@ internal fun JavaKFunction.computeParameters(): List<KParameter> = buildList {
     val knownTypeParameters = knownTypeParameters
 
     val isEnumValuesValueOfMethod = member.isEnumValuesValueOfMethod()
-    val unsubstitutedParameterKTypes =
-        if (overriddenStorage.isFakeOverride)
-            overriddenStorage.overridden.first().parameters.filter { it.kind == KParameter.Kind.VALUE }.map { it.type }
-        else
-            genericParameterTypes.map { type ->
-                val nullability = if (isEnumValuesValueOfMethod) TypeNullability.NOT_NULL else TypeNullability.FLEXIBLE
-                type.toKType(knownTypeParameters, nullability)
-            }
+    val parameterKTypes = overriddenBuiltinValueParameterTypes ?: run {
+        val unsubstitutedParameterKTypes =
+            if (overriddenStorage.isFakeOverride)
+                overriddenStorage.overridden.first().parameters.filter { it.kind == KParameter.Kind.VALUE }.map { it.type }
+            else
+                genericParameterTypes.map { type ->
+                    val nullability = if (isEnumValuesValueOfMethod) TypeNullability.NOT_NULL else TypeNullability.FLEXIBLE
+                    type.toKType(knownTypeParameters, nullability)
+                }
 
-    val parameterKTypes = unsubstitutedParameterKTypes.map(function::substituteType)
+        unsubstitutedParameterKTypes.map(function::substituteType)
+    }
 
     if (isInnerClassConstructor) {
         add(InstanceParameter(function, member.declaringClass.declaringClass.kotlin))

@@ -31,6 +31,11 @@ internal class JavaKNamedFunction(
     // e.g. `toInt` for a method `intValue` in a Java subclass of `Number`.
     // See `LazyJavaClassMemberScope.obtainOverrideForBuiltinWithDifferentJvmName` in the compiler.
     private val renamedBuiltinName: String? = null,
+    // Value parameter types of the builtin function which is overridden by this Java method, in case they are erased in the method,
+    // e.g. `E` for a method `contains(Object)` in a Java subclass of `Collection<E>`. These are types of the builtin function inherited
+    // in the container of this function, so they don't need to be substituted.
+    // See `LazyJavaClassMemberScope.createOverrideForBuiltinFunctionWithErasedParameterIfNeeded` in the compiler.
+    override val overriddenBuiltinValueParameterTypes: List<KType>? = null,
 ) : JavaKFunction(container, method, rawBoundReceiver, overriddenStorage) {
     override val originalParameters: List<KParameter> by lazy(PUBLICATION) {
         computeParameters()
@@ -113,14 +118,24 @@ internal class JavaKNamedFunction(
     override val callerWithDefaults: Caller<*>? get() = null
 
     override fun shallowCopy(container: KDeclarationContainerImpl, overriddenStorage: KCallableOverriddenStorage): ReflectKCallable<Any?> =
-        JavaKNamedFunction(container, jMethod, CallableReference.NO_RECEIVER, overriddenStorage, renamedBuiltinName)
+        JavaKNamedFunction(
+            container, jMethod, CallableReference.NO_RECEIVER, overriddenStorage, renamedBuiltinName,
+            // Value parameter types of a fake override in a subclass are computed by substitution of types of the overridden function.
+            overriddenBuiltinValueParameterTypes.takeIf { container == this.container },
+        )
 
     override fun bindToLowerArity(boundReceiver: Any?, boundContextArguments: List<Any?>): ReflectKCallable<Any?> {
         require(boundContextArguments.isEmpty()) { "Java methods cannot have bound context arguments: $this" }
-        return JavaKNamedFunction(container, jMethod, boundReceiver, overriddenStorage, renamedBuiltinName)
+        return JavaKNamedFunction(
+            container, jMethod, boundReceiver, overriddenStorage, renamedBuiltinName, overriddenBuiltinValueParameterTypes,
+        )
     }
 
     // See `LazyJavaClassMemberScope.createRenamedCopy` in the compiler.
     fun createRenamedCopy(builtinName: String): JavaKNamedFunction =
-        JavaKNamedFunction(container, jMethod, rawBoundReceiver, overriddenStorage, builtinName)
+        JavaKNamedFunction(container, jMethod, rawBoundReceiver, overriddenStorage, builtinName, overriddenBuiltinValueParameterTypes)
+
+    // See `LazyJavaClassMemberScope.createOverrideForBuiltinFunctionWithErasedParameterIfNeeded` in the compiler.
+    fun createCopyWithValueParameterTypes(valueParameterTypes: List<KType>): JavaKNamedFunction =
+        JavaKNamedFunction(container, jMethod, rawBoundReceiver, overriddenStorage, renamedBuiltinName, valueParameterTypes)
 }

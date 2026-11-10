@@ -331,6 +331,9 @@ internal fun <T : EqualityMode> ReflectKCallable<*>.toEquatableCallableSignature
             }
             method?.genericParameterTypes?.toList()?.alignWithKotlinParameters(isSuspend, hasReceiverInJvmSignature) ?: javaParameterTypes
         },
+        lazy(PUBLICATION) {
+            this is ReflectKFunction && getOverriddenBuiltinFunctionWithErasedValueParametersInJava() != null
+        },
         isSuspend,
         isStatic,
         equalityMode,
@@ -398,6 +401,9 @@ internal class EquatableCallableSignature<T : EqualityMode>(
     val kotlinParameterTypes: List<KType>,
     val javaErasedParameterTypes: List<Class<*>>,
     private val computeJavaGenericParameterTypes: () -> List<Type>,
+    // Whether this is a builtin function whose value parameter types are erased in the corresponding JDK method (e.g.
+    // `kotlin.collections.Collection.contains(E)`, which is `java.util.Collection.contains(Object)`), or its override.
+    private val overridesBuiltinWithErasedValueParameters: Lazy<Boolean>,
     val isSuspend: Boolean,
     val isStatic: Boolean,
     val equalityMode: T,
@@ -437,6 +443,7 @@ internal class EquatableCallableSignature<T : EqualityMode>(
             kotlinParameterTypes,
             javaErasedParameterTypes,
             computeJavaGenericParameterTypes,
+            overridesBuiltinWithErasedValueParameters,
             isSuspend,
             isStatic,
             equalityMode
@@ -451,6 +458,7 @@ internal class EquatableCallableSignature<T : EqualityMode>(
             kotlinParameterTypes,
             javaErasedParameterTypes,
             computeJavaGenericParameterTypes,
+            overridesBuiltinWithErasedValueParameters,
             isSuspend,
             isStatic,
             equalityMode
@@ -504,7 +512,12 @@ internal class EquatableCallableSignature<T : EqualityMode>(
     }
 
     private fun areEqualErasedJavaParameterTypes(i: Int, other: EquatableCallableSignature<*>): Boolean =
-        if (javaGenericParameterTypes[i].isClassTypeParameter || other.javaGenericParameterTypes[i].isClassTypeParameter) {
+        if (javaGenericParameterTypes[i].isClassTypeParameter || other.javaGenericParameterTypes[i].isClassTypeParameter ||
+            // Value parameter types of a builtin function, which are erased in the corresponding JDK method, are in fact type parameters
+            // of the builtin class. For example, `ArrayList<Int>.remove(Int)`, whose Java signature is `remove(Object)`, is
+            // override-equivalent to a method `remove(Integer)` inherited from another supertype.
+            overridesBuiltinWithErasedValueParameters.value || other.overridesBuiltinWithErasedValueParameters.value
+        ) {
             // The erasure of a class type parameter is its bound, which is useless after the substitution in a subclass,
             // so we compare the substituted Kotlin types instead.
             // Since we don't have type substitutors for Java types, here we abuse KTypes for this purpose

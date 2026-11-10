@@ -27,11 +27,9 @@ import java.lang.reflect.Modifier
 import kotlin.jvm.internal.CallableReference.NO_RECEIVER
 import kotlin.metadata.ClassKind
 import kotlin.metadata.kind
-import kotlin.reflect.KClass
 import kotlin.reflect.KMutableProperty
 import kotlin.reflect.KProperty1
 import kotlin.reflect.full.isSubtypeOf
-import kotlin.reflect.full.memberProperties
 import kotlin.reflect.full.valueParameters
 import kotlin.reflect.jvm.internal.MemberBelonginess.DECLARED
 import kotlin.reflect.jvm.internal.MemberBelonginess.INHERITED
@@ -87,8 +85,8 @@ internal fun KClassImpl<*>.computeDeclaredMembersByName(name: String): Collectio
         addAll(computeDeclaredMembersFromMetadata(name))
     } else {
         getDeclaredNonStaticMethodsFromJavaClass(name).filterTo(this) { isVisibleAsFunctionInCurrentClass(it) }
-        if (Name.identifier(name).sameAsRenamedInJvmBuiltin) {
-            addOverriddenSpecialMethods(name, this)
+        if (Name.identifier(name).isSpecialBuiltinName) {
+            addOverriddenSpecialMethods(name, this, this, ::searchMethodsByNameWithoutBuiltinMagic)
         }
         for (method in jClass.declaredMethods) {
             if (method.name == name && Modifier.isStatic(method.modifiers) && !method.isSynthetic) {
@@ -303,10 +301,11 @@ internal fun MemberContainer<*>.isVisibleAsFunctionInCurrentClass(function: Refl
             }
         }) return false
 
-    // TODO: KT-85727 Reflection: support overrides of renamed builtins inherited from supertypes
+    // TODO: KT-85727 Reflection: support overrides of special builtins inherited from supertypes
     if (function !is JavaKNamedFunction || function.overriddenStorage.isFakeOverride) return true
 
-    return !doesOverrideRenamedBuiltins(function)
+    return !doesOverrideRenamedBuiltins(function) &&
+            !shouldBeVisibleAsOverrideOfBuiltInWithErasedValueParameters(function)
 }
 
 // See `LazyJavaClassMemberScope.searchMethodsByNameWithoutBuiltinMagic`.
@@ -316,8 +315,40 @@ private fun MemberContainer<*>.searchMethodsByNameWithoutBuiltinMagic(name: Stri
 // See `LazyJavaClassMemberScope.searchMethodsInSupertypesWithoutBuiltinMagic`.
 private fun MemberContainer<*>.searchMethodsInSupertypesWithoutBuiltinMagic(name: String): Collection<ReflectKFunction> =
     getFunctionsFromSupertypes(name).filterNot {
-        it.doesOverrideBuiltinWithDifferentJvmName()
+        it.doesOverrideBuiltinWithDifferentJvmName() || it.getOverriddenBuiltinFunctionWithErasedValueParametersInJava() != null
     }
+
+/**
+ * Checks if function is a valid override of JDK analogue of built-in method with erased value parameters (e.g. Map.containsKey(k: K))
+ *
+ * Examples:
+ * - boolean containsKey(Object key) -> true
+ * - boolean containsKey(K key) -> false // Wrong JDK method override, while it's a valid Kotlin built-in override
+ *
+ * See `LazyJavaClassMemberScope.shouldBeVisibleAsOverrideOfBuiltInWithErasedValueParameters`.
+ */
+private fun MemberContainer<*>.shouldBeVisibleAsOverrideOfBuiltInWithErasedValueParameters(function: JavaKNamedFunction): Boolean {
+    if (!Name.identifier(function.name).sameAsBuiltinMethodWithErasedValueParameters) return false
+    return getFunctionsFromSupertypes(function.name).any { candidate ->
+        val overriddenBuiltin = candidate.getOverriddenBuiltinFunctionWithErasedValueParametersInJava()
+        overriddenBuiltin != null && function.hasSameJvmDescriptorButDoesNotOverride(overriddenBuiltin, candidate)
+    }
+}
+
+// See `LazyJavaClassMemberScope.hasSameJvmDescriptorButDoesNotOverride`.
+// As opposed to the compiler, where types in the signature of an overridden built-in function are substituted, here
+// [builtinWithErasedParameters] is the original built-in function, which is used to obtain the JVM descriptor only,
+// and [superDescriptor] is the fake override of that function in the current class.
+private fun JavaKNamedFunction.hasSameJvmDescriptorButDoesNotOverride(
+    builtinWithErasedParameters: ReflectKFunction,
+    superDescriptor: ReflectKFunction,
+): Boolean =
+    signature.substringBeforeLast(')') == builtinWithErasedParameters.signature.substringBeforeLast(')') &&
+            !doesOverride(superDescriptor)
+
+// See `LazyJavaClassMemberScope.doesOverride`.
+private fun ReflectKFunction.doesOverride(superDescriptor: ReflectKFunction): Boolean =
+    toEquatableCallableSignature(EqualityMode.KotlinSignature) == superDescriptor.toEquatableCallableSignature(EqualityMode.KotlinSignature)
 
 // See `LazyJavaClassMemberScope.doesOverrideRenamedBuiltins`.
 private fun MemberContainer<*>.doesOverrideRenamedBuiltins(function: JavaKNamedFunction): Boolean {
@@ -340,25 +371,74 @@ private fun doesOverrideRenamedDescriptor(superDescriptor: ReflectKFunction, sub
     return superDescriptor.toEquatableCallableSignature(equalityMode) == subDescriptor.toEquatableCallableSignature(equalityMode)
 }
 
+private val Name.isSpecialBuiltinName: Boolean
+    get() = sameAsRenamedInJvmBuiltin || sameAsBuiltinMethodWithErasedValueParameters
+
 // See `LazyJavaClassMemberScope.addOverriddenSpecialMethods`.
-private fun MemberContainer<*>.addOverriddenSpecialMethods(name: String, result: MutableCollection<ReflectKCallable<*>>) {
+private fun MemberContainer<*>.addOverriddenSpecialMethods(
+    name: String,
+    alreadyDeclaredFunctions: Collection<ReflectKCallable<*>>,
+    result: MutableCollection<in JavaKNamedFunction>,
+    functions: (String) -> Collection<ReflectKFunction>,
+) {
     val methods = hashSetOf<Method>()
     for (function in getFunctionsFromSupertypes(name)) {
-        val override = obtainOverrideForBuiltinWithDifferentJvmName(function, name) ?: continue
-        if (methods.add(override.jMethod)) {
-            result.add(override)
+        for (override in listOfNotNull(
+            obtainOverrideForBuiltinWithDifferentJvmName(function, functions, name),
+            obtainOverrideForBuiltInWithErasedValueParametersInJava(function, functions, alreadyDeclaredFunctions),
+        )) {
+            if (methods.add(override.jMethod)) {
+                result.add(override)
+            }
         }
     }
 }
 
+// See `LazyJavaClassMemberScope.obtainOverrideForBuiltInWithErasedValueParametersInJava`.
+private fun MemberContainer<*>.obtainOverrideForBuiltInWithErasedValueParametersInJava(
+    function: ReflectKFunction,
+    functions: (String) -> Collection<ReflectKFunction>,
+    alreadyDeclaredFunctions: Collection<ReflectKCallable<*>>,
+): JavaKNamedFunction? {
+    val overriddenBuiltin = function.getOverriddenBuiltinFunctionWithErasedValueParametersInJava() ?: return null
+
+    return createOverrideForBuiltinFunctionWithErasedParameterIfNeeded(overriddenBuiltin, function, functions)
+        ?.takeIf(::isVisibleAsFunctionInCurrentClass)
+        // In the compiler, if the builtin is already accidentally overridden by another Java method (e.g. `contains(String)` in a Java
+        // subclass of `Collection<String>` which also declares `contains(Object)`), the override is loaded as a hidden function to
+        // overcome the signature clash, see `LazyJavaClassMemberScope.createHiddenCopyIfBuiltinAlreadyAccidentallyOverridden`.
+        // There are no hidden declarations in reflection, so we don't load it at all.
+        ?.takeIf { override ->
+            alreadyDeclaredFunctions.none { it is JavaKNamedFunction && it.jMethod != override.jMethod && it.doesOverride(function) }
+        }
+}
+
+// See `LazyJavaClassMemberScope.createOverrideForBuiltinFunctionWithErasedParameterIfNeeded`.
+// [overriddenBuiltin] is the original built-in function, and [overridden] is the fake override of that function in the current class,
+// see `hasSameJvmDescriptorButDoesNotOverride`.
+private fun createOverrideForBuiltinFunctionWithErasedParameterIfNeeded(
+    overriddenBuiltin: ReflectKFunction,
+    overridden: ReflectKFunction,
+    functions: (String) -> Collection<ReflectKFunction>,
+): JavaKNamedFunction? =
+    functions(overridden.name).firstNotNullOfOrNull { function ->
+        (function as? JavaKNamedFunction)?.takeIf { it.hasSameJvmDescriptorButDoesNotOverride(overriddenBuiltin, overridden) }
+    }?.createCopyWithValueParameterTypes(overridden.valueParameters.map { it.type })
+
 // See `LazyJavaClassMemberScope.obtainOverrideForBuiltinWithDifferentJvmName`.
 // Note that as opposed to the compiler, we don't create a hidden copy if the builtin is already accidentally overridden by a Java method
 // with the Kotlin name (e.g. `java.nio.CharBuffer.get`), because there are no hidden declarations in reflection.
-private fun MemberContainer<*>.obtainOverrideForBuiltinWithDifferentJvmName(function: ReflectKFunction, name: String): JavaKNamedFunction? {
+private fun obtainOverrideForBuiltinWithDifferentJvmName(
+    function: ReflectKFunction,
+    functions: (String) -> Collection<ReflectKFunction>,
+    name: String,
+): JavaKNamedFunction? {
     val overriddenBuiltin = function.getOverriddenBuiltinWithDifferentJvmName() ?: return null
 
     val nameInJava = getJvmMethodNameIfSpecial(overriddenBuiltin)!!
-    for (method in getDeclaredNonStaticMethodsFromJavaClass(nameInJava)) {
+    for (method in functions(nameInJava)) {
+        if (method !is JavaKNamedFunction) continue
+
         val renamedCopy = method.createRenamedCopy(name)
 
         if (doesOverrideRenamedDescriptor(function, renamedCopy)) {
@@ -380,10 +460,12 @@ private fun MemberContainer<*>.getDeclaredNonStaticMethodsFromJavaClass(name: St
 
 internal fun MemberContainer<*>.getPropertiesFromSupertypes(name: String): List<KProperty1<*, *>> =
     supertypes.flatMap { supertype ->
-        val supertypeKClass = supertype.classifier as? KClass<*> ?: return@flatMap emptyList()
+        val supertypeKClass = supertype.memberContainer ?: return@flatMap emptyList()
         val substitutor = KTypeSubstitutor.create(supertype)
-        supertypeKClass.memberProperties.filter { it.name == name }.map { property ->
-            (property as ReflectKCallable<*>).createFakeOverride(this, substitutor) as KProperty1<*, *>
+        supertypeKClass.getMembersByName(name).mapNotNull { property ->
+            if (property is KProperty1<*, *> && property is ReflectKProperty<*> && !property.isStatic)
+                property.createFakeOverride(this, substitutor) as KProperty1<*, *>
+            else null
         }
     }
 

@@ -68,6 +68,27 @@ internal fun ReflectKFunction.getOverriddenBuiltinWithDifferentJvmName(): Reflec
 internal fun ReflectKFunction.doesOverrideBuiltinWithDifferentJvmName(): Boolean =
     getOverriddenBuiltinWithDifferentJvmName() != null
 
+// See `BuiltinMethodsWithSpecialGenericSignature.sameAsBuiltinMethodWithErasedValueParameters` in the compiler.
+internal val Name.sameAsBuiltinMethodWithErasedValueParameters: Boolean
+    get() = this in SpecialGenericSignatures.ERASED_VALUE_PARAMETERS_SHORT_NAMES
+
+/**
+ * If this function is a builtin function whose value parameter types are erased in the corresponding JDK method (e.g.
+ * `kotlin.collections.Collection.contains(E)`, which is `java.util.Collection.contains(Object)`), or overrides such function, returns
+ * that builtin function.
+ *
+ * See `BuiltinMethodsWithSpecialGenericSignature.getOverriddenBuiltinFunctionWithErasedValueParametersInJava` in the compiler.
+ */
+internal fun ReflectKFunction.getOverriddenBuiltinFunctionWithErasedValueParametersInJava(): ReflectKFunction? {
+    if (!Name.identifier(name).sameAsBuiltinMethodWithErasedValueParameters) return null
+    return firstOverridden(hashSetOf()) { it.hasErasedValueParametersInJava }
+}
+
+// See `BuiltinMethodsWithSpecialGenericSignature.hasErasedValueParametersInJava` in the compiler.
+private val ReflectKFunction.hasErasedValueParametersInJava: Boolean
+    get() = SignatureBuildingComponents.signature(container.methodOwner.classId.internalName, signature) in
+            SpecialGenericSignatures.ERASED_VALUE_PARAMETERS_SIGNATURES
+
 // See `BuiltinMethodsWithDifferentJvmName.isBuiltinFunctionWithDifferentNameInJvm` in the compiler.
 private fun ReflectKFunction.isBuiltinFunctionWithDifferentNameInJvm(): Boolean =
     this is KotlinKNamedFunction && !overriddenStorage.isFakeOverride &&

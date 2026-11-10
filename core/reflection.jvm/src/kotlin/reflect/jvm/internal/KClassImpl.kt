@@ -452,7 +452,7 @@ internal class KClassImpl<T : Any>(
             }
         }
 
-        // TODO: KT-85727 Reflection: support maps, Java collections and their subclasses in the new implementation
+        // TODO: KT-85727 Reflection: support Kotlin subclasses of JDK collection classes in the new implementation
         val isComplicatedBuiltinSubclass: Boolean by lazy(PUBLICATION) {
             if (useK1ImplementationForCollections)
                 Iterable::class.java.isAssignableFrom(jClass) ||
@@ -461,13 +461,13 @@ internal class KClassImpl<T : Any>(
                         CharSequence::class.java.isAssignableFrom(jClass) ||
                         Number::class.java.isAssignableFrom(jClass)
             else
-                (Iterable::class.java.isAssignableFrom(jClass) || Map::class.java.isAssignableFrom(jClass)) && jClass.hasJavaSupertype()
+                (Iterable::class.java.isAssignableFrom(jClass) || Map::class.java.isAssignableFrom(jClass)) &&
+                        jClass.hasKotlinSupertypeInheritingMappedJdkClass()
         }
 
-        // Returns true if this class or any of its supertypes is declared in Java and is not mapped to a Kotlin built-in class, or
-        // is a Kotlin class which inherits directly from a JDK class instead of the Kotlin built-in class which it is mapped to
-        // (e.g. `interface A : java.util.List<String>`).
-        private fun Class<*>.hasJavaSupertype(): Boolean {
+        // Returns true if this class or any of its supertypes is a Kotlin class which inherits directly from a JDK class instead of
+        // the Kotlin built-in class which it is mapped to (e.g. `interface A : java.util.List<String>`).
+        private fun Class<*>.hasKotlinSupertypeInheritingMappedJdkClass(): Boolean {
             if (isKotlinClassOrPackage) {
                 val kmClass = (kotlin as? KClassImpl<*>)?.kmClass
                 if (kmClass != null && kmClass.supertypes.any { supertype ->
@@ -475,10 +475,9 @@ internal class KClassImpl<T : Any>(
                         className != null && JavaToKotlinClassMap.mapJavaToKotlin(className.toClassId().asSingleFqName()) != null
                     }
                 ) return true
-            } else if (JavaToKotlinClassMap.mapJavaToKotlin(classId.asSingleFqName()) == null) {
-                return true
             }
-            return superclass?.hasJavaSupertype() == true || interfaces.any { it.hasJavaSupertype() }
+            return superclass?.hasKotlinSupertypeInheritingMappedJdkClass() == true ||
+                    interfaces.any { it.hasKotlinSupertypeInheritingMappedJdkClass() }
         }
 
         val declaredMemberNames: Set<String> by lazy(PUBLICATION, ::computeDeclaredMemberNames)
