@@ -3,6 +3,10 @@
 // FULL_JDK
 // WITH_STDLIB
 
+// KT-89566 Reflection: the new implementation represents mapped JDK supertypes with a Java member view and does not reproduce K1's
+// duplicate inherited overrides and their modality exactly.
+// KOTLIN_REFLECT_DUMP_MISMATCH
+
 // FILE: Java1.java
 import kotlin.collections.AbstractMutableList;
 

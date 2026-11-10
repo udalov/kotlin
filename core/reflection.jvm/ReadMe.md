@@ -7,16 +7,12 @@ This directory contains the JVM implementation of `kotlin-reflect`.
 The main `kotlin-reflect` implementation is based on `kotlin-metadata-jvm` and Java reflection objects. It reads Kotlin metadata from the
 classes being inspected and combines it with the corresponding Java reflection information.
 
-There is also an older, K1-based implementation, built from parts of the K1 compiler. The legacy implementation is still used for Kotlin
-subclasses of JDK collection classes (KT-85727) and can be selected for compatibility or troubleshooting with the following system
-properties:
+There is also an older, K1-based implementation, built from parts of the K1 compiler. It can be selected for compatibility or
+troubleshooting with the following system properties:
 
 * `kotlin.reflect.jvm.useK1Implementation` — use the K1-based implementation for all callables.
 * `kotlin.reflect.jvm.useK1ImplementationForCollections` — use the K1-based implementation for subclasses of built-in classes which are
-  mapped to Java in a complicated way: `Iterable`, `Iterator`, `Map`, `CharSequence`, `Number`. Currently, the K1-based implementation is
-  always used for Kotlin subclasses of `Iterable` and `Map` which inherit directly from a JDK class instead of the Kotlin built-in class
-  which it is mapped to (e.g. `interface A : java.util.List<String>`), and for their subclasses, regardless of the value of this property
-  (KT-85727).
+  mapped to Java in a complicated way: `Iterable`, `Iterator`, `Map`, `CharSequence`, `Number`.
 * `kotlin.reflect.jvm.loadMetadataDirectly` — make the new implementation load Kotlin metadata directly instead of obtaining parsed metadata
   from K1 descriptors. This behavior will be enabled by default once the K1 implementation is removed.
 
