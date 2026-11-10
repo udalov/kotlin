@@ -35,6 +35,7 @@ internal abstract class AbstractKType(
     abstract val isSuspendFunctionType: Boolean
     abstract val isRawType: Boolean
     abstract val mutableCollectionClass: KClass<*>?
+    open val javaViewClass: KClass<*>? get() = null
     abstract fun lowerBoundIfFlexible(): AbstractKType?
     abstract fun upperBoundIfFlexible(): AbstractKType?
 

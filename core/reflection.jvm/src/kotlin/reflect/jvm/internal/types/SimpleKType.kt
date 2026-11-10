@@ -21,6 +21,7 @@ internal class SimpleKType(
     override val isSuspendFunctionType: Boolean,
     override val mutableCollectionClass: KClass<*>?,
     computeJavaType: Lazy<Type>? = null,
+    override val javaViewClass: KClass<*>? = null,
 ) : AbstractKType(computeJavaType), KTypeBase {
     override fun makeNullableAsSpecified(nullable: Boolean): AbstractKType =
         if (nullable == isMarkedNullable) this

@@ -31,12 +31,12 @@ import java.util.List;
 public class ReflectionFactoryImpl extends ReflectionFactory {
     @Override
     public KClass createKotlinClass(Class javaClass) {
-        return new KClassImpl(javaClass);
+        return new KClassImpl(javaClass, false);
     }
 
     @Override
     public KClass createKotlinClass(Class javaClass, String internalName) {
-        return new KClassImpl(javaClass);
+        return new KClassImpl(javaClass, false);
     }
 
     @Override

@@ -176,6 +176,11 @@ internal fun readBuiltinClassMetadata(classId: ClassId): KmClass? {
 }
 
 private val mutableCollectionKClassCache = ConcurrentHashMap<ClassId, MutableCollectionKClass<*>>()
+private val javaViewKClassCache = ConcurrentHashMap<Class<*>, KClassImpl<*>>()
+
+@Suppress("UNCHECKED_CAST")
+internal fun getJavaViewKClass(jClass: Class<*>): KClassImpl<*> =
+    javaViewKClassCache.getOrPut(jClass) { KClassImpl(jClass as Class<Any>, isJavaView = true) }
 
 internal fun getMutableCollectionKClass(readonlyClass: KClass<*>): MutableCollectionKClass<*>? {
     val readOnlyClassId = (readonlyClass as? KClassImpl<*>)?.classId ?: return null
@@ -186,4 +191,5 @@ internal fun getMutableCollectionKClass(readonlyClass: KClass<*>): MutableCollec
 internal fun clearBuiltinClassCaches() {
     builtinClassCaches.clear()
     mutableCollectionKClassCache.clear()
+    javaViewKClassCache.clear()
 }

@@ -239,6 +239,10 @@ internal fun <T : ReflectKCallable<*>> computeOverriddenCallables(
     return result
 }
 
+internal val KType.memberContainer: MemberContainer<*>?
+    get() = (this as? AbstractKType)?.javaViewClass as? MemberContainer<*>
+        ?: classifier as? MemberContainer<*>
+
 private fun getSupertypeMembersByName(
     supertype: KType,
     supertypeKClass: MemberContainer<*>,

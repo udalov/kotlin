@@ -46,6 +46,9 @@ internal class FlexibleKType private constructor(
     override val mutableCollectionClass: KClass<*>?
         get() = lowerBound.mutableCollectionClass
 
+    override val javaViewClass: KClass<*>?
+        get() = lowerBound.javaViewClass
+
     override fun makeNullableAsSpecified(nullable: Boolean): AbstractKType =
         create(lowerBound.makeNullableAsSpecified(nullable), upperBound.makeNullableAsSpecified(nullable), isRawType)
 

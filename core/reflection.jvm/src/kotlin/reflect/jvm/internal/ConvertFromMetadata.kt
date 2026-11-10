@@ -144,6 +144,11 @@ internal fun KmType.toKType(
         isSuspend,
         classifier.toMutableCollectionKClass(kClassifier),
         computeJavaType?.let { lazy(PUBLICATION, it) },
+        (classifier as? KmClassifier.Class)
+            ?.takeIf { it.name.startsWith("java/") }
+            ?.name?.toClassId()
+            ?.takeIf { JavaToKotlinClassMap.mapJavaToKotlin(it.asSingleFqName()) != null }
+            ?.let { (kClassifier as KClass<*>).java.let(::getJavaViewKClass) },
     )
     if (isSuspend) {
         // Suspend function types are represented in metadata in a non-trivial way, see kdoc on [KmType.isSuspend].

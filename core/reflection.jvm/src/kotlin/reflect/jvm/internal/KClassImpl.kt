@@ -37,6 +37,7 @@ import org.jetbrains.kotlin.metadata.deserialization.getExtensionOrNull
 import org.jetbrains.kotlin.metadata.jvm.JvmProtoBuf
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.ClassIdBasedLocality
+import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.resolve.scopes.GivenFunctionsMemberScope
 import org.jetbrains.kotlin.resolve.scopes.MemberScope
@@ -69,9 +70,12 @@ import java.lang.Deprecated as JavaLangDeprecated
 
 internal class KClassImpl<T : Any>(
     override val jClass: Class<T>,
+    private val isJavaView: Boolean = false,
 ) : MemberContainer<T>(), KotlinGenericDeclaration {
     inner class Data : KDeclarationContainerImpl.Data() {
         val kmClass: KmClass? by lazy(PUBLICATION) {
+            if (isJavaView) return@lazy null
+
             if (loadMetadataDirectly) {
                 val metadata = jClass.getAnnotation(Metadata::class.java)
                 if (metadata != null && classId.outerClassId !in CompanionObjectMapping.classIds) {
@@ -492,7 +496,15 @@ internal class KClassImpl<T : Any>(
 
     override val annotations: List<Annotation> get() = data.value.annotations
 
-    override val classId: ClassId get() = RuntimeTypeMapper.mapJvmClassToKotlinClassId(jClass)
+    override val classId: ClassId
+        get() = if (isJavaView) {
+            val classNames = jClass.name.substringAfterLast('.').split('$')
+            classNames.drop(1).fold(ClassId.topLevel(FqName("${jClass.name.substringBeforeLast('.', "")}.${classNames.first()}"))) {
+                    classId, nestedClassName -> classId.createNestedClassId(Name.identifier(nestedClassName))
+            }
+        } else {
+            RuntimeTypeMapper.mapJvmClassToKotlinClassId(jClass)
+        }
 
     override val classKind: ClassKind
         get() = kmClass?.kind ?: when {
@@ -646,10 +658,10 @@ internal class KClassImpl<T : Any>(
         get() = kmClass?.moduleName
 
     override fun equals(other: Any?): Boolean =
-        other is KClassImpl<*> && javaObjectType == other.javaObjectType
+        other is KClassImpl<*> && javaObjectType == other.javaObjectType && isJavaView == other.isJavaView
 
     override fun hashCode(): Int =
-        javaObjectType.hashCode()
+        31 * javaObjectType.hashCode() + isJavaView.hashCode()
 
     override fun toString(): String {
         return "class " + classId.let { classId ->

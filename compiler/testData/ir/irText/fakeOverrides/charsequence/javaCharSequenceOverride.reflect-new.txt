@@ -8,7 +8,7 @@ KClass: abstract interface A : CharSequence, Any
     public open fun A.isEmpty(): kotlin.Boolean
     public abstract fun A.length(): kotlin.Int
     public abstract fun A.subSequence(kotlin.Int, kotlin.Int): kotlin.CharSequence!
-    public open fun A.toString(): kotlin.String
+    public abstract fun A.toString(): kotlin.String
   declaredMembers:
 KClass: class B : A, Any
   constructors:
@@ -22,7 +22,7 @@ KClass: class B : A, Any
     public open fun B.isEmpty(): kotlin.Boolean
     public open fun B.length(): kotlin.Int
     public open fun B.subSequence(kotlin.Int, kotlin.Int): kotlin.CharSequence
-    public open fun B.toString(): kotlin.String
+    public abstract fun B.toString(): kotlin.String
   declaredMembers:
     public open fun B.charAt(kotlin.Int): kotlin.Char
     public open fun B.length(): kotlin.Int
@@ -149,7 +149,7 @@ KClass: abstract class J : Java4
     public open fun J.isEmpty(): kotlin.Boolean
     public abstract fun J.length(): kotlin.Int
     public abstract fun J.subSequence(kotlin.Int, kotlin.Int): kotlin.CharSequence!
-    public open fun J.toString(): kotlin.String
+    public abstract fun J.toString(): kotlin.String
   declaredMembers:
 KClass: class Java1 : CharSequence, Any
   constructors:
@@ -197,7 +197,7 @@ KClass: abstract class Java4 : A, Any
     public open fun Java4.isEmpty(): kotlin.Boolean
     public abstract fun Java4.length(): kotlin.Int
     public abstract fun Java4.subSequence(kotlin.Int, kotlin.Int): kotlin.CharSequence!
-    public open fun Java4.toString(): kotlin.String
+    public abstract fun Java4.toString(): kotlin.String
   declaredMembers:
 KClass: class K : Java4
   constructors:
@@ -211,7 +211,7 @@ KClass: class K : Java4
     public open fun K.isEmpty(): kotlin.Boolean
     public open fun K.length(): kotlin.Int
     public open fun K.subSequence(kotlin.Int, kotlin.Int): kotlin.CharSequence
-    public open fun K.toString(): kotlin.String
+    public abstract fun K.toString(): kotlin.String
   declaredMembers:
     public open fun K.charAt(kotlin.Int): kotlin.Char
     public open fun K.length(): kotlin.Int
@@ -239,7 +239,7 @@ KClass: abstract class L : Java1, A
     public open fun L.isEmpty(): kotlin.Boolean
     public abstract fun L.length(): kotlin.Int
     public open fun L.subSequence(kotlin.Int, kotlin.Int): kotlin.CharSequence
-    public open fun L.toString(): kotlin.String
+    public abstract fun L.toString(): kotlin.String
     public open val L.length: kotlin.Int
   declaredMembers:
     public open fun L.chars(): java.util.stream.IntStream
@@ -258,7 +258,7 @@ KClass: abstract class M : Java1, CharSequence
     public open fun M.isEmpty(): kotlin.Boolean
     public abstract fun M.length(): kotlin.Int
     public open fun M.subSequence(kotlin.Int, kotlin.Int): kotlin.CharSequence
-    public open fun M.toString(): kotlin.String
+    public abstract fun M.toString(): kotlin.String
     public open val M.length: kotlin.Int
   declaredMembers:
     public open fun M.chars(): java.util.stream.IntStream

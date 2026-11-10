@@ -4,6 +4,9 @@
 // WITH_STDLIB
 
 // KT-85832 Reflection: KClass.members for interface with explicit toString contains abstract toString
+// KT-89566 Reflection: explicit java.lang.CharSequence supertypes use their Java member view while keeping the Kotlin classifier publicly.
+// Mixed Java/Kotlin hierarchies can therefore expose members with distinct Java and Kotlin names.
+// Also, toString in class I is abstract because of KT-85832.
 // KOTLIN_REFLECT_DUMP_MISMATCH
 
 // FILE: Java1.java

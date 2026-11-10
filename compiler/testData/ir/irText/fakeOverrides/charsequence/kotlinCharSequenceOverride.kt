@@ -2,6 +2,10 @@
 // TARGET_BACKEND: JVM
 // FULL_JDK
 
+// KT-89566 Reflection: explicit java.lang.CharSequence supertypes use their Java member view while keeping the Kotlin classifier publicly.
+// Mixed Java/Kotlin hierarchies can therefore expose members with distinct Java and Kotlin names.
+// KOTLIN_REFLECT_DUMP_MISMATCH
+
 // FILE: Java1.java
 import org.jetbrains.annotations.NotNull;
 
