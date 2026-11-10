@@ -100,7 +100,8 @@ internal fun computeFakeOverrideMembersForName(kClass: MemberContainer<*>, name:
         }
     }
     if (!kClass.isKotlin) {
-        for (member in kClass.computePropertiesOverridesFromSuperTypes(name)) {
+        for (member in kClass.computeSpecialBuiltinsFromSuperTypes(name, declaredMembers) +
+                kClass.computePropertiesOverridesFromSuperTypes(name)) {
             val javaSignature = member.toEquatableCallableSignature(javaSignatureMode)
             val existingMember = result[javaSignature]
             result[javaSignature] = if (existingMember == null) member else createIntersectionOverride(existingMember, member)

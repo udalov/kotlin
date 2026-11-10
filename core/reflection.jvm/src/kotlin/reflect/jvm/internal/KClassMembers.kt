@@ -301,8 +301,8 @@ internal fun MemberContainer<*>.isVisibleAsFunctionInCurrentClass(function: Refl
             }
         }) return false
 
-    // TODO: KT-85727 Reflection: support overrides of special builtins inherited from supertypes
-    if (function !is JavaKNamedFunction || function.overriddenStorage.isFakeOverride) return true
+    // Only Java methods can override special built-in functions by the JVM name or by the JVM descriptor with erased value parameters.
+    if (function !is JavaKNamedFunction) return true
 
     return !doesOverrideRenamedBuiltins(function) &&
             !shouldBeVisibleAsOverrideOfBuiltInWithErasedValueParameters(function)
@@ -373,6 +373,32 @@ private fun doesOverrideRenamedDescriptor(superDescriptor: ReflectKFunction, sub
 
 private val Name.isSpecialBuiltinName: Boolean
     get() = sameAsRenamedInJvmBuiltin || sameAsBuiltinMethodWithErasedValueParameters
+
+/**
+ * Returns overrides of special built-in functions (which have a different name, or erased value parameters in JVM), which are inherited
+ * from supertypes of this Java class, by methods which are also inherited from supertypes. For example, `contains` in the class `B`:
+ *
+ *     // FILE: A.java
+ *     public class A {
+ *         public boolean contains(Object o) { return true; }
+ *     }
+ *     // FILE: B.java
+ *     public abstract class B extends A implements java.util.Collection<String> {}
+ *
+ * See `LazyJavaClassMemberScope.computeNonDeclaredFunctions`.
+ */
+internal fun MemberContainer<*>.computeSpecialBuiltinsFromSuperTypes(
+    name: String,
+    alreadyDeclaredFunctions: Collection<ReflectKCallable<*>>,
+): Collection<ReflectKFunction> {
+    if (!Name.identifier(name).isSpecialBuiltinName) return emptyList()
+
+    val specialBuiltinsFromSuperTypes = arrayListOf<JavaKNamedFunction>()
+    addOverriddenSpecialMethods(
+        name, alreadyDeclaredFunctions, specialBuiltinsFromSuperTypes, ::searchMethodsInSupertypesWithoutBuiltinMagic,
+    )
+    return specialBuiltinsFromSuperTypes
+}
 
 // See `LazyJavaClassMemberScope.addOverriddenSpecialMethods`.
 private fun MemberContainer<*>.addOverriddenSpecialMethods(
