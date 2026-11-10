@@ -133,7 +133,7 @@ KClass: class I : Java1, Java2, Java3
     public open fun I.hashCode(): kotlin.Int
     public open fun I.isEmpty(): kotlin.Boolean
     public open fun I.subSequence(kotlin.Int, kotlin.Int): kotlin.CharSequence
-    public open fun I.toString(): kotlin.String
+    public abstract fun I.toString(): kotlin.String
     public open val I.length: kotlin.Int
   declaredMembers:
     public open fun I.codePoints(): java.util.stream.IntStream

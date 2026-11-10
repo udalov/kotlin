@@ -6,6 +6,8 @@
 package kotlin.reflect.jvm.internal
 
 import org.jetbrains.kotlin.descriptors.runtime.structure.safeClassLoader
+import org.jetbrains.kotlin.load.java.SpecialGenericSignatures.Companion.sameAsRenamedInJvmBuiltin
+import org.jetbrains.kotlin.name.Name
 import java.lang.reflect.Method
 import java.lang.reflect.ParameterizedType
 import java.lang.reflect.Type
@@ -70,6 +72,7 @@ internal fun computeFakeOverrideMembersForName(kClass: MemberContainer<*>, name:
         if (kClass.isKotlin) declaredMembers.mapTo(HashSet()) { it.toEquatableCallableSignature(EqualityMode.KotlinSignature) }
         else emptySet()
     val javaSignatureMode = EqualityMode.JavaSignature(isKotlinClass = kClass.isKotlin)
+    val isSpecialBuiltinName = Name.identifier(name).sameAsRenamedInJvmBuiltin
     val result: MutableMembersJavaSignatureMap = HashMap()
     for (supertype in kClass.supertypes) {
         val supertypeKClass = supertype.classifier as? MemberContainer<*>
@@ -88,7 +91,10 @@ internal fun computeFakeOverrideMembersForName(kClass: MemberContainer<*>, name:
                 continue
             }
             // Inherited signatures are always compared by the Java signatures. Even for Kotlin classes.
-            val javaSignature = kotlinSignature.withEqualityMode(javaSignatureMode)
+            val javaSignature = kotlinSignature.withEqualityMode(javaSignatureMode).let {
+                if (isSpecialBuiltinName && isBuiltinWithDifferentJvmNameOverriddenByKotlinName(kClass, member)) it.withJvmName(name)
+                else it
+            }
             val existingMember = result[javaSignature]
             result[javaSignature] = if (existingMember == null) member else createIntersectionOverride(existingMember, member)
         }
@@ -110,6 +116,17 @@ internal fun computeFakeOverrideMembersForName(kClass: MemberContainer<*>, name:
         result[member.toEquatableCallableSignature(javaSignatureMode)] = member
     }
     return result
+}
+
+// A builtin function which has a different name in JVM (e.g. `Number.toInt`, which is `intValue` in JVM) is overridden in a Java class
+// by a method with the JVM name, see `obtainOverrideForBuiltinWithDifferentJvmName`. However, in a Kotlin class, or in a Java class
+// which has a Kotlin superclass inheriting the builtin, common overridability rules are applied, which means that the builtin function
+// is overridden by (or is merged with) any function with the same Kotlin signature, regardless of its JVM name.
+// See `JavaIncompatibilityRulesOverridabilityCondition.isIncompatibleInAccordanceWithBuiltInOverridabilityRules` in the compiler.
+private fun isBuiltinWithDifferentJvmNameOverriddenByKotlinName(kClass: MemberContainer<*>, member: ReflectKCallable<*>): Boolean {
+    if (member !is ReflectKFunction || member.signature.substringBefore('(') == member.name) return false
+    val overriddenBuiltin = member.getOverriddenBuiltinWithDifferentJvmName() ?: return false
+    return kClass.isKotlin || kClass.hasRealKotlinSuperClassWithOverrideOf(overriddenBuiltin)
 }
 
 /**
@@ -410,6 +427,20 @@ internal class EquatableCallableSignature<T : EqualityMode>(
             kind,
             name,
             jvmNameIfFunction,
+            typeParameters,
+            kotlinParameterTypes,
+            javaErasedParameterTypes,
+            computeJavaGenericParameterTypes,
+            isSuspend,
+            isStatic,
+            equalityMode
+        )
+
+    fun withJvmName(jvmName: String): EquatableCallableSignature<T> =
+        EquatableCallableSignature(
+            kind,
+            name,
+            jvmName,
             typeParameters,
             kotlinParameterTypes,
             javaErasedParameterTypes,

@@ -1,6 +1,11 @@
 // SKIP_KT_DUMP
 // TARGET_BACKEND: JVM
 
+// KT-85727 Reflection: the new implementation does not distinguish java.lang.Number from kotlin.Number in supertypes of a Kotlin class.
+// Inherited members have Kotlin names (toInt), and functions declared in subclasses by JVM names (intValue) are not considered their
+// overrides. So both are present in members, and the inherited ones are abstract even in non-abstract classes.
+// KOTLIN_REFLECT_DUMP_MISMATCH
+
 // FILE: Java1.java
 public abstract class Java1 extends Number { }
 
